@@ -4,12 +4,15 @@
   "type": "module",
   "workspaces": [
     "packages/breeze-cli",
-    "packages/breeze-mcp"
+    "packages/breeze-mcp",
+    "website"
   ],
   "scripts": {
     "build": "bun run --cwd packages/breeze-mcp build",
     "test": "bun test packages/breeze-mcp",
-    "typecheck": "bun run --cwd packages/breeze-mcp typecheck"
+    "typecheck": "bun run --cwd packages/breeze-mcp typecheck",
+    "site:build": "bun run --cwd website build",
+    "site:typecheck": "bun run --cwd website typecheck"
   },
   "devDependencies": {
     "@types/bun": "latest",

@@ -1,0 +1,10 @@
+{
+  "name": "breeze-ui-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build.ts --watch",
+    "build": "bun run build.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
