@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "utilities": [
+    {
+      "name": "row",
+      "description": "Lay children out horizontally with flexbox.",
+      "example": "breeze.Row(c)"
+    },
+    {
+      "name": "column",
+      "description": "Lay children out vertically with flexbox.",
+      "example": "breeze.Column(c)"
+    },
+    {
+      "name": "box",
+      "description": "Create a general purpose native container.",
+      "example": "breeze.Box(c)"
+    },
+    {
+      "name": "scroll",
+      "description": "Create a vertically scrollable container.",
+      "example": "breeze.Scroll(c)"
+    },
+    {
+      "name": "wrap",
+      "description": "Allow a row to wrap its children.",
+      "example": "breeze.Wrap(e)"
+    },
+    {
+      "name": "gap",
+      "description": "Set the gap between children in spacing units.",
+      "example": "breeze.Gap(4)"
+    },
+    {
+      "name": "padding",
+      "description": "Set inner spacing in theme spacing units.",
+      "example": "breeze.P(4)"
+    },
+    {
+      "name": "padding-x",
+      "description": "Set horizontal inner spacing.",
+      "example": "breeze.Px(4)"
+    },
+    {
+      "name": "padding-y",
+      "description": "Set vertical inner spacing.",
+      "example": "breeze.Py(4)"
+    },
+    {
+      "name": "margin",
+      "description": "Set outer spacing in theme spacing units.",
+      "example": "breeze.M(4)"
+    },
+    {
+      "name": "size",
+      "description": "Set a fixed width and height in DIPs.",
+      "example": "breeze.Size(240, 120)"
+    },
+    {
+      "name": "width",
+      "description": "Set a fixed width in DIPs.",
+      "example": "breeze.W(240)"
+    },
+    {
+      "name": "height",
+      "description": "Set a fixed height in DIPs.",
+      "example": "breeze.H(120)"
+    },
+    {
+      "name": "fill",
+      "description": "Make an element consume its parent’s available size.",
+      "example": "breeze.Fill(e)"
+    },
+    {
+      "name": "grow",
+      "description": "Give an element free space in its parent axis.",
+      "example": "breeze.Grow(1)"
+    },
+    {
+      "name": "shrink",
+      "description": "Set an element’s flex shrink factor.",
+      "example": "breeze.Shrink(0)"
+    },
+    {
+      "name": "items-center",
+      "description": "Center children across the cross axis.",
+      "example": "breeze.ItemsCenter"
+    },
+    {
+      "name": "items-start",
+      "description": "Align children at the start of the cross axis.",
+      "example": "breeze.ItemsStart"
+    },
+    {
+      "name": "items-end",
+      "description": "Align children at the end of the cross axis.",
+      "example": "breeze.ItemsEnd"
+    },
+    {
+      "name": "justify-center",
+      "description": "Center children along the main axis.",
+      "example": "breeze.JustifyCenter"
+    },
+    {
+      "name": "justify-between",
+      "description": "Distribute children with space between them.",
+      "example": "breeze.JustifyBetween"
+    },
+    {
+      "name": "justify-end",
+      "description": "Place children at the end of the main axis.",
+      "example": "breeze.JustifyEnd"
+    },
+    {
+      "name": "rounded",
+      "description": "Set corner radii using theme radius tokens.",
+      "example": "breeze.Rounded(breeze.RadiusLG)"
+    },
+    {
+      "name": "background",
+      "description": "Set a background color.",
+      "example": "breeze.Bg(theme.Surface)"
+    },
+    {
+      "name": "border",
+      "description": "Set a one-DIP border color.",
+      "example": "breeze.Border(theme.Border)"
+    },
+    {
+      "name": "border-width",
+      "description": "Set a border with an explicit width.",
+      "example": "breeze.BorderWidth(2, theme.Border)"
+    },
+    {
+      "name": "shadow-sm",
+      "description": "Apply a small surface shadow.",
+      "example": "breeze.ShadowSM(ui.RGBA(0, 0, 0, 0.08))"
+    },
+    {
+      "name": "alpha",
+      "description": "Set the opacity of an element and its descendants.",
+      "example": "breeze.Alpha(0.6)"
+    },
+    {
+      "name": "text-size",
+      "description": "Set text size from the type scale.",
+      "example": "breeze.TextSize(breeze.TextLG)"
+    },
+    {
+      "name": "font-weight",
+      "description": "Set the text weight.",
+      "example": "breeze.FontWeight(600)"
+    },
+    {
+      "name": "text-color",
+      "description": "Set the inherited text color.",
+      "example": "breeze.TextColor(theme.Text)"
+    },
+    {
+      "name": "muted",
+      "description": "Use the active theme’s muted text color.",
+      "example": "breeze.Muted(c)"
+    },
+    {
+      "name": "text",
+      "description": "Create a text element with typed styles.",
+      "example": "breeze.Text(c, \"Hello\", breeze.TextSize(breeze.TextLG))"
+    }
+  ],
+  "components": [
+    {
+      "name": "Button",
+      "category": "actions",
+      "description": "A themed push button with typed variants and sizes.",
+      "example": "breeze.Button(c, \"Save\", breeze.ButtonPrimary)"
+    },
+    {
+      "name": "Card",
+      "category": "layout",
+      "description": "A surface container for related content.",
+      "example": "breeze.Card(c, func() {})"
+    },
+    {
+      "name": "Input",
+      "category": "forms",
+      "description": "A themed single-line text input.",
+      "example": "breeze.Input(c, &name, \"Your name\")"
+    },
+    {
+      "name": "TextArea",
+      "category": "forms",
+      "description": "A themed multi-line text input.",
+      "example": "breeze.TextArea(c, &notes, \"Notes\")"
+    },
+    {
+      "name": "Checkbox",
+      "category": "forms",
+      "description": "An accessible labelled checkbox.",
+      "example": "breeze.Checkbox(c, &accepted, \"Accept terms\")"
+    },
+    {
+      "name": "Switch",
+      "category": "forms",
+      "description": "An accessible binary switch.",
+      "example": "breeze.Switch(c, &enabled)"
+    },
+    {
+      "name": "Select",
+      "category": "forms",
+      "description": "An accessible option selector.",
+      "example": "breeze.Select(c, &choice, []string{\"One\", \"Two\"})"
+    },
+    {
+      "name": "Badge",
+      "category": "feedback",
+      "description": "A compact status label with semantic variants.",
+      "example": "breeze.Badge(c, \"Ready\", breeze.BadgeSuccess)"
+    },
+    {
+      "name": "Progress",
+      "category": "feedback",
+      "description": "A themed progress indicator.",
+      "example": "breeze.Progress(c, 0.65)"
+    },
+    {
+      "name": "Tabs",
+      "category": "navigation",
+      "description": "Keyboard-friendly tabs with typed selection state.",
+      "example": "breeze.Tabs(c, &selected, \"Overview\", \"Activity\")"
+    },
+    {
+      "name": "Dialog",
+      "category": "overlays",
+      "description": "A modal dialog with title, body, and footer regions.",
+      "example": "breeze.Dialog(c, &open, \"Delete item\", body, footer)"
+    }
+  ],
+  "tokens": [
+    {
+      "name": "space-1",
+      "kind": "spacing",
+      "value": "4"
+    },
+    {
+      "name": "radius-none",
+      "kind": "radius",
+      "value": "0"
+    },
+    {
+      "name": "radius-sm",
+      "kind": "radius",
+      "value": "4"
+    },
+    {
+      "name": "radius-md",
+      "kind": "radius",
+      "value": "6"
+    },
+    {
+      "name": "radius-lg",
+      "kind": "radius",
+      "value": "10"
+    },
+    {
+      "name": "radius-xl",
+      "kind": "radius",
+      "value": "14"
+    },
+    {
+      "name": "radius-full",
+      "kind": "radius",
+      "value": "999"
+    },
+    {
+      "name": "text-xs",
+      "kind": "font-size",
+      "value": "11"
+    },
+    {
+      "name": "text-sm",
+      "kind": "font-size",
+      "value": "13"
+    },
+    {
+      "name": "text-base",
+      "kind": "font-size",
+      "value": "14"
+    },
+    {
+      "name": "text-lg",
+      "kind": "font-size",
+      "value": "18"
+    },
+    {
+      "name": "text-xl",
+      "kind": "font-size",
+      "value": "24"
+    },
+    {
+      "name": "text-2xl",
+      "kind": "font-size",
+      "value": "30"
+    }
+  ]
+}

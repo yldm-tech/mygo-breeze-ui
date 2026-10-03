@@ -1,0 +1,15 @@
+{
+  "name": "mygo-breeze-ui",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/breeze-cli", "packages/breeze-mcp"],
+  "scripts": {
+    "build": "bun run --cwd packages/breeze-mcp build",
+    "test": "bun test packages/breeze-mcp",
+    "typecheck": "bun run --cwd packages/breeze-mcp typecheck"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7"
+  }
+}

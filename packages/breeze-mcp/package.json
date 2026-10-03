@@ -1,0 +1,17 @@
+{
+  "name": "breeze-ui-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Breeze UI, a third-party native UI system for MyGo",
+  "keywords": ["mygo", "ui", "mcp", "tailwind"],
+  "repository": {"type": "git", "url": "git+https://github.com/yldm-tech/mygo-breeze-ui.git", "directory": "packages/breeze-mcp"},
+  "license": "MIT",
+  "type": "module",
+  "bin": {"breeze-ui-mcp": "bin/breeze-ui-mcp.js"},
+  "files": ["bin", "src", "catalog.json", "README.md"],
+  "scripts": {"build": "bun build.ts", "dev": "bun src/index.ts", "test": "bun test", "typecheck": "tsc --noEmit"},
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "zod": "^3.25.0"
+  },
+  "engines": {"node": ">=18"}
+}
