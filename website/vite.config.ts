@@ -1,4 +1,4 @@
-import { copyFile } from "node:fs/promises";
+import { copyFile, mkdir } from "node:fs/promises";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import react from "@vitejs/plugin-react";
 
@@ -6,6 +6,8 @@ const githubPagesFallback = () => ({
   name: "github-pages-fallback",
   closeBundle: async () => {
     await copyFile("dist/index.html", "dist/404.html");
+    await mkdir("dist/api", { recursive: true });
+    await copyFile("dist/index.html", "dist/api/index.html");
   },
 });
 
