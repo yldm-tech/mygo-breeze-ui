@@ -7,16 +7,16 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-Breeze UI is a Tailwind-inspired typed design system for [MyGo](https://github.com/egoist/mygo)'s native UI. It provides Go utility styles, design tokens, accessible components, a CLI, and an MCP catalog without HTML, CSS, or JavaScript at runtime.
+Breeze UI 是面向 [MyGo](https://github.com/egoist/mygo) 原生 UI 的 Tailwind 风格类型化设计系统。它提供 Go 工具样式、设计令牌、原生组件、CLI 和 MCP 目录服务，运行时不需要 HTML、CSS 或 JavaScript。
 
-## What is included
+## 包含内容
 
-- Typed utility styles for layout, spacing, sizing, color, typography, borders, and shadows.
-- Native components such as buttons, cards, fields, badges, progress bars, tabs, and dialogs.
-- `breeze-ui`, a CLI for discovering the catalog and generating Go snippets.
-- `breeze-ui-mcp`, a read-only MCP server for catalog search and snippet generation.
+- 覆盖布局、间距、尺寸、颜色、排版、边框和阴影的类型化工具样式。
+- Button、Card、Input、Badge、Progress、Tabs、Dialog 等原生组件。
+- `breeze-ui` CLI，用于浏览目录和生成 Go 代码片段。
+- `breeze-ui-mcp` 只读 MCP 服务，用于搜索目录和生成代码片段。
 
-## Go package
+## Go 包
 
 ```sh
 go get github.com/yldm-tech/mygo-breeze-ui
@@ -30,16 +30,16 @@ import (
 
 func view(c *ui.Context) {
     breeze.Card(c, func() {
-        breeze.Text(c, "Account", breeze.TextSize(breeze.TextLG), breeze.FontWeight(600))
-        breeze.Input(c, &name, "Your name")
-        if breeze.Button(c, "Save", breeze.ButtonPrimary).Clicked() {
+        breeze.Text(c, "账户", breeze.TextSize(breeze.TextLG), breeze.FontWeight(600))
+        breeze.Input(c, &name, "你的名字")
+        if breeze.Button(c, "保存", breeze.ButtonPrimary).Clicked() {
             saved = true
         }
     })
 }
 ```
 
-The native renderer comes from the MyGo dependency; Breeze UI adds the Tailwind-style vocabulary and components on top of it.
+原生渲染器由 MyGo 依赖提供，Breeze UI 在其上增加 Tailwind 风格的设计词汇和组件。
 
 ## CLI
 
@@ -49,22 +49,22 @@ npx breeze-ui list -kind component
 npx breeze-ui add Button -o ui/button_snippet.go
 ```
 
-Or install the Go command:
+也可以直接安装 Go 命令：
 
 ```sh
 go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest
 ```
 
-## MCP server
+## MCP 服务
 
 ```sh
 bun install
 bun run build
 ```
 
-The `breeze-ui-mcp` package exposes read-only tools for searching components, utilities, tokens, and generated snippets.
+`breeze-ui-mcp` 提供只读工具，用于搜索组件、工具样式、设计令牌并生成代码片段。
 
-## Development
+## 开发
 
 ```sh
 go test ./...
@@ -78,6 +78,6 @@ bun run build
 
 [![Star History Chart](https://api.star-history.com/svg?repos=yldm-tech/mygo-breeze-ui&type=Date)](https://star-history.com/#yldm-tech/mygo-breeze-ui&Date)
 
-## License
+## 许可证
 
 [MIT](LICENSE)
