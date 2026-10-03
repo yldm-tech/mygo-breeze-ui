@@ -1,12 +1,30 @@
 {
   "name": "mygo-breeze-ui",
   "private": true,
-  "type": "module",
+  "description": "Tailwind-inspired typed native UI components, utilities, CLI, and MCP tools for MyGo",
+  "keywords": [
+    "breeze-ui",
+    "golang",
+    "mcp",
+    "mygo",
+    "native-ui",
+    "tailwind"
+  ],
+  "homepage": "https://github.com/yldm-tech/mygo-breeze-ui#readme",
+  "bugs": {
+    "url": "https://github.com/yldm-tech/mygo-breeze-ui/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yldm-tech/mygo-breeze-ui.git"
+  },
   "workspaces": [
     "packages/breeze-cli",
     "packages/breeze-mcp",
     "website"
   ],
+  "type": "module",
   "scripts": {
     "build": "bun run --cwd packages/breeze-mcp build",
     "test": "bun test packages/breeze-mcp",
@@ -16,24 +34,22 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "^7"
+    "typescript": "^7",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   },
-  "description": "Tailwind-inspired typed native UI components, utilities, CLI, and MCP tools for MyGo",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yldm-tech/mygo-breeze-ui.git"
+  "overrides": {
+    "vite": "catalog:"
   },
-  "homepage": "https://github.com/yldm-tech/mygo-breeze-ui#readme",
-  "bugs": {
-    "url": "https://github.com/yldm-tech/mygo-breeze-ui/issues"
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.2",
+      "onFail": "download"
+    }
   },
-  "keywords": [
-    "mygo",
-    "breeze-ui",
-    "native-ui",
-    "tailwind",
-    "golang",
-    "mcp"
-  ]
+  "catalog": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+    "vite-plus": "1.0.0"
+  }
 }

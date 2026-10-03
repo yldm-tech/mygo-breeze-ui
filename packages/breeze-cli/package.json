@@ -2,11 +2,27 @@
   "name": "breeze-ui-cli",
   "version": "0.1.0",
   "description": "CLI for Breeze UI, a third-party native UI system for MyGo",
-  "keywords": ["mygo", "ui", "tailwind", "cli"],
-  "repository": {"type": "git", "url": "git+https://github.com/yldm-tech/mygo-breeze-ui.git", "directory": "packages/breeze-cli"},
+  "keywords": [
+    "cli",
+    "mygo",
+    "tailwind",
+    "ui"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yldm-tech/mygo-breeze-ui.git",
+    "directory": "packages/breeze-cli"
+  },
+  "bin": {
+    "breeze-ui": "bin/breeze-ui.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
   "type": "module",
-  "bin": {"breeze-ui": "bin/breeze-ui.js"},
-  "files": ["bin", "README.md"],
-  "engines": {"node": ">=18"}
+  "engines": {
+    "node": ">=18"
+  }
 }
