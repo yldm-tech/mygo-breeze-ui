@@ -78,7 +78,7 @@ export function Hero() {
         transition={{ duration: 0.75, delay: 0.12 }}
       >
         <CodeWindow />
-        <div className="absolute top-[34px] right-[-28px] flex items-center gap-2 rounded-[7px] border border-[#345264] bg-[rgba(17,35,55,0.9)] px-[11px] py-[9px] font-mono text-[9px] text-muted shadow-[0_14px_35px_rgba(0,0,0,0.25)] backdrop-blur-xl max-[940px]:right-[-5px] max-[680px]:hidden">
+        <div className="absolute top-[34px] right-0 flex items-center gap-2 rounded-[7px] border border-[#345264] bg-[rgba(17,35,55,0.9)] px-[11px] py-[9px] font-mono text-[9px] text-muted shadow-[0_14px_35px_rgba(0,0,0,0.25)] backdrop-blur-xl max-[940px]:right-[-5px] max-[680px]:hidden">
           <Sparkles size={16} />
           <span>typed · composable · native</span>
         </div>
