@@ -7,6 +7,8 @@
 
 [Website](https://yldm-tech.github.io/mygo-breeze-ui/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
+The website includes a live [catalog API reference](https://yldm-tech.github.io/mygo-breeze-ui/api/).
+
 Breeze UI is a Tailwind-inspired typed design system for [MyGo](https://github.com/egoist/mygo)'s native UI. It provides Go utility styles, design tokens, accessible components, a CLI, and an MCP catalog without HTML, CSS, or JavaScript at runtime.
 
 ## What is included

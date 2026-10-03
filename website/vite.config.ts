@@ -1,6 +1,7 @@
 import { copyFile, mkdir } from "node:fs/promises";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 const githubPagesFallback = () => ({
   name: "github-pages-fallback",
@@ -13,6 +14,6 @@ const githubPagesFallback = () => ({
 
 export default defineConfig({
   base: "/mygo-breeze-ui/",
-  plugins: lazyPlugins(() => [react(), githubPagesFallback()]),
+  plugins: lazyPlugins(() => [react(), tailwindcss(), githubPagesFallback()]),
   server: { port: 4173 },
 });

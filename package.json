@@ -30,7 +30,8 @@
     "test": "bun test packages/breeze-mcp",
     "typecheck": "bun run --cwd packages/breeze-mcp typecheck",
     "site:build": "bun run --cwd website build",
-    "site:typecheck": "bun run --cwd website typecheck"
+    "site:typecheck": "bun run --cwd website typecheck",
+    "site:test": "bun run --cwd website test"
   },
   "devDependencies": {
     "@types/bun": "latest",

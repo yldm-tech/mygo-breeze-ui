@@ -7,6 +7,8 @@
 
 [官网](https://yldm-tech.github.io/mygo-breeze-ui/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
+官网提供[目录 API 文档](https://yldm-tech.github.io/mygo-breeze-ui/api/)，展示版本化的只读目录接口。
+
 Breeze UI 是面向 [MyGo](https://github.com/egoist/mygo) 原生 UI 的 Tailwind 风格类型化设计系统。它提供 Go 工具样式、设计令牌、原生组件、CLI 和 MCP 目录服务，运行时不需要 HTML、CSS 或 JavaScript。
 
 ## 包含内容
