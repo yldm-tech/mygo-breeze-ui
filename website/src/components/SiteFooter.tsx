@@ -14,7 +14,7 @@ export function SiteFooter() {
           breeze<span className="brand-dot">.</span>ui
         </span>
       </Link>
-      <span>{t.footer} · MIT License</span>
+      <span>{t.footer} · MIT License · ai-logo icons</span>
       <a href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">
         <GitBranch size={14} /> {t.source}
       </a>

@@ -7,6 +7,7 @@ import { CatalogSection } from "../components/CatalogSection";
 import { InstallSection } from "../components/InstallSection";
 import { ApiOverview } from "../components/ApiOverview";
 import { StarCard } from "../components/StarCard";
+import { AiStack } from "../components/AiStack";
 
 export const HomeRoute = createRoute({
   getParentRoute: () => RootRoute,
@@ -41,6 +42,7 @@ function HomePage() {
         </div>
       </motion.section>
       <FeatureGrid />
+      <AiStack />
       <CatalogSection />
       <ApiOverview />
       <InstallSection />
