@@ -47,3 +47,28 @@ func TestInitIsIdempotentUnlessForced(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestListPlatformsAndLooks(t *testing.T) {
+	var out bytes.Buffer
+	if err := run([]string{"list", "-kind", "platform"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"platform\tmacOS\tmacOS 26+", "platform\tWindows\tWindows 11", "platform\tLinux\tGNOME 48"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("list -kind platform = %q, missing %q", out.String(), want)
+		}
+	}
+	out.Reset()
+	if err := run([]string{"list"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "component\tSwitch\tdrawn") || !strings.Contains(out.String(), "component\tSelect\tthemed") {
+		t.Fatalf("list = %q", out.String())
+	}
+}
+
+func TestTokensCommandIsGone(t *testing.T) {
+	if err := run([]string{"tokens"}, &bytes.Buffer{}); err == nil {
+		t.Fatal("tokens is no longer a command")
+	}
+}
