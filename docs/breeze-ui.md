@@ -50,22 +50,29 @@ go run ./examples/breeze-ui
 | `TextInput` | bezeled field, 26 high, focus ring around it | TextBox, accent line along the bottom while focused | filled entry, 34 high, inner focus ring |
 | `TextArea` | text view in a bezel border | TextBox | text view in a frame |
 | `SearchField` | capsule search field | AutoSuggestBox | search entry |
+| `Combobox` | bezeled field around MyGo's list | TextBox around MyGo's list | entry around MyGo's list |
 | `Select` | pop-up button and menu with a check mark | ComboBox, accent pill on the chosen item | drop-down and popover with a check mark |
 | `Slider` | 6-point track, 20 by 16 capsule knob | 4-pixel track, thumb with an accent dot | 4-pixel trough, 20-pixel slider |
 | `Progress` | 8-point bar | 3-pixel bar over a 1-pixel line | 8-pixel bar |
 | `Spinner` | 8 spokes, 32 points | ProgressRing, 32 pixels | AdwSpinner, 16 pixels |
 | `Segmented` | NSSegmentedControl | SelectorBar | AdwToggleGroup |
 | `Tabs` | tab view, drawn as a segmented control | SelectorBar | notebook tabs with the accent line |
+| `Modal` | sheet with a window's shadow, the window behind not dimmed | ContentDialog over the smoke layer | floating AdwDialog over the dimmed window |
+| `AlertDialog` | NSAlert: 260 points, centered text, capsule buttons, the default last | ContentDialog: title and message above a command area, the default first | AdwAlertDialog: title-2 heading, 44-pixel buttons, the default last |
 
 These are drawn by Breeze UI. Their sizes and colors come from the platforms themselves:
 
 - **macOS:** AppKit's semantic colors (`NSColor`) resolved on macOS 27, and AppKit's own controls rendered at 2x by [`tools/appkit-reference/reference.swift`](../tools/appkit-reference/reference.swift), which writes them as PNGs and prints the gray values across each control. A push button's face is `secondarySystemFill`; an unchecked box, a radio button and an off switch are `systemFill`. Run `BREEZE_SCREENSHOTS=<dir> go test ./ui/breeze -run TestScreenshots` for Breeze UI's controls in the same places.
-- **Windows 11:** the theme resources of WinUI 3 (`microsoft/microsoft-ui-xaml`): `Common_themeresources_any.xaml` and the theme resources of Button, ToggleButton, CheckBox, RadioButton, ToggleSwitch, TextBox, ComboBox, Slider, ProgressBar, ProgressRing and SelectorBar.
-- **GNOME:** the libadwaita 1.7 stylesheet (GNOME 48), and the C code of libadwaita and GTK where the stylesheet leaves a value to them: the accent, the switch's and the scale's sizes, the drop-down's check mark and the spinner's arc.
+- **Windows 11:** the theme resources of WinUI 3 (`microsoft/microsoft-ui-xaml`): `Common_themeresources_any.xaml` and the theme resources of Button, ToggleButton, CheckBox, RadioButton, ToggleSwitch, TextBox, ComboBox, Slider, ProgressBar, ProgressRing, SelectorBar, ContentDialog and ToolTip; the dialog's shadow from `DropShadowRecipe.h`.
+- **GNOME:** the libadwaita 1.7 stylesheet (GNOME 48), and the C code of libadwaita and GTK where the stylesheet leaves a value to them: the accent, the switch's and the scale's sizes, the drop-down's check mark, the spinner's arc and the alert's width.
 
 The pointer, the keyboard, the focus and accessibility are MyGo's. The buttons, choices, slider, segments and tabs are built on MyGo's bases without a look (`ui.ButtonBase`, `ui.ToggleBase`, `ui.CheckboxBase`, `ui.RadioBase`, `ui.SwitchBase`, `ui.SelectBase`, `ui.SliderBase`, `ui.SegmentedBase`, `ui.TabsBase`), so screen readers, Tab, Space and the arrows work as they do for `ui`'s widgets. The text fields are `ui`'s own, with the box around their text drawn by the platform, so editing, input methods, the search field's clear button and Escape are MyGo's. `Disabled(true)` grays a widget out: MyGo draws disabled elements at half opacity, which is how AppKit and libadwaita draw them. WinUI has disabled colors of its own instead (a lighter fill and `TextFillColorDisabled`), which Breeze UI does not draw yet; half opacity comes close to them.
 
-The other widgets under `ui`'s names (`Link`, `Divider`, `Badge`, `MenuButton`, `PopoverMenuButton`, `Combobox`, `NumberInput`, `Stepper`, `Field`, `RadioGroup`, `ToggleGroup`, `Modal`, `AlertDialog`, `Popover`, `Table`, `Tree`, `TreeItem`) are package `ui`'s. They take the platform's colors, corner radius and font size from `Use`, but keep MyGo's shapes. `MenuButton`'s menu is the system's own, native on every platform. `breeze-ui list` shows which widgets are drawn and which are themed.
+The alerts keep `ui.AlertDialog`'s contract: the last button is the default, which has the focus and which Enter clicks, Escape returns `ui.AlertDismissed`, and the index returned names the same button on every platform, though Windows places the default first.
+
+The other widgets under `ui`'s names (`Link`, `Divider`, `Badge`, `MenuButton`, `PopoverMenuButton`, `NumberInput`, `Stepper`, `Field`, `RadioGroup`, `ToggleGroup`, `Popover`, `Table`, `Tree`, `TreeItem`) are package `ui`'s. They take the platform's colors, corner radius and font size from `Use`, but keep MyGo's shapes. `MenuButton`'s menu is the system's own, native on every platform. `NumberInput` and `Stepper` stay MyGo's because their field and buttons are built inside them, out of reach of a style applied to what they return. `breeze-ui list` shows which widgets are drawn and which are themed.
+
+Tooltips (`Tooltip` on any element) take their colors from the theme: on Windows the ToolTip's light or dark acrylic fallback with the text color, on GNOME libadwaita's tooltip, the shade at 80% with white text. On macOS they keep MyGo's own look, which is not measured from AppKit's.
 
 ## Platforms
 
@@ -101,5 +108,6 @@ Like MyGo's default theme it follows the desktop's preferences:
 - **What AppKit would not render offscreen.** The reference tool renders AppKit's controls in an inactive window, so the chosen segment of a segmented control is measured in its inactive gray, which Breeze UI draws; an active window may draw it differently. Menus are not rendered offscreen at all: the pop-up button's menu (its corners, padding and shadow) is drawn to resemble macOS's, not measured.
 - **Sizes.** The platforms' controls differ in size: a macOS push button is 24 points high, Windows's 32 and GNOME's 34, and a GNOME scale is 44 pixels high with its padding. The same layout is denser on a Mac; size elements around the widgets from the content rather than with fixed heights.
 - **Windows and GNOME fidelity.** The macOS look is compared with AppKit's rendering pixel by pixel. The Windows and GNOME looks follow the values of WinUI and libadwaita's sources but have not been compared with screenshots of those systems yet. Some values are inferred rather than read: the padding of an accent button and the line height of 14-pixel text on Windows, the shape of the ProgressRing's and the indeterminate ProgressBar's motion (Lottie animations and code in WinUI), and the ComboBox's item height.
+- **Dialogs.** An alert shows no icon: NSAlert shows the app's icon above its title, which a view cannot reach. GNOME's alert stacks its buttons when they do not fit side by side; Breeze UI keeps them in a row. On macOS the corner radius and the alert's colors are measured from NSAlert's window; the hairline around a dialog and its shadow are drawn to resemble AppKit's, not measured.
 - **Errors on text fields.** The platforms' text fields draw their own borders and focus, so a field's `Error` does not turn its border red as `ui`'s fields do.
 - **Icons and fonts.** Breeze UI ships no SF Symbols, Segoe Fluent Icons or Adwaita icons: check marks, chevrons and arrows are drawn as paths, and the search field's magnifying glass is MyGo's. Text uses the system's font (`Font: ""`).
