@@ -62,7 +62,7 @@ func TestListPlatformsAndLooks(t *testing.T) {
 	if err := run([]string{"list"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "component\tSwitch\tdrawn") || !strings.Contains(out.String(), "component\tSelect\tthemed") {
+	if !strings.Contains(out.String(), "component\tSwitch\tdrawn") || !strings.Contains(out.String(), "component\tLink\tthemed") {
 		t.Fatalf("list = %q", out.String())
 	}
 }
