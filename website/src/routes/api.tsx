@@ -40,8 +40,8 @@ function ApiPage() {
           </h1>
           <p className="max-w-[680px] text-[15px] text-muted">
             {locale === "zh"
-              ? "用一套稳定、可预测的目录接口，把设计系统接入你的工具和工作流。"
-              : "A stable, predictable catalog interface for connecting the design system to your tools and workflows."}
+              ? "用一套稳定、可预测的目录接口，把组件和平台目录接入你的工具和工作流。"
+              : "A stable, predictable catalog interface for connecting the components and platforms to your tools and workflows."}
           </p>
           <div className="mt-6 flex flex-wrap gap-4 font-mono text-[10px] text-muted">
             <span className="inline-flex items-center gap-1.5">

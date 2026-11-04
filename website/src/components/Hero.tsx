@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { getCatalog } from "../lib/catalog";
+import { catalogCounts, getCatalog } from "../lib/catalog";
 import { useUiStore } from "../store";
 import { useCopy } from "../copy";
 import { CodeWindow } from "./CodeWindow";
@@ -11,8 +11,9 @@ export function Hero() {
   const { locale } = useUiStore();
   const t = useCopy(locale);
   const { data } = useQuery({ queryKey: ["catalog"], queryFn: getCatalog });
-  const components = data?.components.length ?? 11;
-  const utilities = data?.utilities.length ?? 33;
+  const components = data?.components.length ?? catalogCounts.components;
+  const platforms = data?.platforms.length ?? catalogCounts.platforms;
+  const drawn = data?.components.filter((item) => item.look === "drawn").length ?? catalogCounts.drawn;
   return (
     <section className="mx-auto grid min-h-[650px] w-[calc(100%-48px)] max-w-[1160px] grid-cols-[1.02fr_0.98fr] items-center gap-[66px] py-[68px] pb-[98px] max-[940px]:grid-cols-1 max-[940px]:gap-[45px] max-[680px]:min-h-0 max-[680px]:w-[calc(100%-34px)] max-[680px]:py-[55px] max-[680px]:pb-[73px]">
       <motion.div
@@ -57,16 +58,18 @@ export function Hero() {
           </div>
           <div className="flex flex-col gap-0.5">
             <strong className="text-[21px] tracking-[-0.05em] max-[680px]:text-[18px]">
-              {utilities}
+              {platforms}
             </strong>
             <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
-              {t.utilities}
+              {t.platforms}
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <strong className="text-[21px] tracking-[-0.05em] max-[680px]:text-[18px]">0</strong>
+            <strong className="text-[21px] tracking-[-0.05em] max-[680px]:text-[18px]">
+              {drawn}
+            </strong>
             <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
-              {t.dependencies}
+              {t.drawn}
             </span>
           </div>
         </div>
@@ -80,13 +83,13 @@ export function Hero() {
         <CodeWindow />
         <div className="absolute top-[34px] right-0 flex items-center gap-2 rounded-[7px] border border-[#345264] bg-[rgba(17,35,55,0.9)] px-[11px] py-[9px] font-mono text-[9px] text-muted shadow-[0_14px_35px_rgba(0,0,0,0.25)] backdrop-blur-xl max-[940px]:right-[-5px] max-[680px]:hidden">
           <Sparkles size={16} />
-          <span>typed · composable · native</span>
+          <span>macOS · Windows 11 · GNOME</span>
         </div>
         <div className="absolute bottom-12 left-[-31px] flex items-center gap-2 rounded-[7px] border border-[#345264] bg-[rgba(17,35,55,0.9)] px-[11px] py-[9px] font-mono text-[9px] text-muted shadow-[0_14px_35px_rgba(0,0,0,0.25)] backdrop-blur-xl max-[940px]:left-[-5px] max-[680px]:hidden">
           <span className="grid size-4 place-items-center rounded-full bg-mint text-[10px] text-bg">
             ✓
           </span>
-          <span>no DOM required</span>
+          <span>same names as package ui</span>
         </div>
       </motion.div>
     </section>

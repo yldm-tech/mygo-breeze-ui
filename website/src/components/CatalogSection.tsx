@@ -1,17 +1,20 @@
 import { motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
-import { getCatalog, type CatalogItem } from "../lib/catalog";
+import { catalogEntries, getCatalog, type CatalogEntry, type CatalogKind } from "../lib/catalog";
 import { useUiStore, type CatalogFilter } from "../store";
 import { useCopy } from "../copy";
 
-const filterMap: Record<CatalogFilter, "all" | "component" | "utility" | "token"> = {
+const filterMap: Record<CatalogFilter, "all" | CatalogKind> = {
   all: "all",
   components: "component",
-  utilities: "utility",
-  tokens: "token",
+  platforms: "platform",
 };
-function itemKind(item: CatalogItem, kind: string) {
-  return item.kind ?? kind;
+const filterLabel = { all: "all", components: "component", platforms: "platform" } as const;
+
+// The small label above a card: a component's look, or the platform version a platform follows.
+function itemLabel(item: CatalogEntry) {
+  if (item.kind === "component") return item.look ? `component · ${item.look}` : "component";
+  return item.value ? `platform · ${item.value}` : "platform";
 }
 
 export function CatalogSection() {
@@ -19,20 +22,9 @@ export function CatalogSection() {
   const t = useCopy(locale);
   const { data, isLoading } = useQuery({ queryKey: ["catalog"], queryFn: getCatalog });
   const selected = filterMap[filter];
-  const groups = data
-    ? (
-        [
-          ["component", data.components],
-          ["utility", data.utilities],
-          ["token", data.tokens],
-        ] as const
-      ).filter(([kind]) => selected === "all" || selected === kind)
+  const items = data
+    ? catalogEntries(data).filter((item) => selected === "all" || selected === item.kind)
     : [];
-  const items = groups.flatMap(([kind, entries]) =>
-    entries
-      .slice(0, kind === "token" ? 8 : 12)
-      .map((item) => ({ ...item, kind: itemKind(item, kind) })),
-  );
   return (
     <section
       className="border-t border-line bg-[rgba(9,22,36,0.72)] px-0 py-[92px] pb-[105px] max-[680px]:py-[70px] max-[680px]:pb-20"
@@ -50,23 +42,13 @@ export function CatalogSection() {
             <p className="m-0 text-[13px] text-muted">{t.catalogText}</p>
           </div>
           <div className="flex shrink-0 gap-1.5 max-[680px]:mt-[22px] max-[680px]:overflow-auto max-[680px]:pb-0.5">
-            {(["all", "components", "utilities", "tokens"] as const).map((value) => (
+            {(["all", "components", "platforms"] as const).map((value) => (
               <button
                 key={value}
                 className={`rounded-full border px-3 py-[7px] text-[10px] transition ${filter === value ? "border-mint bg-mint text-bg" : "border-line bg-transparent text-muted hover:border-muted"}`}
                 onClick={() => setFilter(value)}
               >
-                {
-                  t[
-                    value === "all"
-                      ? "all"
-                      : value === "components"
-                        ? "component"
-                        : value === "utilities"
-                          ? "utility"
-                          : "token"
-                  ]
-                }
+                {t[filterLabel[value]]}
               </button>
             ))}
           </div>
@@ -85,11 +67,11 @@ export function CatalogSection() {
                 transition={{ delay: Math.min(index * 0.025, 0.25) }}
               >
                 <div className="mb-[19px] font-mono text-[8px] uppercase tracking-[0.08em] text-mint max-[680px]:mb-[15px]">
-                  {item.kind}
+                  {itemLabel(item)}
                 </div>
                 <h3 className="mb-2 text-base tracking-[-0.025em]">{item.name}</h3>
                 <p className="m-0 text-xs leading-[1.75] text-muted max-[680px]:text-[9px]">
-                  {item.description ?? item.value}
+                  {item.description}
                 </p>
                 {item.example && (
                   <code className="mt-2 block max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[9px] text-dim">

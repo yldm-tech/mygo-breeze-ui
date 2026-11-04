@@ -8,6 +8,8 @@ import { InstallSection } from "../components/InstallSection";
 import { ApiOverview } from "../components/ApiOverview";
 import { StarCard } from "../components/StarCard";
 import { AiStack } from "../components/AiStack";
+import { useUiStore } from "../store";
+import { useCopy } from "../copy";
 
 export const HomeRoute = createRoute({
   getParentRoute: () => RootRoute,
@@ -15,6 +17,8 @@ export const HomeRoute = createRoute({
   component: HomePage,
 });
 function HomePage() {
+  const { locale } = useUiStore();
+  const t = useCopy(locale);
   return (
     <main>
       <Hero />
@@ -28,22 +32,17 @@ function HomePage() {
           <div>
             <span className="mb-[15px] block font-mono text-[10px] text-mint">01</span>
             <h2 className="mb-3.5 max-w-[430px] text-[clamp(29px,3.5vw,44px)] leading-[1.1] tracking-[-0.065em]">
-              A calm layer over native UI
+              {t.calmTitle}
             </h2>
-            <p className="m-0 max-w-[500px] text-[13px] text-muted">
-              Keep the speed and control of native rendering while giving your team a consistent
-              design language.
-            </p>
+            <p className="m-0 max-w-[500px] text-[13px] text-muted">{t.calmText}</p>
           </div>
           <div className="h-20 bg-line max-[680px]:hidden" />
           <div className="relative pl-2.5 max-[680px]:mt-[47px] max-[680px]:pl-[21px]">
             <span className="absolute top-[-29px] left-[-22px] font-serif text-[75px] leading-none text-mint">
               “
             </span>
-            <p className="mb-3 text-base leading-[1.5] text-ink">
-              Design tokens should make the right thing easy.
-            </p>
-            <small className="font-mono text-[9px] text-dim">— Breeze UI principles</small>
+            <p className="mb-3 text-base leading-[1.5] text-ink">{t.principle}</p>
+            <small className="font-mono text-[9px] text-dim">{t.principleSource}</small>
           </div>
         </div>
       </motion.section>

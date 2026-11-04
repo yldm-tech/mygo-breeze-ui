@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type Locale = "en" | "zh";
-export type CatalogFilter = "all" | "components" | "utilities" | "tokens";
+export type CatalogFilter = "all" | "components" | "platforms";
 
 type UiState = {
   locale: Locale;

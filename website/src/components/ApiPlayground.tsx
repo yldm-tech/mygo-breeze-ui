@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { apiRequestSchema } from "../lib/api";
+import { apiRequestSchema, type ApiRequest } from "../lib/api";
 import { useUiStore } from "../store";
 import { useCopy } from "../copy";
 
@@ -9,7 +9,7 @@ export function ApiPlayground() {
   const t = useCopy(locale);
   const [result, setResult] = useState("");
   const form = useForm({
-    defaultValues: { query: "", kind: "all" as "all" | "component" | "utility" | "token" },
+    defaultValues: { query: "", kind: "all" as ApiRequest["kind"] },
     validators: {
       onChange: ({ value }) => {
         const parsed = apiRequestSchema.safeParse(value);
@@ -53,8 +53,7 @@ export function ApiPlayground() {
             >
               <option value="all">{t.all}</option>
               <option value="component">{t.component}</option>
-              <option value="utility">{t.utility}</option>
-              <option value="token">{t.token}</option>
+              <option value="platform">{t.platform}</option>
             </select>
           )}
         </form.Field>
