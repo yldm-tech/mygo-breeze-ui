@@ -52,6 +52,8 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.Focus = pick(dark, accent.Mix(black, 0.2), accent.Mix(white, 0.45)).Alpha(0.5)
 	}
 	t.Selection = accent.Alpha(pick(dark, float32(0.25), 0.4))
+	// tooltip.background: the shade at 80% with white text, in light and dark.
+	t.Inverse, t.InverseText = ui.RGBA(0, 0, 6, 0.8), white
 	return t
 }
 
@@ -406,4 +408,58 @@ func adwTab(c *ui.Context, tab ui.Element, chosen bool) {
 		}
 		tab.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 4, W: r.W, H: 4}, line, 0) })
 	}
+}
+
+// ---- dialogs: AdwDialog and AdwAlertDialog ----
+
+// adwSheetShadow casts floating-sheet > sheet's shadows, the same in light and dark.
+func adwSheetShadow(panel ui.Element) {
+	panel.Shadow(0, 2, 8, 2, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 3, 20, 10, ui.RGBA(0, 0, 6, 0.05)).
+		Shadow(0, 6, 32, 16, ui.RGBA(0, 0, 6, 0.02)).Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 6, 0.05))
+}
+
+// adwDimming fills the window behind a dialog with the shade color at twice its alpha: 14% in light, 50% in dark.
+func adwDimming(t *ui.Theme, back ui.Element) {
+	back.Background(ui.RGBA(0, 0, 6, pick(t.Dark, float32(0.14), 0.5)))
+}
+
+// adwDialog draws a floating AdwDialog: window_bg_color, corners of 15, a hairline inside its edge and the sheet's shadows, over the dimmed window.
+func adwDialog(c *ui.Context, back, panel ui.Element) {
+	t := c.Theme()
+	adwDimming(t, back)
+	panel.Padding(24).Gap(12).Radius(15).Background(t.Background).Border(1, t.Background.Mix(white, 0.07))
+	adwSheetShadow(panel)
+}
+
+// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide; the heading in .title-2 (weight 800, 136%) and the body 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, equal widths 12 apart, 44 pixels high with corners of 12, in the order they were added, so the default comes last.
+func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
+	t := c.Theme()
+	adwDimming(t, back)
+	bg := pick(t.Dark, ui.Hex("#fafafb"), ui.Hex("#36363a"))
+	panel.MinWidth(300).MaxWidth(372).Radius(18).Background(bg).AlignItems(ui.Stretch)
+	adwSheetShadow(panel)
+	panel.Children(func() {
+		ui.Column(c).Padding(32, 24, 9, 24).Gap(10).AlignItems(ui.Stretch).Children(func() {
+			ui.Text(c, title).FontSize(t.FontSize * 1.36).FontWeight(800).TextAlign(ui.Center)
+			if message != "" {
+				ui.Text(c, message).TextAlign(ui.Center)
+			}
+		})
+		ui.Row(c).Padding(12, 24, 24, 24).Gap(12).Children(func() {
+			for i := range n {
+				b := button(i).MinHeight(44).Padding(10, 20).Radius(12).Grow(1).Basis(0)
+				if i < n-1 {
+					// currentColor at 10%, 15% and 30%, over the alert's own background rather than the window's.
+					share := float32(0.10)
+					switch {
+					case b.Pressed():
+						share = 0.30
+					case b.Hovered():
+						share = 0.15
+					}
+					b.Background(adwInkAlpha(t, bg, share))
+				}
+			}
+		})
+	})
 }

@@ -197,3 +197,59 @@ func TestMoreWidgetsKeepTheirBehavior(t *testing.T) {
 		}
 	}
 }
+
+// TestDialogsKeepTheirBehavior checks the alerts and dialogs on every platform: a click returns its button's index whatever the order the platform places the buttons in, Enter clicks the default, Escape dismisses, and a modal closes on Escape.
+func TestDialogsKeepTheirBehavior(t *testing.T) {
+	for _, p := range Platforms {
+		for _, tc := range []struct {
+			name string
+			act  func(tester *ui.Tester)
+			want int
+		}{
+			{"click Cancel", func(tester *ui.Tester) { _ = tester.Click("Cancel") }, 0},
+			{"click Delete", func(tester *ui.Tester) { _ = tester.Click("Delete") }, 1},
+			{"Enter", func(tester *ui.Tester) { tester.Key(0, ui.KeyEnter) }, 1},
+			{"Escape", func(tester *ui.Tester) { tester.Key(0, ui.KeyEscape) }, ui.AlertDismissed},
+		} {
+			open, got := true, -1
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					if r := AlertDialog(c, &open, "Delete Notes?", "You can't undo this.", "Cancel", "Delete"); r != -1 {
+						got = r
+					}
+				})
+			}, 600, 400)
+			tester.Frame()
+			if !tester.HasText("Delete Notes?") || !tester.HasText("You can't undo this.") {
+				t.Fatalf("%v: the alert's text is missing", p)
+			}
+			tc.act(tester)
+			tester.Frame()
+			if got != tc.want || open {
+				t.Fatalf("%v %s: got %d, open %v; want %d, closed", p, tc.name, got, open, tc.want)
+			}
+		}
+		open, font := true, ""
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Modal(c, &open, func() { Combobox(c, &font, []string{"Serif", "Sans"}).Label("Font") })
+			})
+		}, 600, 400)
+		tester.Frame()
+		r, ok := tester.Find("Font")
+		if !ok {
+			t.Fatalf("%v: the modal's combobox is missing", p)
+		}
+		tester.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+		tester.Frame()
+		tester.Type("Mono")
+		tester.Frame()
+		tester.Key(0, ui.KeyEscape)
+		tester.Frame()
+		tester.Key(0, ui.KeyEscape)
+		tester.Frame()
+		if open {
+			t.Fatalf("%v: Escape left the modal open", p)
+		}
+	}
+}

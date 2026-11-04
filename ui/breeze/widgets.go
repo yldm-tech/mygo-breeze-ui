@@ -330,9 +330,9 @@ func PopoverMenuButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.E
 	return ui.PopoverMenuButton(c, label, build)
 }
 
-// Combobox creates a field choosing *selected among options, whose text filters them. It is package ui's.
+// Combobox creates a field choosing *selected among options, whose text filters them, in the box the platform draws around its text fields. It is ui.Combobox's counterpart, with MyGo's own list of options.
 func Combobox(c *ui.Context, selected *string, options []string) ui.Element {
-	return ui.Combobox(c, selected, options)
+	return styleField(c, ui.Combobox(c, selected, options), singleLine)
 }
 
 // NumberInput creates a field editing *value between lo and hi in steps of step. It is package ui's.
@@ -354,12 +354,74 @@ func RadioGroup(c *ui.Context, fn func()) ui.Element { return ui.RadioGroup(c, f
 // ToggleGroup creates a row of toggles joined together. It is package ui's.
 func ToggleGroup(c *ui.Context, fn func()) ui.Element { return ui.ToggleGroup(c, fn) }
 
-// Modal creates a dialog over the window while *open, which Escape closes. It is package ui's.
-func Modal(c *ui.Context, open *bool, fn func()) ui.Element { return ui.Modal(c, open, fn) }
+// Modal shows a dialog built by fn over the window while *open, as the platform draws its dialogs; clicking outside it or pressing Escape sets *open to false, which Dismissed reports. It is ui.Modal's counterpart.
+func Modal(c *ui.Context, open *bool, fn func()) ui.Element {
+	if !*open {
+		return ui.Element{}
+	}
+	p := PlatformOf(c)
+	w, h := c.Size()
+	return ui.DialogBase(c, open, func(back, panel ui.Element) {
+		panel.MaxWidth(w - 40).MaxHeight(h - 40)
+		Preview(c, p, func() {
+			switch p {
+			case Windows:
+				fluentDialog(c, back, panel)
+			case Linux:
+				adwDialog(c, back, panel)
+			default:
+				macDialog(c, back, panel)
+			}
+			fn()
+		})
+	})
+}
 
-// AlertDialog shows a message with buttons while *open, and returns the index of the button chosen, or -1. It is package ui's.
+// AlertDialog shows an alert over the window while *open, as the platform draws its alerts: title, message, and buttons, the last of which is the default, in the accent color, with the focus, which Enter clicks. Each platform places the buttons its own way: macOS and GNOME put the default last, Windows first, while the index returned is the same everywhere. Escape closes the alert choosing no button; a click outside it does nothing. It returns the index of the button clicked, in the frame it is, which closes the alert, ui.AlertDismissed in the frame Escape closes it, and -1 otherwise. It is ui.AlertDialog's counterpart.
 func AlertDialog(c *ui.Context, open *bool, title, message string, buttons ...string) int {
-	return ui.AlertDialog(c, open, title, message, buttons...)
+	if !*open {
+		return -1
+	}
+	p := PlatformOf(c)
+	w, _ := c.Size()
+	chosen, dismissed := -1, false
+	ui.Overlay(c, func() {
+		back := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().Modal()
+		dismissed = back.OverlayShortcut(0, ui.KeyEscape)
+		back.Children(func() {
+			panel := ui.Column(c).MaxWidth(w - 40).Role(ui.RoleAlertDialog).Label(title).Description(message)
+			// button builds button i of the alert, the last as the default.
+			button := func(i int) ui.Element {
+				var b ui.Element
+				if i == len(buttons)-1 {
+					b = PrimaryButton(c, buttons[i]).AutoFocus()
+				} else {
+					b = Button(c, buttons[i])
+				}
+				if b.Clicked() {
+					chosen = i
+				}
+				return b
+			}
+			Preview(c, p, func() {
+				switch p {
+				case Windows:
+					fluentAlert(c, back, panel, title, message, len(buttons), button)
+				case Linux:
+					adwAlert(c, back, panel, title, message, len(buttons), button)
+				default:
+					macAlert(c, back, panel, title, message, len(buttons), button)
+				}
+			})
+		})
+	})
+	if dismissed && chosen < 0 {
+		chosen = ui.AlertDismissed
+	}
+	if chosen != -1 {
+		*open = false
+	}
+	return chosen
 }
 
 // Popover creates a panel beside anchor while *open. It is package ui's.
