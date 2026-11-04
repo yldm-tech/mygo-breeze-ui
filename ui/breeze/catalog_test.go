@@ -60,7 +60,7 @@ func TestCatalogMatchesWidgets(t *testing.T) {
 		if !strings.Contains(item.Example, "breeze."+item.Name+"(") {
 			t.Errorf("%s: example %q does not call breeze.%s", item.Name, item.Example, item.Name)
 		}
-		drawn := map[string]bool{"Button": true, "PrimaryButton": true, "Checkbox": true, "Switch": true}[item.Name]
+		drawn := drawnWidgets[item.Name]
 		if want := map[bool]string{true: "drawn", false: "themed"}[drawn]; item.Look != want {
 			t.Errorf("%s: look %q, want %q", item.Name, item.Look, want)
 		}
@@ -68,4 +68,11 @@ func TestCatalogMatchesWidgets(t *testing.T) {
 	if strings.Join(widgets, ",") != strings.Join(listed, ",") {
 		t.Fatalf("widgets.go has %v, the catalog lists %v", widgets, listed)
 	}
+}
+
+// drawnWidgets are the widgets Breeze UI draws as each platform does; the others are package ui's.
+var drawnWidgets = map[string]bool{
+	"Button": true, "PrimaryButton": true, "Checkbox": true, "Switch": true, "Radio": true, "Toggle": true,
+	"TextInput": true, "TextArea": true, "SearchField": true, "Select": true, "Slider": true,
+	"Progress": true, "Spinner": true, "Segmented": true, "Tabs": true,
 }

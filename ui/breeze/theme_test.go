@@ -127,3 +127,73 @@ func TestWidgetsKeepTheirBehavior(t *testing.T) {
 		}
 	}
 }
+
+// TestMoreWidgetsKeepTheirBehavior checks the widgets drawn on MyGo's other bases on every platform: radio buttons choose, toggles toggle, segments and tabs choose, a select opens and chooses with the keyboard, a slider follows a click, and the fields edit their text.
+func TestMoreWidgetsKeepTheirBehavior(t *testing.T) {
+	for _, p := range Platforms {
+		size, bold, view, tab := "S", false, 0, 0
+		choice, name, query, volume := "Small", "", "", 0.0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				ui.Column(c).Gap(8).Padding(8).Children(func() {
+					RadioGroup(c, func() {
+						Radio(c, &size, "S", "Small size")
+						Radio(c, &size, "L", "Large size")
+					})
+					Toggle(c, &bold, "Bold")
+					Segmented(c, &view, "Day", "Week")
+					Tabs(c, &tab, "General", "Advanced")
+					Select(c, &choice, []string{"Small", "Medium", "Large"}).Label("Size")
+					Slider(c, &volume, 0, 100).Width(200).Label("Volume")
+					TextInput(c, &name).Label("Name")
+					SearchField(c, &query).Label("Search")
+					Progress(c, 0.5)
+					Spinner(c)
+				})
+			})
+		}, 480, 800)
+		tester.Frame()
+		for _, s := range []string{"Large size", "Bold", "Week", "Advanced"} {
+			if err := tester.Click(s); err != nil {
+				t.Fatalf("%v: click %q: %v", p, s, err)
+			}
+			tester.Frame()
+		}
+		if size != "L" || !bold || view != 1 || tab != 1 {
+			t.Fatalf("%v: size %q, bold %v, view %d, tab %d", p, size, bold, view, tab)
+		}
+		if err := tester.Click("Small"); err != nil {
+			t.Fatalf("%v: open the select: %v", p, err)
+		}
+		tester.Frame()
+		tester.Key(0, ui.KeyDown)
+		tester.Frame()
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if choice != "Medium" {
+			t.Fatalf("%v: select chose %q, want Medium", p, choice)
+		}
+		r, ok := tester.Find("Volume")
+		if !ok {
+			t.Fatalf("%v: slider named Volume not found", p)
+		}
+		tester.ClickAt(r.X+r.W-2, r.Y+r.H/2)
+		tester.Frame()
+		if volume < 90 {
+			t.Fatalf("%v: a click at the slider's end set %v", p, volume)
+		}
+		for label, want := range map[string]*string{"Name": &name, "Search": &query} {
+			r, ok := tester.Find(label)
+			if !ok {
+				t.Fatalf("%v: field %q not found", p, label)
+			}
+			tester.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+			tester.Frame()
+			tester.Type("abc")
+			tester.Frame()
+			if *want != "abc" {
+				t.Fatalf("%v: typing in %q gave %q", p, label, *want)
+			}
+		}
+	}
+}
