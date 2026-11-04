@@ -24,6 +24,7 @@ jobs:
           cache: true
       - run: go test ./...
       - run: go vet ./...
+      - run: GOOS=js GOARCH=wasm go build -o /dev/null ./examples/storybook
 
   bun:
     name: Bun

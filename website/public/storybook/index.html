@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Breeze UI Storybook</title>
+    <meta name="description" content="Every Breeze UI widget for MyGo, drawn as macOS, Windows 11 and GNOME draw their controls, with controls and Go code." />
+    <style>
+      html, body { margin: 0; height: 100%; background: #ffffff; color: #18181b; font: 14px system-ui, sans-serif; }
+      #mygo { position: fixed; inset: 0; }
+      #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #71717a; }
+    </style>
+    <script src="wasm_exec.js"></script>
+    <script>
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject)
+        .then((r) => {
+          document.getElementById("loading").remove();
+          go.run(r.instance);
+        })
+        .catch((err) => {
+          document.getElementById("loading").textContent = "The storybook could not load: " + err;
+        });
+    </script>
+  </head>
+  <body>
+    <div id="loading">Loading the storybook…</div>
+    <div id="mygo"></div>
+  </body>
+</html>

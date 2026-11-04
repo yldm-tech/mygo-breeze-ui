@@ -20,8 +20,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
       - run: bun install --frozen-lockfile
       - run: bun run site:build
+      # The storybook: every widget compiled to WebAssembly, beside the site at /storybook/.
+      - run: |
+          GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o website/dist/storybook/app.wasm ./examples/storybook
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" website/dist/storybook/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist

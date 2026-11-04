@@ -4,6 +4,7 @@ export const copy = {
   en: {
     navComponents: "Components",
     navApi: "API",
+    navStorybook: "Storybook",
     navInstall: "Install",
     navGithub: "GitHub",
     language: "中文",
@@ -75,6 +76,7 @@ export const copy = {
   zh: {
     navComponents: "组件",
     navApi: "API",
+    navStorybook: "Storybook",
     navInstall: "安装",
     navGithub: "GitHub",
     language: "English",
