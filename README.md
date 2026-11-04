@@ -13,7 +13,7 @@ Breeze UI draws [MyGo](https://github.com/egoist/mygo)'s native UI widgets as th
 
 ## What is included
 
-- `ui/breeze`: `Button`, `PrimaryButton`, `Checkbox` and `Switch` drawn as each platform draws them, with sizes and colors taken from AppKit's rendering, WinUI 3's theme resources and libadwaita's stylesheet; `TextInput`, `TextArea`, `Select`, `Slider`, `Segmented`, `Tabs` and `Progress` from package `ui` in the platform's theme.
+- `ui/breeze`: buttons, toggles, check boxes, radio buttons, switches, text fields, search fields, drop-downs, sliders, progress bars, spinners, segmented controls and tabs drawn as each platform draws them, with sizes and colors taken from AppKit's rendering, WinUI 3's theme resources and libadwaita's stylesheet; menus, dialogs, tables, trees and the rest from package `ui` under the same names, in the platform's theme.
 - Themes of the three platforms, light and dark, that follow the accent color, contrast and text size the user chose.
 - `breeze-ui`, a CLI that lists the widgets and platforms and writes snippets.
 - `breeze-ui-mcp`, a read-only MCP server over the same catalog.

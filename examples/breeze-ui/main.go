@@ -18,6 +18,11 @@ type gallery struct {
 	volume   float64
 	period   int
 	saved    int
+	density  string
+	bold     bool
+	query    string
+	notes    string
+	tab      int
 }
 
 func (g *gallery) view(c *ui.Context) {
@@ -46,34 +51,46 @@ func (g *gallery) view(c *ui.Context) {
 
 // controls builds the same controls whichever platform draws them; the state is shared, so a change in one column shows in the others.
 func (g *gallery) controls(c *ui.Context) {
-	ui.Column(c).Gap(14).Children(func() {
+	ui.Column(c).Gap(12).Children(func() {
+		breeze.Tabs(c, &g.tab, "General", "Advanced")
 		ui.Row(c).Gap(8).Wrap().Children(func() {
 			breeze.Button(c, "Cancel")
 			if breeze.PrimaryButton(c, "Save").Clicked() {
 				g.saved++
 			}
+			breeze.Toggle(c, &g.bold, "Bold")
 			breeze.Button(c, "Disabled").Disabled(true)
 		})
 		breeze.Checkbox(c, &g.remember, "Remember me")
+		breeze.RadioGroup(c, func() {
+			ui.Row(c).Gap(12).Children(func() {
+				breeze.Radio(c, &g.density, "compact", "Compact")
+				breeze.Radio(c, &g.density, "roomy", "Roomy")
+			})
+		})
 		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
 			breeze.Switch(c, &g.sync).Label("Sync")
 			ui.Text(c, "Sync")
+			ui.Spacer(c)
+			breeze.Spinner(c)
 		})
 		breeze.TextInput(c, &g.name).Placeholder("Name")
+		breeze.SearchField(c, &g.query)
 		breeze.Select(c, &g.size, []string{"Small", "Medium", "Large"})
 		breeze.Slider(c, &g.volume, 0, 100)
 		breeze.Progress(c, g.volume/100)
 		breeze.Segmented(c, &g.period, "Day", "Week", "Month")
+		breeze.TextArea(c, &g.notes).Placeholder("Notes").MinHeight(64)
 	})
 }
 
 func main() {
-	g := &gallery{remember: true, size: "Medium", volume: 40}
+	g := &gallery{remember: true, size: "Medium", volume: 40, density: "compact", bold: true}
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{
 			Title:   "Breeze UI",
 			Width:   1080,
-			Height:  560,
+			Height:  760,
 			Content: ui.View(g.view),
 		})
 	})

@@ -3,7 +3,7 @@
   "platforms": [
     {
       "name": "macOS",
-      "description": "AppKit's push buttons, check boxes and switches of macOS 26 and later, measured from AppKit's own rendering.",
+      "description": "AppKit's controls of macOS 26 and later, measured from AppKit's own rendering.",
       "value": "macOS 26+",
       "example": "breeze.SetPlatform(breeze.Mac)"
     },
@@ -22,6 +22,20 @@
   ],
   "components": [
     {
+      "name": "AlertDialog",
+      "category": "overlays",
+      "look": "themed",
+      "description": "A message with buttons, returning the one chosen: package ui's, in the platform's theme.",
+      "example": "if breeze.AlertDialog(c, &app.confirm, \"Delete?\", \"This cannot be undone.\", \"Delete\", \"Cancel\") == 0 {\n\tapp.delete()\n}"
+    },
+    {
+      "name": "Badge",
+      "category": "feedback",
+      "look": "themed",
+      "description": "A small label for a count or a status: package ui's, in the platform's theme.",
+      "example": "breeze.Badge(c, \"3\")"
+    },
+    {
       "name": "Button",
       "category": "actions",
       "look": "drawn",
@@ -36,6 +50,69 @@
       "example": "breeze.Checkbox(c, &app.remember, \"Remember me\")"
     },
     {
+      "name": "Combobox",
+      "category": "choices",
+      "look": "themed",
+      "description": "A field whose text filters a list of options: package ui's, in the platform's theme.",
+      "example": "breeze.Combobox(c, &app.font, fonts)"
+    },
+    {
+      "name": "Divider",
+      "category": "layout",
+      "look": "themed",
+      "description": "A line between parts of a view: package ui's, in the platform's theme.",
+      "example": "breeze.Divider(c)"
+    },
+    {
+      "name": "Field",
+      "category": "layout",
+      "look": "themed",
+      "description": "A labeled row naming the control inside it: package ui's, in the platform's theme.",
+      "example": "breeze.Field(c, \"Name\", func() {\n\tbreeze.TextInput(c, &app.name)\n})"
+    },
+    {
+      "name": "Link",
+      "category": "actions",
+      "look": "themed",
+      "description": "Text that opens a URL, in the accent color: package ui's, in the platform's theme.",
+      "example": "breeze.Link(c, \"Docs\", \"https://github.com/egoist/mygo\")"
+    },
+    {
+      "name": "MenuButton",
+      "category": "actions",
+      "look": "themed",
+      "description": "A button opening the system's own native menu below it: package ui's.",
+      "example": "breeze.MenuButton(c, \"Sort\", func(m *ui.Menu) {\n\tm.Item(\"Name\")\n})"
+    },
+    {
+      "name": "Modal",
+      "category": "overlays",
+      "look": "themed",
+      "description": "A dialog over the window, which Escape closes: package ui's, in the platform's theme.",
+      "example": "breeze.Modal(c, &app.open, func() {\n\tui.Text(c, \"Saved\")\n})"
+    },
+    {
+      "name": "NumberInput",
+      "category": "text",
+      "look": "themed",
+      "description": "A field editing a number in a range: package ui's, in the platform's theme.",
+      "example": "breeze.NumberInput(c, &app.count, 0, 10, 1)"
+    },
+    {
+      "name": "Popover",
+      "category": "overlays",
+      "look": "themed",
+      "description": "A panel beside an element: package ui's, in the platform's theme.",
+      "example": "breeze.Popover(c, anchor, &app.info, func() {\n\tui.Text(c, \"Details\")\n})"
+    },
+    {
+      "name": "PopoverMenuButton",
+      "category": "actions",
+      "look": "themed",
+      "description": "A button opening a menu drawn in the window: package ui's, in the platform's theme.",
+      "example": "breeze.PopoverMenuButton(c, \"More\", func(m *ui.Menu) {\n\tm.Item(\"Rename\")\n})"
+    },
+    {
       "name": "PrimaryButton",
       "category": "actions",
       "look": "drawn",
@@ -45,30 +122,65 @@
     {
       "name": "Progress",
       "category": "feedback",
-      "look": "themed",
-      "description": "A progress bar: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A progress bar, or a moving one for a negative value: macOS's bar, Windows 11's thin ProgressBar, or GNOME's progress bar.",
       "example": "breeze.Progress(c, app.done)"
+    },
+    {
+      "name": "Radio",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A radio button with a label: macOS's 16-point radio button, Windows 11's RadioButton with its growing dot, or GNOME's grouped check button.",
+      "example": "breeze.Radio(c, &app.size, \"M\", \"Medium\")"
+    },
+    {
+      "name": "RadioGroup",
+      "category": "choices",
+      "look": "themed",
+      "description": "The group radio buttons choose within, which the arrows move through: package ui's.",
+      "example": "breeze.RadioGroup(c, func() {\n\tbreeze.Radio(c, &app.size, \"S\", \"Small\")\n\tbreeze.Radio(c, &app.size, \"L\", \"Large\")\n})"
+    },
+    {
+      "name": "SearchField",
+      "category": "text",
+      "look": "drawn",
+      "description": "A search field with a magnifying glass and a clear button: macOS's capsule search field, Windows 11's AutoSuggestBox, or GNOME's search entry.",
+      "example": "breeze.SearchField(c, &app.query)"
     },
     {
       "name": "Segmented",
       "category": "choices",
-      "look": "themed",
-      "description": "A segmented control choosing one of a few views: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A segmented control choosing one of a few views: macOS's NSSegmentedControl, Windows 11's SelectorBar, or GNOME's AdwToggleGroup.",
       "example": "breeze.Segmented(c, &app.view, \"Day\", \"Week\", \"Month\")"
     },
     {
       "name": "Select",
       "category": "choices",
-      "look": "themed",
-      "description": "A drop-down choosing one of a list: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A drop-down choosing one of a list: macOS's pop-up button and menu, Windows 11's ComboBox with its accent pill, or GNOME's drop-down and popover.",
       "example": "breeze.Select(c, &app.size, []string{\"Small\", \"Medium\", \"Large\"})"
     },
     {
       "name": "Slider",
       "category": "choices",
-      "look": "themed",
-      "description": "A slider setting a value in a range: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A slider setting a value in a range: macOS's capsule knob, Windows 11's thumb with its accent dot, or GNOME's scale.",
       "example": "breeze.Slider(c, &app.volume, 0, 100)"
+    },
+    {
+      "name": "Spinner",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An indicator of work of unknown length: macOS's spokes, Windows 11's ProgressRing, or GNOME's AdwSpinner.",
+      "example": "breeze.Spinner(c)"
+    },
+    {
+      "name": "Stepper",
+      "category": "choices",
+      "look": "themed",
+      "description": "Buttons stepping a number up and down: package ui's, in the platform's theme.",
+      "example": "breeze.Stepper(c, &app.count, 0, 10, 1)"
     },
     {
       "name": "Switch",
@@ -78,25 +190,60 @@
       "example": "breeze.Switch(c, &app.sync).Label(\"Sync\")"
     },
     {
+      "name": "Table",
+      "category": "data",
+      "look": "themed",
+      "description": "A table of rows and columns: package ui's, in the platform's theme.",
+      "example": "breeze.Table(c, &app.list, columns, len(app.rows), func(row, col int) {\n\tui.Text(c, app.rows[row][col])\n})"
+    },
+    {
       "name": "Tabs",
       "category": "navigation",
-      "look": "themed",
-      "description": "Tabs choosing a page: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "Tabs choosing a page: macOS's tab view, Windows 11's SelectorBar, or GNOME's notebook tabs.",
       "example": "breeze.Tabs(c, &app.tab, \"General\", \"Advanced\")"
     },
     {
       "name": "TextArea",
       "category": "text",
-      "look": "themed",
-      "description": "A multi-line text input: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A multi-line text input in the platform's text view: a bezel-bordered view on macOS, a TextBox on Windows 11, a framed view on GNOME.",
       "example": "breeze.TextArea(c, &app.notes)"
     },
     {
       "name": "TextInput",
       "category": "text",
-      "look": "themed",
-      "description": "A single-line text input: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A single-line text input in the platform's field: macOS's bezeled field with its focus ring, Windows 11's TextBox with the accent line, or GNOME's filled entry.",
       "example": "breeze.TextInput(c, &app.name).Placeholder(\"Name\")"
+    },
+    {
+      "name": "Toggle",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A button that stays pressed: macOS's push-on-push-off button, Windows 11's ToggleButton in the accent color, or GNOME's checked toggle button.",
+      "example": "breeze.Toggle(c, &app.bold, \"Bold\")"
+    },
+    {
+      "name": "ToggleGroup",
+      "category": "actions",
+      "look": "themed",
+      "description": "A row of toggles joined together: package ui's.",
+      "example": "breeze.ToggleGroup(c, func() {\n\tbreeze.Toggle(c, &app.bold, \"B\")\n\tbreeze.Toggle(c, &app.italic, \"I\")\n})"
+    },
+    {
+      "name": "Tree",
+      "category": "data",
+      "look": "themed",
+      "description": "A tree of items that open and close: package ui's, in the platform's theme.",
+      "example": "breeze.Tree(c, func() {\n\tbreeze.TreeItem(c, \"Folder\", &app.open, func() {})\n})"
+    },
+    {
+      "name": "TreeItem",
+      "category": "data",
+      "look": "themed",
+      "description": "An item of a Tree: package ui's, in the platform's theme.",
+      "example": "breeze.TreeItem(c, \"Folder\", &app.open, func() {\n\tbreeze.TreeItem(c, \"File\", nil, nil)\n})"
     }
   ]
 }

@@ -1,6 +1,7 @@
 package breeze
 
 import (
+	"math"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -140,4 +141,269 @@ func adwSwitch(c *ui.Context, sw ui.Element, on bool) {
 		p.Shadow(k, d/2, 0, 2, 4, 0, ui.RGBA(0, 0, 6, 0.2))
 		p.Fill(k, slider, d/2)
 	})
+}
+
+// ---- more of libadwaita's controls, from the same stylesheet ----
+
+// adwInkAlpha lays currentColor at share over bg, as libadwaita's color-mix(in srgb, currentColor share, transparent) does: window_fg is 80% opaque in the light theme.
+func adwInkAlpha(t *ui.Theme, bg ui.Color, share float32) ui.Color {
+	if t.Dark {
+		return bg.Mix(white, share)
+	}
+	return bg.Mix(adwInk, share*0.8)
+}
+
+// adwRadio draws a GtkCheckButton in a group: a 20-pixel circle with an inset 2-pixel trough ring, 4 pixels from its label, inside a padded row with round ends that shows the focus ring; chosen, the accent with libadwaita's 8-pixel white bullet.
+func adwRadio(c *ui.Context, row, dot ui.Element, on bool) {
+	t := c.Theme()
+	row.Gap(4).Padding(4).Radius(999).FocusRing(true)
+	hovered, pressed := row.Hovered(), row.Pressed()
+	dot.Size(20, 20).Radius(10)
+	switch {
+	case on:
+		dot.Background(adwAccentFill(t, hovered, pressed))
+	case pressed:
+		dot.Background(adwTrough(t, false, true))
+	default:
+		dot.Border(2, adwTrough(t, hovered, false))
+	}
+	if on {
+		dot.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			const d = 8
+			p.Fill(ui.Rect{X: r.X + (r.W-d)/2, Y: r.Y + (r.H-d)/2, W: d, H: d}, t.AccentText, d/2)
+		})
+	}
+}
+
+// adwToggle draws a GtkToggleButton: a button, darker while checked (currentColor at 30%, 35% under the pointer and 40% pressed).
+func adwToggle(c *ui.Context, b ui.Element, on bool) {
+	adwButton(c, b, false)
+	if !on {
+		return
+	}
+	t := c.Theme()
+	share := float32(0.30)
+	switch {
+	case b.Pressed():
+		share = 0.40
+	case b.Hovered():
+		share = 0.35
+	}
+	b.Background(adwInkAlpha(t, t.Background, share))
+}
+
+// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12.
+func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
+	t := c.Theme()
+	f.Border(0, ui.Color{})
+	radius := float32(9)
+	if kind == multiLine {
+		radius = 12
+		f.Padding(8, 9).Background(pick(t.Dark, white, ui.Hex("#1d1d20")))
+	} else {
+		f.MinHeight(34).Padding(0, 9).Background(adwInkAlpha(t, t.Background, 0.10))
+	}
+	f.Radius(radius)
+	focused := f.Focused()
+	f.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if kind == multiLine {
+			p.Stroke(r, t.Border, radius, 1)
+		}
+		if focused {
+			p.Stroke(r, t.Focus, radius, 2)
+		}
+	})
+}
+
+// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, showing the choice and the 16-pixel pan-down arrow 6 pixels after it.
+func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
+	t := c.Theme()
+	b := trigger
+	b.MinHeight(34).Padding(5, 10).Gap(6).Radius(9).FontWeight(700).Justify(ui.SpaceBetween).AlignItems(ui.Center).MinWidth(120).TextColor(t.Text)
+	face := t.Surface
+	switch {
+	case b.Pressed():
+		face = t.SurfacePressed
+	case b.Hovered():
+		face = t.SurfaceHover
+	}
+	b.Background(face)
+	b.Children(func() {
+		ui.Text(c, selected).SingleLine()
+		ui.Box(c).Size(16, 16).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+			// pan-down-symbolic: a small solid triangle.
+			var path ui.Path
+			path.MoveTo(r.X+4, r.Y+6).LineTo(r.X+12, r.Y+6).LineTo(r.X+8, r.Y+11).Close()
+			p.FillPath(&path, t.Text)
+		})
+	})
+}
+
+// adwMenu draws a dropdown's popover: popover_bg_color, a 1-pixel 14% black edge, corners of 15 and the popover's two soft shadows, its list padded 6 pixels.
+func adwMenu(c *ui.Context, panel ui.Element) {
+	t := c.Theme()
+	panel.Margin(6, 0, 0, 0).Padding(6).Radius(15).Background(pick(t.Dark, white, ui.Hex("#36363a"))).
+		Border(1, ui.RGBA(0, 0, 0, 0.14)).Shadow(0, 1, 5, 1, ui.RGBA(0, 0, 0, 0.09)).Shadow(0, 2, 14, 3, ui.RGBA(0, 0, 0, 0.05))
+}
+
+// adwMenuItem draws a row of the list: padding 9px 12px, corners of 9, currentColor at 10% under the pointer and 19% pressed, and object-select-symbolic 6 pixels after the chosen option's label.
+func adwMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
+	t := c.Theme()
+	panel := pick(t.Dark, white, ui.Hex("#36363a"))
+	item.Padding(9, 12).Gap(6).Radius(9).AlignItems(ui.Center).MinWidth(100)
+	switch {
+	case item.Pressed():
+		item.Background(adwInkAlpha(t, panel, 0.19))
+	case item.Highlighted():
+		item.Background(adwInkAlpha(t, panel, 0.10))
+	}
+	item.Children(func() {
+		ui.Text(c, label).SingleLine()
+		mark := ui.Box(c).Size(16, 16).Shrink(0)
+		if chosen {
+			mark.Draw(func(p *ui.Painter, r ui.Rect) {
+				var path ui.Path
+				path.MoveTo(r.X+3, r.Y+8.5).LineTo(r.X+6.5, r.Y+12).LineTo(r.X+13, r.Y+4.5)
+				p.StrokePath(&path, 2, t.Text)
+			})
+		}
+	})
+}
+
+// adwSlider draws a GtkScale: padded 12 pixels, a 4-pixel trough of $trough_color filled with the accent, and a 20-pixel round slider with a hairline and a soft shadow, which turns white under the pointer.
+func adwSlider(c *ui.Context, s ui.Element, frac float32) {
+	t := c.Theme()
+	const d = 20
+	hovered, pressed := s.Hovered(), s.Pressed()
+	s.Height(d + 24).PaddingX(12 + d/2).MinWidth(60).FocusRing(false)
+	trough := adwTrough(t, false, false)
+	fill := t.Accent
+	knobFill := pick(t.Dark, white, t.Background.Mix(white, 0.8))
+	if hovered || pressed {
+		trough, fill, knobFill = adwTrough(t, true, false), t.AccentHover, white
+	}
+	at := along(c, frac)
+	s.Draw(func(p *ui.Painter, r ui.Rect) {
+		// The trough spans the scale inside its 12-pixel padding; the slider's center travels it inset by half the slider.
+		ty := r.Y + (r.H-4)/2
+		left := r.X + 12
+		width := r.W - 24
+		p.Fill(ui.Rect{X: left, Y: ty, W: width, H: 4}, trough, 2)
+		x := r.X + 12 + d/2 + at*(r.W-24-d)
+		bar := ui.Rect{X: left, Y: ty, W: x - left, H: 4}
+		if c.Direction() == ui.RightToLeft {
+			bar = ui.Rect{X: x, Y: ty, W: left + width - x, H: 4}
+		}
+		p.Fill(bar, fill, 2)
+		k := ui.Rect{X: x - d/2, Y: r.Y + (r.H-d)/2, W: d, H: d}
+		p.Shadow(k, d/2, 0, 2, 4, 0, ui.RGBA(0, 0, 6, 0.2))
+		p.Fill(ui.Rect{X: k.X - 1, Y: k.Y - 1, W: d + 2, H: d + 2}, t.Background.Mix(adwInk, 0.1), d/2+1)
+		p.Fill(k, knobFill, d/2)
+		if s.FocusVisible() {
+			p.Stroke(ui.Rect{X: k.X - 2, Y: k.Y - 2, W: d + 4, H: d + 4}, t.Focus, d/2+2, 2)
+		}
+	})
+}
+
+// adwProgress draws a GtkProgressBar: an 8-pixel trough of $trough_color with round ends, filled with the accent.
+func adwProgress(c *ui.Context, e ui.Element, value float64) {
+	t := c.Theme()
+	e.Height(8).MinWidth(40).Radius(4).Background(adwTrough(t, false, false)).Clip()
+	e.Draw(func(p *ui.Painter, r ui.Rect) { drawBar(c, p, r, value, t.Accent, 4) })
+}
+
+// adwSpinner draws an AdwSpinner at its natural 16 pixels: a 2.5-pixel ring of the text color at 15%, and an arc of it that turns once in 1.2 seconds while it extends and contracts, as adw-spinner-paintable.c draws it.
+func adwSpinner(c *ui.Context, e ui.Element) {
+	t := c.Theme()
+	e.Size(16, 16)
+	e.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.AnimationFrame()
+		const lw = 2.5
+		rad := min(r.W, r.H)/2 - lw/2
+		cx, cy := r.X+r.W/2, r.Y+r.H/2
+		var ring ui.Path
+		ring.Circle(cx, cy, rad)
+		p.StrokePath(&ring, lw, t.Background.Mix(t.Text, 0.15))
+		start, end := adwSpinnerArc(float64(p.Now().UnixMilli()))
+		// The paintable's angles run clockwise from 3 o'clock; strokeArc's from 12.
+		strokeArc(p, cx, cy, rad, end+math.Pi/2, start-end, lw, t.Text)
+	})
+}
+
+// adwSpinnerArc returns the angles of the spinner's arc ms milliseconds in, as adw-spinner-paintable.c computes them.
+func adwSpinnerArc(ms float64) (start, end float64) {
+	const (
+		minArc, maxArc = 0.015 * math.Pi, 0.9 * math.Pi
+		startAngle     = 0.35 * math.Pi
+		cycle          = 2.65 * math.Pi
+	)
+	base := ms / 1200 * 2 * math.Pi
+	a := math.Mod(base, cycle)
+	ease := func(x float64) float64 { return -(math.Cos(math.Pi*x) - 1) / 2 }
+	ts := 1.0
+	if a < 1.1*math.Pi {
+		ts = ease(a / (1.1 * math.Pi))
+	}
+	te := 0.0
+	switch {
+	case a >= 1.75*math.Pi:
+		te = 1
+	case a >= 0.4*math.Pi:
+		te = ease((a - 0.4*math.Pi) / (1.35 * math.Pi))
+	}
+	shift := base - a*maxArc/cycle + startAngle
+	return shift + minArc + (maxArc-minArc)*ts, shift + (maxArc-minArc)*te
+}
+
+// adwSegmentedTrack draws an AdwToggleGroup: padded 3 pixels, currentColor at 10%, corners of 9.
+func adwSegmentedTrack(c *ui.Context, track ui.Element) {
+	t := c.Theme()
+	track.Padding(3).Radius(9).Background(adwInkAlpha(t, t.Background, 0.10)).AlignItems(ui.Stretch)
+}
+
+// adwSegment draws a toggle of the group: 28 pixels high, bold, corners of 6, a light fill with a shadow while active, currentColor at 7% under the pointer and 16% pressed, and a 1-pixel separator between toggles that are not active.
+func adwSegment(c *ui.Context, seg ui.Element, chosen, separator bool) {
+	t := c.Theme()
+	track := adwInkAlpha(t, t.Background, 0.10)
+	seg.MinHeight(28).MinWidth(34).Padding(0, 12).Radius(6).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center).TextColor(t.Text)
+	switch {
+	case chosen:
+		seg.Background(pick(t.Dark, white, track.Mix(white, 0.2))).Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
+	case seg.Pressed():
+		seg.Background(adwInkAlpha(t, track, 0.16))
+	case seg.Hovered():
+		seg.Background(adwInkAlpha(t, track, 0.07))
+	}
+	if separator && !seg.Hovered() {
+		line := t.Border
+		seg.Draw(func(p *ui.Painter, r ui.Rect) {
+			x := r.X - 1.5
+			if c.Direction() == ui.RightToLeft {
+				x = r.X + r.W + 0.5
+			}
+			p.Fill(ui.Rect{X: x, Y: r.Y + 3, W: 1, H: r.H - 6}, line, 0)
+		})
+	}
+}
+
+// adwTabList draws a GtkNotebook's header: tabs in a row padded 4 pixels, over a 1-pixel border on the page's side.
+func adwTabList(c *ui.Context, list ui.Element) {
+	t := c.Theme()
+	list.PaddingX(4).AlignItems(ui.Stretch).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
+}
+
+// adwTab draws a notebook tab: at least 30 pixels, padding 3px 12px 4px, 4 pixels apart, currentColor at 7% under the pointer, and a 4-pixel accent line along its bottom while chosen.
+func adwTab(c *ui.Context, tab ui.Element, chosen bool) {
+	t := c.Theme()
+	tab.MinHeight(30).MinWidth(30).Padding(3, 12, 4, 12).MarginX(4).Justify(ui.Center).AlignItems(ui.Center).TextColor(t.Text)
+	if tab.Hovered() || tab.Pressed() {
+		tab.Background(adwInkAlpha(t, t.Background, 0.07))
+	}
+	if chosen || tab.Hovered() {
+		line := t.Accent
+		if !chosen {
+			line = t.Border
+		}
+		tab.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 4, W: r.W, H: 4}, line, 0) })
+	}
 }
