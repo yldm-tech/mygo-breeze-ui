@@ -53,6 +53,14 @@ go run ./examples/breeze-ui
 
 The pointer, the keyboard, the focus and accessibility come from MyGo's widget bases (`ui.ButtonBase`, `ui.CheckboxBase`, `ui.SwitchBase`). [docs/breeze-ui.md](docs/breeze-ui.md) lists what each widget looks like on each platform, where the values come from, and the current limits.
 
+## Storybook
+
+Every widget, on every platform, light and dark, with controls that change its arguments and the Go that builds it: **[the storybook](https://yldm-tech.github.io/mygo-breeze-ui/storybook/)** runs in the browser, compiled to WebAssembly, and the same program opens as a window:
+
+```sh
+go run ./examples/storybook
+```
+
 ## CLI
 
 ```sh

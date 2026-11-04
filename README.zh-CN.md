@@ -53,6 +53,14 @@ go run ./examples/breeze-ui
 
 指针、键盘、焦点和无障碍都来自 MyGo 的无外观控件（`ui.ButtonBase`、`ui.CheckboxBase`、`ui.SwitchBase`）。每个控件在各平台上的样子、数值的来源和目前的限制见 [docs/breeze-ui.md](docs/breeze-ui.md)。
 
+## Storybook
+
+每个组件在三个平台、浅色和深色下的样子，带可调参数和对应的 Go 代码：**[在线 Storybook](https://yldm-tech.github.io/mygo-breeze-ui/storybook/)** 在浏览器里以 WebAssembly 运行，同一个程序也能在本机以窗口打开：
+
+```sh
+go run ./examples/storybook
+```
+
 ## CLI
 
 ```sh

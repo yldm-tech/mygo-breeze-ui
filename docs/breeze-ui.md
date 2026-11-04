@@ -37,6 +37,16 @@ It needs MyGo v0.7.4 or later. The gallery shows the three platforms side by sid
 go run ./examples/breeze-ui
 ```
 
+## Storybook
+
+[The storybook](https://yldm-tech.github.io/mygo-breeze-ui/storybook/) shows every widget as Storybook shows components: stories in a sidebar, each drawn as macOS, Windows 11 or GNOME draws it, or as the three side by side, light or dark, with controls for its arguments and the Go that builds it. It is [`examples/storybook`](../examples/storybook), which runs as a window with `go run ./examples/storybook`; the site's deployment compiles it to WebAssembly (`GOOS=js GOARCH=wasm`), which MyGo draws in the page with WebGL 2. To try the web build locally, build the site, then the storybook into it, and serve `website/dist` under `/mygo-breeze-ui/`:
+
+```sh
+bun run site:build
+GOOS=js GOARCH=wasm go build -o website/dist/storybook/app.wasm ./examples/storybook
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" website/dist/storybook/
+```
+
 ## Widgets
 
 | Widget | macOS | Windows 11 | GNOME |
