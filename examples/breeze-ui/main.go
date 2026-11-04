@@ -26,6 +26,8 @@ type gallery struct {
 	asking   bool
 	font     string
 	deleted  int
+	italic   bool
+	count    float64
 }
 
 func (g *gallery) view(c *ui.Context) {
@@ -61,7 +63,6 @@ func (g *gallery) controls(c *ui.Context) {
 			if breeze.PrimaryButton(c, "Save").Clicked() {
 				g.saved++
 			}
-			breeze.Toggle(c, &g.bold, "Bold")
 			if breeze.Button(c, "Delete…").Clicked() {
 				g.asking = true
 			}
@@ -70,6 +71,20 @@ func (g *gallery) controls(c *ui.Context) {
 		if breeze.AlertDialog(c, &g.asking, "Delete “Notes”?", "You can’t undo this action.", "Cancel", "Delete") == 1 {
 			g.deleted++
 		}
+		ui.Row(c).Gap(8).AlignItems(ui.Center).Wrap().Children(func() {
+			breeze.ToggleGroup(c, func() {
+				breeze.Toggle(c, &g.bold, "B")
+				breeze.Toggle(c, &g.italic, "I")
+			}).Label("Style")
+			breeze.MenuButton(c, "Sort", func(m *ui.Menu) {
+				m.Item("Name")
+				m.Item("Date")
+			})
+			breeze.Stepper(c, &g.count, 0, 10, 1).Label("Count")
+			breeze.Badge(c, "3")
+			breeze.Link(c, "Docs", "https://github.com/yldm-tech/mygo-breeze-ui")
+		})
+		breeze.Divider(c)
 		breeze.Checkbox(c, &g.remember, "Remember me")
 		breeze.RadioGroup(c, func() {
 			ui.Row(c).Gap(12).Children(func() {
@@ -95,12 +110,12 @@ func (g *gallery) controls(c *ui.Context) {
 }
 
 func main() {
-	g := &gallery{remember: true, size: "Medium", volume: 40, density: "compact", bold: true, font: "Sans"}
+	g := &gallery{remember: true, size: "Medium", volume: 40, density: "compact", bold: true, font: "Sans", count: 3}
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{
 			Title:   "Breeze UI",
 			Width:   1080,
-			Height:  820,
+			Height:  900,
 			Content: ui.View(g.view),
 		})
 	})

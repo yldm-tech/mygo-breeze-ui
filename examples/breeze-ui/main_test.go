@@ -12,8 +12,8 @@ import (
 // TestGallery builds the side-by-side gallery and, when BREEZE_SCREENSHOTS names a directory, writes it there at 2x, light and dark.
 func TestGallery(t *testing.T) {
 	for _, dark := range []bool{false, true} {
-		g := &gallery{remember: true, size: "Medium", volume: 40, density: "compact", bold: true, font: "Sans"}
-		tester := ui.NewTester(g.view, 1080, 780)
+		g := &gallery{remember: true, size: "Medium", volume: 40, density: "compact", bold: true, font: "Sans", count: 3}
+		tester := ui.NewTester(g.view, 1080, 860)
 		tester.SetScale(2)
 		tester.SetDark(dark)
 		tester.Frame()
