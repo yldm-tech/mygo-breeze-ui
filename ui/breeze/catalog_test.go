@@ -75,4 +75,5 @@ var drawnWidgets = map[string]bool{
 	"Button": true, "PrimaryButton": true, "Checkbox": true, "Switch": true, "Radio": true, "Toggle": true,
 	"TextInput": true, "TextArea": true, "SearchField": true, "Select": true, "Slider": true,
 	"Progress": true, "Spinner": true, "Segmented": true, "Tabs": true,
+	"Combobox": true, "Modal": true, "AlertDialog": true,
 }

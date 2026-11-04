@@ -98,6 +98,18 @@ func TestScreenshots(t *testing.T) {
 				}
 			}
 			writeShot(t, dir, fmt.Sprintf("breeze2-%s-%s.png", strings.ToLower(p.String()), mode), second)
+			open := true
+			alert := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Fill().Padding(16).Children(func() { ui.Text(c, "Window content") })
+					AlertDialog(c, &open, "Delete “Notes”?", "You can’t undo this action.", "Cancel", "Delete")
+				})
+			}, 560, 340)
+			alert.SetScale(2)
+			alert.SetDark(dark)
+			alert.Frame()
+			writeShot(t, dir, fmt.Sprintf("breeze-alert-%s-%s.png", strings.ToLower(p.String()), mode), alert)
 		}
 	}
 }

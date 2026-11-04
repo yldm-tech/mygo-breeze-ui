@@ -24,8 +24,8 @@
     {
       "name": "AlertDialog",
       "category": "overlays",
-      "look": "themed",
-      "description": "A message with buttons, returning the one chosen: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "An alert with a title, a message and buttons, the last the default: macOS's NSAlert, Windows 11's ContentDialog with the default button first, or GNOME's AdwAlertDialog. The index returned is the same on every platform.",
       "example": "if breeze.AlertDialog(c, &app.confirm, \"Delete?\", \"This cannot be undone.\", \"Delete\", \"Cancel\") == 0 {\n\tapp.delete()\n}"
     },
     {
@@ -52,8 +52,8 @@
     {
       "name": "Combobox",
       "category": "choices",
-      "look": "themed",
-      "description": "A field whose text filters a list of options: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A field whose text filters a list of options, in the platform's text field box; the list is MyGo's.",
       "example": "breeze.Combobox(c, &app.font, fonts)"
     },
     {
@@ -87,8 +87,8 @@
     {
       "name": "Modal",
       "category": "overlays",
-      "look": "themed",
-      "description": "A dialog over the window, which Escape closes: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A dialog over the window: a sheet with a window's shadow on macOS, which leaves the window undimmed, a ContentDialog on Windows 11, or a floating AdwDialog over a dimmed window on GNOME.",
       "example": "breeze.Modal(c, &app.open, func() {\n\tui.Text(c, \"Saved\")\n})"
     },
     {

@@ -52,6 +52,8 @@ func fluentTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.Focus = t.Background.Mix(black, 0.894)
 	}
 	t.Selection = accent.Alpha(0.4)
+	// ToolTip: the in-app acrylic's fallback color, not the theme turned over.
+	t.Inverse, t.InverseText = pick(dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c")), t.Text
 	return t
 }
 
@@ -430,3 +432,49 @@ func fluentTabList(c *ui.Context, list ui.Element) { fluentSegmentedTrack(c, lis
 
 // fluentTab draws a tab as a SelectorBarItem.
 func fluentTab(c *ui.Context, tab ui.Element, chosen bool) { fluentSegment(c, tab, chosen) }
+
+// ---- dialogs: WinUI 3's ContentDialog ----
+
+// fluentDialogShadow casts a ContentDialog's elevation of 128: an ambient and a directional shadow, as DropShadowRecipe.h computes them.
+func fluentDialogShadow(t *ui.Theme, panel ui.Element) {
+	panel.Shadow(0, 2, 21, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.15), 0.37))).
+		Shadow(0, 32, 64, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.19), 0.37)))
+}
+
+// fluentDialog draws a ContentDialog: 320 to 548 DIPs wide, OverlayCornerRadius, a 1-DIP SurfaceStrokeColorDefault border, LayerFillColorAlt inside its 24-DIP padding, over SmokeFillColorDefault.
+func fluentDialog(c *ui.Context, back, panel ui.Element) {
+	t := c.Theme()
+	back.Background(ui.RGBA(0, 0, 0, 0.3))
+	panel.MinWidth(320).MaxWidth(548).Padding(24).Gap(12).Radius(8).Border(1, ui.RGBA(117, 117, 117, 0.4)).
+		Background(pick(t.Dark, white, t.Background.Mix(white, 0.051)))
+	fluentDialogShadow(t, panel)
+}
+
+// fluentAlert draws a ContentDialog with a title, a message and buttons: the title 20 DIPs and semibold, 12 above the message, in the padded top area with a line under it, and the buttons in the command area below, stretched to equal widths 8 apart. The default button comes first, as the primary button does, then the others in order; a single button takes the right half, as ContentDialog places its close button.
+func fluentAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
+	t := c.Theme()
+	back.Background(ui.RGBA(0, 0, 0, 0.3))
+	panel.MinWidth(320).MaxWidth(548).Radius(8).Border(1, ui.RGBA(117, 117, 117, 0.4)).Background(t.Background).Clip().AlignItems(ui.Stretch)
+	fluentDialogShadow(t, panel)
+	panel.Children(func() {
+		ui.Column(c).Padding(24).Background(pick(t.Dark, white, t.Background.Mix(white, 0.051))).
+			BorderWidth(0, 0, 1, 0).BorderColor(t.Background.Mix(black, pick(t.Dark, float32(0.059), 0.098))).Children(func() {
+			ui.Text(c, title).FontSize(20).FontWeight(600).Margin(0, 0, 12, 0)
+			if message != "" {
+				ui.Text(c, message)
+			}
+		})
+		ui.Row(c).Padding(24).Gap(8).Children(func() {
+			wide := func(b ui.Element) { b.Grow(1).Basis(0) }
+			if n == 1 {
+				ui.Box(c).Grow(1).Basis(0)
+			}
+			if n > 0 {
+				wide(button(n - 1))
+			}
+			for i := range n - 1 {
+				wide(button(i))
+			}
+		})
+	})
+}

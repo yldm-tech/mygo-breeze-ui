@@ -372,3 +372,44 @@ func macTabList(c *ui.Context, list ui.Element) {
 	macSegmentedTrack(c, list)
 	list.AlignSelf(ui.Center)
 }
+
+// ---- dialogs: NSAlert of macOS 26, measured as the controls above ----
+
+// macSheet is an alert's background: 251 gray in Aqua, 28 in Dark Aqua.
+func macSheet(dark bool) ui.Color { return pick(dark, ui.Hex("#fbfbfb"), ui.Hex("#1c1c1c")) }
+
+// macDialog draws a dialog as macOS draws a sheet or an alert's window: corners of 24, a window's shadow, and nothing dimming the window behind, as AppKit leaves it.
+func macDialog(c *ui.Context, back, panel ui.Element) {
+	t := c.Theme()
+	back.Background(ui.Transparent)
+	panel.Padding(20).Gap(12).Radius(24).Background(macSheet(t.Dark)).Border(1, tint(macSheet(t.Dark), t.Dark, 0.1)).
+		Shadow(0, 12, 36, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.22), 0.5)))
+}
+
+// macAlert draws an NSAlert: 260 points wide, its bold title and its message centered, 10 points apart, above buttons 28 points high with round ends, 16 points in from the edges. Two buttons share a row, the default last; more stack, the default on top.
+func macAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
+	t := c.Theme()
+	macDialog(c, back, panel)
+	panel.Width(260).Padding(20, 16, 16, 16).Gap(0).AlignItems(ui.Stretch)
+	panel.Children(func() {
+		ui.Text(c, title).Bold().TextAlign(ui.Center).MarginX(4)
+		if message != "" {
+			ui.Text(c, message).TextAlign(ui.Center).MarginX(4).Margin(10, 4, 0, 4).TextColor(t.Text)
+		}
+		big := func(b ui.Element) { b.MinHeight(28).Radius(14).Grow(1).Basis(0) }
+		if n <= 2 {
+			ui.Row(c).Gap(8).Margin(16, 0, 0, 0).Children(func() {
+				for i := range n {
+					big(button(i))
+				}
+			})
+			return
+		}
+		ui.Column(c).Gap(8).Margin(16, 0, 0, 0).AlignItems(ui.Stretch).Children(func() {
+			big(button(n - 1))
+			for i := range n - 1 {
+				big(button(i))
+			}
+		})
+	})
+}
