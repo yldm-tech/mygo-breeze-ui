@@ -109,14 +109,20 @@ func Radio[T comparable](c *ui.Context, selected *T, value T, label string) ui.E
 	return row
 }
 
-// Toggle creates a button that stays pressed while *on, showing label, as the platform draws a toggle button. It is ui.Toggle's counterpart.
+// Toggle creates a button that stays pressed while *on, showing label, as the platform draws a toggle button; inside a ToggleGroup, as a segment of the group. It is ui.Toggle's counterpart.
 func Toggle(c *ui.Context, on *bool, label string) ui.Element {
 	b := ui.ToggleBase(c, on)
-	switch PlatformOf(c) {
-	case Windows:
+	grouped, first := nextInToggleGroup(c)
+	switch p := PlatformOf(c); {
+	case p == Windows:
 		fluentToggle(c, b, *on)
-	case Linux:
+	case p == Linux && grouped:
+		adwLinkedToggle(c, b, *on, first)
+	case p == Linux:
 		adwToggle(c, b, *on)
+	case grouped:
+		// A segment of an NSSegmentedControl that selects any number of segments.
+		macSegment(c, b, *on, false)
 	default:
 		macToggle(c, b, *on)
 	}
@@ -311,25 +317,6 @@ func Tabs(c *ui.Context, selected *int, labels ...string) ui.Element {
 
 // ---- widgets of package ui, in the platform's theme (Use) ----
 
-// Link creates text that opens url, in the accent color. It is package ui's.
-func Link(c *ui.Context, label, url string) ui.Element { return ui.Link(c, label, url) }
-
-// Divider creates a line between parts of a view. It is package ui's.
-func Divider(c *ui.Context) ui.Element { return ui.Divider(c) }
-
-// Badge creates a small label for a count or a status. It is package ui's.
-func Badge(c *ui.Context, text string) ui.Element { return ui.Badge(c, text) }
-
-// MenuButton creates a button opening the system's own menu below it, which build fills. It is package ui's: the menu is the platform's native one.
-func MenuButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.Element {
-	return ui.MenuButton(c, label, build)
-}
-
-// PopoverMenuButton creates a button opening a menu that MyGo draws in the window. It is package ui's.
-func PopoverMenuButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.Element {
-	return ui.PopoverMenuButton(c, label, build)
-}
-
 // Combobox creates a field choosing *selected among options, whose text filters them, in the box the platform draws around its text fields. It is ui.Combobox's counterpart, with MyGo's own list of options.
 func Combobox(c *ui.Context, selected *string, options []string) ui.Element {
 	return styleField(c, ui.Combobox(c, selected, options), singleLine)
@@ -340,19 +327,8 @@ func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element
 	return ui.NumberInput(c, value, lo, hi, step)
 }
 
-// Stepper creates buttons stepping *value between lo and hi by step. It is package ui's.
-func Stepper(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
-	return ui.Stepper(c, value, lo, hi, step)
-}
-
-// Field creates a labeled row around the control fn builds, naming it for assistive technology. It is package ui's.
-func Field(c *ui.Context, label string, fn func()) ui.Element { return ui.Field(c, label, fn) }
-
 // RadioGroup creates the group that radio buttons built in fn choose within, which the arrows move through. It is package ui's.
 func RadioGroup(c *ui.Context, fn func()) ui.Element { return ui.RadioGroup(c, fn) }
-
-// ToggleGroup creates a row of toggles joined together. It is package ui's.
-func ToggleGroup(c *ui.Context, fn func()) ui.Element { return ui.ToggleGroup(c, fn) }
 
 // Modal shows a dialog built by fn over the window while *open, as the platform draws its dialogs; clicking outside it or pressing Escape sets *open to false, which Dismissed reports. It is ui.Modal's counterpart.
 func Modal(c *ui.Context, open *bool, fn func()) ui.Element {
@@ -422,11 +398,6 @@ func AlertDialog(c *ui.Context, open *bool, title, message string, buttons ...st
 		*open = false
 	}
 	return chosen
-}
-
-// Popover creates a panel beside anchor while *open. It is package ui's.
-func Popover(c *ui.Context, anchor ui.Element, open *bool, fn func()) ui.Element {
-	return ui.Popover(c, anchor, open, fn)
 }
 
 // Table creates a table of n rows in columns, whose cells cell builds. It is package ui's.

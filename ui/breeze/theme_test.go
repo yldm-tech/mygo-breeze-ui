@@ -253,3 +253,83 @@ func TestDialogsKeepTheirBehavior(t *testing.T) {
 		}
 	}
 }
+
+// TestRemainingWidgetsKeepTheirBehavior checks the widgets restyled from package ui's on every platform: toggles in a group still toggle, a stepper steps with Up, a link opens its URL, a menu button opens its menu, and a popover opens beside its anchor and closes on Escape.
+func TestRemainingWidgetsKeepTheirBehavior(t *testing.T) {
+	for _, p := range Platforms {
+		bold, italic, count, open := false, false, 5.0, false
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				ui.Column(c).Gap(8).Padding(8).Children(func() {
+					ToggleGroup(c, func() {
+						Toggle(c, &bold, "B")
+						Toggle(c, &italic, "I")
+					}).Label("Style")
+					Stepper(c, &count, 0, 10, 1).Label("Count")
+					Link(c, "Docs", "https://example.com/docs")
+					Divider(c)
+					Badge(c, "3")
+					MenuButton(c, "Sort", func(m *ui.Menu) { m.Item("Name") })
+					anchor := Button(c, "Info")
+					if anchor.Clicked() {
+						open = true
+					}
+					Popover(c, anchor, &open, func() { ui.Text(c, "Details") })
+					Field(c, "Name", func() { ui.Text(c, "Ada") })
+				})
+			})
+		}, 480, 600)
+		tester.Frame()
+		for _, s := range []string{"B", "I"} {
+			if err := tester.Click(s); err != nil {
+				t.Fatalf("%v: click %q: %v", p, s, err)
+			}
+			tester.Frame()
+		}
+		if !bold || !italic {
+			t.Fatalf("%v: grouped toggles bold %v italic %v", p, bold, italic)
+		}
+		r, ok := tester.Find("Count")
+		if !ok {
+			t.Fatalf("%v: stepper not found", p)
+		}
+		tester.ClickAt(r.X+r.W/2, r.Y+2)
+		tester.Frame()
+		tester.Key(0, ui.KeyUp)
+		tester.Frame()
+		if count < 6 {
+			t.Fatalf("%v: stepper value %v after a click on its up arrow and Up", p, count)
+		}
+		if err := tester.Click("Docs"); err != nil {
+			t.Fatalf("%v: click the link: %v", p, err)
+		}
+		tester.Frame()
+		if urls := tester.OpenedURLs(); len(urls) != 1 || urls[0] != "https://example.com/docs" {
+			t.Fatalf("%v: the link opened %v", p, urls)
+		}
+		if err := tester.Click("Sort"); err != nil {
+			t.Fatalf("%v: click the menu button: %v", p, err)
+		}
+		tester.Frame()
+		if m := tester.Menu(); len(m) == 0 || m[0] != "Name" {
+			t.Fatalf("%v: the menu shows %v", p, m)
+		}
+		tester.CloseMenu()
+		tester.Frame()
+		if err := tester.Click("Info"); err != nil {
+			t.Fatalf("%v: click the popover's anchor: %v", p, err)
+		}
+		tester.Frame()
+		if !open || !tester.HasText("Details") {
+			t.Fatalf("%v: the popover did not open", p)
+		}
+		tester.Key(0, ui.KeyEscape)
+		tester.Frame()
+		if open {
+			t.Fatalf("%v: Escape left the popover open", p)
+		}
+		if !tester.HasText("Ada") || !tester.HasText("3") {
+			t.Fatalf("%v: the field's or the badge's text is missing", p)
+		}
+	}
+}

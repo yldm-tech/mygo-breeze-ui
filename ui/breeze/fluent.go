@@ -478,3 +478,53 @@ func fluentAlert(c *ui.Context, back, panel ui.Element, title, message string, n
 		})
 	})
 }
+
+// ---- links, dividers, badges, flyouts and grouped toggles ----
+
+// fluentLinkColor returns a hyperlink's foreground: AccentTextFillColorPrimary (SystemAccentColorDark2 in the light theme, Light3 in the dark one), Secondary under the pointer (Dark3, Light3) and Tertiary pressed (Dark1, Light2). Windows computes the shades from the accent; these mixes give the default accent's (#004275, #002642, #005a9e; about #a6d8ff and #76b9ed).
+func fluentLinkColor(c *ui.Context, hovered, pressed bool) ui.Color {
+	t := c.Theme()
+	base := fluentAccent
+	if a := c.Preferences().Accent; a.A > 0 {
+		base = a
+		base.A = 255
+	}
+	if t.Dark {
+		if pressed {
+			return base.Mix(white, 0.48)
+		}
+		return base.Mix(white, 0.68)
+	}
+	switch {
+	case pressed:
+		return base.Mix(black, 0.25)
+	case hovered:
+		return base.Mix(black, 0.68)
+	}
+	return base.Mix(black, 0.45)
+}
+
+// fluentDivider is DividerStrokeColorDefault.
+func fluentDivider(t *ui.Theme) ui.Color {
+	return t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.059), 0.082))
+}
+
+// fluentBadge draws an InfoBadge with a value: AccentFillColorDefault with TextOnAccentFillColorPrimary, 16 DIPs high and at least as wide, round, the number 11 DIPs with a margin of 4,0,4,2.
+func fluentBadge(c *ui.Context, b ui.Element) {
+	t := c.Theme()
+	b.Height(16).MinWidth(16).Padding(0, 4, 2, 4).Radius(8).Background(t.Accent).TextColor(t.AccentText).FontSize(11).FontWeight(400).Border(0, ui.Color{}).Justify(ui.Center).AlignItems(ui.Center)
+}
+
+// fluentFlyout draws a FlyoutPresenter: the in-app acrylic's fallback color, a 1-DIP SurfaceStrokeColorFlyout edge, OverlayCornerRadius, padding 16,15,16,17, at most 456 DIPs wide, and the directional shadow of an elevation of 32.
+func fluentFlyout(c *ui.Context, panel ui.Element) {
+	t := c.Theme()
+	panel.Margin(4, 0, 0, 0).Padding(15, 16, 17, 16).Gap(8).MinHeight(40).MaxWidth(456).Radius(8).
+		Background(pick(t.Dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c"))).
+		Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.2))).
+		Shadow(0, 8, 17, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
+}
+
+// fluentToggleGroup lays out toggles on Windows, which has no control joining them: ToggleButtons in a row, 8 DIPs apart.
+func fluentToggleGroup(c *ui.Context, g ui.Element) {
+	g.Gap(8).Padding(0).Radius(0).Background(ui.Transparent).Border(0, ui.Color{})
+}

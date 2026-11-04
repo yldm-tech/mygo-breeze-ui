@@ -413,3 +413,9 @@ func macAlert(c *ui.Context, back, panel ui.Element, title, message string, n in
 		})
 	})
 }
+
+// macPopover draws an NSPopover's panel as macOS draws its menus and popovers: a light panel with a hairline edge and a soft shadow, corners of 10. NSPopover does not render offscreen, so this follows the menu above rather than a measurement.
+func macPopover(c *ui.Context, panel ui.Element) {
+	macMenu(c, panel)
+	panel.Padding(12).Gap(8)
+}
