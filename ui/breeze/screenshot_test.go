@@ -59,6 +59,35 @@ func referenceView2(p Platform, s *referenceState) func(c *ui.Context) {
 	}
 }
 
+// referenceView3 lays out the controls restyled from package ui's as tools/adwaita-reference/reference.py places libadwaita's third set: a link, a separator, joined toggles, a menu button and a popover open below its anchor.
+func referenceView3(p Platform) func(c *ui.Context) {
+	bold, italic, open := true, false, true
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Box(c).Fill().Children(func() {
+				at := func(x, y float32, build func() ui.Element) {
+					ui.Box(c).Absolute().Left(x).Top(y).Children(func() { build() })
+				}
+				at(16, 16, func() ui.Element { return Link(c, "Docs", "https://example.com") })
+				at(16, 50, func() ui.Element { return Divider(c).Width(200) })
+				at(16, 70, func() ui.Element {
+					return ToggleGroup(c, func() {
+						Toggle(c, &bold, "Bold")
+						Toggle(c, &italic, "Italic")
+					})
+				})
+				at(16, 120, func() ui.Element { return MenuButton(c, "Sort", func(m *ui.Menu) { m.Item("Name") }) })
+				at(200, 70, func() ui.Element {
+					info := Button(c, "Info")
+					Popover(c, info, &open, func() { ui.Text(c, "Details") })
+					return info
+				})
+			})
+		})
+	}
+}
+
 // referenceState is what referenceView2's controls edit.
 type referenceState struct {
 	size, name, query, choice, notes string
@@ -110,6 +139,15 @@ func TestScreenshots(t *testing.T) {
 			alert.SetDark(dark)
 			alert.Frame()
 			writeShot(t, dir, fmt.Sprintf("breeze-alert-%s-%s.png", strings.ToLower(p.String()), mode), alert)
+			third := ui.NewTester(referenceView3(p), 400, 240)
+			third.SetScale(2)
+			third.SetDark(dark)
+			third.Frame()
+			third.Frame()
+			if !third.HasText("Details") || !third.HasText("Italic") {
+				t.Fatalf("%v: the third set is missing its popover or toggles", p)
+			}
+			writeShot(t, dir, fmt.Sprintf("breeze3-%s-%s.png", strings.ToLower(p.String()), mode), third)
 		}
 	}
 }

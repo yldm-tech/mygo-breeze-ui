@@ -97,7 +97,7 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 	case hovered:
 		face = t.SurfaceHover
 	}
-	b.Background(face).TextColor(t.Text)
+	b.Background(face).TextColor(adwTextOn(t, face))
 }
 
 // adwCheckbox draws a GtkCheckButton: a 20-pixel indicator with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 that shows the focus ring; checked, the accent with libadwaita's check mark in accent_fg_color.
@@ -191,7 +191,8 @@ func adwToggle(c *ui.Context, b ui.Element, on bool) {
 	case b.Hovered():
 		share = 0.35
 	}
-	b.Background(adwInkAlpha(t, t.Background, share))
+	face := adwInkAlpha(t, t.Background, share)
+	b.Background(face).TextColor(adwTextOn(t, face))
 }
 
 // adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12.
@@ -229,14 +230,15 @@ func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	case b.Hovered():
 		face = t.SurfaceHover
 	}
-	b.Background(face)
+	fg := adwTextOn(t, face)
+	b.Background(face).TextColor(fg)
 	b.Children(func() {
 		ui.Text(c, selected).SingleLine()
 		ui.Box(c).Size(16, 16).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
 			// pan-down-symbolic: a small solid triangle.
 			var path ui.Path
 			path.MoveTo(r.X+4, r.Y+6).LineTo(r.X+12, r.Y+6).LineTo(r.X+8, r.Y+11).Close()
-			p.FillPath(&path, t.Text)
+			p.FillPath(&path, fg)
 		})
 	})
 }
@@ -277,7 +279,8 @@ func adwSlider(c *ui.Context, s ui.Element, frac float32) {
 	t := c.Theme()
 	const d = 20
 	hovered, pressed := s.Hovered(), s.Pressed()
-	s.Height(d + 24).PaddingX(12 + d/2).MinWidth(60).FocusRing(false)
+	// The pointer and the slider's center both travel the trough, inside the scale's 12-pixel padding; the slider overhangs its ends, as GtkRange draws it (measured against libadwaita 1.7.6).
+	s.Height(d + 24).PaddingX(12).MinWidth(60).FocusRing(false)
 	trough := adwTrough(t, false, false)
 	fill := t.Accent
 	knobFill := pick(t.Dark, white, t.Background.Mix(white, 0.8))
@@ -286,12 +289,11 @@ func adwSlider(c *ui.Context, s ui.Element, frac float32) {
 	}
 	at := along(c, frac)
 	s.Draw(func(p *ui.Painter, r ui.Rect) {
-		// The trough spans the scale inside its 12-pixel padding; the slider's center travels it inset by half the slider.
 		ty := r.Y + (r.H-4)/2
 		left := r.X + 12
 		width := r.W - 24
 		p.Fill(ui.Rect{X: left, Y: ty, W: width, H: 4}, trough, 2)
-		x := r.X + 12 + d/2 + at*(r.W-24-d)
+		x := left + at*width
 		bar := ui.Rect{X: left, Y: ty, W: x - left, H: 4}
 		if c.Direction() == ui.RightToLeft {
 			bar = ui.Rect{X: x, Y: ty, W: left + width - x, H: 4}
@@ -363,11 +365,11 @@ func adwSegmentedTrack(c *ui.Context, track ui.Element) {
 	track.Padding(3).Radius(9).Background(adwInkAlpha(t, t.Background, 0.10)).AlignItems(ui.Stretch)
 }
 
-// adwSegment draws a toggle of the group: 28 pixels high, bold, corners of 6, a light fill with a shadow while active, currentColor at 7% under the pointer and 16% pressed, and a 1-pixel separator between toggles that are not active.
+// adwSegment draws a toggle of the group (.text-button): 28 pixels high, padded 8 at the sides, bold, corners of 6, a light fill with a shadow while active, currentColor at 7% under the pointer and 16% pressed, and a 1-pixel separator between toggles that are not active.
 func adwSegment(c *ui.Context, seg ui.Element, chosen, separator bool) {
 	t := c.Theme()
 	track := adwInkAlpha(t, t.Background, 0.10)
-	seg.MinHeight(28).MinWidth(34).Padding(0, 12).Radius(6).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center).TextColor(t.Text)
+	seg.MinHeight(28).MinWidth(34).Padding(0, 8).Radius(6).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center).TextColor(t.Text)
 	switch {
 	case chosen:
 		seg.Background(pick(t.Dark, white, track.Mix(white, 0.2))).Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
@@ -431,23 +433,29 @@ func adwDialog(c *ui.Context, back, panel ui.Element) {
 	adwSheetShadow(panel)
 }
 
-// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide; the heading in .title-2 (weight 800, 136%) and the body 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, equal widths 12 apart, 44 pixels high with corners of 12, in the order they were added, so the default comes last.
+// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide; the heading in .title-2 (weight 800, 136%) and the body 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, padded 24, equal widths 12 apart, 44 pixels high with corners of 12, in the order they were added, so the default comes last. In a window at most 360 pixels high the dialog is .short, as adw-dialog.c's breakpoint makes it: the heading in .title-4 (weight 700, 118%), 6 pixels above the body, padded 24 above and 18 at the sides and below the responses, which are 40 pixels high.
 func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
 	t := c.Theme()
 	adwDimming(t, back)
+	_, h := c.Size()
+	top, side, gap, size, weight, padY, padX := float32(32), float32(24), float32(10), float32(1.36), 800, float32(10), float32(20)
+	if h <= 360 {
+		top, side, gap, size, weight, padY, padX = 24, 18, 6, 1.18, 700, 8, 16
+	}
 	bg := pick(t.Dark, ui.Hex("#fafafb"), ui.Hex("#36363a"))
 	panel.MinWidth(300).MaxWidth(372).Radius(18).Background(bg).AlignItems(ui.Stretch)
 	adwSheetShadow(panel)
 	panel.Children(func() {
-		ui.Column(c).Padding(32, 24, 9, 24).Gap(10).AlignItems(ui.Stretch).Children(func() {
-			ui.Text(c, title).FontSize(t.FontSize * 1.36).FontWeight(800).TextAlign(ui.Center)
+		ui.Column(c).Padding(top, side, 9, side).Gap(gap).AlignItems(ui.Stretch).Children(func() {
+			ui.Text(c, title).FontSize(t.FontSize * size).FontWeight(weight).TextAlign(ui.Center)
 			if message != "" {
 				ui.Text(c, message).TextAlign(ui.Center)
 			}
 		})
-		ui.Row(c).Padding(12, 24, 24, 24).Gap(12).Children(func() {
+		// The response area is padded as the message area at the sides and below (RESPONSE_HORZ_PADDING_SHORT while short); a response's content is at least 24 pixels high.
+		ui.Row(c).Padding(12, side, side, side).Gap(12).Children(func() {
 			for i := range n {
-				b := button(i).MinHeight(44).Padding(10, 20).Radius(12).Grow(1).Basis(0)
+				b := button(i).MinHeight(24+2*padY).Padding(padY, padX).Radius(12).Grow(1).Basis(0)
 				if i < n-1 {
 					// currentColor at 10%, 15% and 30%, over the alert's own background rather than the window's.
 					share := float32(0.10)
@@ -457,9 +465,67 @@ func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n in
 					case b.Hovered():
 						share = 0.15
 					}
-					b.Background(adwInkAlpha(t, bg, share))
+					face := adwInkAlpha(t, bg, share)
+					b.Background(face).TextColor(adwTextOn(t, face))
 				}
 			}
 		})
+	})
+}
+
+// adwTextOn returns window_fg_color over fill: libadwaita's text is 80% opaque in the light theme, so it is a little lighter over a darker button than over the window.
+func adwTextOn(t *ui.Theme, fill ui.Color) ui.Color {
+	if t.Dark {
+		return white
+	}
+	return fill.Mix(adwInk, 0.8)
+}
+
+// ---- links, separators, badges, popovers and linked toggles ----
+
+// adwLinkColor is libadwaita's link color, accent_color: the accent darkened in the light theme and lightened in the dark one. For the default blue, the colors are measured from links libadwaita 1.7.6 rendered (tools/adwaita-reference), #357fca and #81d0ff; the stylesheet's Oklab clamp would give a darker light one.
+func adwLinkColor(t *ui.Theme) ui.Color {
+	if t.Accent == adwAccent {
+		return pick(t.Dark, ui.Hex("#357fca"), ui.Hex("#81d0ff"))
+	}
+	return pick(t.Dark, t.Accent.Mix(black, 0.2), t.Accent.Mix(white, 0.45))
+}
+
+// adwPopover draws a popover's contents: popover_bg_color, a 1-pixel 14% black edge, corners of 15, padding 8 and the popover's two soft shadows.
+func adwPopover(c *ui.Context, panel ui.Element) {
+	adwMenu(c, panel)
+	panel.Padding(8).Gap(6)
+}
+
+// adwSeparator is a separator's color, $border_color: currentColor at 15%.
+func adwSeparator(t *ui.Theme) ui.Color { return t.Border }
+
+// adwBadge draws an indicator badge (indicatorbin.badge): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides.
+func adwBadge(c *ui.Context, b ui.Element) {
+	t := c.Theme()
+	b.MinHeight(13).MinWidth(13).Padding(0, 4).Radius(7).Background(adwInkAlpha(t, t.Background, 0.4)).
+		TextColor(white).FontSize(t.FontSize*0.6).FontWeight(700).Border(0, ui.Color{})
+}
+
+// adwToggleGroup draws a box.linked of toggle buttons: no gap between them and only the group's outer corners rounded, 9 pixels.
+func adwToggleGroup(c *ui.Context, g ui.Element) {
+	g.Gap(0).Padding(0).Radius(9).Background(ui.Transparent).Border(0, ui.Color{}).Clip()
+}
+
+// adwLinkedToggle draws a toggle button inside a box.linked: a toggle button whose corners the group rounds. Linked buttons overlap by a pixel, so a darker line shows where two meet: the button's fill over another's, drawn along the start of every button but the first.
+func adwLinkedToggle(c *ui.Context, b ui.Element, on bool, first bool) {
+	adwToggle(c, b, on)
+	b.Radius(0)
+	if first {
+		return
+	}
+	t := c.Theme()
+	seam := adwInkAlpha(t, t.Background, 0.19)
+	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		x := r.X
+		if c.Direction() == ui.RightToLeft {
+			x = r.X + r.W - 1
+		}
+		p.Fill(ui.Rect{X: x, Y: r.Y, W: 1, H: r.H}, seam, 0)
 	})
 }

@@ -31,8 +31,8 @@
     {
       "name": "Badge",
       "category": "feedback",
-      "look": "themed",
-      "description": "A small label for a count or a status: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A small label for a count: Windows 11's InfoBadge in the accent color, GNOME's indicator badge; macOS has no badge control of its own and keeps MyGo's.",
       "example": "breeze.Badge(c, \"3\")"
     },
     {
@@ -59,29 +59,29 @@
     {
       "name": "Divider",
       "category": "layout",
-      "look": "themed",
-      "description": "A line between parts of a view: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A line between parts of a view in the platform's separator color: separatorColor, DividerStrokeColorDefault or $border_color.",
       "example": "breeze.Divider(c)"
     },
     {
       "name": "Field",
       "category": "layout",
-      "look": "themed",
-      "description": "A labeled row naming the control inside it: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A labeled control: in a Form the labels line up before the controls as in a macOS form; elsewhere the label is above, 8 DIPs on Windows 11 as a TextBox's header.",
       "example": "breeze.Field(c, \"Name\", func() {\n\tbreeze.TextInput(c, &app.name)\n})"
     },
     {
       "name": "Link",
       "category": "actions",
-      "look": "themed",
-      "description": "Text that opens a URL, in the accent color: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "Text that opens a URL in the platform's link color: AppKit's linkColor, Windows 11's AccentTextFillColorPrimary with its pointer-over and pressed shades, libadwaita's accent_color; underlined on Windows and GNOME.",
       "example": "breeze.Link(c, \"Docs\", \"https://github.com/egoist/mygo\")"
     },
     {
       "name": "MenuButton",
       "category": "actions",
-      "look": "themed",
-      "description": "A button opening the system's own native menu below it: package ui's.",
+      "look": "drawn",
+      "description": "A button drawn as the platform's pull-down button, opening the system's own native menu.",
       "example": "breeze.MenuButton(c, \"Sort\", func(m *ui.Menu) {\n\tm.Item(\"Name\")\n})"
     },
     {
@@ -95,21 +95,21 @@
       "name": "NumberInput",
       "category": "text",
       "look": "themed",
-      "description": "A field editing a number in a range: package ui's, in the platform's theme.",
+      "description": "A field editing a number with a stepper beside it: package ui's, in the platform's theme. Its field and stepper are built inside it, out of reach of a style applied to what it returns.",
       "example": "breeze.NumberInput(c, &app.count, 0, 10, 1)"
     },
     {
       "name": "Popover",
       "category": "overlays",
-      "look": "themed",
-      "description": "A panel beside an element: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A panel beside an element: a menu-like panel on macOS, Windows 11's FlyoutPresenter, or a libadwaita popover.",
       "example": "breeze.Popover(c, anchor, &app.info, func() {\n\tui.Text(c, \"Details\")\n})"
     },
     {
       "name": "PopoverMenuButton",
       "category": "actions",
-      "look": "themed",
-      "description": "A button opening a menu drawn in the window: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "A button drawn as the platform's pull-down button, opening a menu MyGo draws in the window in the platform's theme.",
       "example": "breeze.PopoverMenuButton(c, \"More\", func(m *ui.Menu) {\n\tm.Item(\"Rename\")\n})"
     },
     {
@@ -137,7 +137,7 @@
       "name": "RadioGroup",
       "category": "choices",
       "look": "themed",
-      "description": "The group radio buttons choose within, which the arrows move through: package ui's.",
+      "description": "The group radio buttons choose within, which the arrows move through: package ui's container around the platform's radio buttons.",
       "example": "breeze.RadioGroup(c, func() {\n\tbreeze.Radio(c, &app.size, \"S\", \"Small\")\n\tbreeze.Radio(c, &app.size, \"L\", \"Large\")\n})"
     },
     {
@@ -178,8 +178,8 @@
     {
       "name": "Stepper",
       "category": "choices",
-      "look": "themed",
-      "description": "Buttons stepping a number up and down: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "Arrows stepping a number: the box is the platform's (NSStepper on macOS, a button's face elsewhere); the arrows, holding to repeat and the keys are MyGo's.",
       "example": "breeze.Stepper(c, &app.count, 0, 10, 1)"
     },
     {
@@ -193,7 +193,7 @@
       "name": "Table",
       "category": "data",
       "look": "themed",
-      "description": "A table of rows and columns: package ui's, in the platform's theme.",
+      "description": "A table of rows and columns: package ui's, in the platform's theme. MyGo has no table base to draw the platform's rows on.",
       "example": "breeze.Table(c, &app.list, columns, len(app.rows), func(row, col int) {\n\tui.Text(c, app.rows[row][col])\n})"
     },
     {
@@ -227,15 +227,15 @@
     {
       "name": "ToggleGroup",
       "category": "actions",
-      "look": "themed",
-      "description": "A row of toggles joined together: package ui's.",
+      "look": "drawn",
+      "description": "Toggles joined as the platform joins them: an NSSegmentedControl selecting any segments on macOS, a box.linked on GNOME, ToggleButtons side by side on Windows 11, which has no joined toggles.",
       "example": "breeze.ToggleGroup(c, func() {\n\tbreeze.Toggle(c, &app.bold, \"B\")\n\tbreeze.Toggle(c, &app.italic, \"I\")\n})"
     },
     {
       "name": "Tree",
       "category": "data",
       "look": "themed",
-      "description": "A tree of items that open and close: package ui's, in the platform's theme.",
+      "description": "A tree of items that open and close: package ui's, in the platform's theme. MyGo has no tree base to draw the platform's rows on.",
       "example": "breeze.Tree(c, func() {\n\tbreeze.TreeItem(c, \"Folder\", &app.open, func() {})\n})"
     },
     {

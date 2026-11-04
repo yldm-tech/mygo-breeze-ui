@@ -38,16 +38,18 @@ func TestCatalogLookup(t *testing.T) {
 	}
 }
 
-// TestCatalogMatchesWidgets checks the catalog against the widget functions of widgets.go: every exported one is listed with an example calling it, and those Breeze UI draws itself are marked drawn.
+// TestCatalogMatchesWidgets checks the catalog against the widget functions of widgets.go and extras.go: every exported one is listed with an example calling it, and those Breeze UI draws itself are marked drawn.
 func TestCatalogMatchesWidgets(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "widgets.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var widgets []string
-	for _, decl := range file.Decls {
-		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.IsExported() {
-			widgets = append(widgets, fn.Name.Name)
+	for _, name := range []string{"widgets.go", "extras.go"} {
+		file, err := parser.ParseFile(token.NewFileSet(), name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, decl := range file.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.IsExported() {
+				widgets = append(widgets, fn.Name.Name)
+			}
 		}
 	}
 	sort.Strings(widgets)
@@ -76,4 +78,6 @@ var drawnWidgets = map[string]bool{
 	"TextInput": true, "TextArea": true, "SearchField": true, "Select": true, "Slider": true,
 	"Progress": true, "Spinner": true, "Segmented": true, "Tabs": true,
 	"Combobox": true, "Modal": true, "AlertDialog": true,
+	"Link": true, "Divider": true, "Badge": true, "MenuButton": true, "PopoverMenuButton": true,
+	"Popover": true, "ToggleGroup": true, "Field": true, "Stepper": true,
 }
