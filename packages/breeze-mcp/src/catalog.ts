@@ -2,12 +2,14 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-export type CatalogKind = "utility" | "component" | "token"
+export type CatalogKind = "component" | "platform"
 
 export type CatalogItem = {
   name: string
   kind: CatalogKind
   category?: string
+  /** "drawn" when Breeze UI draws the component as each platform does, "themed" when it is MyGo's widget in the platform's theme. */
+  look?: "drawn" | "themed"
   description: string
   value?: string
   example?: string
@@ -15,9 +17,8 @@ export type CatalogItem = {
 
 type CatalogFile = {
   version: number
-  utilities: Omit<CatalogItem, "kind">[]
+  platforms: Omit<CatalogItem, "kind">[]
   components: Omit<CatalogItem, "kind">[]
-  tokens: Omit<CatalogItem, "kind">[]
 }
 
 const sourceCatalogFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../ui/breeze/catalog.json")
@@ -31,9 +32,8 @@ export function loadCatalog(): CatalogItem[] {
   const source = fs.readFileSync(catalogPath(), "utf8")
   const parsed = JSON.parse(source) as CatalogFile
   return [
-    ...parsed.utilities.map((item) => ({ ...item, kind: "utility" as const })),
     ...parsed.components.map((item) => ({ ...item, kind: "component" as const })),
-    ...parsed.tokens.map((item) => ({ ...item, kind: "token" as const })),
+    ...parsed.platforms.map((item) => ({ ...item, kind: "platform" as const })),
   ].sort((a, b) => a.name.localeCompare(b.name) || a.kind.localeCompare(b.kind))
 }
 

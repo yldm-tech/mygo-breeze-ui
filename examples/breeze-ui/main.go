@@ -1,8 +1,7 @@
-// Breeze UI is a small native gallery for the Breeze UI design system for MyGo.
+// Command breeze-ui is the Breeze UI gallery: the same view drawn with the controls of macOS, Windows 11 and GNOME side by side, or with the controls of the system it runs on.
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/egoist/mygo"
@@ -11,105 +10,70 @@ import (
 )
 
 type gallery struct {
-	page    string
-	count   int
-	checked bool
-	name    string
-	open    bool
+	mode     int // 0 side by side, 1 this system
+	remember bool
+	sync     bool
+	name     string
+	size     string
+	volume   float64
+	period   int
+	saved    int
 }
 
 func (g *gallery) view(c *ui.Context) {
-	p := breeze.Palette(c)
-	breeze.Row(c, breeze.Fill, breeze.Bg(p.Background)).Children(func() {
-		breeze.Column(c, breeze.W(190), breeze.Fill, breeze.P(4), breeze.Gap(2), breeze.Bg(p.Surface)).Children(func() {
-			breeze.Text(c, "Breeze UI", breeze.TextSize(breeze.TextLG), breeze.FontWeight(700), breeze.Muted(c)).Padding(breeze.Space(1), breeze.Space(2))
-			for _, page := range []string{"Overview", "Forms", "Overlays"} {
-				item := breeze.Row(c, breeze.Py(2), breeze.Px(2), breeze.Gap(2), breeze.Rounded(breeze.RadiusMD), breeze.Shrink(0)).Focusable()
-				if g.page == page {
-					item.Background(p.Accent).TextColor(p.AccentText)
-				} else if item.Hovered() {
-					item.Background(p.Hover)
-				}
-				if item.Clicked() {
-					g.page = page
-				}
-				item.Children(func() { breeze.Text(c, page) })
-			}
+	breeze.Use(c)
+	ui.Column(c).Fill().Children(func() {
+		ui.Row(c).Padding(12, 16).Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, "Breeze UI").FontSize(18).Bold().Grow(1)
+			ui.Segmented(c, &g.mode, "Side by side", "This system")
 		})
-		breeze.Scroll(c, breeze.Fill, breeze.Grow(1), breeze.P(8), breeze.Gap(5)).Children(func() {
-			breeze.Text(c, g.page, breeze.TextSize(breeze.Text2XL), breeze.FontWeight(700))
-			switch g.page {
-			case "Forms":
-				g.forms(c)
-			case "Overlays":
-				g.overlays(c)
-			default:
-				g.overview(c)
+		if g.mode == 1 {
+			ui.Scroll(c).Fill().Padding(16, 24).Children(func() { g.controls(c) })
+			return
+		}
+		ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
+			for _, p := range breeze.Platforms {
+				breeze.Preview(c, p, func() {
+					ui.Themed(c, breeze.Theme(c, p)).Grow(1).Basis(0).Padding(16, 20).Gap(14).Children(func() {
+						ui.Text(c, p.String()).FontSize(15).Bold()
+						g.controls(c)
+					})
+				})
 			}
 		})
 	})
 }
 
-func (g *gallery) overview(c *ui.Context) {
-	p := breeze.Palette(c)
-	breeze.Text(c, "Typed utility styles and accessible components, drawn by MyGo without HTML or CSS.", breeze.Muted(c))
-	breeze.Row(c, breeze.Gap(4), breeze.Wrap).Children(func() {
-		breeze.Card(c, func() {
-			breeze.Text(c, "Counter", breeze.Muted(c))
-			breeze.Text(c, fmt.Sprint(g.count), breeze.TextSize(breeze.Text2XL), breeze.FontWeight(700))
-			breeze.Row(c, breeze.Gap(2)).Children(func() {
-				if breeze.Button(c, "−", breeze.ButtonSecondary).Clicked() {
-					g.count--
-				}
-				if breeze.Button(c, "Increment", breeze.ButtonPrimary).Clicked() {
-					g.count++
-				}
-			})
+// controls builds the same controls whichever platform draws them; the state is shared, so a change in one column shows in the others.
+func (g *gallery) controls(c *ui.Context) {
+	ui.Column(c).Gap(14).Children(func() {
+		ui.Row(c).Gap(8).Wrap().Children(func() {
+			breeze.Button(c, "Cancel")
+			if breeze.PrimaryButton(c, "Save").Clicked() {
+				g.saved++
+			}
+			breeze.Button(c, "Disabled").Disabled(true)
 		})
-		breeze.Card(c, func() {
-			breeze.Text(c, "Status", breeze.Muted(c))
-			breeze.Badge(c, "Ready", breeze.BadgeSuccess)
-			breeze.Text(c, "The design tokens follow the active appearance.", breeze.Muted(c))
-			_ = p
+		breeze.Checkbox(c, &g.remember, "Remember me")
+		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+			breeze.Switch(c, &g.sync).Label("Sync")
+			ui.Text(c, "Sync")
 		})
-	})
-}
-
-func (g *gallery) forms(c *ui.Context) {
-	breeze.Card(c, func() {
-		breeze.Text(c, "Profile", breeze.TextSize(breeze.TextLG), breeze.FontWeight(600))
-		breeze.Input(c, &g.name, "Your name")
-		breeze.Checkbox(c, &g.checked, "Keep me signed in")
-		if breeze.Button(c, "Save", breeze.ButtonPrimary).Clicked() {
-			g.open = true
-		}
-	})
-}
-
-func (g *gallery) overlays(c *ui.Context) {
-	breeze.Card(c, func() {
-		breeze.Text(c, "Dialog and status", breeze.TextSize(breeze.TextLG), breeze.FontWeight(600))
-		if breeze.Button(c, "Open dialog", breeze.ButtonSecondary).Clicked() {
-			g.open = true
-		}
-		if g.open {
-			breeze.Dialog(c, &g.open, "Hello", func() {
-				breeze.Text(c, "This dialog uses MyGo's accessible modal base.", breeze.Muted(c))
-			}, func() {
-				if breeze.Button(c, "Close", breeze.ButtonPrimary).Clicked() {
-					g.open = false
-				}
-			})
-		}
+		breeze.TextInput(c, &g.name).Placeholder("Name")
+		breeze.Select(c, &g.size, []string{"Small", "Medium", "Large"})
+		breeze.Slider(c, &g.volume, 0, 100)
+		breeze.Progress(c, g.volume/100)
+		breeze.Segmented(c, &g.period, "Day", "Week", "Month")
 	})
 }
 
 func main() {
-	g := &gallery{page: "Overview"}
+	g := &gallery{remember: true, size: "Medium", volume: 40}
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{
-			Title: "Breeze UI for MyGo",
-			Width: 920, Height: 620,
+			Title:   "Breeze UI",
+			Width:   1080,
+			Height:  560,
 			Content: ui.View(g.view),
 		})
 	})

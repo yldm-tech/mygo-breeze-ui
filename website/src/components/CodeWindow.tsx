@@ -19,22 +19,25 @@ export function CodeWindow() {
         {`\n  `}breeze{" "}
         <span className="text-[#9debc9]">"github.com/yldm-tech/mygo-breeze-ui/ui/breeze"</span>
         {`\n`}){`\n\n`}
-        <span className="text-[#d3baff]">func</span> <span className="text-[#ffc18f]">view</span>(c
-        *ui.Context) {"{"}
-        {`\n  `}breeze.<span className="text-[#ffc18f]">Card</span>(c,{" "}
-        <span className="text-[#d3baff]">func</span>() {"{"}
-        {`\n    `}breeze.<span className="text-[#ffc18f]">Text</span>(c,{" "}
-        <span className="text-[#9debc9]">"Welcome home"</span>){`\n    `}
-        <span className="text-[#d3baff]">if</span> breeze.
-        <span className="text-[#ffc18f]">Button</span>(c,{" "}
-        <span className="text-[#9debc9]">"Continue"</span>, breeze.ButtonPrimary).
-        <span className="text-[#ffc18f]">Clicked</span>() {"{"}
-        {`\n      `}
-        <span className="text-[#668087]">// handle the action</span>
-        {`\n    `}
-        {"}"}
+        <span className="text-[#d3baff]">func</span> (app *<span className="text-[#ffc18f]">App</span>){" "}
+        <span className="text-[#ffc18f]">view</span>(c *ui.Context) {"{"}
+        {`\n  `}breeze.<span className="text-[#ffc18f]">Use</span>(c)
+        {`\n  `}breeze.<span className="text-[#ffc18f]">Checkbox</span>(c, &app.remember,{" "}
+        <span className="text-[#9debc9]">"Remember me"</span>)
+        {`\n  `}breeze.<span className="text-[#ffc18f]">Switch</span>(c, &app.sync).
+        <span className="text-[#ffc18f]">Label</span>(<span className="text-[#9debc9]">"Sync"</span>)
+        {`\n  `}breeze.<span className="text-[#ffc18f]">Button</span>(c,{" "}
+        <span className="text-[#9debc9]">"Cancel"</span>)
         {`\n  `}
-        {"}"}){`\n`}
+        <span className="text-[#d3baff]">if</span> breeze.
+        <span className="text-[#ffc18f]">PrimaryButton</span>(c,{" "}
+        <span className="text-[#9debc9]">"Continue"</span>).
+        <span className="text-[#ffc18f]">Clicked</span>() {"{"}
+        {`\n    `}
+        <span className="text-[#668087]">// handle the action</span>
+        {`\n  `}
+        {"}"}
+        {`\n`}
         {"}"}
       </pre>
       <div className="flex items-center gap-[7px] border-t border-line px-[17px] py-[11px] font-mono text-[9px] text-[#779095] [&>svg:first-child]:text-mint-strong">

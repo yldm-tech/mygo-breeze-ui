@@ -1,14 +1,16 @@
 {
   "name": "mygo-breeze-ui",
   "private": true,
-  "description": "Tailwind-inspired typed native UI components, utilities, CLI, and MCP tools for MyGo",
+  "description": "MyGo native UI widgets that look like macOS, Windows 11 and GNOME controls, with a CLI and MCP tools",
   "keywords": [
+    "adwaita",
     "breeze-ui",
+    "fluent",
     "golang",
+    "macos",
     "mcp",
     "mygo",
-    "native-ui",
-    "tailwind"
+    "native-ui"
   ],
   "homepage": "https://github.com/yldm-tech/mygo-breeze-ui#readme",
   "bugs": {

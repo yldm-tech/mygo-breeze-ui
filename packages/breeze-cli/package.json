@@ -1,11 +1,13 @@
 {
   "name": "breeze-ui-cli",
   "version": "0.1.0",
-  "description": "CLI for Breeze UI, a third-party native UI system for MyGo",
+  "description": "CLI for Breeze UI, MyGo's native UI drawn as macOS, Windows 11 and GNOME draw their controls",
   "keywords": [
+    "adwaita",
     "cli",
+    "fluent",
+    "macos",
     "mygo",
-    "tailwind",
     "ui"
   ],
   "license": "MIT",

@@ -22,7 +22,7 @@ export function createServer() {
     "search_components",
     {
       title: "Search Breeze UI components",
-      description: "Find components in the Breeze UI catalog for MyGo.",
+      description: "Find Breeze UI components for MyGo. Each has the name and signature of MyGo's ui widget and looks as the platform's own: drawn ones are drawn by Breeze UI, themed ones are MyGo's widgets in the platform's theme.",
       inputSchema: { query: z.string().optional() },
       annotations: { readOnlyHint: true },
     },
@@ -44,28 +44,14 @@ export function createServer() {
   )
 
   server.registerTool(
-    "search_utilities",
+    "list_platforms",
     {
-      title: "Search Breeze UI utilities",
-      description: "Find Tailwind-style layout and visual utility helpers.",
-      inputSchema: { query: z.string().optional() },
+      title: "List Breeze UI platforms",
+      description: "List the platforms whose controls Breeze UI draws (macOS, Windows, Linux) and the version each look follows.",
+      inputSchema: {},
       annotations: { readOnlyHint: true },
     },
-    ({ query }) => textResult(searchCatalog("utility", query, catalog))
-  )
-
-  server.registerTool(
-    "get_token",
-    {
-      title: "Get a Breeze UI token",
-      description: "Return a spacing, radius, or typography token by name.",
-      inputSchema: { name: z.string() },
-      annotations: { readOnlyHint: true },
-    },
-    ({ name }) => {
-      const item = findCatalog("token", name, catalog)
-      return item ? textResult(item) : textResult({ error: `Unknown token: ${name}` })
-    }
+    () => textResult(searchCatalog("platform", "", catalog))
   )
 
   server.registerTool(
@@ -89,7 +75,7 @@ export function createServer() {
   server.registerResource(
     "catalog",
     "breeze-ui://catalog",
-    { title: "Breeze UI catalog", description: "Components, utilities, and tokens for Breeze UI for MyGo.", mimeType: "application/json" },
+    { title: "Breeze UI catalog", description: "Components and platforms of Breeze UI for MyGo.", mimeType: "application/json" },
     (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(catalog, null, 2) }] })
   )
 

@@ -11,9 +11,9 @@ import {
   type PaginationState,
 } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
-import type { Catalog, CatalogItem } from "../lib/catalog";
+import { catalogEntries, type Catalog, type CatalogEntry } from "../lib/catalog";
 
-type CatalogRow = CatalogItem & { kind: "component" | "utility" | "token" };
+type CatalogRow = CatalogEntry;
 const features = tableFeatures({
   columnFilteringFeature,
   globalFilteringFeature,
@@ -35,16 +35,34 @@ const columns = columnHelper.columns([
       </span>
     ),
   }),
+  columnHelper.accessor("look", {
+    header: "Look",
+    cell: ({ getValue }) => {
+      const look = getValue();
+      return look ? (
+        <span className="rounded-full border border-line px-2 py-1 font-mono text-[9px] uppercase text-muted">
+          {look}
+        </span>
+      ) : (
+        <span className="text-dim">—</span>
+      );
+    },
+  }),
   columnHelper.accessor("description", {
     header: "Description",
     cell: ({ getValue, row }) => (
-      <span className="text-muted">{getValue() ?? row.original.value}</span>
+      <span className="text-muted">
+        {row.original.value && (
+          <code className="mr-2 font-mono text-[11px] text-mint">{row.original.value}</code>
+        )}
+        {getValue()}
+      </span>
     ),
   }),
   columnHelper.accessor("example", {
     header: "Example",
     cell: ({ getValue }) => (
-      <code className="font-mono text-[11px] text-dim">{getValue() ?? "—"}</code>
+      <code className="font-mono text-[11px] text-dim">{getValue()}</code>
     ),
   }),
 ]);
@@ -52,14 +70,7 @@ const columns = columnHelper.columns([
 export function CatalogTable({ catalog }: { catalog: Catalog }) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 });
-  const data = useMemo<CatalogRow[]>(
-    () => [
-      ...catalog.components.map((item) => ({ ...item, kind: "component" as const })),
-      ...catalog.utilities.map((item) => ({ ...item, kind: "utility" as const })),
-      ...catalog.tokens.map((item) => ({ ...item, kind: "token" as const })),
-    ],
-    [catalog],
-  );
+  const data = useMemo<CatalogRow[]>(() => catalogEntries(catalog), [catalog]);
   const table = useTable({
     features,
     data,

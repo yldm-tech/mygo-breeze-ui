@@ -7,16 +7,16 @@ const features = [
   {
     icon: Sparkles,
     color: "mint",
-    title: "utilityTitle",
-    text: "utilityText",
-    code: "breeze.Row(c, breeze.Gap(4), breeze.P(6))",
+    title: "platformTitle",
+    text: "platformText",
+    code: "breeze.Preview(c, breeze.Windows, func() { view(c) })",
   },
   {
     icon: Layers3,
     color: "orange",
     title: "componentTitle",
     text: "componentText",
-    code: 'breeze.Dialog(c, &open, "Hello", body, footer)',
+    code: 'breeze.Switch(c, &app.sync).Label("Sync")',
   },
   {
     icon: Terminal,
