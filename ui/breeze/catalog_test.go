@@ -1,12 +1,16 @@
 package breeze
 
-import "testing"
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"sort"
+	"strings"
+	"testing"
+)
 
 func TestCatalogIsStableAndUnique(t *testing.T) {
 	items := Catalog()
-	if len(items) < 10 {
-		t.Fatalf("catalog has %d entries, want at least 10", len(items))
-	}
 	for i := 1; i < len(items); i++ {
 		if items[i-1].Name > items[i].Name {
 			t.Fatalf("catalog is not sorted at %q and %q", items[i-1].Name, items[i].Name)
@@ -18,22 +22,50 @@ func TestCatalogIsStableAndUnique(t *testing.T) {
 }
 
 func TestCatalogLookup(t *testing.T) {
-	if item, ok := FindKind("component", "Button"); !ok || item.Category != "actions" {
+	if item, ok := FindKind("component", "Button"); !ok || item.Category != "actions" || item.Look != "drawn" {
 		t.Fatalf("Button lookup = %#v, %v", item, ok)
 	}
 	if _, ok := FindKind("component", "missing"); ok {
 		t.Fatal("missing component found")
 	}
-	if _, ok := FindKind("token", "Button"); ok {
-		t.Fatal("component returned for token lookup")
+	if _, ok := FindKind("platform", "Button"); ok {
+		t.Fatal("component returned for platform lookup")
+	}
+	for _, p := range Platforms {
+		if _, ok := FindKind("platform", p.String()); !ok {
+			t.Errorf("platform %v is missing from the catalog", p)
+		}
 	}
 }
 
-func TestCatalogCoversPublicComponents(t *testing.T) {
-	want := []string{"Button", "Card", "Input", "TextArea", "Checkbox", "Switch", "Select", "Badge", "Progress", "Tabs", "Dialog"}
-	for _, name := range want {
-		if _, ok := FindKind("component", name); !ok {
-			t.Errorf("component %q is missing from the catalog", name)
+// TestCatalogMatchesWidgets checks the catalog against the widget functions of widgets.go: every exported one is listed with an example calling it, and those Breeze UI draws itself are marked drawn.
+func TestCatalogMatchesWidgets(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "widgets.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var widgets []string
+	for _, decl := range file.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.IsExported() {
+			widgets = append(widgets, fn.Name.Name)
 		}
+	}
+	sort.Strings(widgets)
+	var listed []string
+	for _, item := range Catalog() {
+		if item.Kind != "component" {
+			continue
+		}
+		listed = append(listed, item.Name)
+		if !strings.Contains(item.Example, "breeze."+item.Name+"(") {
+			t.Errorf("%s: example %q does not call breeze.%s", item.Name, item.Example, item.Name)
+		}
+		drawn := map[string]bool{"Button": true, "PrimaryButton": true, "Checkbox": true, "Switch": true}[item.Name]
+		if want := map[bool]string{true: "drawn", false: "themed"}[drawn]; item.Look != want {
+			t.Errorf("%s: look %q, want %q", item.Name, item.Look, want)
+		}
+	}
+	if strings.Join(widgets, ",") != strings.Join(listed, ",") {
+		t.Fatalf("widgets.go has %v, the catalog lists %v", widgets, listed)
 	}
 }
