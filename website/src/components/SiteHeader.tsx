@@ -47,6 +47,12 @@ export function SiteHeader() {
         </Link>
         <a
           className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
+          href={`${import.meta.env.BASE_URL}storybook/`}
+        >
+          {t.navStorybook}
+        </a>
+        <a
+          className="inline-flex items-center gap-1.5 transition-colors hover:text-ink"
           href="https://github.com/yldm-tech/mygo-breeze-ui"
           target="_blank"
           rel="noreferrer"
