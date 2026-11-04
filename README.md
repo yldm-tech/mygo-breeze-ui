@@ -7,16 +7,16 @@
 
 [Website](https://yldm-tech.github.io/mygo-breeze-ui/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
-The website includes a live [catalog API reference](https://yldm-tech.github.io/mygo-breeze-ui/api/).
+Breeze UI draws [MyGo](https://github.com/egoist/mygo)'s native UI widgets as the desktop the app runs on draws its own: macOS's controls on a Mac, Windows 11's on Windows and GNOME's libadwaita controls on Linux. The widgets have the names and signatures of MyGo's package `ui`, so a view swaps `ui.Button` for `breeze.Button` and keeps everything else.
 
-Breeze UI is a Tailwind-inspired typed design system for [MyGo](https://github.com/egoist/mygo)'s native UI. It provides Go utility styles, design tokens, accessible components, a CLI, and an MCP catalog without HTML, CSS, or JavaScript at runtime.
+![The same view drawn as macOS, Windows 11 and GNOME](docs/assets/gallery-light.png)
 
 ## What is included
 
-- Typed utility styles for layout, spacing, sizing, color, typography, borders, and shadows.
-- Native components such as buttons, cards, fields, badges, progress bars, tabs, and dialogs.
-- `breeze-ui`, a CLI for discovering the catalog and generating Go snippets.
-- `breeze-ui-mcp`, a read-only MCP server for catalog search and snippet generation.
+- `ui/breeze`: `Button`, `PrimaryButton`, `Checkbox` and `Switch` drawn as each platform draws them, with sizes and colors taken from AppKit's rendering, WinUI 3's theme resources and libadwaita's stylesheet; `TextInput`, `TextArea`, `Select`, `Slider`, `Segmented`, `Tabs` and `Progress` from package `ui` in the platform's theme.
+- Themes of the three platforms, light and dark, that follow the accent color, contrast and text size the user chose.
+- `breeze-ui`, a CLI that lists the widgets and platforms and writes snippets.
+- `breeze-ui-mcp`, a read-only MCP server over the same catalog.
 
 ## Go package
 
@@ -30,25 +30,34 @@ import (
     breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-func view(c *ui.Context) {
-    breeze.Card(c, func() {
-        breeze.Text(c, "Account", breeze.TextSize(breeze.TextLG), breeze.FontWeight(600))
-        breeze.Input(c, &name, "Your name")
-        if breeze.Button(c, "Save", breeze.ButtonPrimary).Clicked() {
-            saved = true
-        }
+func (app *settings) view(c *ui.Context) {
+    breeze.Use(c) // the platform's colors and metrics
+    ui.Column(c).Padding(16).Gap(12).Children(func() {
+        breeze.Checkbox(c, &app.remember, "Remember me")
+        breeze.Switch(c, &app.sync).Label("Sync")
+        ui.Row(c).Gap(8).Children(func() {
+            breeze.Button(c, "Cancel")
+            if breeze.PrimaryButton(c, "Save").Clicked() {
+                app.save()
+            }
+        })
     })
 }
 ```
 
-The native renderer comes from the MyGo dependency; Breeze UI adds the Tailwind-style vocabulary and components on top of it.
+The platform is the system's unless `breeze.SetPlatform` picks another; `breeze.Preview(c, p, body)` draws part of a window as another platform, as the gallery does:
+
+```sh
+go run ./examples/breeze-ui
+```
+
+The pointer, the keyboard, the focus and accessibility come from MyGo's widget bases (`ui.ButtonBase`, `ui.CheckboxBase`, `ui.SwitchBase`). [docs/breeze-ui.md](docs/breeze-ui.md) lists what each widget looks like on each platform, where the values come from, and the current limits.
 
 ## CLI
 
 ```sh
-npx breeze-ui init
-npx breeze-ui list -kind component
-npx breeze-ui add Button -o ui/button_snippet.go
+npx breeze-ui list
+npx breeze-ui add Switch -o ui/switch_snippet.go
 ```
 
 Or install the Go command:
@@ -64,12 +73,14 @@ bun install
 bun run build
 ```
 
-The `breeze-ui-mcp` package exposes read-only tools for searching components, utilities, tokens, and generated snippets.
+The `breeze-ui-mcp` package exposes read-only tools to search components, list the platforms and generate snippets.
 
 ## Development
 
 ```sh
 go test ./...
+go run ./examples/breeze-ui
+BREEZE_SCREENSHOTS=/tmp/shots go test ./ui/breeze -run TestScreenshots   # write each platform's controls as PNG
 bun install
 bun run test
 bun run typecheck

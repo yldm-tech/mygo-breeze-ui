@@ -1,8 +1,6 @@
 # The `breeze-ui` CLI
 
-`breeze-ui` discovers and scaffolds the catalog in
-`github.com/yldm-tech/mygo-breeze-ui/ui/breeze`. It is useful when starting a native UI screen,
-and it reads the same catalog used by the website and MCP server.
+`breeze-ui` lists the widgets of `github.com/yldm-tech/mygo-breeze-ui/ui/breeze` and the platforms they follow, and writes snippets that use them. It reads the same catalog as the website and the MCP server.
 
 Install the Go command:
 
@@ -19,18 +17,15 @@ npx breeze-ui init
 ## Commands
 
 ```sh
-breeze-ui list [-kind utility|component|token]
-breeze-ui add Button [-o ui/button_snippet.go]
-breeze-ui tokens [-o theme/tokens.go]
+breeze-ui list [-kind component|platform]
+breeze-ui add Switch [-o ui/switch_snippet.go]
 breeze-ui init [directory] [--force]
 breeze-ui example
 ```
 
-`list` prints catalog entries. `add` writes a Go snippet for a component;
-options can appear before or after the component name. `tokens` writes a small
-generated Go file containing the numeric design tokens. `init` creates a
-`breeze-ui.json` marker with the catalog version and refuses to overwrite an
-existing file unless `--force` is provided. `example` prints a minimal view.
+- `list` prints the catalog: each component with its look (`drawn` or `themed`), and each platform with the version its look follows.
+- `add` writes a Go snippet for a component; options can come before or after the component's name.
+- `init` creates a `breeze-ui.json` marker with the catalog's version, and does not replace an existing one without `--force`.
+- `example` prints a small view that uses the widgets.
 
-The CLI is a scaffold and discovery tool. It does not parse CSS or add a
-runtime dependency beyond the normal `ui/breeze` Go package.
+The CLI only discovers and scaffolds: an app needs nothing beyond the `ui/breeze` Go package.

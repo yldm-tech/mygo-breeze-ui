@@ -7,16 +7,16 @@
 
 [官网](https://yldm-tech.github.io/mygo-breeze-ui/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
-官网提供[目录 API 文档](https://yldm-tech.github.io/mygo-breeze-ui/api/)，展示版本化的只读目录接口。
+Breeze UI 让 [MyGo](https://github.com/egoist/mygo) 的原生 UI 控件按应用所在的系统绘制：在 Mac 上是 macOS 的控件，在 Windows 上是 Windows 11 的控件，在 Linux 上是 GNOME libadwaita 的控件。控件的名字和签名与 MyGo 的 `ui` 包完全一致，把 `ui.Button` 换成 `breeze.Button` 即可，其余代码不用改。
 
-Breeze UI 是面向 [MyGo](https://github.com/egoist/mygo) 原生 UI 的 Tailwind 风格类型化设计系统。它提供 Go 工具样式、设计令牌、原生组件、CLI 和 MCP 目录服务，运行时不需要 HTML、CSS 或 JavaScript。
+![同一个界面分别按 macOS、Windows 11 和 GNOME 绘制](docs/assets/gallery-light.png)
 
 ## 包含内容
 
-- 覆盖布局、间距、尺寸、颜色、排版、边框和阴影的类型化工具样式。
-- Button、Card、Input、Badge、Progress、Tabs、Dialog 等原生组件。
-- `breeze-ui` CLI，用于浏览目录和生成 Go 代码片段。
-- `breeze-ui-mcp` 只读 MCP 服务，用于搜索目录和生成代码片段。
+- `ui/breeze`：`Button`、`PrimaryButton`、`Checkbox`、`Switch` 按各平台的样子绘制，尺寸和颜色取自 AppKit 的实际渲染、WinUI 3 的主题资源和 libadwaita 的样式表；`TextInput`、`TextArea`、`Select`、`Slider`、`Segmented`、`Tabs`、`Progress` 使用 `ui` 包的控件，配上平台主题。
+- 三个平台的浅色和深色主题，跟随用户选择的强调色、对比度和文字大小。
+- `breeze-ui` CLI：列出控件和平台，生成代码片段。
+- `breeze-ui-mcp`：基于同一份目录的只读 MCP 服务。
 
 ## Go 包
 
@@ -30,28 +30,37 @@ import (
     breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-func view(c *ui.Context) {
-    breeze.Card(c, func() {
-        breeze.Text(c, "账户", breeze.TextSize(breeze.TextLG), breeze.FontWeight(600))
-        breeze.Input(c, &name, "你的名字")
-        if breeze.Button(c, "保存", breeze.ButtonPrimary).Clicked() {
-            saved = true
-        }
+func (app *settings) view(c *ui.Context) {
+    breeze.Use(c) // the platform's colors and metrics
+    ui.Column(c).Padding(16).Gap(12).Children(func() {
+        breeze.Checkbox(c, &app.remember, "Remember me")
+        breeze.Switch(c, &app.sync).Label("Sync")
+        ui.Row(c).Gap(8).Children(func() {
+            breeze.Button(c, "Cancel")
+            if breeze.PrimaryButton(c, "Save").Clicked() {
+                app.save()
+            }
+        })
     })
 }
 ```
 
-原生渲染器由 MyGo 依赖提供，Breeze UI 在其上增加 Tailwind 风格的设计词汇和组件。
+默认按当前系统选择平台，`breeze.SetPlatform` 可以指定其他平台；`breeze.Preview(c, p, body)` 把窗口的一部分按另一个平台绘制，示例 gallery 就是这样把三个平台并排显示的：
+
+```sh
+go run ./examples/breeze-ui
+```
+
+指针、键盘、焦点和无障碍都来自 MyGo 的无外观控件（`ui.ButtonBase`、`ui.CheckboxBase`、`ui.SwitchBase`）。每个控件在各平台上的样子、数值的来源和目前的限制见 [docs/breeze-ui.md](docs/breeze-ui.md)。
 
 ## CLI
 
 ```sh
-npx breeze-ui init
-npx breeze-ui list -kind component
-npx breeze-ui add Button -o ui/button_snippet.go
+npx breeze-ui list
+npx breeze-ui add Switch -o ui/switch_snippet.go
 ```
 
-也可以直接安装 Go 命令：
+也可以安装 Go 命令：
 
 ```sh
 go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest
@@ -64,12 +73,14 @@ bun install
 bun run build
 ```
 
-`breeze-ui-mcp` 提供只读工具，用于搜索组件、工具样式、设计令牌并生成代码片段。
+`breeze-ui-mcp` 提供只读工具，用来搜索组件、列出平台和生成代码片段。
 
 ## 开发
 
 ```sh
 go test ./...
+go run ./examples/breeze-ui
+BREEZE_SCREENSHOTS=/tmp/shots go test ./ui/breeze -run TestScreenshots   # write each platform's controls as PNG
 bun install
 bun run test
 bun run typecheck
