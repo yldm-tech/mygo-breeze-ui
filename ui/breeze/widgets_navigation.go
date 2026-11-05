@@ -464,7 +464,7 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 			pt.StrokePath(&chevron, 2, fg)
 		}
 	default:
-		// A bordered NSToolbarItem with an image, drawn as this package's other toolbar items are (idiomMacPlatter, measured from a live capture of a key window on macOS 27.2): a platter 36 points square, round, its glyph black in Aqua and white in Dark Aqua, and in a Toolbar joined with an image item beside it, as Back and Forward share one platter in AppKit. Pressed it keeps black at 20% (Aqua) or white at 17.8% (Dark Aqua) over the window, measured offscreen on macOS 27, which TestHistoryButtonGlyphs holds it to; the live capture shows a pressed toolbar item at black 7.8% and (89,88,88), which the other toolbar items take.
+		// A bordered NSToolbarItem with an image, drawn as this package's other toolbar items are (idiomMacPlatter, measured from a live capture of a key window on macOS 27.2): a platter 36 points square, round, its glyph black in Aqua and white in Dark Aqua, and in a Toolbar joined with an image item beside it, as Back and Forward share one platter in AppKit. Pressed in a Toolbar it takes the other toolbar items' face, black at 7.8% (235) in Aqua and (89,88,88) in Dark Aqua from the live capture; outside one, where AppKit has no such item, it keeps black at 20% or white at 17.8% over the window, measured offscreen on macOS 27, which TestHistoryButtonGlyphs holds it to.
 		// A toolbar item does not mark the pointer (none of the captures shows a hover).
 		fg := idiomMacInk(t, false)
 		fill := idiomMacRest
@@ -479,10 +479,14 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 		b.Size(36, 36).Padding(0).Radius(18).Border(0, ui.Color{}).Background(ui.RGBA(255, 255, 255, 0))
 		before := tb != nil && idiomMacJoin(c, tb, i)
 		down := pick(t.Dark, t.Background.Mix(black, 0.2), t.Background.Mix(white, 0.178))
+		if tb != nil {
+			down = idiomMacPressedFace(t)
+		}
 		off := disabledOnce(b)
+		rtl := c.Direction() == ui.RightToLeft
 		b.Draw(func(pt *ui.Painter, rc ui.Rect) {
 			after := tb != nil && i+1 < len(tb.joined) && tb.joined[i+1]
-			idiomMacPlatter(pt, t, rc, fill, down, before, after, off())
+			idiomMacPlatter(pt, t, rc, fill, down, before, after, rtl, off())
 		})
 		glyph = func(pt *ui.Painter, rc ui.Rect) {
 			// SF Symbols' chevron.left (chevron.right mirrored) in the item, measured: about 8 by 14 points of ink with a stroke near 1.7, its point 4 points before the platter's middle.
@@ -492,7 +496,22 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 			pt.StrokePath(&chevron, 1.7, fg)
 		}
 	}
-	b.DrawOver(glyph)
+	// The focus ring the platform's other toolbar items show, in place of MyGo's: AppKit's around the platter (macFocusRing), WinUI's focus visual 3 DIPs around the face (fluentFocusRing), libadwaita's 2 pixels inside the button's edge (_drawing.scss's focus-ring mixin, as adwFocusRing draws it). The focus is read as b is built, as macRing reads it.
+	ring := b.FocusVisible()
+	b.FocusRing(false).DrawOver(func(pt *ui.Painter, rc ui.Rect) {
+		glyph(pt, rc)
+		if !ring {
+			return
+		}
+		switch p {
+		case Windows:
+			fluentFocusRing(pt, t, rc, 3, 3, 3, 3, 4)
+		case Linux:
+			pt.Stroke(rc, t.Focus, 9, 2)
+		default:
+			macFocusRing(pt, rc, 18)
+		}
+	})
 	return b
 }
 

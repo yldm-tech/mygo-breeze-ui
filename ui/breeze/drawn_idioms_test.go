@@ -110,6 +110,11 @@ func TestScreenshotsWave2Idioms(t *testing.T) {
 			}
 			tester := fresh()
 			shot("rest", tester)
+			tester.SetDirection(ui.RightToLeft)
+			tester.Frame()
+			tester.Frame()
+			shot("rest-rtl", tester)
+			tester = fresh()
 
 			r, ok := tester.Find("City")
 			if !ok {
@@ -676,6 +681,300 @@ func TestIdiomBreadcrumbCurrentItem(t *testing.T) {
 			if chosen != 1 || changed != 1 {
 				t.Fatalf("%v: a click on Users chose %d, changed %d", p, chosen, changed)
 			}
+		}
+	}
+}
+
+// idiomFocusView lays out a button before a toolbar of a text button, an image button, a toggle, a menu button and the history buttons, and after it a popover menu button outside a toolbar, for the focus tests.
+func idiomFocusView(p Platform, s *idiomToolbarState) func(c *ui.Context) {
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Column(c).Fill().Padding(16).Gap(16).Children(func() {
+				ui.Button(c, "Before")
+				Toolbar(c, func() {
+					Button(c, "Bold")
+					a := Button(c, "").Label("Sidebar")
+					a.Children(func() { ui.Icon(c, idiomTestSidebarIcon).Size(16, 16) })
+					Toggle(c, &s.wrap, "Wrap")
+					MenuButton(c, "Share", func(m *ui.Menu) { m.Item("Copy") })
+					BackButton(c, s.router)
+				}).Label("Format")
+				ui.Row(c).Children(func() {
+					PopoverMenuButton(c, "Order", func(m *ui.Menu) { m.Item("Name") })
+				})
+			})
+		})
+	}
+}
+
+// TestIdiomFocusRingFollowsTheKeyboard checks on every platform, left to right and right to left, that a toolbar item and a menu button show the platform's focus ring when the keyboard gives them the focus (Tab, the arrows) and none when a click does, as MyGo's own ring does: the pixels around the item, its own ring included, change only for the keyboard.
+func TestIdiomFocusRingFollowsTheKeyboard(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			s := newIdiomToolbarState()
+			tester := ui.NewTester(idiomFocusView(p, s), 900, 300)
+			tester.SetDirection(dir)
+			tester.Frame()
+			tester.Frame()
+			away := func() {
+				tester.Move(890, 290)
+				tester.Frame()
+			}
+			away()
+			base := tester.Image()
+			snapshot := func() []uint8 { return append([]uint8(nil), base.Pix...) }
+			rest := snapshot()
+			// changed counts the pixels around what shows name (a button's label, or an image button labeled name), 18 DIPs out so as to take in the button around a label and its ring, that differ from the frame with nothing focused.
+			changed := func(name string) int {
+				t.Helper()
+				r, ok := tester.Find(name)
+				if !ok {
+					t.Fatalf("%v %v: %q is missing", p, dir, name)
+				}
+				img, n := tester.Image(), 0
+				for y := int(r.Y - 18); y < int(r.Y+r.H+18); y++ {
+					for x := int(r.X - 18); x < int(r.X+r.W+18); x++ {
+						i := img.PixOffset(x, y)
+						if img.Pix[i] != rest[i] || img.Pix[i+1] != rest[i+1] || img.Pix[i+2] != rest[i+2] {
+							n++
+						}
+					}
+				}
+				return n
+			}
+			for _, name := range []string{"Bold", "Sidebar", "Wrap", "Share", "Back", "Order"} {
+				if n := changed(name); n != 0 {
+					t.Fatalf("%v %v: %q changes %d pixels with nothing focused", p, dir, name, n)
+				}
+			}
+			// A click focuses without a ring; Share opens its native menu, which is closed. (A click on Order opens the drawn menu, which takes the focus, as ui.PopoverMenuButton's does.)
+			for _, name := range []string{"Bold", "Sidebar", "Share"} {
+				if err := tester.Click(name); err != nil {
+					t.Fatalf("%v %v: click %q: %v", p, dir, name, err)
+				}
+				tester.Frame()
+				tester.CloseMenu()
+				away()
+				if !tester.Focused(name) {
+					t.Fatalf("%v %v: a click left %q without the focus", p, dir, name)
+				}
+				if n := changed(name); n != 0 {
+					t.Fatalf("%v %v: %q shows a focus ring after a click (%d pixels)", p, dir, name, n)
+				}
+			}
+			// Tab from the button before the toolbar enters it at the item focused last; the arrows move along it, each showing the ring.
+			if err := tester.Click("Before"); err != nil {
+				t.Fatal(err)
+			}
+			away()
+			tester.Key(0, ui.KeyTab)
+			tester.Frame()
+			if !tester.Focused("Share") {
+				t.Fatalf("%v %v: Tab did not enter the toolbar at Share, the item focused last", p, dir)
+			}
+			if n := changed("Share"); n < 20 {
+				t.Fatalf("%v %v: Share shows no focus ring after Tab (%d pixels)", p, dir, n)
+			}
+			next := ui.KeyRight
+			if dir == ui.RightToLeft {
+				next = ui.KeyLeft
+			}
+			back := ui.KeyLeft
+			if dir == ui.RightToLeft {
+				back = ui.KeyRight
+			}
+			for _, step := range []struct {
+				key  ui.Key
+				name string
+			}{{back, "Wrap"}, {back, "Sidebar"}, {back, "Bold"}, {next, "Sidebar"}, {next, "Wrap"}, {next, "Share"}, {next, "Back"}} {
+				tester.Key(0, step.key)
+				tester.Frame()
+				if !tester.Focused(step.name) {
+					t.Fatalf("%v %v: the arrow did not move the focus to %q", p, dir, step.name)
+				}
+				if n := changed(step.name); n < 20 {
+					t.Fatalf("%v %v: %q shows no focus ring from the keyboard (%d pixels)", p, dir, step.name, n)
+				}
+			}
+			// Tab leaves the toolbar, one stop of Tab, for the popover menu button, which shows the ring.
+			tester.Key(0, ui.KeyTab)
+			tester.Frame()
+			if !tester.Focused("Order") {
+				t.Fatalf("%v %v: Tab from the toolbar did not reach Order", p, dir)
+			}
+			if n := changed("Order"); n < 20 {
+				t.Fatalf("%v %v: Order shows no focus ring after Tab (%d pixels)", p, dir, n)
+			}
+			tester.Key(ui.Shift, ui.KeyTab)
+			tester.Frame()
+			if !tester.Focused("Back") {
+				t.Fatalf("%v %v: Shift-Tab did not go back into the toolbar at Back", p, dir)
+			}
+		}
+	}
+}
+
+// TestIdiomToolbarTogglesAndDisabledItems checks on every platform, left to right and right to left, that a toggle in a toolbar reports Changed for a click and for Space, that a disabled toggle and a disabled menu button in a toolbar take no click, and that an image-only menu button, named by Label, opens its menu.
+func TestIdiomToolbarTogglesAndDisabledItems(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			on, locked, disabled := false, false, false
+			changed, opened := 0, ""
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Fill().Padding(16).Children(func() {
+						Toolbar(c, func() {
+							if Toggle(c, &on, "Wrap").Changed() {
+								changed++
+							}
+							Toggle(c, &locked, "Lock").Disabled(disabled)
+							MenuButton(c, "Share", func(m *ui.Menu) { m.Item("Copy") }).Disabled(disabled)
+							opts := MenuButton(c, "", func(m *ui.Menu) {
+								if m.Item("Settings").Chosen() {
+									opened = "Settings"
+								}
+							}).Label("Options")
+							opts.Children(func() { ui.Icon(c, idiomTestSidebarIcon).Size(16, 16) })
+						}).Label("Format")
+					})
+				})
+			}, 700, 200)
+			tester.SetDirection(dir)
+			tester.Frame()
+			if err := tester.Click("Wrap"); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+			if !on || changed != 1 {
+				t.Fatalf("%v %v: a click on the toggle left it %v, Changed %d times", p, dir, on, changed)
+			}
+			tester.Key(0, ui.KeySpace)
+			tester.Frame()
+			if on || changed != 2 {
+				t.Fatalf("%v %v: Space on the toggle left it %v, Changed %d times", p, dir, on, changed)
+			}
+			if err := tester.Click("Options"); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+			if got := strings.Join(tester.Menu(), ","); got != "Settings" {
+				t.Fatalf("%v %v: the image-only menu button's menu is %q", p, dir, got)
+			}
+			if err := tester.ChooseMenuItem("Settings"); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+			if opened != "Settings" {
+				t.Fatalf("%v %v: choosing in the image-only menu button's menu gave %q", p, dir, opened)
+			}
+			disabled = true
+			tester.Frame()
+			_ = tester.Click("Lock")
+			tester.Frame()
+			_ = tester.Click("Share")
+			tester.Frame()
+			if locked || len(tester.Menu()) != 0 {
+				t.Fatalf("%v %v: the disabled toggle is %v, the disabled menu button opened %v", p, dir, locked, tester.Menu())
+			}
+		}
+	}
+}
+
+// TestIdiomMacJoinedPlatterRightToLeft checks that on macOS the platter Back and Forward share in a toolbar is round at its two outer ends and runs on, square, where they meet, left to right and right to left, where Back is on the right.
+func TestIdiomMacJoinedPlatterRightToLeft(t *testing.T) {
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		s := newIdiomToolbarState()
+		var th *ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Mac, func() {
+				Use(c)
+				th = c.Theme()
+				ui.Column(c).Fill().Padding(8).Children(func() {
+					Toolbar(c, func() {
+						BackButton(c, s.router)
+						ForwardButton(c, s.router)
+					}).Label("History")
+				})
+			})
+		}, 400, 120)
+		tester.SetDark(true)
+		tester.SetDirection(dir)
+		tester.Frame()
+		tester.Frame()
+		tester.Frame()
+		back, _ := tester.Find("Back")
+		fwd, _ := tester.Find("Forward")
+		left, right := back, fwd
+		if dir == ui.RightToLeft {
+			left, right = fwd, back
+		}
+		if left.X+left.W > right.X+0.5 {
+			t.Fatalf("%v: Back and Forward overlap or are out of order: %v, %v", dir, back, fwd)
+		}
+		at := func(x, y float32) ui.Color {
+			px := tester.Image().RGBAAt(int(x), int(y))
+			return ui.RGB(px.R, px.G, px.B)
+		}
+		// Two points in from the top corners of the shared platter the window shows, its ends being round; at the top where the two meet, the face.
+		for _, pt := range [][2]float32{{left.X + 2, left.Y + 2}, {right.X + right.W - 2, right.Y + 2}} {
+			if got := at(pt[0], pt[1]); got != th.Background {
+				t.Fatalf("%v: an outer corner of the shared platter at %v is %v, not the window %v", dir, pt, got, th.Background)
+			}
+		}
+		if got := at(left.X+left.W-1, left.Y+3); got == th.Background {
+			t.Fatalf("%v: where Back and Forward meet, the platter is open (%v)", dir, got)
+		}
+		if got := at(right.X+1, right.Y+3); got == th.Background {
+			t.Fatalf("%v: where Back and Forward meet, the platter is open (%v)", dir, got)
+		}
+	}
+}
+
+// TestIdiomAutocompleteWithoutSuggestions runs the autocomplete script with no suggestions and with an empty list, which ui.Autocomplete accepts, on every platform: the same steps as ui.Autocomplete's, no popup, Enter Submitted.
+func TestIdiomAutocompleteWithoutSuggestions(t *testing.T) {
+	for _, p := range Platforms {
+		for _, suggestions := range [][]string{nil, {}} {
+			want := idiomRunAutocomplete(t, p, ui.LeftToRight, false, func(c *ui.Context, value *string) ui.Element { return ui.Autocomplete(c, value, suggestions) })
+			got := idiomRunAutocomplete(t, p, ui.LeftToRight, false, func(c *ui.Context, value *string) ui.Element { return Autocomplete(c, value, suggestions) })
+			for i := range want.steps {
+				if got.steps[i] != want.steps[i] {
+					t.Fatalf("%v %v: after %d steps\n got  %s\n want %s", p, suggestions, i+1, got.steps[i], want.steps[i])
+				}
+			}
+			if !strings.Contains(got.steps[2], "submitted 1") {
+				t.Fatalf("%v: Enter without suggestions was not Submitted: %s", p, got.steps[2])
+			}
+		}
+	}
+}
+
+// TestIdiomBreadcrumbCurrentItemTakesNoFocus checks on every platform that the current item of a path, which takes the pointer's presses on Windows to show them, is no stop of Tab: Tab goes from the last link to what follows the path.
+func TestIdiomBreadcrumbCurrentItemTakesNoFocus(t *testing.T) {
+	for _, p := range Platforms {
+		chosen := -1
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Gap(8).Children(func() {
+					Breadcrumbs(c, []string{"Home", "Users", "Ada"}, &chosen).Label("Path")
+					ui.Button(c, "After")
+				})
+			})
+		}, 480, 200)
+		tester.Frame()
+		if err := tester.Click("Users"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if !tester.Focused("Users") {
+			t.Fatalf("%v: a click left Users without the focus", p)
+		}
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if !tester.Focused("After") {
+			t.Fatalf("%v: Tab from the last link did not go past the current item to After", p)
 		}
 	}
 }

@@ -99,23 +99,28 @@ const (
 	idiomMacOnPressed
 )
 
-// idiomMacPlatter paints the platter of a bordered NSToolbarItem in r, as a live capture of a key window on macOS 27.2 (BreezeProbeIdioms, converted from Display P3 to sRGB) shows it: a capsule 36 points high, white in Aqua, and in Dark Aqua (69,68,68) with a lighter rim inside its top and bottom edges ((122,120,120), (105,104,104), then (81,80,80) a point in, and (104,103,103), (120,118,117) at the bottom), inside a half-point line outside the frame that is darker at the sides than above and below (black at 3.1% above, 24.3% at the sides and 4.3% below over white, 247, 193 and 244; in Dark Aqua black at 63% at the sides, 15 over the toolbar's 41, and nothing above and below). Pressed, the whole platter is flat black at 7.8% (235) in Aqua and (89,88,88) in Dark Aqua (an NSToolbarButton highlighted), or pressed is given, for the history buttons. A selected toggle (a one-item NSToolbarItemGroup) and a prominent item (NSToolbarItem.style .prominent) fill it with the accent, controlAccentColor, with a lighter rim inside its top and bottom edges ((28,185,255), (8,158,255) half a point in, for the blue accent). Pressed while selected it is the accent pressed (inferred). A disabled item keeps its platter. Items that share a platter (before, after) draw their slice of it, the platter running on under the neighbor's side, clipped to the item; the slice pressed is a pill 28 points high, 4 points inside the platter's edges, as AppKit highlights an item of a joined platter (measured: the italic slice of bold and italic, 253 to 286 points of 217 to 290).
-func idiomMacPlatter(p *ui.Painter, t *ui.Theme, r ui.Rect, fill idiomMacFill, pressed ui.Color, before, after, disabled bool) {
+// idiomMacPlatter paints the platter of a bordered NSToolbarItem in r, as a live capture of a key window on macOS 27.2 (BreezeProbeIdioms, converted from Display P3 to sRGB) shows it: a capsule 36 points high, white in Aqua, and in Dark Aqua (69,68,68) with a lighter rim inside its top and bottom edges ((122,120,120), (105,104,104), then (81,80,80) a point in, and (104,103,103), (120,118,117) at the bottom), inside a half-point line outside the frame that is darker at the sides than above and below (black at 3.1% above, 24.3% at the sides and 4.3% below over white, 247, 193 and 244; in Dark Aqua black at 63% at the sides, 15 over the toolbar's 41, and nothing above and below). Pressed, the whole platter is flat black at 7.8% (235) in Aqua and (89,88,88) in Dark Aqua (an NSToolbarButton highlighted), or pressed is given, for the history buttons. A selected toggle (a one-item NSToolbarItemGroup) and a prominent item (NSToolbarItem.style .prominent) fill it with the accent, controlAccentColor, with a lighter rim inside its top and bottom edges ((28,185,255), (8,158,255) half a point in, for the blue accent). Pressed while selected it is the accent pressed (inferred). A disabled item keeps its platter. Items that share a platter (before, after) draw their slice of it, the platter running on under the neighbor's side, clipped to the item; the slice pressed is a pill 28 points high, 4 points inside the platter's edges, as AppKit highlights an item of a joined platter (measured: the italic slice of bold and italic, 253 to 286 points of 217 to 290). Right to left (rtl), the item before is on the right, so the platter runs on to that side.
+func idiomMacPlatter(p *ui.Painter, t *ui.Theme, r ui.Rect, fill idiomMacFill, pressed ui.Color, before, after, rtl, disabled bool) {
 	const radius = 18
+	// left and right are the sides a neighbor shares the platter on.
+	left, right := before, after
+	if rtl {
+		left, right = after, before
+	}
 	ext := r
-	if before {
+	if left {
 		ext.X -= radius
 		ext.W += radius
 	}
-	if after {
+	if right {
 		ext.W += radius
 	}
 	clip := ui.Rect{X: r.X, Y: r.Y - 0.5, W: r.W, H: r.H + 1}
-	if !before {
+	if !left {
 		clip.X -= 0.5
 		clip.W += 0.5
 	}
-	if !after {
+	if !right {
 		clip.W += 0.5
 	}
 	// MyGo draws a disabled element at half opacity, each fill on its own; AppKit dims a disabled item's label, not its platter (inferred: the platter of a disabled item in the capture is that of an enabled one), so the platter takes the colors that read as the enabled ones at half opacity, as macDisabledOn does, the label alone fading. It is also what keeps a joined platter whole beside a disabled history button.
@@ -161,11 +166,11 @@ func idiomMacPlatter(p *ui.Painter, t *ui.Theme, r ui.Rect, fill idiomMacFill, p
 		case fill == idiomMacPressed && (before || after):
 			p.FillGradient(ext, grad(idiomMacFace(t, ext.H)), radius)
 			pill := ui.Rect{X: r.X, Y: r.Y + 4, W: r.W, H: r.H - 8}
-			if !before {
+			if !left {
 				pill.X += 4
 				pill.W -= 4
 			}
-			if !after {
+			if !right {
 				pill.W -= 4
 			}
 			p.Fill(pill, shade(pressed), pill.H/2)
@@ -268,9 +273,10 @@ func idiomMacToolbarItem(c *ui.Context, b ui.Element, tb *idiomToolbar, i int, o
 	}
 	b.TextColor(idiomMacInk(t, on))
 	pressed, disabled := idiomMacPressedFace(t), disabledOnce(b)
+	rtl := c.Direction() == ui.RightToLeft
 	b.Draw(func(p *ui.Painter, r ui.Rect) {
 		after := i+1 < len(tb.joined) && tb.joined[i+1]
-		idiomMacPlatter(p, t, r, fill, pressed, before, after, disabled())
+		idiomMacPlatter(p, t, r, fill, pressed, before, after, rtl, disabled())
 	})
 	macRing(b, 18)
 }
