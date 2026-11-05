@@ -253,21 +253,13 @@ func macWellEdge(color ui.Color, dark bool) ui.Color {
 
 // ---- Windows 11 ----
 
-// fluentStepSlider draws a Slider with TickPlacement BottomRight: 32 DIPs high, a 4-DIP track of ControlStrongFillColorDefault filled with the accent, the thumb of Slider (an 18-DIP Thumb whose border reaches 2 beyond it, around an accent dot that grows under the pointer and shrinks pressed), and a TickBar below the track: ticks one device pixel wide (TickBar_Partial.cpp's singlePixelWidthScaled, 1 over the scale) and 4 DIPs high (SliderOutsideTickBarThemeHeight) in SliderTickBarFill (ControlStrongFillColorDefault), 4 below the track. The thumb's center and the ticks travel the track less the Thumb's 18 DIPs, as TickBar arranges them.
+// fluentStepSlider draws a Slider with TickPlacement BottomRight: 32 DIPs high, a 4-DIP track of ControlStrongFillColorDefault filled with the accent (Secondary under the pointer and Tertiary pressed), the thumb of Slider (fluentSliderThumb), and a TickBar below the track: ticks one device pixel wide (TickBar_Partial.cpp's singlePixelWidthScaled, 1 over the scale) and 4 DIPs high (SliderOutsideTickBarThemeHeight) in SliderTickBarFill (ControlStrongFillColorDefault), 4 below the track. The thumb's center and the ticks travel the track less the Thumb's 18 DIPs, as TickBar arranges them.
 func fluentStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 	t := c.Theme()
-	const thumb, travel = 22, 18
+	const travel = 18
 	s.Height(32).PaddingX(travel / 2).MinWidth(60).FocusRing(false)
-	inner := float32(10.3)
-	accent := t.Accent
-	switch {
-	case s.Pressed():
-		inner, accent = 8.5, t.AccentPressed
-	case s.Hovered():
-		inner, accent = 14, t.AccentHover
-	}
+	inner, accent := fluentSliderState(t, s)
 	strong := t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.545))
-	face := pick(t.Dark, white, ui.Hex("#454545"))
 	rtl := c.Direction() == ui.RightToLeft
 	at := along(c, frac)
 	focused := s.FocusVisible()
@@ -287,14 +279,11 @@ func fluentStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32
 		if rtl {
 			fill = ui.Rect{X: x, Y: ty, W: r.X + r.W - x, H: 4}
 		}
-		p.Fill(fill, t.Accent, 2)
-		k := ui.Rect{X: x - thumb/2, Y: r.Y + (r.H-thumb)/2, W: thumb, H: thumb}
-		p.Fill(k, face.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.161), 0.094)), thumb/2)
-		p.Fill(ui.Rect{X: k.X + 1, Y: k.Y + 1, W: thumb - 2, H: thumb - 2}, face, thumb/2-1)
-		p.Fill(ui.Rect{X: x - inner/2, Y: k.Y + (thumb-inner)/2, W: inner, H: inner}, accent, inner/2)
+		p.Fill(fill, accent, 2)
+		fluentSliderThumb(p, t, x, r.Y+r.H/2, inner, accent)
 		// The keyboard's focus goes to Slider's FocusBorder, the whole 32-DIP slider with corners of ControlCornerRadius, widened 7 at each end by its FocusVisualMargin of -7,0,-7,0; the ring goes around the thumb only while focus is engaged, which takes a game pad.
 		if focused {
-			p.FocusRing(ui.Rect{X: r.X - 7, Y: r.Y, W: r.W + 14, H: r.H}, radii(4))
+			fluentFocusRing(p, t, r, 7, 0, 7, 0, 4)
 		}
 	})
 }
@@ -330,7 +319,7 @@ func fluentTimeInput(c *ui.Context, f ui.Element) {
 	f.MinWidth(242).Justify(ui.SpaceEvenly).Padding(3, 0, 6, 0)
 }
 
-// fluentColorWell draws a DropDownButton showing the color, as WinUI's apps open a ColorPicker from one: a button's face and elevation border, 32 DIPs high; ButtonPadding 11 at the start; a swatch 36 by 20 (MyGo's size) with corners of 4 (ControlCornerRadius) and a 1-DIP ControlStrokeColorDefault edge (inferred), a color that is not opaque over ColorPicker's checkerboard; then the ChevronDownSmall glyph, 8 DIPs in a 12-DIP box 8 after the swatch, in TextFillColorSecondary (Tertiary under the pointer and pressed), and ButtonPadding 11 at the end: 80 DIPs wide.
+// fluentColorWell draws a DropDownButton showing the color, as WinUI's apps open a ColorPicker from one: a button's face and elevation border, 32 DIPs high; ButtonPadding 11 at the start; a swatch 36 by 20 (MyGo's size) with corners of 4 (ControlCornerRadius) and a 1-DIP ControlStrokeColorDefault edge (inferred), a color that is not opaque over ColorPicker's checkerboard; then the AnimatedChevronDownSmallVisualSource glyph (fluentChevronDown) in a 12-DIP box 8 after the swatch (DropDownButton.xaml's ChevronIcon, Margin 8,0,0,0), in TextFillColorSecondary (Tertiary under the pointer and pressed), moving down while pressed as it does (fluentChevronNudge), and ButtonPadding 11 at the end: 80 DIPs wide.
 func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	t := c.Theme()
 	pressed, hovered := b.Pressed(), b.Hovered()
@@ -347,6 +336,7 @@ func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	}
 	// ColorPicker's checkerboard (ColorHelpers.cpp): squares of CheckerSize 4, the first one clear, the next in CheckerColorBrush, SystemListLowColor: #19000000, #19FFFFFF in Dark.
 	checker := pick(t.Dark, black, white).Alpha(0x19 / 255.0)
+	nudge := fluentChevronNudge(b, pressed)
 	hideWellSwatch(b, 1+11+36+8+12+11+1, 32, 4)
 	rtl := c.Direction() == ui.RightToLeft
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -359,10 +349,7 @@ func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 		s := ui.Rect{X: x, Y: r.Y + (r.H-20)/2, W: 36, H: 20}
 		colorWellSwatch(p, s, color, 4, 4, ui.Transparent, checker)
 		p.Stroke(s, t.Border, 4, 1)
-		cy := r.Y + r.H/2
-		var path ui.Path
-		path.MoveTo(cx-4, cy-2).LineTo(cx, cy+2).LineTo(cx+4, cy-2)
-		p.StrokePath(&path, 1, chevron)
+		fluentChevronDown(p, cx, r.Y+r.H/2+nudge, chevron)
 	})
 }
 

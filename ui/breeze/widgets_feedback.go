@@ -143,8 +143,8 @@ func fluentToastSeverity(typ string) int {
 	return fluentToastInformational
 }
 
-// fluentToastColors returns an InfoBar's background and its icon's fill for a severity: SystemFillColorSolidAttentionBackground (the solid one, as the toast floats over content) or SystemFillColorSuccessBackground, CautionBackground and CriticalBackground behind the content; SystemFillColorAttention (the accent fill) or SystemFillColorSuccess, Caution and Critical for the icon.
-func fluentToastColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
+// fluentToastColors returns an InfoBar's background and its icon's fill for a severity: SystemFillColorSolidAttentionBackground (the solid one, as the toast floats over content) or SystemFillColorSuccessBackground, CautionBackground and CriticalBackground behind the content; SystemFillColorAttention or SystemFillColorSuccess, Caution and Critical for the icon. SystemFillColorAttentionBrush is SystemAccentColor, accent, in the light theme and SystemAccentColorLight2, the accent fill, in the dark one (Common_themeresources_any.xaml, InfoBarInformationalSeverityIconBackground in InfoBar_themeresources.xaml).
+func fluentToastColors(t *ui.Theme, accent ui.Color, severity int) (bg, icon ui.Color) {
 	switch severity {
 	case fluentToastSuccess:
 		return pick(t.Dark, ui.Hex("#dff6dd"), ui.Hex("#393d1b")), pick(t.Dark, ui.Hex("#0f7b0f"), ui.Hex("#6ccb5f"))
@@ -153,7 +153,7 @@ func fluentToastColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
 	case fluentToastError:
 		return pick(t.Dark, ui.Hex("#fde7e9"), ui.Hex("#442726")), pick(t.Dark, ui.Hex("#c42b1c"), ui.Hex("#ff99a4"))
 	}
-	return pick(t.Dark, ui.Hex("#f7f7f7"), ui.Hex("#2e2e2e")), t.Accent
+	return pick(t.Dark, ui.Hex("#f7f7f7"), ui.Hex("#2e2e2e")), pick(t.Dark, accent, t.Accent)
 }
 
 // fluentToast draws a toast as an InfoBar: at least 48 DIPs high, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border, InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon with InfoBarIconMargin 0,16,14,16; the title semibold and the message 12 after it, both 14 DIPs and 14 from the top; the action button 16 after them and 8 from the top; and the close button, 38 DIPs with a margin of 5, drawn as an AppBarButton. The shadow, as the toast floats over the window, is a flyout's, inferred.
@@ -161,7 +161,7 @@ func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	t := c.Theme()
 	w, _ := c.Size()
 	severity := fluentToastSeverity(ts.Type)
-	bg, iconFill := fluentToastColors(t, severity)
+	bg, iconFill := fluentToastColors(t, fluentSystemAccent(c), severity)
 	parts.Root.Row().AlignItems(ui.Start).MinHeight(48).MaxWidth(min(w-32, 640)).PaddingStart(16).Radius(4).
 		Background(bg).Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.098))).TextColor(t.Text).FontSize(14).
 		Shadow(0, 8, 16, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
