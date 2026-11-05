@@ -60,8 +60,8 @@ func Sidebar(c *ui.Context, selected *string, fn func()) ui.Element {
 		// .sidebar-pane: sidebar_bg_color with a 1-pixel sidebar_border_color line along its end; the list is padded 6 pixels ($menu_margin).
 		sb.Background(adwSidebarBg(t)).Padding(6).BorderEndWidth(1).BorderColor(adwSidebarBorder(t))
 	default:
-		// The source list's background and the 10-point inset of its selection, measured from an NSOutlineView of style sourceList rendered by AppKit on macOS 27.
-		sb.Background(pick(t.Dark, ui.Hex("#f0f0f0"), ui.Hex("#282828"))).Padding(10)
+		// The selection is 10 points in from the source list's edges, measured.
+		sb.Background(macSidebarBg(t)).Padding(10)
 	}
 	return sb
 }
@@ -84,10 +84,9 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 		head.TextMuted = adwInkAlpha(t, adwSidebarBg(t), 0.55)
 		top = 12
 	default:
-		// AppKit's group row: 11-point text 19 points high, 2 points inside the selection's inset, 13 points below the row above, black at 20% (Aqua) or white at 12% (Dark Aqua) over the source list, measured.
-		bg := pick(t.Dark, ui.Hex("#f0f0f0"), ui.Hex("#282828"))
+		// AppKit's group row: 11-point text 19 points high, 2 points inside the selection's inset and 13 points below the row above, measured, in tertiaryLabelColor (black at 26% in Aqua, white at 25% in Dark Aqua). Rendered offscreen, without the sidebar's vibrancy, AppKit draws it lighter still (20% and 12%).
 		head.FontSize, head.Spacing, head.Radius = 12, 2, 8
-		head.TextMuted = tint(bg, t.Dark, pick(t.Dark, float32(0.204), 0.116))
+		head.TextMuted = tint(macSidebarBg(t), t.Dark, pick(t.Dark, float32(0.259), 0.247))
 		top = 13
 	}
 	st := currentSidebar(c)
@@ -151,6 +150,9 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 	}
 	return item
 }
+
+// macSidebarBg is a source list's background, measured from an NSOutlineView of style sourceList rendered by AppKit on macOS 27.
+func macSidebarBg(t *ui.Theme) ui.Color { return pick(t.Dark, ui.Hex("#f0f0f0"), ui.Hex("#282828")) }
 
 // macSidebarItem draws a row of an NSOutlineView of style sourceList at the default (medium) row size, measured on macOS 27: 32 points high, an icon or the text 6 points inside the selection, the text 43 points in after a 16-point icon, as AppKit lays out a cell's image and text; the selection has corners of 8 and fills the row, and while the outline view has the focus, the emphasized selection in the accent color with white text, otherwise unemphasizedSelectedContentBackgroundColor.
 func macSidebarItem(c *ui.Context, item ui.Element, chosen, focused bool) {
