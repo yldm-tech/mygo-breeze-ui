@@ -33,6 +33,7 @@ func button(c *ui.Context, label string, primary bool) ui.Element {
 
 // Checkbox creates a check box toggling *checked, with a label, as the platform's check boxes look. It is ui.Checkbox's counterpart.
 func Checkbox(c *ui.Context, checked *bool, label string) ui.Element {
+	formsJoinCheckGroup(c, checked)
 	row := ui.CheckboxBase(c, checked).AlignItems(ui.Center).FocusRing(false)
 	on := *checked
 	var box ui.Element
@@ -321,9 +322,15 @@ func Combobox(c *ui.Context, selected *string, options []string) ui.Element {
 	return styleField(c, ui.Combobox(c, selected, options), singleLine)
 }
 
-// NumberInput creates a field editing *value between lo and hi in steps of step. It is package ui's.
+// NumberInput creates a field editing *value between lo and hi in steps of step, with buttons stepping it, as the platform draws a number field: an NSTextField with an NSStepper beside it on macOS, a NumberBox with its spin buttons inline on Windows, a GtkSpinButton with its − and + buttons after the text on GNOME. What is typed applies once it is a number in range, Up and Down step it, the buttons are disabled at the limits and named Decrease and Increase, and the text shows the value rounded to step's decimals once the input loses the focus; Changed reports a new value. It is ui.NumberInput's counterpart, rebuilt from ui.TextInputBase and ui.ButtonBase as ui.NumberInput is built, so its keys, focus order (the text, Decrease, Increase) and names are MyGo's: the buttons stay tab stops, as WinUI's and GTK's are not, and step once a click, as AppKit's, WinUI's and GTK's repeat while held. On Windows and GNOME the box holds the buttons and fills the width a column gives it, as a NumberBox and a GtkSpinButton do; on macOS the field keeps MyGo's 80 DIPs, the stepper beside it.
 func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
-	return ui.NumberInput(c, value, lo, hi, step)
+	switch PlatformOf(c) {
+	case Windows:
+		return formsFluentNumberInput(c, value, lo, hi, step)
+	case Linux:
+		return formsAdwNumberInput(c, value, lo, hi, step)
+	}
+	return formsMacNumberInput(c, value, lo, hi, step)
 }
 
 // RadioGroup creates the group that radio buttons built in fn choose within, which the arrows move through. It is package ui's.

@@ -54,7 +54,7 @@ func DecimalInput(c *ui.Context, value *string, lo, hi, step string) ui.Element 
 	return ui.DecimalInput(c, value, lo, hi, step)
 }
 
-// DateInput creates a field showing *date in the user's regional formats, which opens a calendar below it, as the platform draws a date field: AppKit's NSDatePicker of style textField, WinUI's CalendarDatePicker, or a GNOME entry, as GTK has no date field of its own. The text, the calendar icon, the calendar and the keys are MyGo's. It is ui.DateInput's counterpart.
+// DateInput creates a field showing *date in the user's regional formats, which opens a calendar below it, as the platform draws a date field: AppKit's NSDatePicker of style textField, which shows no calendar icon (measured on macOS 27.2), so MyGo's is covered there, its room left after the text; WinUI's CalendarDatePicker; or a GNOME entry, as GTK has no date field of its own, its icon at 70% of the text color as an entry's icons are. The text, the calendar and the keys are MyGo's. It is ui.DateInput's counterpart.
 func DateInput(c *ui.Context, date *time.Time) ui.Element {
 	b := ui.DateInput(c, date)
 	switch PlatformOf(c) {
@@ -63,23 +63,30 @@ func DateInput(c *ui.Context, date *time.Time) ui.Element {
 	case Linux:
 		adwDateInput(c, b)
 	default:
-		macDatePicker(c, b, false)
-		// NSDatePicker is as wide as its text.
-		b.MinWidth(0).Padding(2, 4).Gap(6)
+		macDateInput(c, b)
 	}
 	return b
 }
 
-// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the button of WinUI's TimePicker, or a GNOME entry. The segments and their keys are MyGo's. It is ui.TimeInput's counterpart.
+// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the colon between the hours and the minutes in labelColor as AppKit draws it (MyGo's is muted), the button of WinUI's TimePicker, or a GNOME entry. The segments and their keys are MyGo's. It is ui.TimeInput's counterpart. On macOS it is built in a column of its own, whose theme gives the colon the text color: Label, Disabled and Changed work on what it returns as on ui.TimeInput's, but the column takes its place in the parent's layout, so give a margin or a grow to an element around it, and its text takes the theme's size and font rather than those of the elements around it (ui.Themed sets them).
 func TimeInput(c *ui.Context, tm *time.Time) ui.Element {
-	f := ui.TimeInput(c, tm)
-	switch PlatformOf(c) {
+	p := PlatformOf(c)
+	var f ui.Element
+	if p == Mac {
+		// MyGo draws the colon in TextMuted, read as the field is built; nothing else of the field takes it.
+		th := *c.Theme()
+		th.TextMuted = th.Text
+		ui.Themed(c, &th).Background(ui.Transparent).AlignItems(ui.Start).Children(func() { f = ui.TimeInput(c, tm) })
+	} else {
+		f = ui.TimeInput(c, tm)
+	}
+	switch p {
 	case Windows:
 		fluentTimeInput(c, f)
 	case Linux:
 		adwTimeInput(c, f)
 	default:
-		macDatePicker(c, f, f.FocusWithin())
+		macDatePicker(c, f, f.FocusWithin(), nil)
 		// MyGo's segments are padded 2 at their sides, which brings the digits 4 in, as AppKit's.
 		f.Padding(2, 2)
 	}
@@ -185,8 +192,8 @@ func macStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 	})
 }
 
-// macDatePicker draws the bezel of an NSDatePicker of style textField: a 1-point line, lighter than a text field's, around a white field (darker than the window in Dark Aqua) with corners of 7, 23 points high with the line, which AppKit draws a point outside the control's 21-point frame (the bezel, fill and text measured again in a key window on macOS 27.2: 235 and 41, a 23 field in Dark Aqua, labelColor text). AppKit's focus ring goes around it while ringed or while it has the focus from the keyboard, as around a text field (macField; inferred for the date picker).
-func macDatePicker(c *ui.Context, e ui.Element, ringed bool) {
+// macDatePicker draws the bezel of an NSDatePicker of style textField, after under, nil for nothing, paints over the field's children with the field's fill: a 1-point line, lighter than a text field's, around a white field (darker than the window in Dark Aqua) with corners of 7, 23 points high with the line, which AppKit draws a point outside the control's 21-point frame (the bezel, fill and text measured again in a key window on macOS 27.2: 235 and 41, a 23 field in Dark Aqua, labelColor text). AppKit's focus ring goes around it while ringed or while it has the focus from the keyboard, as around a text field (macField; inferred for the date picker).
+func macDatePicker(c *ui.Context, e ui.Element, ringed bool, under func(p *ui.Painter, r ui.Rect, fill ui.Color)) {
 	t := c.Theme()
 	fill, border := white, t.Background.Mix(black, macDateBorder)
 	if t.Dark {
@@ -195,10 +202,24 @@ func macDatePicker(c *ui.Context, e ui.Element, ringed bool) {
 	e.MinHeight(macDatePickerMinHeight).Radius(macDatePickerRadius).Background(fill).Border(0, ui.Color{}).TextColor(t.Text).FocusRing(false)
 	ringed = ringed || e.FocusVisible()
 	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if under != nil {
+			under(p, r, fill)
+		}
 		p.Stroke(r, border, macDatePickerRadius, 1)
 		if ringed {
 			macFocusRing(p, ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}, macDatePickerRadius-1)
 		}
+	})
+}
+
+// macDateInput draws a date field as an NSDatePicker of style textField (macDatePicker), sized by its text, which shows no calendar icon: rendered on macOS 27.2 in a key window, "1/ 5/2026" ends 4.25 points before the bezel. MyGo's 14-DIP icon is covered with the field's fill, with no gap before it; its box, which only package ui can take out, stays as room after the text, so the field is 14 points wider than AppKit's.
+func macDateInput(c *ui.Context, b ui.Element) {
+	t := c.Theme()
+	const pad = 4
+	b.MinWidth(0).Padding(2, pad).Gap(0)
+	rtl, disabled := c.Direction() == ui.RightToLeft, disabledOnce(b)
+	macDatePicker(c, b, false, func(p *ui.Painter, r ui.Rect, fill ui.Color) {
+		formsCoverIcon(p, r, pad, fill, t.Background, rtl, disabled())
 	})
 }
 
@@ -451,10 +472,25 @@ func adwDateTimeEntry(c *ui.Context, e ui.Element, ringed bool) {
 	})
 }
 
-// adwDateInput draws a date field as a GtkEntry: GTK has no date field, and GNOME's apps show a date in an entry or a button opening a GtkCalendar. The text 9 pixels in and MyGo's calendar icon 6 after it (border-spacing), at MyGo's width.
+// adwDateInput draws a date field as a GtkEntry: GTK has no date field, and GNOME's apps show a date in an entry or a button opening a GtkCalendar. The text 9 pixels in and MyGo's calendar icon 6 after it (border-spacing), at MyGo's width, the icon as an entry's (_entries.scss: entry > image at 70% opacity, 100% under the pointer, 80% pressed): MyGo's icon, drawn in TextMuted, is covered with the entry's fill and its page drawn again as MyGo draws it, in currentColor at that opacity.
 func adwDateInput(c *ui.Context, b ui.Element) {
+	t := c.Theme()
+	const pad = 9
 	adwDateTimeEntry(c, b, b.Focused())
-	b.Padding(0, 9).Gap(6)
+	b.Padding(0, pad).Gap(6)
+	rtl, disabled := c.Direction() == ui.RightToLeft, disabledOnce(b)
+	fill := adwInkAlpha(t, t.Background, 0.10)
+	ink := adwInkAlpha(t, fill, formsDateIconInk(b, pad, rtl))
+	ringed := b.Focused()
+	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		i := formsCoverIcon(p, r, pad, fill, t.Background, rtl, disabled())
+		// MyGo's calendar page (date.go): a 1.2-wide outline inset 1 and 2 with corners of 2, and a 1.2 bar 5 down.
+		p.Stroke(ui.Rect{X: i.X + 1, Y: i.Y + 2, W: i.W - 2, H: i.H - 3}, ink, 2, 1.2)
+		p.Fill(ui.Rect{X: i.X + 1, Y: i.Y + 5, W: i.W - 2, H: 1.2}, ink, 0)
+		if ringed {
+			p.Stroke(r, t.Focus, 9, 2)
+		}
+	})
 }
 
 // adwTimeInput draws a time field as a GtkEntry, the digits 9 pixels in (MyGo's segments are padded 2 at their sides), with the focus ring while one of its segments has the focus.
