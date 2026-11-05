@@ -327,9 +327,9 @@ func TestAdwScaleGeometry(t *testing.T) {
 	}
 }
 
-// TestAdwSwitchSlider pins a GtkSwitch's slider as libadwaita 1.10.0 (GTK 4.24.1) renders it, measured by tools/adwaita-reference: off in the dark theme it is white at 80% over view_bg_color, #d2d2d2, and a disabled switch's slider casts no shadow.
+// TestAdwSwitchSlider pins a GtkSwitch's slider as libadwaita 1.10.0 (GTK 4.24.1) renders it, measured by tools/adwaita-reference: off in the dark theme it is white at 80% over view_bg_color, #d2d2d2, checked it is white, and a disabled switch's slider casts no shadow.
 func TestAdwSwitchSlider(t *testing.T) {
-	off, disabled := false, false
+	off, disabled, on := false, false, true
 	var th *ui.Theme
 	tester := ui.NewTester(func(c *ui.Context) {
 		Preview(c, Linux, func() {
@@ -338,9 +338,10 @@ func TestAdwSwitchSlider(t *testing.T) {
 			ui.Row(c).Fill().Padding(20).Gap(20).AlignItems(ui.Start).Children(func() {
 				Switch(c, &off)
 				Switch(c, &disabled).Disabled(true)
+				Switch(c, &on)
 			})
 		})
-	}, 200, 80)
+	}, 240, 80)
 	tester.SetDark(true)
 	tester.Frame()
 	if got := adwPixel(tester, 20+13, 20+13); got != ui.Hex("#d2d2d2") {
@@ -351,6 +352,10 @@ func TestAdwSwitchSlider(t *testing.T) {
 	beside := adwPixel(tester, x+40, 20+13)
 	if below := adwPixel(tester, x+13, 20+24); below != beside {
 		t.Fatalf("below the disabled slider the track is %v, beside it %v: a shadow falls", below, beside)
+	}
+	// Checked, the slider is white in the dark theme too (switch:checked > slider), at the track's end.
+	if got := adwPixel(tester, 2*(20+46)+20+46-13, 20+13); got != white {
+		t.Fatalf("the checked dark slider is %v, want white", got)
 	}
 	_ = th
 }

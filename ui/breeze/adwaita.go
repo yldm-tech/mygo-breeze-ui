@@ -143,7 +143,7 @@ func adwCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	})
 }
 
-// adwSwitch draws a GtkSwitch: 46 by 26 pixels, a capsule track padded by 3 around a 20-pixel round slider with a soft shadow, moving in 100 milliseconds. Disabled, the slider casts no shadow (switch > slider:disabled), as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
+// adwSwitch draws a GtkSwitch: 46 by 26 pixels, a capsule track padded by 3 around a 20-pixel round slider with a soft shadow, moving in 100 milliseconds; the slider is adwSliderFill off and white when checked or under the pointer. Disabled, the slider casts no shadow (switch > slider:disabled), as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
 func adwSwitch(c *ui.Context, sw ui.Element, on bool) {
 	t := c.Theme()
 	hovered, pressed := sw.Hovered(), sw.Pressed()
@@ -151,7 +151,8 @@ func adwSwitch(c *ui.Context, sw ui.Element, on bool) {
 	at := along(c, pos)
 	sw.Size(46, 26).Radius(13).Background(adwTrough(t, hovered, pressed).Mix(adwAccentFill(t, hovered, pressed), pos))
 	slider := adwSliderFill(t)
-	if hovered || pressed {
+	if on || hovered || pressed {
+		// switch:checked > slider and switch:hover > slider: white, as libadwaita 1.10.0 (GTK 4.24.1) renders a checked switch's slider in the dark theme too (measured by tools/adwaita-reference).
 		slider = white
 	}
 	sw.Draw(func(p *ui.Painter, r ui.Rect) {
