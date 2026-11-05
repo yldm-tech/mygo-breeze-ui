@@ -137,12 +137,18 @@ func ToggleGroup(c *ui.Context, fn func()) ui.Element {
 	return g
 }
 
-// Field creates a labeled control: the label names the control fn builds for assistive technology. In a Form the labels line up in a column before the controls, as macOS lays out a form; elsewhere the label is above the control, 8 DIPs above it on Windows, as a TextBox's header is. It is ui.Field's counterpart.
+// Field creates a labeled control: the label names the control fn builds for assistive technology, and a click on it focuses the control. In a Form the labels line up in a column before the controls, as macOS lays out a form; elsewhere the label is above the control. On Windows it is 8 DIPs above it and of regular weight, as a TextBox's header is (TextBox_themeresources.xaml: HeaderContentPresenter FontWeight Normal, TextBoxTopHeaderMargin 0,0,0,8): MyGo's medium label is left transparent, keeping its place, its click and the name it gives, and the regular one drawn over it in the theme's text color, which does not dim with a control disabled on its own, as MyGo's label does (a Field disabled as a whole dims). It is ui.Field's counterpart.
 func Field(c *ui.Context, label string, fn func()) ui.Element {
-	f := ui.Field(c, label, fn)
-	if PlatformOf(c) == Windows {
-		f.Gap(8)
+	if PlatformOf(c) != Windows {
+		return ui.Field(c, label, fn)
 	}
+	t := c.Theme()
+	// The column repeats the gap MyGo puts between the control and the texts below it, so they stay where they were, and gives the control back the text color the label gives up.
+	f := ui.Field(c, label, func() { ui.Column(c).Gap(t.Space(1.5)).TextColor(t.Text).Children(fn) })
+	rtl := c.Direction() == ui.RightToLeft
+	f.Gap(8).TextColor(ui.Transparent).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		formsLabelOver(p, r, label, 400, t.FontSize, t.Text, rtl)
+	})
 	return f
 }
 

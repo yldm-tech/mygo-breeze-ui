@@ -238,7 +238,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	return item
 }
 
-// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend's text is MyGo's, semibold, where GNOME's .heading is bold. It is ui.Fieldset's counterpart.
+// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. It is ui.Fieldset's counterpart.
 func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -254,6 +254,8 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 			fill, _ := adwBoxedListCard(t)
 			box.Padding(pad).Radius(12).Background(fill)
 			adwBoxedListShadow(box)
+			// The fields keep the text color the legend gives up below.
+			box.TextColor(t.Text)
 		case Mac:
 			// The section reaches back under the legend's inset; its rows are inset 10 points (measured from SwiftUI's grouped form).
 			pad = 10
@@ -271,6 +273,10 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 		g.Gap(10)
 	case Linux:
 		g.Gap(12) // preferencesgroup > box: border-spacing 6px, and 6px below the header
+		rtl := c.Direction() == ui.RightToLeft
+		g.TextColor(ui.Transparent).DrawOver(func(p *ui.Painter, r ui.Rect) {
+			formsLabelOver(p, r, legend, 700, t.FontSize, t.Text, rtl)
+		})
 	default:
 		// The header's baseline is 13 points above the section: about 10 below its line. In a Form the section reaches back instead, keeping the legend 10 in from its edge.
 		if !inForm {
@@ -301,29 +307,76 @@ func Form(c *ui.Context, fn func()) ui.Element {
 	return f
 }
 
-// ---- widgets of package ui, in the platform's theme (Use) ----
-
-// CheckboxGroup creates a check box over the check boxes fn builds, indented below it: it is checked when they all are, mixed when some are, and a click or Space checks them all, or none when they all are. Build the boxes with Checkbox to draw them as the platform does; the check box over them is MyGo's, a 16-DIP box in the platform's theme, smaller than the 20-DIP boxes of Windows and GNOME below it: package ui has no base for it. It is package ui's.
+// CheckboxGroup creates a check box over the check boxes fn builds with Checkbox, indented below it: it is checked when they all are, mixed when some are, and a click or Space checks them all, or none when they all are; Changed reports a click. The box over them is the platform's check box, drawn mixed with its dash: NSButton's mixed state, CheckBox's indeterminate state, GtkCheckButton's :indeterminate. The boxes are indented 22 points on macOS, under the label above them, 24 DIPs on Windows as WinUI Gallery's three-state sample indents them, and 24 pixels on GNOME. It is ui.CheckboxGroup's counterpart, rebuilt on ui.CheckboxBase: assistive technology sees a check box, mixed while some are checked, and a group of the others named by label, and Disabled disables them all. It counts the boxes built with this package's Checkbox only; a ui.Checkbox or ui.CheckboxBase built in fn directly is not one of them, as package ui keeps its own count to itself.
 func CheckboxGroup(c *ui.Context, label string, fn func()) ui.Element {
-	return ui.CheckboxGroup(c, label, fn)
+	p := PlatformOf(c)
+	indent, gap := formsCheckGroupSpacing(p)
+	root := ui.Column(c).Shrink(0).Gap(gap)
+	root.Children(func() {
+		var head bool
+		row := ui.CheckboxBase(c, &head).AlignItems(ui.Center).FocusRing(false)
+		// The head's click toggled head as CheckboxBase returned; it checks the boxes once they are counted.
+		clicked := row.Changed()
+		var box ui.Element
+		row.Children(func() {
+			box = ui.Box(c).Shrink(0)
+			ui.Text(c, label)
+		})
+		// The boxes of a group inside this one count in their own, as in package ui.
+		outer, nested := formsCheckGroups.Load(c)
+		g := &formsCheckGroup{}
+		formsCheckGroups.Store(c, g)
+		ui.Column(c).Gap(gap).PaddingStart(indent).Role(ui.RoleGroup).Label(label).Children(fn)
+		if nested {
+			formsCheckGroups.Store(c, outer)
+		} else {
+			formsCheckGroups.Delete(c)
+		}
+		on := 0
+		for _, b := range g.boxes {
+			if *b {
+				on++
+			}
+		}
+		all := on == len(g.boxes) && on > 0
+		state := formsCheckOff
+		switch {
+		case all:
+			state = formsCheckOn
+		case on > 0:
+			state = formsCheckMixed
+		}
+		row.Checked(all)
+		if state == formsCheckMixed {
+			row.Mixed()
+		}
+		formsDrawCheckbox(c, p, row, box, state)
+		if clicked {
+			for _, b := range g.boxes {
+				*b = !all
+			}
+			root.SetChanged()
+		}
+	})
+	return root
 }
 
-// Split lays out first and second side by side with a divider between them that a drag or the arrows move: *size is the width of first. The divider is MyGo's, a 1-DIP line in the theme's Border color, as NSSplitView's thin divider and GtkPaned's handle are 1 wide: separatorColor on macOS (AppKit's thin divider measures black at 10.2% in Aqua, which it matches, and white at 12% in Dark Aqua, a little lighter than separatorColor's 9.8%), $border_color on GNOME as GtkPaned's separator, ControlStrokeColorDefault on Windows, which has no splitter of its own. It turns to the accent under the pointer, as none of the three do. It is package ui's.
+// Split lays out first and second side by side with a divider between them that a drag or the arrows move: *size is the width of first. The divider is MyGo's, a 1-DIP line in the theme's Border color, as NSSplitView's thin divider and GtkPaned's handle are 1 wide: separatorColor on macOS (AppKit's thin divider measures black at 10.2% in Aqua, which it matches, and white at 12% in Dark Aqua, a little lighter than separatorColor's 9.8%), $border_color on GNOME as GtkPaned's separator (_paned.scss), ControlStrokeColorDefault on Windows, which has no splitter of its own. Unlike MyGo's, it stays that color under the pointer and while dragged, as none of the three turn theirs to the accent (formsSplit); its drag, keys, focus ring and 6-DIP grab are MyGo's. It returns the column holding ui.Split's, which takes the styles given to it (Fill, Height, a border) and reports Changed. It is ui.Split's counterpart.
 func Split(c *ui.Context, size *float32, first func(), second func()) ui.Element {
-	return ui.Split(c, size, first, second)
+	return formsSplit(c, func(a, b func()) ui.Element { return ui.Split(c, size, a, b) }, first, second)
 }
 
-// SplitVertical is Split with first above second, *size its height. It is package ui's.
+// SplitVertical is Split with first above second, *size its height. It is ui.SplitVertical's counterpart.
 func SplitVertical(c *ui.Context, size *float32, first func(), second func()) ui.Element {
-	return ui.SplitVertical(c, size, first, second)
+	return formsSplit(c, func(a, b func()) ui.Element { return ui.SplitVertical(c, size, a, b) }, first, second)
 }
 
-// SplitPercent is Split with *p the percentage of the room first takes, from 0 to 100. It is package ui's.
+// SplitPercent is Split with *p the percentage of the room first takes, from 0 to 100. It is ui.SplitPercent's counterpart.
 func SplitPercent(c *ui.Context, p *float32, first func(), second func()) ui.Element {
-	return ui.SplitPercent(c, p, first, second)
+	return formsSplit(c, func(a, b func()) ui.Element { return ui.SplitPercent(c, p, a, b) }, first, second)
 }
 
-// SplitVerticalPercent is SplitPercent with first above second. It is package ui's.
+// SplitVerticalPercent is SplitPercent with first above second. It is ui.SplitVerticalPercent's counterpart.
 func SplitVerticalPercent(c *ui.Context, p *float32, first func(), second func()) ui.Element {
-	return ui.SplitVerticalPercent(c, p, first, second)
+	return formsSplit(c, func(a, b func()) ui.Element { return ui.SplitVerticalPercent(c, p, a, b) }, first, second)
 }
