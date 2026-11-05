@@ -87,8 +87,20 @@ func disabled(a *args, e ui.Element) ui.Element {
 
 func q(s string) string { return fmt.Sprintf("%q", s) }
 
+// storyGroups are the functions of the stories_*.go files, each adding the stories of a group of widgets in its init function. Their stories follow the ones of this file in the sidebar, in the order of the files' names within each category.
+var storyGroups []func() []*story
+
 // stories are every story of the book, in sidebar order within their categories.
 func stories() []*story {
+	all := baseStories()
+	for _, group := range storyGroups {
+		all = append(all, group()...)
+	}
+	return all
+}
+
+// baseStories are the stories of the widgets of widgets.go and extras.go.
+func baseStories() []*story {
 	sizes := []string{"Small", "Medium", "Large"}
 	fonts := []string{"Serif", "Sans", "Mono"}
 	return []*story{

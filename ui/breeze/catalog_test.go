@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -38,10 +39,18 @@ func TestCatalogLookup(t *testing.T) {
 	}
 }
 
-// TestCatalogMatchesWidgets checks the catalog against the widget functions of widgets.go and extras.go: every exported one is listed with an example calling it, and those Breeze UI draws itself are marked drawn.
+// TestCatalogMatchesWidgets checks the catalog against the widget functions of extras.go and the widgets*.go files: every exported one is listed with an example calling it, and those Breeze UI draws itself are marked drawn.
 func TestCatalogMatchesWidgets(t *testing.T) {
 	var widgets []string
-	for _, name := range []string{"widgets.go", "extras.go"} {
+	files, err := filepath.Glob("widgets*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files = append(files, "extras.go")
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
 		file, err := parser.ParseFile(token.NewFileSet(), name, nil, 0)
 		if err != nil {
 			t.Fatal(err)
@@ -72,7 +81,7 @@ func TestCatalogMatchesWidgets(t *testing.T) {
 	}
 }
 
-// drawnWidgets are the widgets Breeze UI draws as each platform does; the others are package ui's.
+// drawnWidgets are the widgets Breeze UI draws as each platform does; the others are package ui's. The test file of each widgets_*.go adds its own in an init function.
 var drawnWidgets = map[string]bool{
 	"Button": true, "PrimaryButton": true, "Checkbox": true, "Switch": true, "Radio": true, "Toggle": true,
 	"TextInput": true, "TextArea": true, "SearchField": true, "Select": true, "Slider": true,
