@@ -342,7 +342,7 @@ func TestNavigationToolbarOverflow(t *testing.T) {
 	}
 }
 
-// TestHistoryButtonsLookTheSameInAToolbar checks on every platform that a back button under the pointer is drawn the same inside a Toolbar as outside one, where package ui's toolbar would give it MyGo's hover fill: on macOS none, as an NSButton does not track the pointer.
+// TestHistoryButtonsLookTheSameInAToolbar checks on every platform that a back button under the pointer is drawn the same inside a Toolbar as outside one, where package ui's toolbar would give it MyGo's hover fill: on macOS none, as AppKit's toolbar item does not mark the pointer offscreen.
 func TestHistoryButtonsLookTheSameInAToolbar(t *testing.T) {
 	for _, p := range Platforms {
 		var seen [2][2]ui.Color
@@ -384,6 +384,79 @@ func TestHistoryButtonsLookTheSameInAToolbar(t *testing.T) {
 			t.Fatalf("%v: a back button does not change under the pointer", p)
 		}
 	}
+}
+
+// TestHistoryButtonGlyphs checks on every platform, light and dark, that the back and forward buttons draw the platform's glyph in place of MyGo's chevron, in the text color while enabled and no stronger than the platform's disabled color while disabled, and that a pressed back button takes the platform's pressed face: black at 20% or white at 18% on macOS, SubtleFillColorTertiary on Windows, currentColor at 16% on GNOME.
+func TestHistoryButtonGlyphs(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dark := range []bool{false, true} {
+			s := newNavState() // at the end of its history: Forward is disabled
+			var th *ui.Theme
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					th = Theme(c, p)
+					ui.Row(c).Gap(8).Padding(8).Children(func() {
+						BackButton(c, s.router)
+						ForwardButton(c, s.router)
+					})
+				})
+			}, 200, 80)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.Frame()
+			// contrast returns how far a pixel is from the background, from 0 to 255.
+			contrast := func(r, g, b uint8) float32 {
+				return (navAbsDiff(r, th.Background.R) + navAbsDiff(g, th.Background.G) + navAbsDiff(b, th.Background.B)) / 3
+			}
+			// strongest returns the contrast of the pixel most unlike the background in the middle of the button labeled label, where its glyph is.
+			strongest := func(label string) float32 {
+				r, ok := tester.Find(label)
+				if !ok {
+					t.Fatalf("%v: %s is missing", p, label)
+				}
+				img, best := tester.Image(), float32(0)
+				for y := int((r.Y + r.H/4) * 2); y < int((r.Y+r.H*3/4)*2); y++ {
+					for x := int((r.X + r.W/4) * 2); x < int((r.X+r.W*3/4)*2); x++ {
+						px := img.RGBAAt(x, y)
+						best = max(best, contrast(px.R, px.G, px.B))
+					}
+				}
+				return best
+			}
+			text := contrast(th.Text.R, th.Text.G, th.Text.B)
+			if got := strongest("Back"); got < text*0.5 {
+				t.Fatalf("%v dark %v: the back glyph reaches a contrast of %v, the text %v", p, dark, got, text)
+			}
+			if got := strongest("Forward"); got > text*0.45 {
+				t.Fatalf("%v dark %v: the disabled forward glyph reaches a contrast of %v, the text %v", p, dark, got, text)
+			}
+			r, _ := tester.Find("Back")
+			tester.Press(r.X+r.W/2, r.Y+r.H/2)
+			tester.Frame()
+			want := adwInkAlpha(th, th.Background, 0.16)
+			switch p {
+			case Windows:
+				_, want = fluentSubtle(th)
+			case Mac:
+				want = pick(dark, th.Background.Mix(black, 0.2), th.Background.Mix(white, 0.178))
+			}
+			px := tester.Image().RGBAAt(int((r.X+6)*2), int((r.Y+r.H/2)*2))
+			if got := ui.RGB(px.R, px.G, px.B); got != want {
+				t.Fatalf("%v dark %v: a pressed back button is %v, want %v", p, dark, got, want)
+			}
+			tester.Release(r.X+r.W/2, r.Y+r.H/2)
+			tester.Frame()
+		}
+	}
+}
+
+// navAbsDiff returns how far apart a and b are.
+func navAbsDiff(a, b uint8) float32 {
+	if a > b {
+		return float32(a - b)
+	}
+	return float32(b - a)
 }
 
 // TestFluentSidebarSelectionIndicator checks that on Windows the chosen item of a sidebar has its accent pill at its start, at the left left to right and at the right right to left, and that the items not chosen have none.
@@ -430,7 +503,7 @@ func TestFluentSidebarSelectionIndicator(t *testing.T) {
 	}
 }
 
-// TestSidebarItemColors checks the fill of the chosen item on Windows (SubtleFillColorSecondary) and GNOME (currentColor at 10% over sidebar_bg_color), and that on Windows an item not chosen takes SubtleFillColorTertiary while pressed, as NavigationViewItemBackgroundPressed.
+// TestSidebarItemColors checks the fill of the chosen item on Windows (SubtleFillColorSecondary) and GNOME (currentColor at 10% over sidebar_bg_color), and the fill of an item not chosen while pressed: SubtleFillColorTertiary on Windows, as NavigationViewItemBackgroundPressed, and $active_color, currentColor at 16%, on GNOME.
 func TestSidebarItemColors(t *testing.T) {
 	for _, p := range []Platform{Windows, Linux} {
 		for _, dark := range []bool{false, true} {
@@ -459,15 +532,15 @@ func TestSidebarItemColors(t *testing.T) {
 			if got := fill("Inbox"); got != want {
 				t.Fatalf("%v dark %v: the chosen item is %v, want %v", p, dark, got, want)
 			}
-			if p != Windows {
-				continue
-			}
 			r, _ := tester.Find("Sent")
 			tester.Press(r.X+r.W/2, r.Y+r.H/2)
 			tester.Frame()
-			_, pressed := fluentSubtle(th)
+			pressed := adwInkAlpha(th, adwSidebarBg(th), 0.16)
+			if p == Windows {
+				_, pressed = fluentSubtle(th)
+			}
 			if got := fill("Sent"); got != pressed {
-				t.Fatalf("Windows dark %v: a pressed item is %v, want %v", dark, got, pressed)
+				t.Fatalf("%v dark %v: a pressed item is %v, want %v", p, dark, got, pressed)
 			}
 			tester.Release(r.X+r.W/2, r.Y+r.H/2)
 			tester.Frame()

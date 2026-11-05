@@ -32,7 +32,7 @@
       "name": "BackButton",
       "category": "navigation",
       "look": "drawn",
-      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: macOS's toolbar button with its hairline bezel, Windows 11's NavigationView back button, or GNOME's flat image button as in a header bar. The arrow is MyGo's.",
+      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: a macOS 26 toolbar item, a 36-point round platter with a hairline around SF Symbols' chevron, Windows 11's NavigationView back button with its arrow, or GNOME's flat image button with go-previous-symbolic, as in a header bar.",
       "example": "breeze.BackButton(c, app.router)"
     },
     {
@@ -88,7 +88,7 @@
       "name": "ForwardButton",
       "category": "navigation",
       "look": "drawn",
-      "description": "A button going forward in a router's history, drawn as BackButton is on each platform.",
+      "description": "A button going forward in a router's history, drawn as BackButton is on each platform, its glyph pointing the other way.",
       "example": "breeze.ForwardButton(c, app.router)"
     },
     {
@@ -193,7 +193,7 @@
       "name": "SidebarItem",
       "category": "navigation",
       "look": "drawn",
-      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, a NavigationViewItem with its accent pill on Windows 11, a 36-pixel navigation sidebar row on GNOME.",
+      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 36-pixel navigation sidebar row on GNOME.",
       "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
     },
     {
@@ -277,7 +277,7 @@
       "name": "Toolbar",
       "category": "actions",
       "look": "drawn",
-      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu: spaced as NSToolbar's items on macOS, Windows 11's CommandBar, or GNOME's .toolbar.",
+      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu: 52 points high with its items 8 apart as a macOS 26 window's toolbar, Windows 11's CommandBar, or GNOME's .toolbar.",
       "example": "breeze.Toolbar(c, func() {\n\tbreeze.BackButton(c, app.router)\n\tui.Spacer(c)\n\tbreeze.Button(c, \"Share\")\n}).Label(\"Actions\")"
     },
     {

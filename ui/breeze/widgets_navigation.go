@@ -72,28 +72,35 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 	t := c.Theme()
 	// MyGo draws the title FontSize-1 large in TextMuted, padded Space(1) and Space(2), so a theme of those around the section draws the platform's heading; fn's items build with the theme around the sidebar again.
 	head := *t
-	var top float32
+	// first is the space above the first section, top the space above another, below the space between the title and the items.
+	var first, top, below float32
 	switch p {
 	case Windows:
-		// NavigationViewItemHeaderTextStyle: 14 pixels, semibold, TextFillColorSecondary, 16 from the pane's edge. WinUI's header row is 40 high; MyGo's padding of the title, a third of it above and below, and 4 above the section (inferred) come to about 36.
+		// NavigationViewItemHeader: a 40-pixel row, its text (NavigationViewItemHeaderTextStyle: 14 pixels, semibold, TextFillColorSecondary) centered, 16 from the pane's edge, between items whose NavigationViewItemButtonMargin keeps 2 above and below. MyGo's title is padded Space(1) above and below: 36 high with its disclosure arrow (Space(4) square), 7.5 less without one, around the 16.5-pixel line of its text (measured in the tester), so the space it lacks to 40 goes half above and half below it.
 		head.FontSize, head.Spacing, head.Radius = 15, 6, 4
-		top = 4
+		short := float32(0)
+		if open == nil {
+			short = 7.5
+		}
+		first, top, below = 2+short/2, short/2, 1+short/2
 	case Linux:
 		// libadwaita 1.7 has no sidebar headings: .heading .dim-label, the text at 55% (inferred), lined up with the rows' labels, 12 pixels below the row above (inferred).
 		head.FontSize, head.Spacing, head.Radius = t.FontSize+1, 4, 9
 		head.TextMuted = adwInkAlpha(t, adwSidebarBg(t), 0.55)
 		top = 12
 	default:
-		// AppKit's group row: 11-point text in a row 19 points high (MyGo's padding of the title makes it about 17), 2 points inside the selection's inset and 13 points below the row above, measured, in tertiaryLabelColor (black at 26% in Aqua, white at 25% in Dark Aqua). Rendered offscreen, without the sidebar's vibrancy, AppKit draws it lighter still (20% and 12%).
+		// AppKit's group row, measured on macOS 27: 11-point semibold text in a row 19 points high, 2 points inside the selection's inset, the first 13 points from the top (an item's row would be 10) and the others 13 points below the row above, in tertiaryLabelColor (black at 26% in Aqua, white at 25% in Dark Aqua; rendered offscreen, without the sidebar's vibrancy, AppKit draws it lighter still, 20% and 12%). MyGo's title row is 18 points high with the space below it, so the margins above put its text where AppKit's is, the items following half a point higher.
 		head.FontSize, head.Spacing, head.Radius = 12, 2, 8
 		head.TextMuted = tint(macSidebarBg(t), t.Dark, pick(t.Dark, float32(0.259), 0.247))
-		top = 13
+		first, top = 3.5, 14
 	}
 	st := navCurrentSidebar(c)
 	wrap := ui.Themed(c, &head).Background(ui.Transparent)
 	if st != nil {
 		if st.built > 0 {
 			wrap.Margin(top, 0, 0, 0)
+		} else {
+			wrap.Margin(first, 0, 0, 0)
 		}
 		st.built++
 	}
@@ -107,13 +114,13 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 			case Linux:
 				gap = 2
 			}
-			ui.Themed(c, t).Background(ui.Transparent).Gap(gap).Children(fn)
+			ui.Themed(c, t).Background(ui.Transparent).Gap(gap).Padding(below, 0, 0, 0).Children(fn)
 		})
 	})
 	return sec
 }
 
-// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME a row 36 high, the chosen one darker. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
+// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise, its label semibold; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME a row 36 high, the chosen one darker. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
 func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -148,9 +155,13 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 		}
 		fluentSidebarItem(c, item, chosen, icon != nil)
 	case Linux:
+		if !chosen && item.Pressed() {
+			// $active_color, currentColor at 16%, as Windows takes its pressed fill above.
+			row.SurfaceHover = adwInkAlpha(t, adwSidebarBg(t), 0.16)
+		}
 		adwSidebarItem(c, item, chosen)
 	default:
-		macSidebarItem(c, item, chosen, focused)
+		macSidebarItem(c, item, chosen, focused, icon != nil)
 	}
 	return item
 }
@@ -158,14 +169,20 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 // macSidebarBg is a source list's background, measured from an NSOutlineView of style sourceList rendered by AppKit on macOS 27.
 func macSidebarBg(t *ui.Theme) ui.Color { return pick(t.Dark, ui.Hex("#f0f0f0"), ui.Hex("#282828")) }
 
-// macSidebarItem draws a row of an NSOutlineView of style sourceList at the default (medium) row size, measured on macOS 27: 32 points high, an icon or the text 6 points inside the selection, the text 43 points in after a 16-point icon, as AppKit lays out a cell's image and text; the selection has corners of 8 and fills the row, and while the outline view has the focus it is the emphasized selection in the accent color with white text, otherwise unemphasizedSelectedContentBackgroundColor, AppKit's semantic color (offscreen, AppKit draws that selection without its material, in black).
-func macSidebarItem(c *ui.Context, item ui.Element, chosen, focused bool) {
+// macSidebarItem draws a row of an NSOutlineView of style sourceList at the default (medium) row size, measured on macOS 27: 32 points high, the selection 10 points in from the list's edges with corners of 8, filling the row. A cell's image view is 23 points wide, 6 inside the selection, so the 16-point icon is centered in it, 9.5 points in, and the text field 3 points after it, its text 2 points further in (the text ink starts at 46, measured); without an icon the text starts 6 points inside the selection. AppKit draws the chosen row's label semibold (.SFNS-Semibold in its attributed string, measured); while the outline view has the focus the selection is the emphasized one in the accent color with white text, otherwise unemphasizedSelectedContentBackgroundColor (#dcdcdc, #464646), AppKit's semantic color (offscreen, AppKit draws that selection without its material, in black).
+func macSidebarItem(c *ui.Context, item ui.Element, chosen, focused, hasIcon bool) {
 	t := c.Theme()
-	item.MinHeight(32).Padding(0, 6).Gap(11).Radius(8)
-	switch {
-	case chosen && focused:
+	item.MinHeight(32).Padding(0, 6).Radius(8)
+	if hasIcon {
+		item.PaddingStart(9.5).Gap(9.5)
+	}
+	if !chosen {
+		return
+	}
+	item.FontWeight(600)
+	if focused {
 		item.Background(macSidebarSelection(t)).TextColor(white)
-	case chosen:
+	} else {
 		item.Background(pick(t.Dark, ui.Hex("#dcdcdc"), ui.Hex("#464646"))).TextColor(t.Text)
 	}
 }
@@ -336,15 +353,16 @@ func navCrumbSeparator(c *ui.Context, p Platform) {
 	sep := ui.Box(c).Shrink(0).Role(ui.RoleNone)
 	color, width := t.TextMuted, float32(1.2)
 	if p == Windows {
-		// The chevron of Segoe Fluent Icons, BreadcrumbBarChevronLeftToRight U+E974 (U+E973 right to left, mirrored here), BreadcrumbBarChevronFontSize 12 with BreadcrumbBarChevronPadding 2,0, in TextFillColorPrimary.
+		// The chevron of Segoe Fluent Icons, BreadcrumbBarChevronLeftToRight U+E974 (U+E973 right to left, mirrored here), BreadcrumbBarChevronFontSize 12 with BreadcrumbBarChevronPadding 2,0, in BreadcrumbBarNormalForegroundBrush (TextFillColorPrimary). The glyph's shape within its 12-pixel em, about 3.5 by 7 pixels with a 1-pixel stroke, is inferred: the font is not open.
 		sep.Size(12, 12).MarginX(2)
 		color, width = t.Text, 1
 	} else {
-		// NSPathControl's chevron: 4 by 6 points in secondaryLabelColor, 7.5 points after an item's text and 5.5 before the next, measured.
+		// NSPathControl's chevron: 4 by 6 points of ink in secondaryLabelColor, 7.5 points after an item's text and 5.5 before the next, measured; the stroke, about 1.2 points, keeps inside that box.
 		sep.Size(4, 6).MarginStart(5).MarginEnd(3)
 	}
 	sep.Draw(func(pt *ui.Painter, r ui.Rect) {
-		x0, x1, y0, y1 := r.X, r.X+r.W, r.Y, r.Y+r.H
+		in := width / 2
+		x0, x1, y0, y1 := r.X+in, r.X+r.W-in, r.Y+in, r.Y+r.H-in
 		if p == Windows {
 			x0, x1, y0, y1 = r.X+r.W*0.375, r.X+r.W*0.66, r.Y+r.H*0.21, r.Y+r.H*0.79
 		}
@@ -359,55 +377,110 @@ func navCrumbSeparator(c *ui.Context, p Platform) {
 
 // ---- history buttons and toolbars ----
 
-// BackButton creates a button going back in r's history, disabled at its start, as the platform draws it: a toolbar button on macOS, NavigationView's back button on Windows and a flat image button, as in a header bar, on GNOME. A right click lists the pages before, to go back several. Its arrow is MyGo's. It is ui.BackButton's counterpart.
+// BackButton creates a button going back in r's history, disabled at its start, as the platform draws it: a toolbar item on macOS, a glass capsule around a chevron, NavigationView's back button on Windows, with its arrow, and a flat image button, as in a header bar, on GNOME. A right click lists the pages before, to go back several. It is ui.BackButton's counterpart, whose chevron gives way to the platform's glyph.
 func BackButton(c *ui.Context, r *ui.Router) ui.Element {
-	return navHistoryButton(c, ui.BackButton(c, r))
+	return navHistoryButton(c, r, -1)
 }
 
-// ForwardButton creates a button going forward in r's history, as BackButton goes back, drawn as the platform draws it. It is ui.ForwardButton's counterpart.
+// ForwardButton creates a button going forward in r's history, as BackButton goes back, drawn as the platform draws it, its glyph pointing the other way. It is ui.ForwardButton's counterpart.
 func ForwardButton(c *ui.Context, r *ui.Router) ui.Element {
-	return navHistoryButton(c, ui.ForwardButton(c, r))
+	return navHistoryButton(c, r, 1)
 }
 
-// navHistoryButton gives a back or forward button of package ui the platform's look.
-func navHistoryButton(c *ui.Context, b ui.Element) ui.Element {
+// navHistoryButton builds the back (d < 0) or forward button of package ui with the platform's look and glyph.
+func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 	t := c.Theme()
-	switch PlatformOf(c) {
+	p := PlatformOf(c)
+	// MyGo draws its chevron in the theme's Text, or TextMuted while disabled; a theme whose text is clear hides it, so that the platform's glyph is drawn over the button instead. Its tooltip keeps the colors it takes from the theme around it.
+	clear := *t
+	clear.Inverse, clear.InverseText = t.Inverse, t.InverseText
+	if clear.Inverse == ui.Transparent {
+		clear.Inverse = t.Text
+	}
+	if clear.InverseText == ui.Transparent {
+		clear.InverseText = t.Background
+	}
+	clear.Text, clear.TextMuted = ui.Transparent, ui.Transparent
+	var b ui.Element
+	ui.Themed(c, &clear).Background(ui.Transparent).Children(func() {
+		if d < 0 {
+			b = ui.BackButton(c, r)
+		} else {
+			b = ui.ForwardButton(c, r)
+		}
+	})
+	pressed, hovered, disabled := b.Pressed(), b.Hovered(), b.IsDisabled()
+	// dir is 1 while the glyph points left, the way back goes left to right, and -1 while it points right: forward, or back right to left.
+	dir := float32(-d)
+	if c.Direction() == ui.RightToLeft {
+		dir = -dir
+	}
+	var glyph func(pt *ui.Painter, rc ui.Rect)
+	switch p {
 	case Windows:
-		// NavigationBackButtonNormalStyle: 40 by 36, ControlCornerRadius, SubtleFillColorTransparent, SubtleFillColorSecondary under the pointer and Tertiary pressed, the same as an AppBarButton in a CommandBar.
-		hover, pressed := fluentSubtle(t)
-		face := ui.Transparent
+		// NavigationBackButtonNormalStyle: 40 by 36, ControlCornerRadius, NavigationViewBackButtonBackground SubtleFillColorTransparent, NavigationViewButtonBackgroundPointerOver SubtleFillColorSecondary and Pressed Tertiary; its glyph in NavigationViewItemForeground (TextFillColorPrimary), TextFillColorSecondary pressed and TextFillColorDisabled disabled, without a face then.
+		hover, down := fluentSubtle(t)
+		face, fg := ui.Transparent, t.Text
 		switch {
-		case b.Pressed():
-			face = pressed
-		case b.Hovered():
+		case disabled:
+			fg = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.361), 0.365))
+		case pressed:
+			face, fg = down, t.TextMuted
+		case hovered:
 			face = hover
 		}
 		b.Size(40, 36).Padding(0).Radius(4).Border(0, ui.Color{}).Background(face)
-	case Linux:
-		// A flat .image-button: 34 pixels square (24 and padding 5), corners of 9, $hover_color (currentColor at 7%) under the pointer and $active_color (16%) pressed, as buttons with an icon are in a header bar or a .toolbar.
-		share := float32(0)
-		switch {
-		case b.Pressed():
-			share = 0.16
-		case b.Hovered():
-			share = 0.07
+		glyph = func(pt *ui.Painter, rc ui.Rect) {
+			// AnimatedBackVisualSource, the back arrow of a 16-DIP AnimatedIcon (its 48-unit visual scaled by 2.25 and a third): a shaft 12 DIPs long ending round and a head reaching 5.1 back and 4.9 to either side, strokes 0.75 DIP wide; ForwardButton mirrors it (inferred: NavigationView has no forward button).
+			cx, cy := rc.X+rc.W/2, rc.Y+rc.H/2
+			var arrow ui.Path
+			arrow.MoveTo(cx+5.63*dir, cy).LineTo(cx-5.48*dir, cy)
+			arrow.MoveTo(cx-0.37*dir, cy-4.88).LineTo(cx-5.48*dir, cy).LineTo(cx-0.37*dir, cy+4.88)
+			pt.StrokePath(&arrow, 0.75, fg)
 		}
-		face := ui.Transparent
-		if share > 0 {
-			face = adwInkAlpha(t, t.Background, share)
+	case Linux:
+		// A flat .image-button: 34 pixels square (min-height 24 and padding 5), corners of $button_radius (9), $hover_color (currentColor at 7%) under the pointer and $active_color (16%) pressed, as buttons with an icon are in a header bar or a .toolbar (%toolbar extends %button_basic_flat); disabled, the button at $strong_disabled_opacity (30%).
+		face, fg := ui.Transparent, t.Text
+		switch {
+		case disabled:
+			fg = t.Background.Mix(t.Text, 0.3)
+		case pressed:
+			face = adwInkAlpha(t, t.Background, 0.16)
+		case hovered:
+			face = adwInkAlpha(t, t.Background, 0.07)
 		}
 		b.Size(34, 34).Padding(0).Radius(9).Border(0, ui.Color{}).Background(face)
-	default:
-		// An NSButton of bezel style toolbar with an image, as AppKit renders it on macOS 27 outside a window's toolbar: 22 by 23 points, the bezel a point inside, corners of 4 and a 1-point line of black (Aqua) or white (Dark Aqua) at 5%, filled at 10% while pressed, measured.
-		// The clear face is white at 0% rather than ui.Transparent, which MyGo's Toolbar takes for a face of its own and fills under the pointer: an NSButton does not track the pointer, so the bezel stays as it is until pressed (inferred).
-		face, edge := white.Alpha(0), tint(t.Background, t.Dark, 0.051)
-		if b.Pressed() {
-			face = tint(t.Background, t.Dark, 0.102)
-			edge = face
+		glyph = func(pt *ui.Painter, rc ui.Rect) {
+			// Adwaita's go-previous-symbolic (go-next-symbolic mirrored), adwaita-icon-theme 48: a chevron in a 16-pixel icon from 11,2 to 5,8 to 11,14, a 2-pixel round stroke.
+			cx, cy := rc.X+rc.W/2, rc.Y+rc.H/2
+			var chevron ui.Path
+			chevron.MoveTo(cx+3*dir, cy-6).LineTo(cx-3*dir, cy).LineTo(cx+3*dir, cy+6)
+			pt.StrokePath(&chevron, 2, fg)
 		}
-		b.Size(20, 21).Margin(1).Padding(0).Radius(4).Border(1, edge).Background(face)
+	default:
+		// A bordered NSToolbarItem with an image in a window's toolbar, as AppKit renders it on macOS 27 offscreen, without the Liquid Glass material: a platter 36 points square, round, filled black at 1.6% (Aqua) or 6.7% (Dark Aqua) over the window, with a half-point line of black at 21% or 57% around it; pressed, black at 20% or white at 18%, measured. Adjacent items share one platter in AppKit; here each button has its own.
+		// The face is never ui.Transparent, which MyGo's Toolbar takes for a face of its own and fills under the pointer: a toolbar item does not mark the pointer offscreen (inferred for a live window).
+		face := t.Background.Mix(black, pick(t.Dark, float32(0.016), 0.067))
+		edge := t.Background.Mix(black, pick(t.Dark, float32(0.21), 0.57))
+		fg := t.Text
+		switch {
+		case disabled:
+			// tertiaryLabelColor (inferred: offscreen, in an inactive window, AppKit draws the glyph at 46% of the label's contrast, and disabled at 43% of that).
+			fg = tint(t.Background, t.Dark, pick(t.Dark, float32(0.259), 0.247))
+		case pressed:
+			face = pick(t.Dark, t.Background.Mix(black, 0.2), t.Background.Mix(white, 0.178))
+			fg = pick(t.Dark, black, white)
+		}
+		b.Size(36, 36).Padding(0).Radius(18).Border(0.5, edge).Background(face)
+		glyph = func(pt *ui.Painter, rc ui.Rect) {
+			// SF Symbols' chevron.left (chevron.right mirrored) in the item, measured: about 8 by 14 points of ink with a stroke near 1.7, its point 4 points before the platter's middle.
+			cx, cy := rc.X+rc.W/2, rc.Y+rc.H/2
+			var chevron ui.Path
+			chevron.MoveTo(cx+2.4*dir, cy-6.2).LineTo(cx-3.9*dir, cy).LineTo(cx+2.4*dir, cy+6.2)
+			pt.StrokePath(&chevron, 1.7, fg)
+		}
 	}
+	b.DrawOver(glyph)
 	return b
 }
 
@@ -422,8 +495,8 @@ func Toolbar(c *ui.Context, fn func()) ui.Element {
 		// .toolbar: padding 6px, border-spacing 6px.
 		tb.Padding(6).Gap(6)
 	default:
-		// NSToolbar's items, 8 points apart (inferred: AppKit does not render a toolbar offscreen).
-		tb.Padding(4, 8).Gap(8)
+		// NSToolbarView of a window's unified toolbar, rendered by AppKit on macOS 27: 52 points high, its items' 36-point platters 8 points from its edges and 8 apart, measured.
+		tb.MinHeight(52).Padding(8).Gap(8)
 	}
 	return tb
 }
