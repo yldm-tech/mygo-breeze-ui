@@ -52,6 +52,9 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.Focus = pick(dark, accent.Mix(black, 0.2), accent.Mix(white, 0.45)).Alpha(0.5)
 	}
 	t.Selection = accent.Alpha(pick(dark, float32(0.25), 0.4))
+	// An overlay scroll bar's slider while the pointer is not on the bar (_scrolling.scss): currentColor at 20%, 3 pixels wide. MyGo shows the bar while the pointer is over the view, not only over the bar, so the 8-pixel slider over its 10% trough that GTK widens it to under the pointer, and its 1-pixel outline, are not drawn.
+	t.Scrollbar = pick(dark, ui.RGBA(0, 0, 6, 0.16), ui.RGBA(255, 255, 255, 0.2))
+	t.ScrollbarWidth = 3
 	// tooltip.background: the shade at 80% with white text, in light and dark.
 	t.Inverse, t.InverseText = ui.RGBA(0, 0, 6, 0.8), white
 	return t
@@ -81,7 +84,19 @@ func adwAccentFill(t *ui.Theme, hovered, pressed bool) ui.Color {
 	return t.Accent
 }
 
-// adwButton draws a GtkButton with a label (.text-button): 34 pixels high with padding 5px 17px, corners of 9 and bold text; .suggested-action when primary.
+// adwFocusRing draws libadwaita's focus ring on e in place of MyGo's: while e has the visible keyboard focus, 2 pixels of $focus_border_color (the theme's Focus) inside its edge, as the focus-ring mixin's outline-width 2px and outline-offset -2px draw it (_drawing.scss) on buttons and check buttons, around corners of radius (at most half e's height). over, nil for nothing, paints what e shows over its children, under the ring.
+func adwFocusRing(t *ui.Theme, e ui.Element, radius float32, over func(p *ui.Painter, r ui.Rect)) {
+	e.FocusRing(false).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if over != nil {
+			over(p, r)
+		}
+		if e.FocusVisible() {
+			p.Stroke(r, t.Focus, min(radius, r.H/2), 2)
+		}
+	})
+}
+
+// adwButton draws a GtkButton with a label (.text-button): 34 pixels high with padding 5px 17px, corners of 9 and bold text, its focus ring inside its edge; .suggested-action when primary, whose ring (%opaque_button's, outside with a 1-pixel gap) is MyGo's.
 func adwButton(c *ui.Context, b ui.Element, primary bool) {
 	t := c.Theme()
 	b.MinHeight(34).Padding(5, 17).Gap(4).Radius(9).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center)
@@ -90,6 +105,7 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 		b.Background(adwAccentFill(t, hovered, pressed)).TextColor(t.AccentText)
 		return
 	}
+	adwFocusRing(t, b, 9, nil)
 	face := t.Surface
 	switch {
 	case pressed:
@@ -100,10 +116,11 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 	b.Background(face).TextColor(adwTextOn(t, face))
 }
 
-// adwCheckbox draws a GtkCheckButton: a 20-pixel indicator with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 that shows the focus ring; checked, the accent with libadwaita's check mark in accent_fg_color.
+// adwCheckbox draws a GtkCheckButton: a 20-pixel indicator (14 and padding 3) with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 (.text-button) with corners of 9 that shows the focus ring inside its edge; checked, the accent with libadwaita's check mark in accent_fg_color.
 func adwCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	t := c.Theme()
-	row.Gap(4).Padding(4).Radius(9).FocusRing(true)
+	row.Gap(4).Padding(4).Radius(9)
+	adwFocusRing(t, row, 9, nil)
 	hovered, pressed := row.Hovered(), row.Pressed()
 	box.Size(20, 20).Radius(6)
 	switch {
@@ -155,10 +172,11 @@ func adwInkAlpha(t *ui.Theme, bg ui.Color, share float32) ui.Color {
 	return bg.Mix(adwInk, share*0.8)
 }
 
-// adwRadio draws a GtkCheckButton in a group: a 20-pixel circle with an inset 2-pixel trough ring, 4 pixels from its label, inside a padded row with round ends that shows the focus ring; chosen, the accent with libadwaita's 8-pixel white bullet.
+// adwRadio draws a GtkCheckButton in a group: a 20-pixel circle with an inset 2-pixel trough ring, 4 pixels from its label, inside a padded row with round ends (.grouped) that shows the focus ring inside its edge; chosen, the accent with libadwaita's 8-pixel white bullet (assets/bullet.svg).
 func adwRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
-	row.Gap(4).Padding(4).Radius(999).FocusRing(true)
+	row.Gap(4).Padding(4).Radius(999)
+	adwFocusRing(t, row, 999, nil)
 	hovered, pressed := row.Hovered(), row.Pressed()
 	dot.Size(20, 20).Radius(10)
 	switch {
@@ -218,7 +236,7 @@ func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 	})
 }
 
-// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, showing the choice and the 16-pixel pan-down arrow 6 pixels after it.
+// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, with its focus ring inside its edge, showing the choice and the 16-pixel pan-down arrow 6 pixels after it.
 func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	t := c.Theme()
 	b := trigger
@@ -232,6 +250,7 @@ func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	}
 	fg := adwTextOn(t, face)
 	b.Background(face).TextColor(fg)
+	adwFocusRing(t, b, 9, nil)
 	b.Children(func() {
 		ui.Text(c, selected).SingleLine()
 		ui.Box(c).Size(16, 16).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
@@ -532,7 +551,8 @@ func adwLinkedToggle(c *ui.Context, b ui.Element, on bool, first bool) {
 	}
 	t := c.Theme()
 	seam := adwInkAlpha(t, t.Background, 0.19)
-	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+	// The focus ring, inside the button's edge as on a toggle alone, keeps corners of 9 so that the group's rounded clip does not cut it at the group's corners; between two toggles libadwaita's are square (inferred: a toggle does not know whether it is the last).
+	adwFocusRing(t, b, 9, func(p *ui.Painter, r ui.Rect) {
 		x := r.X
 		if c.Direction() == ui.RightToLeft {
 			x = r.X + r.W - 1
