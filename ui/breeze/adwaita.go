@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// GNOME: libadwaita 1.7 (GNOME 48), from its stylesheet (src/stylesheet/_colors.scss, _common.scss, widgets/_buttons.scss, _checks.scss and _switch.scss) and, for the accent and the switch's size, its C code and GTK's. libadwaita colors controls with currentColor at an opacity; those are resolved here over window_bg_color.
+// GNOME: libadwaita 1.10.0 (GNOME 51, on GTK 4.24.0, with adwaita-icon-theme 51.0's symbolic icons), from its stylesheet (src/stylesheet/_colors.scss, which holds what _defaults.scss did before 1.10, _common.scss, _drawing.scss, widgets/_buttons.scss, _checks.scss and _switch.scss) and, for the accent and the switch's size, its C code and GTK's. Its colors are the same as libadwaita 1.7.6's. libadwaita colors controls with currentColor at an opacity; those are resolved here over window_bg_color.
 
 // adwAccent is libadwaita's default blue accent, accent_bg_color.
 var adwAccent = ui.Hex("#3584e4")
@@ -25,7 +25,7 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 	t.AccentHover = accent.Mix(white, 0.1)    // a 10% currentColor layer
 	t.AccentPressed = accent.Mix(adwInk, 0.2) // a 20% shade layer
 	t.Radius, t.Spacing = 9, 4                // $button_radius
-	t.FontSize = 14.67                        // Adwaita Sans 11 at 96 DPI
+	t.FontSize = 14.67                        // Adwaita Sans 11 at 96 DPI: font-name in gsettings-desktop-schemas 51.0's org.gnome.desktop.interface
 	if dark {
 		t.Background = ui.Hex("#222226")
 		t.Text = white
@@ -52,6 +52,9 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.Focus = pick(dark, accent.Mix(black, 0.2), accent.Mix(white, 0.45)).Alpha(0.5)
 	}
 	t.Selection = accent.Alpha(pick(dark, float32(0.25), 0.4))
+	// An overlay scroll bar's slider while the pointer is not on the bar (_scrolling.scss): currentColor at 20%, 3 pixels wide. MyGo shows the bar while the pointer is over the view, not only over the bar, so the 8-pixel slider over its 10% trough that GTK widens it to under the pointer, and its 1-pixel outline, are not drawn.
+	t.Scrollbar = pick(dark, ui.RGBA(0, 0, 6, 0.16), ui.RGBA(255, 255, 255, 0.2))
+	t.ScrollbarWidth = 3
 	// tooltip.background: the shade at 80% with white text, in light and dark.
 	t.Inverse, t.InverseText = ui.RGBA(0, 0, 6, 0.8), white
 	return t
@@ -81,7 +84,19 @@ func adwAccentFill(t *ui.Theme, hovered, pressed bool) ui.Color {
 	return t.Accent
 }
 
-// adwButton draws a GtkButton with a label (.text-button): 34 pixels high with padding 5px 17px, corners of 9 and bold text; .suggested-action when primary.
+// adwFocusRing draws libadwaita's focus ring on e in place of MyGo's: while e has the visible keyboard focus, 2 pixels of $focus_border_color (the theme's Focus) inside its edge, as the focus-ring mixin's outline-width 2px and outline-offset -2px draw it (_drawing.scss) on buttons and check buttons, around corners of radius (at most half e's height). over, nil for nothing, paints what e shows over its children, under the ring.
+func adwFocusRing(t *ui.Theme, e ui.Element, radius float32, over func(p *ui.Painter, r ui.Rect)) {
+	e.FocusRing(false).DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if over != nil {
+			over(p, r)
+		}
+		if e.FocusVisible() {
+			p.Stroke(r, t.Focus, min(radius, r.H/2), 2)
+		}
+	})
+}
+
+// adwButton draws a GtkButton with a label (.text-button): 34 pixels high with padding 5px 17px, corners of 9 and bold text, its focus ring inside its edge; .suggested-action when primary, whose ring (%opaque_button's, outside with a 1-pixel gap) is MyGo's.
 func adwButton(c *ui.Context, b ui.Element, primary bool) {
 	t := c.Theme()
 	b.MinHeight(34).Padding(5, 17).Gap(4).Radius(9).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center)
@@ -90,6 +105,7 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 		b.Background(adwAccentFill(t, hovered, pressed)).TextColor(t.AccentText)
 		return
 	}
+	adwFocusRing(t, b, 9, nil)
 	face := t.Surface
 	switch {
 	case pressed:
@@ -100,10 +116,11 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 	b.Background(face).TextColor(adwTextOn(t, face))
 }
 
-// adwCheckbox draws a GtkCheckButton: a 20-pixel indicator with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 that shows the focus ring; checked, the accent with libadwaita's check mark in accent_fg_color.
+// adwCheckbox draws a GtkCheckButton: a 20-pixel indicator (14 and padding 3) with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 (.text-button) with corners of 9 that shows the focus ring inside its edge; checked, the accent with libadwaita's check mark in accent_fg_color.
 func adwCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	t := c.Theme()
-	row.Gap(4).Padding(4).Radius(9).FocusRing(true)
+	row.Gap(4).Padding(4).Radius(9)
+	adwFocusRing(t, row, 9, nil)
 	hovered, pressed := row.Hovered(), row.Pressed()
 	box.Size(20, 20).Radius(6)
 	switch {
@@ -118,10 +135,10 @@ func adwCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 		if !on {
 			return
 		}
-		// check.svg's 14-pixel mark, 3 pixels in.
+		// assets/check.svg, which libadwaita 1.10 draws in place of the check-symbolic images: a 14-pixel icon, 3 pixels in, filled along a 2-pixel stroke with round ends through (2,7), (6,11) and (12,3), the centers of its arcs.
 		s := r.W / 20
 		var path ui.Path
-		path.MoveTo(r.X+5*s, r.Y+10*s).LineTo(r.X+8.9*s, r.Y+13.9*s).LineTo(r.X+16.3*s, r.Y+5.9*s)
+		path.MoveTo(r.X+5*s, r.Y+10*s).LineTo(r.X+9*s, r.Y+14*s).LineTo(r.X+15*s, r.Y+6*s)
 		p.StrokePath(&path, 2*s, t.AccentText)
 	})
 }
@@ -155,10 +172,11 @@ func adwInkAlpha(t *ui.Theme, bg ui.Color, share float32) ui.Color {
 	return bg.Mix(adwInk, share*0.8)
 }
 
-// adwRadio draws a GtkCheckButton in a group: a 20-pixel circle with an inset 2-pixel trough ring, 4 pixels from its label, inside a padded row with round ends that shows the focus ring; chosen, the accent with libadwaita's 8-pixel white bullet.
+// adwRadio draws a GtkCheckButton in a group: a 20-pixel circle with an inset 2-pixel trough ring, 4 pixels from its label, inside a padded row with round ends (.grouped) that shows the focus ring inside its edge; chosen, the accent with libadwaita's 8-pixel white bullet (assets/bullet.svg).
 func adwRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
-	row.Gap(4).Padding(4).Radius(999).FocusRing(true)
+	row.Gap(4).Padding(4).Radius(999)
+	adwFocusRing(t, row, 999, nil)
 	hovered, pressed := row.Hovered(), row.Pressed()
 	dot.Size(20, 20).Radius(10)
 	switch {
@@ -218,7 +236,7 @@ func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 	})
 }
 
-// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, showing the choice and the 16-pixel pan-down arrow 6 pixels after it.
+// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, with its focus ring inside its edge, showing the choice and the 16-pixel pan-down arrow 6 pixels after it.
 func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	t := c.Theme()
 	b := trigger
@@ -232,25 +250,26 @@ func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	}
 	fg := adwTextOn(t, face)
 	b.Background(face).TextColor(fg)
+	adwFocusRing(t, b, 9, nil)
 	b.Children(func() {
 		ui.Text(c, selected).SingleLine()
 		ui.Box(c).Size(16, 16).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			// pan-down-symbolic: a small solid triangle.
+			// adwaita-icon-theme 51.0's pan-down-symbolic: a chevron filled along a 2-pixel stroke with round ends from (4,7) down to its tip at (8,11) and up to (12,7).
 			var path ui.Path
-			path.MoveTo(r.X+4, r.Y+6).LineTo(r.X+12, r.Y+6).LineTo(r.X+8, r.Y+11).Close()
-			p.FillPath(&path, fg)
+			path.MoveTo(r.X+4, r.Y+7).LineTo(r.X+8, r.Y+11).LineTo(r.X+12, r.Y+7)
+			p.StrokePath(&path, 2, fg)
 		})
 	})
 }
 
-// adwMenu draws a dropdown's popover: popover_bg_color, a 1-pixel 14% black edge, corners of 15 and the popover's two soft shadows, its list padded 6 pixels.
+// adwMenu draws a dropdown's popover: popover_bg_color, corners of 15 and popover > contents's box-shadow (_popovers.scss; libadwaita 1.10 replaced the 1-pixel border of black at 14% with its first shadow): a 1-pixel ring of black at 5% around it and two soft shadows; its list padded 6 pixels.
 func adwMenu(c *ui.Context, panel ui.Element) {
 	t := c.Theme()
-	panel.Margin(6, 0, 0, 0).Padding(6).Radius(15).Background(pick(t.Dark, white, ui.Hex("#36363a"))).
-		Border(1, ui.RGBA(0, 0, 0, 0.14)).Shadow(0, 1, 5, 1, ui.RGBA(0, 0, 0, 0.09)).Shadow(0, 2, 14, 3, ui.RGBA(0, 0, 0, 0.05))
+	panel.Margin(6, 0, 0, 0).Padding(6).Radius(15).Background(pick(t.Dark, white, ui.Hex("#36363a"))).Border(0, ui.Color{}).
+		Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 0, 0.05)).Shadow(0, 1, 5, 1, ui.RGBA(0, 0, 0, 0.09)).Shadow(0, 2, 14, 3, ui.RGBA(0, 0, 0, 0.05))
 }
 
-// adwMenuItem draws a row of the list: padding 9px 12px, corners of 9, currentColor at 10% under the pointer and 19% pressed, and object-select-symbolic 6 pixels after the chosen option's label.
+// adwMenuItem draws a row of the list: padding 9px 12px, corners of 9, currentColor at 10% under the pointer and 19% pressed (_dropdowns.scss and _menus.scss), and object-select-symbolic 6 pixels after the chosen option's label.
 func adwMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 	t := c.Theme()
 	panel := pick(t.Dark, white, ui.Hex("#36363a"))
@@ -266,8 +285,9 @@ func adwMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 		mark := ui.Box(c).Size(16, 16).Shrink(0)
 		if chosen {
 			mark.Draw(func(p *ui.Painter, r ui.Rect) {
+				// adwaita-icon-theme 51.0's object-select-symbolic: a check filled along a 2-pixel stroke with round ends through (3,9), (6,12) and (13,4), as GTK 4.24's own fallback strokes it.
 				var path ui.Path
-				path.MoveTo(r.X+3, r.Y+8.5).LineTo(r.X+6.5, r.Y+12).LineTo(r.X+13, r.Y+4.5)
+				path.MoveTo(r.X+3, r.Y+9).LineTo(r.X+6, r.Y+12).LineTo(r.X+13, r.Y+4)
 				p.StrokePath(&path, 2, t.Text)
 			})
 		}
@@ -279,7 +299,7 @@ func adwSlider(c *ui.Context, s ui.Element, frac float32) {
 	t := c.Theme()
 	const d = 20
 	hovered, pressed := s.Hovered(), s.Pressed()
-	// The pointer and the slider's center both travel the trough, inside the scale's 12-pixel padding; the slider overhangs its ends, as GtkRange draws it (measured against libadwaita 1.7.6).
+	// The pointer and the slider's center both travel the trough, inside the scale's 12-pixel padding; the slider overhangs its ends, as GtkRange draws it (measured against libadwaita 1.7.6; 1.10.0's _scale.scss changes only its high-contrast colors).
 	s.Height(d + 24).PaddingX(12).MinWidth(60).FocusRing(false)
 	trough := adwTrough(t, false, false)
 	fill := t.Accent
@@ -316,13 +336,13 @@ func adwProgress(c *ui.Context, e ui.Element, value float64) {
 	e.Draw(func(p *ui.Painter, r ui.Rect) { drawBar(c, p, r, value, t.Accent, 4) })
 }
 
-// adwSpinner draws an AdwSpinner at its natural 16 pixels: a 2.5-pixel ring of the text color at 15%, and an arc of it that turns once in 1.2 seconds while it extends and contracts, as adw-spinner-paintable.c draws it.
+// adwSpinner draws an AdwSpinner at its natural 16 pixels: a 2-pixel ring of the text color at 15%, and an arc of it that turns once in 1.2 seconds while it extends and contracts, as adw-spinner-paintable.c draws it. libadwaita 1.10 strokes it an eighth of its diameter wide at the widget's icon weight of 400 (calculate_line_width), where 1.7 stroked 2.5 pixels.
 func adwSpinner(c *ui.Context, e ui.Element) {
 	t := c.Theme()
 	e.Size(16, 16)
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
 		p.AnimationFrame()
-		const lw = 2.5
+		const lw = 2
 		rad := min(r.W, r.H)/2 - lw/2
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
 		var ring ui.Path
@@ -414,10 +434,9 @@ func adwTab(c *ui.Context, tab ui.Element, chosen bool) {
 
 // ---- dialogs: AdwDialog and AdwAlertDialog ----
 
-// adwSheetShadow casts floating-sheet > sheet's shadows, the same in light and dark.
+// adwSheetShadow casts floating-sheet > sheet's shadows (_dialogs.scss; libadwaita 1.10 made them smaller and centered), the same in light and dark: two soft ones and a 1-pixel ring of black at 5%.
 func adwSheetShadow(panel ui.Element) {
-	panel.Shadow(0, 2, 8, 2, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 3, 20, 10, ui.RGBA(0, 0, 6, 0.05)).
-		Shadow(0, 6, 32, 16, ui.RGBA(0, 0, 6, 0.02)).Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 6, 0.05))
+	panel.Shadow(0, 0, 14, 2, ui.RGBA(0, 0, 6, 0.03)).Shadow(0, 0, 5, 2, ui.RGBA(0, 0, 6, 0.10)).Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 0, 0.05))
 }
 
 // adwDimming fills the window behind a dialog with the shade color at twice its alpha: 14% in light, 50% in dark.
@@ -433,29 +452,38 @@ func adwDialog(c *ui.Context, back, panel ui.Element) {
 	adwSheetShadow(panel)
 }
 
-// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide; the heading in .title-2 (weight 800, 136%) and the body 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, padded 24, equal widths 12 apart, 44 pixels high with corners of 12, in the order they were added, so the default comes last. In a window at most 360 pixels high the dialog is .short, as adw-dialog.c's breakpoint makes it: the heading in .title-4 (weight 700, 118%), 6 pixels above the body, padded 24 above and 18 at the sides and below the responses, which are 40 pixels high.
+// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide, with the sheet's 1-pixel $window_outline_color (white at 7%) inside its edge; the heading in .title-2 (weight 800, 136%) and the body (.body, line-height 140%) 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, padded 12 above and 24 at the sides and below, equal widths 12 apart, at least 60 pixels wide past their padding while they all fit so, 44 pixels high with corners of 12, in the order they were added, so the default comes last. In a window at most 360 pixels high the dialog is .short, as adw-dialog.c's breakpoint makes it: the heading in .title-4 (weight 700, 118%), 6 pixels above the body, padded 24 above and 18 at the sides, and the responses padded 9 above and 18 at the sides and below, 40 pixels high, with no least width (_message-dialog.scss).
 func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
 	t := c.Theme()
 	adwDimming(t, back)
-	_, h := c.Size()
+	w, h := c.Size()
 	top, side, gap, size, weight, padY, padX := float32(32), float32(24), float32(10), float32(1.36), 800, float32(10), float32(20)
+	above, least := float32(12), float32(60)
 	if h <= 360 {
 		top, side, gap, size, weight, padY, padX = 24, 18, 6, 1.18, 700, 8, 16
+		above, least = 9, 0
+	}
+	// libadwaita stacks the responses when they are wider side by side than the dialog can be (adw-alert-dialog.c, measure_responses_do's wide_nat against DIALOG_MAX_WIDTH); this row never stacks them, so the least width applies only while the responses fit in the widest alert the window allows, and otherwise they share the row as before rather than overflow it.
+	if float32(n)*(least+2*padX)+12*float32(n-1)+2*side > min(372, w-40) {
+		least = 0
 	}
 	bg := pick(t.Dark, ui.Hex("#fafafb"), ui.Hex("#36363a"))
 	panel.MinWidth(300).MaxWidth(372).Radius(18).Background(bg).AlignItems(ui.Stretch)
 	adwSheetShadow(panel)
+	// libadwaita 1.10.0 keeps the sheet's outline on an alert in normal contrast and removes it in high contrast, the other way round from 1.7.6: cb3219bc ("stylesheet: Stop using $contrast") turned `@if $contrast != 'high' { outline: none }` into `@media (prefers-contrast: more) { outline: none }` (_message-dialog.scss), as its doc/images/alert-dialog-dark.png shows. GTK draws an outline over the content and outside the layout, as DrawOver does.
+	outline := bg.Mix(white, 0.07)
+	panel.DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, outline, 18, 1) })
 	panel.Children(func() {
 		ui.Column(c).Padding(top, side, 9, side).Gap(gap).AlignItems(ui.Stretch).Children(func() {
 			ui.Text(c, title).FontSize(t.FontSize * size).FontWeight(weight).TextAlign(ui.Center)
 			if message != "" {
-				ui.Text(c, message).TextAlign(ui.Center)
+				ui.Text(c, message).TextAlign(ui.Center).LineHeight(1.4)
 			}
 		})
-		// The response area is padded as the message area at the sides and below (RESPONSE_HORZ_PADDING_SHORT while short); a response's content is at least 24 pixels high.
-		ui.Row(c).Padding(12, side, side, side).Gap(12).Children(func() {
+		// The response area is padded as the message area at the sides and below (RESPONSE_HORZ_PADDING_SHORT while short); a response's content is at least 24 pixels high and, unless short, 60 wide.
+		ui.Row(c).Padding(above, side, side, side).Gap(12).Children(func() {
 			for i := range n {
-				b := button(i).MinHeight(24+2*padY).Padding(padY, padX).Radius(12).Grow(1).Basis(0)
+				b := button(i).MinHeight(24+2*padY).MinWidth(least+2*padX).Padding(padY, padX).Radius(12).Grow(1).Basis(0)
 				if i < n-1 {
 					// currentColor at 10%, 15% and 30%, over the alert's own background rather than the window's.
 					share := float32(0.10)
@@ -483,7 +511,7 @@ func adwTextOn(t *ui.Theme, fill ui.Color) ui.Color {
 
 // ---- links, separators, badges, popovers and linked toggles ----
 
-// adwLinkColor is libadwaita's link color, accent_color: the accent darkened in the light theme and lightened in the dark one. For the default blue, the colors are measured from links libadwaita 1.7.6 rendered (tools/adwaita-reference), #357fca and #81d0ff; the stylesheet's Oklab clamp would give a darker light one.
+// adwLinkColor is libadwaita's link color, accent_color: the accent darkened in the light theme and lightened in the dark one. For the default blue, the colors are measured from links libadwaita 1.7.6 rendered (tools/adwaita-reference), #357fca and #81d0ff; 1.10.0's _colors.scss keeps the same accent_color, whose Oklab clamp would give a darker light one.
 func adwLinkColor(t *ui.Theme) ui.Color {
 	if t.Accent == adwAccent {
 		return pick(t.Dark, ui.Hex("#357fca"), ui.Hex("#81d0ff"))
@@ -491,7 +519,7 @@ func adwLinkColor(t *ui.Theme) ui.Color {
 	return pick(t.Dark, t.Accent.Mix(black, 0.2), t.Accent.Mix(white, 0.45))
 }
 
-// adwPopover draws a popover's contents: popover_bg_color, a 1-pixel 14% black edge, corners of 15, padding 8 and the popover's two soft shadows.
+// adwPopover draws a popover's contents: popover_bg_color, corners of 15, padding 8 and adwMenu's ring and two soft shadows.
 func adwPopover(c *ui.Context, panel ui.Element) {
 	adwMenu(c, panel)
 	panel.Padding(8).Gap(6)
@@ -500,9 +528,15 @@ func adwPopover(c *ui.Context, panel ui.Element) {
 // adwSeparator is a separator's color, $border_color: currentColor at 15%.
 func adwSeparator(t *ui.Theme) ui.Color { return t.Border }
 
-// adwBadge draws an indicator badge (indicatorbin.badge): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides.
+// adwBadge draws an indicator badge (indicatorbin.badge, _view-switcher.scss): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides. In a Sidebar it is the count AdwViewSwitcherSidebar (libadwaita 1.9+) puts at the end of an AdwSidebar item (view-switcher-sidebar .indicator, _sidebars.scss): a capsule at least 1.6em square for its text at font-size smaller (GTK's factor of 1.2, inferred), bold and white, padded 6 at the sides, over currentColor at 40% over sidebar_bg_color. MyGo's badge sizes its text itself, 2 below the theme's font size, so the text is not at 0.6rem or smaller, the sizes the capsules take.
 func adwBadge(c *ui.Context, b ui.Element) {
 	t := c.Theme()
+	if navCurrentSidebar(c) != nil {
+		size := t.FontSize / 1.2
+		b.MinHeight(size*1.6).MinWidth(size*1.6).Padding(0, 6).Radius(999).Background(adwInkAlpha(t, adwSidebarBg(t), 0.4)).
+			TextColor(white).FontSize(size).FontWeight(700).Border(0, ui.Color{})
+		return
+	}
 	b.MinHeight(13).MinWidth(13).Padding(0, 4).Radius(7).Background(adwInkAlpha(t, t.Background, 0.4)).
 		TextColor(white).FontSize(t.FontSize*0.6).FontWeight(700).Border(0, ui.Color{})
 }
@@ -521,7 +555,8 @@ func adwLinkedToggle(c *ui.Context, b ui.Element, on bool, first bool) {
 	}
 	t := c.Theme()
 	seam := adwInkAlpha(t, t.Background, 0.19)
-	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+	// The focus ring, inside the button's edge as on a toggle alone, keeps corners of 9 so that the group's rounded clip does not cut it at the group's corners; between two toggles libadwaita's are square (inferred: a toggle does not know whether it is the last).
+	adwFocusRing(t, b, 9, func(p *ui.Painter, r ui.Rect) {
 		x := r.X
 		if c.Direction() == ui.RightToLeft {
 			x = r.X + r.W - 1
