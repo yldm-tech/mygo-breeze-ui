@@ -229,7 +229,7 @@ func adwToastViewport(c *ui.Context, viewport ui.Element) {
 func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	w, _ := c.Size()
 	bg := ui.Hex("#505053")
-	parts.Root.Row().AlignItems(ui.Center).Gap(6).Padding(6).PaddingStart(12).MinHeight(46).MaxWidth(w - 24).Radius(23).
+	parts.Root.Row().AlignItems(ui.Center).Gap(6).Padding(6).PaddingStart(12).MinHeight(46).MaxWidth(w-24).Radius(23).
 		Background(bg).TextColor(white).
 		Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
 	parts.Root.Children(func() {
