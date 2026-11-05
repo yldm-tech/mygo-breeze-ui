@@ -195,7 +195,30 @@ func TestRowsJoinInGroups(t *testing.T) {
 	}
 }
 
-// TestRowsFillAnAccordionItem checks on every platform that rows in an accordion's open section reach its edges and touch one another and the section's end, as the nested rows of AdwExpanderRow and the items of a SettingsExpander do, or on macOS stop 5 points above it, as a DisclosureGroup's rows in a grouped form.
+// TestRowsMakeRoomForTheirLines checks on every platform that the line between two rows of a group takes room of its own where the platform gives it some: a point on macOS, where a grouped form's separator lies between its rows, and a pixel on GNOME, where %boxed_list_row's border is outside the header's min-height; none on Windows, where a SettingsExpander item's MinHeight holds its border.
+func TestRowsMakeRoomForTheirLines(t *testing.T) {
+	for _, p := range Platforms {
+		var rows [3]ui.Rect
+		tester := layoutTester(p, 420, 400, func(c *ui.Context) {
+			ui.Column(c).Padding(16).Children(func() {
+				Card(c, func() {
+					for i, s := range []string{"One", "Two", "Three"} {
+						rows[i] = ActionRow(c, s, "", nil).Bounds()
+					}
+				})
+			})
+		})
+		tester.Frame()
+		want := map[Platform]float32{Mac: 1, Windows: 0, Linux: 1}[p]
+		for i := 1; i < len(rows); i++ {
+			if d := rows[i].H - rows[0].H - want; d < -0.25 || d > 0.25 {
+				t.Errorf("%v: row %d is %v high after a first row %v high, want %v more", p, i, rows[i].H, rows[0].H, want)
+			}
+		}
+	}
+}
+
+// TestRowsFillAnAccordionItem checks on every platform that rows in an accordion's open section reach its edges and touch one another and the section's end, as the nested rows of AdwExpanderRow and the items of a SettingsExpander do, or on macOS stop 5.5 points above it, as a DisclosureGroup's rows in a grouped form.
 func TestRowsFillAnAccordionItem(t *testing.T) {
 	for _, p := range Platforms {
 		open, on := true, false
@@ -222,10 +245,10 @@ func TestRowsFillAnAccordionItem(t *testing.T) {
 		if !near(sb.Y, fb.Y+fb.H) {
 			t.Errorf("%v: rows %v and %v do not touch", p, fb, sb)
 		}
-		// A DisclosureGroup of a grouped form leaves 5 points below its last row.
+		// A DisclosureGroup of a grouped form leaves 5.5 points below its last row.
 		below := inset
 		if p == Mac {
-			below = 5
+			below = 5.5
 		}
 		if !near(sb.Y+sb.H, ib.Y+ib.H-below) {
 			t.Errorf("%v: item %v, last row %v: the row does not reach the item's end", p, ib, sb)

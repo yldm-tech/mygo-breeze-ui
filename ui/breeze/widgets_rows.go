@@ -117,7 +117,7 @@ func Card(c *ui.Context, fn func()) ui.Element {
 	return card
 }
 
-// ActionRow creates a row of settings: title, subtitle below it in the platform's secondary style (an empty subtitle shows none), and at its end the controls fn builds (nil for none). Alone it is drawn as a group of one row; rows one after another in a Card, a Fieldset or an AccordionItem join as the platform joins them. macOS: a row of a SwiftUI grouped Form as System Settings draws it, 10 points in from the section's edges, the 13-point title in labelColor over the 11-point subtitle in secondaryLabelColor, the controls at the trailing edge, a separator inset 10 points between rows (measured on macOS 27.2). Windows: CommunityToolkit's SettingsCard, 68 DIPs high at least, padded 16, the 14-DIP header and the 12-DIP description in TextFillColorSecondary, the content 24 after them; in a Card or an AccordionItem a SettingsExpander's item, 52 high, padded 16,8, a line of CardStrokeColorDefault above it. GNOME: AdwActionRow, 54 pixels high at least (a 50-pixel header in the row's padding of 2), its header 12 in, the title box padded 6 with 3 between the title and the subtitle (smaller, dimmed), its suffixes 6 apart, the rows of a boxed list a line of card_shade_color apart. The row is a group that assistive technology names by title and describes by subtitle, as AdwActionRow is labelled by its title and described by its subtitle and SettingsCard's peer is a group.
+// ActionRow creates a row of settings: title, subtitle below it in the platform's secondary style (an empty subtitle shows none), and at its end the controls fn builds (nil for none). Alone it is drawn as a group of one row; rows one after another in a Card, a Fieldset or an AccordionItem join as the platform joins them. macOS: a row of a SwiftUI grouped Form as System Settings draws it, 10 points in from the section's edges, the 13-point title in labelColor over the 11-point subtitle in secondaryLabelColor, the controls at the trailing edge, a separator inset 10 points taking a point of its own between rows (measured on macOS 27.2). Windows: CommunityToolkit's SettingsCard, 68 DIPs high at least, padded 16, the 14-DIP header and the 12-DIP description in TextFillColorSecondary, the content 24 after them; in a Card or an AccordionItem a SettingsExpander's item, 52 high, padded 16,8, a line of CardStrokeColorDefault above it. GNOME: AdwActionRow, 54 pixels high at least (a 50-pixel header in the row's padding of 2), its header 12 in, the title box padded 6 with 3 between the title and the subtitle (smaller, dimmed), its suffixes 6 apart, the rows of a boxed list a line of card_shade_color apart, which makes a row a pixel taller. The row is a group that assistive technology names by title and describes by subtitle, as AdwActionRow is labelled by its title and described by its subtitle and SettingsCard's peer is a group.
 func ActionRow(c *ui.Context, title, subtitle string, fn func()) ui.Element {
 	row := ui.Row(c).Shrink(0).Role(ui.RoleGroup).Label(title)
 	if subtitle != "" {
@@ -206,10 +206,10 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 	if in == rowsInAccordion {
 		// Under an AccordionItem's header, reaching across MyGo's panel (padded Space(3) at the sides and the bottom, its children Space(2) apart): every row gives back the panel's bottom padding, and the next takes the panel's gap back from it, so the rows touch one another and the item's edges.
 		side, gap := t.Space(3), t.Space(2)
-		// On macOS a DisclosureGroup in a grouped form leaves 5 points below its last row (measured on macOS 27.2 by reference.swift: the last row's title 23.5 above the section's end).
+		// On macOS a DisclosureGroup in a grouped form leaves room below its last row: the top of its title's ink is 23 points above the section's end (measured on macOS 27.2 by reference.swift), which, with the row's padding of 5 below and the title's ink 3 points into its 15.3-point line of the system font, leaves about 5.5 below the row.
 		keep := float32(0)
 		if p == Mac {
-			keep = 5
+			keep = 5.5
 		}
 		top := side - keep - gap
 		if first {
@@ -250,7 +250,8 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 				titleColor = t.TextMuted
 			}
 		}
-		subSize, lineGap, endGap, suffixGap = 12, 0, 24, 8
+		// SettingsCardDescriptionFontSize, 12 where ControlContentThemeFontSize is 14, following the text size the user chose as the header does.
+		subSize, lineGap, endGap, suffixGap = t.FontSize*12/14, 0, 24, 8
 		if toggle {
 			radius := float32(4)
 			if joined {
@@ -266,8 +267,9 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 	case Linux:
 		fill, shade := adwBoxedListCard(t)
 		under = fill
-		// list > row: padding 2px; row > box.header: margin 0 12px, min-height 50px, border-spacing 6px.
-		row.MinHeight(54).Padding(2, 14)
+		// list > row: padding 2px; row > box.header: margin 0 12px, min-height 50px, border-spacing 6px. GTK's min-height is the header's content, so a row with the line of %boxed_list_row (1px of card_shade_color) is a pixel taller: Breeze UI draws the line above every row but the first, as GTK draws it below every row but the last.
+		bordered := in == rowsInAccordion || (in != rowsAlone && !first)
+		row.MinHeight(pick(bordered, float32(54), 55)).Padding(2, 14)
 		switch in {
 		case rowsAlone:
 			// A boxed list of one row.
@@ -279,7 +281,7 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 			under = fill.Mix(adwInk, pick(t.Dark, float32(0.035), 0.18))
 			row.Background(under).BorderWidth(1, 0, 0, 0).BorderColor(shade)
 		default:
-			if !first {
+			if bordered {
 				row.BorderWidth(1, 0, 0, 0).BorderColor(shade)
 			}
 		}
@@ -319,20 +321,23 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 			// A grouped section of one row.
 			row.Radius(12).Background(fill)
 		case rowsInAccordion:
-			// The rows of a DisclosureGroup in a grouped form are closer and have no separators: a row of a title and a subtitle 39.5 points from the next, 12.5 less than in a section (measured on macOS 27.2 by reference.swift).
-			row.Padding(4.25, 10, 4.75, 10)
-		}
-		if in != rowsAlone && in != rowsInAccordion && !first {
-			line := tint(t.Background, t.Dark, macSectionSeparatorAlpha)
-			row.DrawOver(func(p *ui.Painter, r ui.Rect) {
-				p.Fill(ui.Rect{X: r.X + 10, Y: r.Y, W: r.W - 20, H: 1}, line, 0)
-			})
+			// The rows of a DisclosureGroup in a grouped form are closer and have no separators: a row of a title and a subtitle 40 points from the next, 12 less than in a section (measured on macOS 27.2 by reference.swift).
+			row.Padding(4.5, 10, 5, 10)
+		default:
+			if !first {
+				// The separator takes a point of its own between two rows: the next row's title is 13.5 points below the separator's end as the first row's is below the section's top (measured on macOS 27.2 by reference.swift), so the row is a point taller with the separator in its top point.
+				row.Padding(11.5, 10, 11, 10)
+				line := tint(t.Background, t.Dark, macSectionSeparatorAlpha)
+				row.DrawOver(func(p *ui.Painter, r ui.Rect) {
+					p.Fill(ui.Rect{X: r.X + 10, Y: r.Y, W: r.W - 20, H: 1}, line, 0)
+				})
+			}
 		}
 		// labelColor and secondaryLabelColor over the section, as AppKit composites them: 38 and 124 over 247 in Aqua, 222 and 157 over 37 in Dark Aqua.
 		titleColor = pick(t.Dark, fill.Mix(black, 0.847), fill.Mix(white, 0.847))
 		subColor = pick(t.Dark, fill.Mix(black, 0.498), fill.Mix(white, 0.549))
-		// The spacing of the controls is inferred.
-		subSize, lineGap, endGap, suffixGap = 11, 2.5, 8, 8
+		// The subtitle is 11 points where the title is 13, following the text size the user chose as the title does. The spacing of the controls is inferred.
+		subSize, lineGap, endGap, suffixGap = t.FontSize*11/13, 2.5, 8, 8
 	}
 	row.Gap(endGap)
 	row.Children(func() {
