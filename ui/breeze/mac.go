@@ -264,7 +264,8 @@ func macSlider(c *ui.Context, s ui.Element, frac float32) {
 	// The knob's center travels the content box, inside the padding.
 	s.Height(kh).PaddingX(kw / 2).MinWidth(60)
 	trough := tint(t.Background, t.Dark, macTroughAlpha)
-	knobFill := pick(t.Dark, white, ui.Hex("#dddddd"))
+	// The knob is white in Dark Aqua too: tools/appkit-reference/reference.swift reads 255 across it in both appearances.
+	knobFill := white
 	at := along(c, frac)
 	s.Draw(func(p *ui.Painter, r ui.Rect) {
 		track := ui.Rect{X: r.X, Y: r.Y + (r.H-6)/2, W: r.W, H: 6}

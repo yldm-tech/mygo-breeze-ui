@@ -330,8 +330,9 @@ func fluentMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 // fluentSlider draws a Slider: 32 DIPs high, a 4-DIP track of ControlStrongFillColorDefault filled with the accent, and a 22-DIP thumb of ControlSolidFillColorDefault with an elevation border around an accent dot that grows under the pointer and shrinks pressed.
 func fluentSlider(c *ui.Context, s ui.Element, frac float32) {
 	t := c.Theme()
-	const thumb = 22
-	s.Height(32).PaddingX(thumb / 2).MinWidth(60).FocusRing(false)
+	// The thumb is SliderHorizontalThumbWidth, 18, whose border reaches 2 beyond it on each side; its center travels the track less 18.
+	const thumb, travel = 22, 18
+	s.Height(32).PaddingX(travel / 2).MinWidth(60).FocusRing(false)
 	inner := float32(10.3)
 	accent := t.Accent
 	switch {
@@ -346,7 +347,7 @@ func fluentSlider(c *ui.Context, s ui.Element, frac float32) {
 	s.Draw(func(p *ui.Painter, r ui.Rect) {
 		ty := r.Y + (r.H-4)/2
 		p.Fill(ui.Rect{X: r.X, Y: ty, W: r.W, H: 4}, track, 2)
-		x := r.X + thumb/2 + at*(r.W-thumb)
+		x := r.X + travel/2 + at*(r.W-travel)
 		fill := ui.Rect{X: r.X, Y: ty, W: x - r.X, H: 4}
 		if c.Direction() == ui.RightToLeft {
 			fill = ui.Rect{X: x, Y: ty, W: r.X + r.W - x, H: 4}
@@ -356,8 +357,9 @@ func fluentSlider(c *ui.Context, s ui.Element, frac float32) {
 		p.Fill(k, face.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.161), 0.094)), thumb/2)
 		p.Fill(ui.Rect{X: k.X + 1, Y: k.Y + 1, W: thumb - 2, H: thumb - 2}, face, thumb/2-1)
 		p.Fill(ui.Rect{X: x - inner/2, Y: k.Y + (thumb-inner)/2, W: inner, H: inner}, accent, inner/2)
+		// The keyboard's focus goes to Slider's FocusBorder, the whole 32-DIP slider with corners of ControlCornerRadius, widened 7 at each end by its FocusVisualMargin of -7,0,-7,0.
 		if s.FocusVisible() {
-			p.FocusRing(k, radii(thumb/2))
+			p.FocusRing(ui.Rect{X: r.X - 7, Y: r.Y, W: r.W + 14, H: r.H}, radii(4))
 		}
 	})
 }
