@@ -498,35 +498,43 @@ func TestAdwSpinButtonIcons(t *testing.T) {
 	}
 }
 
-// TestAdwColorWellWidth checks that on GNOME a color well is a GtkColorDialogButton's size: its swatch as wide as "Black" in the text, padded 5, and 34 high (49 by 34 in Adwaita Sans 11, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference).
+// TestAdwColorWellWidth checks that on GNOME a color well is a GtkColorDialogButton's size: its swatch as wide as "Black" in the text, padded 5, and 34 high (49 by 34 in Adwaita Sans 11, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference). It also checks a theme with 24-pixel text, where "Black" is far wider than in the default one, so that the width follows the text whatever the test font.
 func TestAdwColorWellWidth(t *testing.T) {
-	tint := ui.Hex("#3584e4")
-	var th *ui.Theme
-	var black float32
-	tester := ui.NewTester(func(c *ui.Context) {
-		Preview(c, Linux, func() {
-			Use(c)
-			th = c.Theme()
-			black, _ = c.MeasureText(0, ui.Span{Text: "Black"})
-			ui.Column(c).Fill().Padding(20).AlignItems(ui.Start).Children(func() { ColorWell(c, &tint).Label("Tint") })
-		})
-	}, 300, 100)
-	tester.Frame()
-	left, right, _ := adwRun(tester, 0, 20+17, true, 0, 299, tint)
-	if w, want := right-left+1, float32(math.Ceil(float64(black))); w < want-1 || w > want+1 {
-		t.Fatalf("the swatch is %v wide, want %v", w, want)
-	}
-	// Down the middle: the button's face above and below the swatch, the window around it.
-	top, bottom := float32(-1), float32(-1)
-	for y := float32(0); y < 100; y++ {
-		if adwPixel(tester, (left+right)/2, y) != th.Background {
-			if top < 0 {
-				top = y
-			}
-			bottom = y
+	for _, size := range []float32{0, 24} {
+		tint := ui.Hex("#3584e4")
+		var th *ui.Theme
+		var black float32
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				theme := *c.Theme()
+				if size > 0 {
+					theme.FontSize = size
+				}
+				ui.Themed(c, &theme).Fill().Padding(20).AlignItems(ui.Start).Children(func() {
+					th = c.Theme()
+					black, _ = c.MeasureText(0, ui.Span{Text: "Black"})
+					ColorWell(c, &tint).Label("Tint")
+				})
+			})
+		}, 300, 100)
+		tester.Frame()
+		left, right, _ := adwRun(tester, 0, 20+17, true, 0, 299, tint)
+		if w, want := right-left+1, float32(math.Ceil(float64(black))); w < want-1 || w > want+1 {
+			t.Fatalf("font size %v: the swatch is %v wide, want %v", size, w, want)
 		}
-	}
-	if h := bottom - top + 1; h < 33 || h > 35 {
-		t.Fatalf("the button is %v high, want 34", h)
+		// Down the middle: the button's face above and below the swatch, the window around it.
+		top, bottom := float32(-1), float32(-1)
+		for y := float32(0); y < 100; y++ {
+			if adwPixel(tester, (left+right)/2, y) != th.Background {
+				if top < 0 {
+					top = y
+				}
+				bottom = y
+			}
+		}
+		if h := bottom - top + 1; h < 33 || h > 35 {
+			t.Fatalf("font size %v: the button is %v high, want 34", size, h)
+		}
 	}
 }
