@@ -227,7 +227,7 @@ func adwToastViewport(c *ui.Context, viewport ui.Element) {
 	viewport.Padding(0, 12, 24, 12).AlignItems(ui.Center).Gap(12)
 }
 
-// adwToast draws an AdwToast: $toast_bg_color (#505053) with white text, a pill (border-radius 150px) padded 6 pixels, 12 at the start, its parts 6 apart; the title in .heading, bold, with a margin of 0 6px; the action as a button (white at 10%, 15% under the pointer, 30% pressed, 34 pixels high, bold); and the close button, a 34-pixel .circular .flat button with window-close-symbolic (white at 7% under the pointer, 16% pressed). Its two shadows are the stylesheet's. AdwToast has no description; one shows after the title, not bold, which is inferred.
+// adwToast draws an AdwToast: $toast_bg_color (#505053) with white text, a pill (border-radius 150px) padded 6 pixels, 12 at the start, its parts 6 apart; the title in .heading, bold, with a margin of 0 6px; the action as a button (white at 10%, 15% under the pointer, 30% pressed, 34 pixels high, bold); and the close button, a 34-pixel .circular .flat button with window-close-symbolic (white at 7% under the pointer, 16% pressed), whose arms are 2 pixels wide and cut square at the edges of the square from (4,4) to (12,12) of its 16-pixel icon. Its two shadows are the stylesheet's. AdwToast has no description; one shows after the title, not bold, which is inferred.
 func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	w, _ := c.Size()
 	bg := ui.Hex("#505053")
@@ -261,8 +261,10 @@ func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 			dismiss.Background(bg.Mix(white, 0.07))
 		}
 		dismiss.Children(func() {
-			// window-close-symbolic, a 16-pixel icon.
-			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.25, 1.5, white) })
+			// window-close-symbolic, a 16-pixel icon: the cross stroked 2 wide past the square its arms end in, clipped to it.
+			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) {
+				p.Clip(ui.Rect{X: r.X + 4, Y: r.Y + 4, W: 8, H: 8}, 0, func() { toastCross(p, r, 0.1875, 2, white) })
+			})
 		})
 	})
 }
@@ -767,9 +769,9 @@ func fluentRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, set, unset bool, ho
 	}
 }
 
-// adwRatingStar draws a star of GNOME Software's GsStarWidget: starred-symbolic, in @yellow_5 (#e5a50a) while set and in the text color at 20% opacity while not (style.css).
+// adwRatingStar draws a star of GNOME Software's GsStarWidget: starred-symbolic, in @yellow_5 (#e5a50a) while set (star-image > image.starred) and at 20% opacity while not (image.non-starred), in star-image's color: the text color in the light theme and @yellow_1 (#f9f06b) in the dark one (style.css of 51.0, its prefers-color-scheme: dark block; style-dark.css of 48.0 had the same).
 func adwRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, inner float32, set bool) {
-	fill := t.Background.Mix(t.Text, 0.2)
+	fill := t.Background.Mix(pick(t.Dark, t.Text, ui.Hex("#f9f06b")), 0.2)
 	if set {
 		fill = ui.Hex("#e5a50a")
 	}

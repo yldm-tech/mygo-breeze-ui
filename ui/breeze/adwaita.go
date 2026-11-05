@@ -235,10 +235,10 @@ func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	b.Children(func() {
 		ui.Text(c, selected).SingleLine()
 		ui.Box(c).Size(16, 16).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			// pan-down-symbolic: a small solid triangle.
+			// adwaita-icon-theme 51.0's pan-down-symbolic: a chevron filled along a 2-pixel stroke with round ends from (4,7) down to its tip at (8,11) and up to (12,7).
 			var path ui.Path
-			path.MoveTo(r.X+4, r.Y+6).LineTo(r.X+12, r.Y+6).LineTo(r.X+8, r.Y+11).Close()
-			p.FillPath(&path, fg)
+			path.MoveTo(r.X+4, r.Y+7).LineTo(r.X+8, r.Y+11).LineTo(r.X+12, r.Y+7)
+			p.StrokePath(&path, 2, fg)
 		})
 	})
 }
@@ -266,8 +266,9 @@ func adwMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 		mark := ui.Box(c).Size(16, 16).Shrink(0)
 		if chosen {
 			mark.Draw(func(p *ui.Painter, r ui.Rect) {
+				// adwaita-icon-theme 51.0's object-select-symbolic: a check filled along a 2-pixel stroke with round ends through (3,9), (6,12) and (13,4), as GTK 4.24's own fallback strokes it.
 				var path ui.Path
-				path.MoveTo(r.X+3, r.Y+8.5).LineTo(r.X+6.5, r.Y+12).LineTo(r.X+13, r.Y+4.5)
+				path.MoveTo(r.X+3, r.Y+9).LineTo(r.X+6, r.Y+12).LineTo(r.X+13, r.Y+4)
 				p.StrokePath(&path, 2, t.Text)
 			})
 		}
@@ -439,8 +440,10 @@ func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n in
 	adwDimming(t, back)
 	_, h := c.Size()
 	top, side, gap, size, weight, padY, padX := float32(32), float32(24), float32(10), float32(1.36), 800, float32(10), float32(20)
+	above, least := float32(12), float32(60)
 	if h <= 360 {
 		top, side, gap, size, weight, padY, padX = 24, 18, 6, 1.18, 700, 8, 16
+		above, least = 9, 0
 	}
 	bg := pick(t.Dark, ui.Hex("#fafafb"), ui.Hex("#36363a"))
 	panel.MinWidth(300).MaxWidth(372).Radius(18).Background(bg).AlignItems(ui.Stretch)
@@ -452,10 +455,10 @@ func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n in
 				ui.Text(c, message).TextAlign(ui.Center)
 			}
 		})
-		// The response area is padded as the message area at the sides and below (RESPONSE_HORZ_PADDING_SHORT while short); a response's content is at least 24 pixels high.
-		ui.Row(c).Padding(12, side, side, side).Gap(12).Children(func() {
+		// The response area is padded as the message area at the sides and below (RESPONSE_HORZ_PADDING_SHORT while short); a response's content is at least 24 pixels high and, unless short, 60 wide.
+		ui.Row(c).Padding(above, side, side, side).Gap(12).Children(func() {
 			for i := range n {
-				b := button(i).MinHeight(24+2*padY).Padding(padY, padX).Radius(12).Grow(1).Basis(0)
+				b := button(i).MinHeight(24+2*padY).MinWidth(least+2*padX).Padding(padY, padX).Radius(12).Grow(1).Basis(0)
 				if i < n-1 {
 					// currentColor at 10%, 15% and 30%, over the alert's own background rather than the window's.
 					share := float32(0.10)
