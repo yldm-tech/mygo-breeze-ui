@@ -106,7 +106,7 @@ func TestSwitchRowDisabled(t *testing.T) {
 	}
 }
 
-// TestActionRowHoldsItsControls checks the action row on every platform: its title and subtitle show, a button at its end takes clicks and the focus as it would anywhere, and the button sits after the title, at the row's end, mirrored right to left.
+// TestActionRowHoldsItsControls checks the action row on every platform: its title and subtitle show, a button at its end takes clicks and the focus as it would anywhere, the button sits after the title, at the row's end, and the texts the platform's inset from the row's start, mirrored right to left.
 func TestActionRowHoldsItsControls(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
@@ -144,6 +144,14 @@ func TestActionRowHoldsItsControls(t *testing.T) {
 			}
 			if !after {
 				t.Errorf("%v %v: row %v, subtitle %v, button %v: the button is not at the row's end", p, dir, row, sub, open)
+			}
+			// The texts are inset from the row's start as the platform insets them: 10 points on macOS, 16 DIPs on Windows, 14 pixels on GNOME.
+			inset := sub.X - row.X
+			if dir == ui.RightToLeft {
+				inset = row.X + row.W - (sub.X + sub.W)
+			}
+			if want := map[Platform]float32{Mac: 10, Windows: 17, Linux: 14}[p]; inset < want-0.5 || inset > want+1.5 {
+				t.Errorf("%v %v: the subtitle is %v in from the row's start, want %v", p, dir, inset, want)
 			}
 		}
 	}
@@ -187,7 +195,7 @@ func TestRowsJoinInGroups(t *testing.T) {
 	}
 }
 
-// TestRowsFillAnAccordionItem checks on every platform that rows in an accordion's open section reach its edges and touch one another and the section's end, as the nested rows of AdwExpanderRow and the items of a SettingsExpander do.
+// TestRowsFillAnAccordionItem checks on every platform that rows in an accordion's open section reach its edges and touch one another and the section's end, as the nested rows of AdwExpanderRow and the items of a SettingsExpander do, or on macOS stop 5 points above it, as a DisclosureGroup's rows in a grouped form.
 func TestRowsFillAnAccordionItem(t *testing.T) {
 	for _, p := range Platforms {
 		open, on := true, false
@@ -214,7 +222,12 @@ func TestRowsFillAnAccordionItem(t *testing.T) {
 		if !near(sb.Y, fb.Y+fb.H) {
 			t.Errorf("%v: rows %v and %v do not touch", p, fb, sb)
 		}
-		if !near(sb.Y+sb.H, ib.Y+ib.H-inset) {
+		// A DisclosureGroup of a grouped form leaves 5 points below its last row.
+		below := inset
+		if p == Mac {
+			below = 5
+		}
+		if !near(sb.Y+sb.H, ib.Y+ib.H-below) {
 			t.Errorf("%v: item %v, last row %v: the row does not reach the item's end", p, ib, sb)
 		}
 	}

@@ -1,10 +1,10 @@
 # libadwaita's own controls, for comparing Breeze UI's GNOME look with them.
 #
-# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections and TestScreenshotsWave2Forms, Wave2Idioms and Wave2Collections, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
+# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows and TestScreenshotsWave2Forms, Wave2Idioms and Wave2Collections, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open) and table; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table and rows; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -525,11 +525,52 @@ def table_set():
     return Scene(520, 500, root, named={"table": table, "outlinetable": outline_table, "outline": outline, "grid": grid, "tree": tree})
 
 
+def rows_set():
+    """TestScreenshotsRows's rowsView: a .card of text padded 12, a boxed list of an action row with a button, a switch row with a subtitle and one without, an action row with a dimmed value and a disabled switch row each alone in a boxed list, a preferences group of rows for the fieldset, and an expander row with its nested rows for the accordion."""
+    def boxed(*rows):
+        box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        box.add_css_class("boxed-list")
+        for row in rows:
+            box.append(row)
+        return box
+
+    def switch_row(title, active, subtitle="", sensitive=True):
+        row = Adw.SwitchRow(title=title, subtitle=subtitle, active=active)
+        row.set_sensitive(sensitive)
+        return row
+
+    text = Gtk.Label(label="A card holds what belongs together.", xalign=0, wrap=True)
+    card = Gtk.Box()
+    card.add_css_class("card")
+    card.append(pad(text, 12))
+    wallpaper = Adw.ActionRow(title="Wallpaper", subtitle="Choose a picture")
+    open_button = Gtk.Button(label="Open", valign=Gtk.Align.CENTER)
+    wallpaper.add_suffix(open_button)
+    settings = boxed(wallpaper, switch_row("Dark mode", True, "Use a dark appearance"), switch_row("Notifications", False))
+    storage = Adw.ActionRow(title="Storage")
+    value = Gtk.Label(label="120 GB")
+    value.add_css_class("dimmed")
+    storage.add_suffix(value)
+    left = vbox(16, card, settings, boxed(storage), boxed(switch_row("Bluetooth", True, sensitive=False)), width=300)
+
+    privacy = Adw.PreferencesGroup(title="Privacy")
+    privacy.add(switch_row("Location", True, "Apps may ask for it"))
+    privacy.add(Adw.ActionRow(title="Camera", subtitle="2 apps"))
+    network = Adw.ExpanderRow(title="Network", expanded=True)
+    network.add_row(Adw.ActionRow(title="Proxy", subtitle="Automatic"))
+    network.add_row(switch_row("Metered", False))
+    accordion = boxed(network)
+    right = vbox(16, privacy, accordion, width=300)
+    root = hbox(24, left, right, padding=16)
+    return Scene(672, 520, root, named={"card": card, "rows": settings, "storage": storage, "privacy": privacy, "network": network})
+
+
 SETS = [
     ("first", "adwaita", first_set), ("second", "adwaita2", second_set), ("alert", "adwaita-alert", alert_set), ("third", "adwaita3", third_set),
     ("feedback", "adwaita-feedback", feedback_set), ("layout", "adwaita-layout", layout_set), ("nav", "adwaita-nav", nav_set),
     ("values", "adwaita-values", values_set), ("collections", "adwaita-collections", collections_set), ("forms", "adwaita-forms", forms_set),
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
+    ("rows", "adwaita-rows", rows_set),
 ]
 
 

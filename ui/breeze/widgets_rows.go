@@ -197,15 +197,25 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 	if toggle {
 		hovered, pressed, focused = row.Hovered(), row.Pressed(), row.FocusVisible()
 	}
-	row.AlignItems(ui.Center)
+	if p == Mac {
+		row.AlignItems(ui.Start)
+	} else {
+		// GTK's suffixes and SettingsCard's content are centered on the row (valign center, VerticalAlignment Center).
+		row.AlignItems(ui.Center)
+	}
 	if in == rowsInAccordion {
 		// Under an AccordionItem's header, reaching across MyGo's panel (padded Space(3) at the sides and the bottom, its children Space(2) apart): every row gives back the panel's bottom padding, and the next takes the panel's gap back from it, so the rows touch one another and the item's edges.
 		side, gap := t.Space(3), t.Space(2)
-		top := side - gap
+		// On macOS a DisclosureGroup in a grouped form leaves 5 points below its last row (measured on macOS 27.2 by reference.swift: the last row's title 23.5 above the section's end).
+		keep := float32(0)
+		if p == Mac {
+			keep = 5
+		}
+		top := side - keep - gap
 		if first {
 			top = 0
 		}
-		row.Margin(top, -side, -side, -side)
+		row.Margin(top, -side, keep-side, -side)
 	}
 	var under ui.Color
 	var titleColor, subColor ui.Color
@@ -304,11 +314,15 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		under = fill
 		// 10 points in from the section's sides; 10.5 above and 11 below with 2.5 between the title and the subtitle put their ink where AppKit's is in a 52-point row (the title's 13 points and the subtitle's 30.5 below the row's top, the subtitle's 11.5 above its bottom) and make a row of one line 36.5 points high, as measured on macOS 27.2 with the system font.
 		row.Padding(10.5, 10, 11, 10)
-		if in == rowsAlone {
+		switch in {
+		case rowsAlone:
 			// A grouped section of one row.
 			row.Radius(12).Background(fill)
+		case rowsInAccordion:
+			// The rows of a DisclosureGroup in a grouped form are closer and have no separators: a row of a title and a subtitle 39.5 points from the next, 12.5 less than in a section (measured on macOS 27.2 by reference.swift).
+			row.Padding(4.25, 10, 4.75, 10)
 		}
-		if (in != rowsAlone && !first) || in == rowsInAccordion {
+		if in != rowsAlone && in != rowsInAccordion && !first {
 			line := tint(t.Background, t.Dark, macSectionSeparatorAlpha)
 			row.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				p.Fill(ui.Rect{X: r.X + 10, Y: r.Y, W: r.W - 20, H: 1}, line, 0)
@@ -334,7 +348,13 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 			}
 		})
 		if trailing != nil {
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(suffixGap).Children(func() { trailing(under, hovered, pressed) })
+			end := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
+			if p == Mac {
+				// A grouped form centers its controls on the title's line, not on the row: a 16-point switch's top and a 24-point button's middle line up with the title's (measured on macOS 27.2), the button reaching into the row's padding.
+				_, line := c.MeasureText(0, ui.Span{Text: title, Size: t.FontSize})
+				end.Height(line)
+			}
+			end.Children(func() { trailing(under, hovered, pressed) })
 		}
 	})
 }
