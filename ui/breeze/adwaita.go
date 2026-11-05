@@ -524,7 +524,7 @@ func adwPopover(c *ui.Context, panel ui.Element) {
 // adwSeparator is a separator's color, $border_color: currentColor at 15%.
 func adwSeparator(t *ui.Theme) ui.Color { return t.Border }
 
-// adwBadge draws an indicator badge (indicatorbin.badge, _view-switcher.scss): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides. In a Sidebar it is the count AdwViewSwitcherSidebar (libadwaita 1.9+) puts at the end of an AdwSidebar item (view-switcher-sidebar .indicator, _sidebars.scss): a capsule at least 1.6em square, bold white text at font-size smaller (GTK's factor of 1.2, inferred) padded 6 at the sides, over currentColor at 40% over sidebar_bg_color.
+// adwBadge draws an indicator badge (indicatorbin.badge, _view-switcher.scss): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides. In a Sidebar it is the count AdwViewSwitcherSidebar (libadwaita 1.9+) puts at the end of an AdwSidebar item (view-switcher-sidebar .indicator, _sidebars.scss): a capsule at least 1.6em square for its text at font-size smaller (GTK's factor of 1.2, inferred), bold and white, padded 6 at the sides, over currentColor at 40% over sidebar_bg_color. MyGo's badge sizes its text itself, 2 below the theme's font size, so the text is not at 0.6rem or smaller, the sizes the capsules take.
 func adwBadge(c *ui.Context, b ui.Element) {
 	t := c.Theme()
 	if navCurrentSidebar(c) != nil {
