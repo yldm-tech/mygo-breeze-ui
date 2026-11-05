@@ -19,19 +19,19 @@ const (
 	macDisclosureDarkAlpha   = 0.436 // and in Dark Aqua: 128 over 30
 )
 
-// macSectionFill is the fill of an NSBox and of a section of a grouped form: corners of 12, no border.
-func macSectionFill(t *ui.Theme) ui.Color { return tint(t.Background, t.Dark, macSectionFillAlpha) }
+// macFormSectionFill is the fill of an NSBox and of a section of a grouped form: corners of 12, no border.
+func macFormSectionFill(t *ui.Theme) ui.Color { return tint(t.Background, t.Dark, macSectionFillAlpha) }
 
-// fluentCard returns CardBackgroundFillColorDefault, CardBackgroundFillColorSecondary and CardStrokeColorDefault over the window: white at 70.2%, #f6f6f6 at 50.2% and black at 5.9% in the light theme; white at 5.1%, white at 3.1% and black at 9.8% in the dark one.
-func fluentCard(t *ui.Theme) (fill, secondary, stroke ui.Color) {
+// fluentExpanderCard returns CardBackgroundFillColorDefault, CardBackgroundFillColorSecondary and CardStrokeColorDefault over the window: white at 70.2%, #f6f6f6 at 50.2% and black at 5.9% in the light theme; white at 5.1%, white at 3.1% and black at 9.8% in the dark one.
+func fluentExpanderCard(t *ui.Theme) (fill, secondary, stroke ui.Color) {
 	if t.Dark {
 		return t.Background.Mix(white, 0.051), t.Background.Mix(white, 0.031), t.Background.Mix(black, 0.098)
 	}
 	return t.Background.Mix(white, 0.702), t.Background.Mix(ui.Hex("#f6f6f6"), 0.502), t.Background.Mix(black, 0.059)
 }
 
-// adwCard returns card_bg_color over the window, #ffffff in the light theme and white at 8% in the dark one, and card_shade_color over it, the shade at 7% and 36%: the separator of a boxed list's rows.
-func adwCard(t *ui.Theme) (fill, shade ui.Color) {
+// adwBoxedListCard returns card_bg_color over the window, #ffffff in the light theme and white at 8% in the dark one, and card_shade_color over it, the shade at 7% and 36%: the separator of a boxed list's rows.
+func adwBoxedListCard(t *ui.Theme) (fill, shade ui.Color) {
 	if t.Dark {
 		fill = t.Background.Mix(white, 0.08)
 		return fill, fill.Mix(adwInk, 0.36)
@@ -39,8 +39,8 @@ func adwCard(t *ui.Theme) (fill, shade ui.Color) {
 	return white, white.Mix(adwInk, 0.07)
 }
 
-// adwCardShadow casts .card's box-shadow: a 1-pixel ring of the shade at 3%, and two soft shadows at 7% and 3%.
-func adwCardShadow(e ui.Element) {
+// adwBoxedListShadow casts .card's box-shadow: a 1-pixel ring of the shade at 3%, and two soft shadows at 7% and 3%.
+func adwBoxedListShadow(e ui.Element) {
 	e.Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 6, 0.03)).Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
 }
 
@@ -88,7 +88,7 @@ func Collapsible(c *ui.Context, label string, open *bool, fn func()) ui.Element 
 			// GtkExpander puts its child right below the title, not indented.
 			panel.Gap(6) // inferred: GtkExpander holds one child
 		default:
-			// Under the label, as SwiftUI's DisclosureGroup indents its content (inferred: SwiftUI centers a lone text).
+			// Under the label, past the 13-point box and the 2 after it, as SwiftUI's DisclosureGroup indents its content (inferred: SwiftUI centers a lone text), 8 apart as in its VStack.
 			panel.PaddingStart(15).Gap(8)
 		}
 	})
@@ -115,13 +115,14 @@ func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32)
 // fluentExpanderHeader draws an Expander's header: a card at least 48 DIPs high (ExpanderMinHeight) with CardBackgroundFillColorDefault inside a 1-DIP CardStrokeColorDefault border, corners of 4 (ControlCornerRadius), the bottom ones square while it is open; the header text 16 DIPs in (ExpanderHeaderPadding), and the chevron button at its end, 32 DIPs (ExpanderChevronButtonSize) with a margin of 20,0,8,0 (ExpanderChevronMargin), SubtleFillColorSecondary under the pointer and Tertiary pressed, around the 12-DIP chevron glyph (E70D, E70E), which turns from down to up.
 func fluentExpanderHeader(c *ui.Context, root, tr ui.Element, label string, progress float32) {
 	t := c.Theme()
-	fill, _, stroke := fluentCard(t)
+	fill, _, stroke := fluentExpanderCard(t)
 	bottom := float32(4)
 	if progress > 0 {
 		bottom = 0
 	}
 	root.AlignItems(ui.Stretch)
-	tr.MinHeight(48).Padding(0, 8, 0, 16).AlignItems(ui.Center).Radius(4, 4, bottom, bottom).Background(fill).Border(1, stroke)
+	// The padding on logical sides, as an Expander mirrors right to left with its FlowDirection.
+	tr.MinHeight(48).Padding(0).PaddingStart(16).PaddingEnd(8).AlignItems(ui.Center).Radius(4, 4, bottom, bottom).Background(fill).Border(1, stroke)
 	hover, pressed := fluentSubtle(t)
 	chevron := ui.Transparent
 	switch {
@@ -141,7 +142,7 @@ func fluentExpanderHeader(c *ui.Context, root, tr ui.Element, label string, prog
 
 // fluentExpanderContent draws an Expander's content: ExpanderContentPadding of 16, CardBackgroundFillColorSecondary, a CardStrokeColorDefault border on every side but the header's (ExpanderContentDownBorderThickness 1,0,1,1) and the bottom corners rounded by 4.
 func fluentExpanderContent(c *ui.Context, panel ui.Element) {
-	_, secondary, stroke := fluentCard(c.Theme())
+	_, secondary, stroke := fluentExpanderCard(c.Theme())
 	panel.Padding(16).Gap(12).Background(secondary).BorderWidth(0, 1, 1, 1).BorderColor(stroke).Radius(0, 0, 4, 4)
 }
 
@@ -186,11 +187,11 @@ func Accordion(c *ui.Context, fn func()) ui.Element {
 		a.Radius(0).Border(0, ui.Color{}).Background(ui.Transparent).Gap(4)
 	case Linux:
 		// list.boxed-list: a .card with corners of 12 ($card_radius) and its shadow.
-		fill, _ := adwCard(t)
+		fill, _ := adwBoxedListCard(t)
 		a.Radius(12).Border(0, ui.Color{}).Background(fill)
-		adwCardShadow(a)
+		adwBoxedListShadow(a)
 	default:
-		a.Radius(12).Border(0, ui.Color{}).Background(macSectionFill(t))
+		a.Radius(12).Border(0, ui.Color{}).Background(macFormSectionFill(t))
 	}
 	return a
 }
@@ -212,12 +213,12 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	t := c.Theme()
 	switch p {
 	case Windows:
-		fill, _, stroke := fluentCard(t)
+		fill, _, stroke := fluentExpanderCard(t)
 		item.Radius(4).Background(fill).Border(1, stroke).Clip()
 	case Linux:
 		if !first {
 			// %boxed_list_row: a 1-pixel border of card_shade_color between rows.
-			_, shade := adwCard(t)
+			_, shade := adwBoxedListCard(t)
 			item.BorderColor(shade)
 		}
 	default:
@@ -233,22 +234,30 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	return item
 }
 
-// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 8 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. The legend's text is MyGo's, semibold. It is ui.Fieldset's counterpart.
+// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 8 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend's text is MyGo's, semibold. It is ui.Fieldset's counterpart.
 func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
+	_, inForm := layoutForms.Load(c)
 	g := ui.Fieldset(c, legend, func() {
 		// 12 between the fields, as MyGo spaces them; Windows's guidance puts 12 between content areas.
 		box := ui.Column(c).Gap(12)
+		pad := float32(0)
 		switch p {
 		case Linux:
 			// A .card, padded as a row's header is inset 12 pixels (inferred for fields rather than rows).
-			fill, _ := adwCard(t)
-			box.Padding(12).Radius(12).Background(fill)
-			adwCardShadow(box)
+			pad = 12
+			fill, _ := adwBoxedListCard(t)
+			box.Padding(pad).Radius(12).Background(fill)
+			adwBoxedListShadow(box)
 		case Mac:
 			// The section reaches back under the legend's inset; its rows are inset 10 points (measured from SwiftUI's grouped form).
-			box.MarginStart(-10).Padding(10).Radius(12).Background(macSectionFill(t))
+			pad = 10
+			box.MarginStart(-pad).Padding(pad).Radius(12).Background(macFormSectionFill(t))
+		}
+		if inForm && pad > 0 {
+			// The labels of a form are as wide as the widest, so its fields line up only where they start and end alike.
+			box.MarginStart(-pad).MarginEnd(-pad)
 		}
 		box.Children(fn)
 	})
@@ -258,18 +267,33 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	case Linux:
 		g.Gap(12) // preferencesgroup > box: border-spacing 6px, and 6px below the header
 	default:
-		// The header's baseline is 13 points above the section: about 10 below its line.
-		g.PaddingStart(10).Gap(10)
+		// The header's baseline is 13 points above the section: about 10 below its line. In a Form the section reaches back instead, keeping the legend 10 in from its edge.
+		if !inForm {
+			g.PaddingStart(10)
+		}
+		g.Gap(10)
 	}
 	return g
 }
+
+// layoutForms holds the windows building a Form on macOS or GNOME, with how many Forms each is in, so that a Fieldset knows its fields line up with a form's.
+var layoutForms sync.Map // *ui.Context -> int
 
 // Form creates a column of the fields that fn builds (Field, Fieldset). On macOS and GNOME it is ui.Form: the labels sit in a column of their own beside the controls, aligned to the end and as wide as the widest, as macOS's forms and GNOME's rows put a title before the control. On Windows, whose controls take their header above them, it is a column of fields 12 DIPs apart, each label 8 DIPs above its control, as Windows's spacing guidance has them. It is ui.Form's counterpart.
 func Form(c *ui.Context, fn func()) ui.Element {
 	if PlatformOf(c) == Windows {
 		return ui.Column(c).Gap(12).Children(fn)
 	}
-	return ui.Form(c, fn)
+	outer, _ := layoutForms.Load(c)
+	depth, _ := outer.(int)
+	layoutForms.Store(c, depth+1)
+	f := ui.Form(c, fn)
+	if depth > 0 {
+		layoutForms.Store(c, depth)
+	} else {
+		layoutForms.Delete(c)
+	}
+	return f
 }
 
 // ---- widgets of package ui, in the platform's theme (Use) ----

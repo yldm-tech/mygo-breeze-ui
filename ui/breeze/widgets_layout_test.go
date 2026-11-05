@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -237,6 +238,127 @@ func TestSplitsKeepTheirBehavior(t *testing.T) {
 			t.Fatalf("%v: Left left the percent split at %v", p, share)
 		}
 	}
+}
+
+// TestLayoutDisabledRefusesInput checks on every platform that a disabled disclosure and a disabled accordion section neither open on a click nor take the focus from Tab.
+func TestLayoutDisabledRefusesInput(t *testing.T) {
+	for _, p := range Platforms {
+		advanced, general := false, false
+		tester := layoutTester(p, 400, 300, func(c *ui.Context) {
+			ui.Column(c).Padding(8).Gap(8).Children(func() {
+				Collapsible(c, "Advanced", &advanced, func() { ui.Text(c, "Inside") }).Disabled(true)
+				Accordion(c, func() {
+					AccordionItem(c, "General", &general, func() { ui.Text(c, "General settings") }).Disabled(true)
+				})
+			})
+		})
+		for _, s := range []string{"Advanced", "General"} {
+			if err := tester.Click(s); err != nil {
+				t.Fatalf("%v: click %q: %v", p, s, err)
+			}
+			tester.Frame()
+		}
+		if advanced || general || tester.HasText("Inside") || tester.HasText("General settings") {
+			t.Fatalf("%v: a click opened a disabled section: disclosure %v, accordion %v", p, advanced, general)
+		}
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if tester.Focused("Advanced") || tester.Focused("General") {
+			t.Fatalf("%v: Tab focused a disabled header", p)
+		}
+	}
+}
+
+// TestCollapsibleMirrors checks on every platform that right to left the disclosure's label is as far from the right edge as it is from the left one left to right, as each platform mirrors its disclosures.
+func TestCollapsibleMirrors(t *testing.T) {
+	const width, pad = 400, 8
+	for _, p := range Platforms {
+		var inset [2]float32
+		for i, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			open := true
+			tester := layoutTester(p, width, 300, func(c *ui.Context) {
+				ui.Column(c).Padding(pad).Children(func() {
+					Collapsible(c, "Advanced", &open, func() { ui.Text(c, "Inside") })
+				})
+			})
+			tester.SetDirection(dir)
+			tester.Frame()
+			r, ok := tester.Find("Advanced")
+			if !ok {
+				t.Fatalf("%v %v: no label", p, dir)
+			}
+			inset[i] = r.X - pad
+			if dir == ui.RightToLeft {
+				inset[i] = width - pad - (r.X + r.W)
+			}
+		}
+		if d := inset[0] - inset[1]; d < -0.5 || d > 0.5 {
+			t.Errorf("%v: the label is %v in from the start left to right, %v right to left", p, inset[0], inset[1])
+		}
+	}
+}
+
+// TestFieldsetLinesUpInAForm checks on every platform that the controls of a fieldset's fields in a Form start and end where those of the form's other fields do, as ui.Fieldset promises, and that the form leaves no state behind.
+func TestFieldsetLinesUpInAForm(t *testing.T) {
+	for _, p := range Platforms {
+		name, address := "", ""
+		tester := layoutTester(p, 500, 300, func(c *ui.Context) {
+			ui.Column(c).Padding(24).Children(func() {
+				Form(c, func() {
+					Field(c, "Name", func() { TextInput(c, &name).Label("Name input") })
+					Fieldset(c, "Shipping", func() {
+						Field(c, "Address", func() { TextInput(c, &address).Label("Address input") })
+					})
+				})
+			})
+		})
+		tester.Frame()
+		a, okA := tester.Find("Name input")
+		b, okB := tester.Find("Address input")
+		if !okA || !okB {
+			t.Fatalf("%v: an input is missing", p)
+		}
+		if dx, dw := a.X-b.X, a.W-b.W; dx < -0.5 || dx > 0.5 || dw < -0.5 || dw > 0.5 {
+			t.Errorf("%v: the form's input is at %v, the fieldset's at %v", p, a, b)
+		}
+		if !layoutStateEmpty(&layoutForms) {
+			t.Errorf("%v: a Form left its state behind", p)
+		}
+	}
+}
+
+// TestAccordionCountsItsOwnItems checks that an accordion inside a section counts its items in its own, leaving the outer one's count as it was, and that no state outlives the build.
+func TestAccordionCountsItsOwnItems(t *testing.T) {
+	for _, p := range Platforms {
+		a, b, x := true, true, false
+		var built int
+		tester := layoutTester(p, 400, 400, func(c *ui.Context) {
+			Accordion(c, func() {
+				AccordionItem(c, "A", &a, func() {
+					Accordion(c, func() { AccordionItem(c, "X", &x, func() {}) })
+				})
+				AccordionItem(c, "B", &b, func() {
+					if v, ok := accordions.Load(c); ok {
+						built = v.(*layoutAccordion).built
+					}
+				})
+			})
+		})
+		tester.Frame()
+		if built != 2 {
+			t.Errorf("%v: B is item %d of the outer accordion, want 2", p, built)
+		}
+		if !layoutStateEmpty(&accordions) {
+			t.Errorf("%v: an Accordion left its state behind", p)
+		}
+	}
+}
+
+// layoutStateEmpty reports whether m holds no window's state.
+func layoutStateEmpty(m *sync.Map) bool {
+	empty := true
+	m.Range(func(any, any) bool { empty = false; return false })
+	return empty
 }
 
 // layoutView lays out the widgets of the layout group for screenshots: a closed and an open disclosure, an accordion with its second section open, a form with a fieldset, a check box group and a split.

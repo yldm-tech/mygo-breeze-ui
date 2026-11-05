@@ -72,7 +72,7 @@ func layoutStories() []*story {
 				}).FillWidth().MaxWidth(320)
 			},
 			code: func(a *args) string {
-				return "breeze.AccordionItem(c, " + q(*a.text["title"]) + ", &app.privacy, func() {\n\tbreeze.Checkbox(c, &app.share, \"Share usage data\")\n})"
+				return "breeze.Accordion(c, func() {\n\tbreeze.AccordionItem(c, " + q(*a.text["title"]) + ", &app.privacy, func() {\n\t\tbreeze.Checkbox(c, &app.share, \"Share usage data\")\n\t})\n})"
 			}},
 		{component: "Fieldset", name: "Shipping", category: "Layout",
 			controls: []control{textArg("legend", "Shipping"), textArg("address", ""), textArg("city", ""), toggleArg("disabled", false)},
@@ -83,7 +83,7 @@ func layoutStories() []*story {
 				}).FillWidth().MaxWidth(320))
 			},
 			code: func(a *args) string {
-				return "breeze.Fieldset(c, " + q(*a.text["legend"]) + ", func() {\n\tbreeze.Field(c, \"Address\", func() { breeze.TextInput(c, &app.address) })\n\tbreeze.Field(c, \"City\", func() { breeze.TextInput(c, &app.city) })\n})"
+				return "breeze.Fieldset(c, " + q(*a.text["legend"]) + ", func() {\n\tbreeze.Field(c, \"Address\", func() { breeze.TextInput(c, &app.address).Placeholder(\"Street\") })\n\tbreeze.Field(c, \"City\", func() { breeze.TextInput(c, &app.city) })\n})"
 			}},
 		{component: "Form", name: "Profile", category: "Layout",
 			controls: []control{textArg("name", "Ada Lovelace"), textArg("email", ""), toggleArg("newsletter", true)},
@@ -95,7 +95,7 @@ func layoutStories() []*story {
 				}).FillWidth().MaxWidth(360)
 			},
 			code: func(*args) string {
-				return "breeze.Form(c, func() {\n\tbreeze.Field(c, \"Name\", func() { breeze.TextInput(c, &app.name) })\n\tbreeze.Field(c, \"Email\", func() { breeze.TextInput(c, &app.email) })\n})"
+				return "breeze.Form(c, func() {\n\tbreeze.Field(c, \"Name\", func() { breeze.TextInput(c, &app.name) })\n\tbreeze.Field(c, \"Email\", func() { breeze.TextInput(c, &app.email).Placeholder(\"ada@example.com\") })\n\tbreeze.Field(c, \"Updates\", func() { breeze.Checkbox(c, &app.newsletter, \"Send me the newsletter\") })\n})"
 			}},
 		{component: "Split", name: "Sidebar", category: "Layout",
 			controls: []control{numberArg("size", 120, 40, 280)},
