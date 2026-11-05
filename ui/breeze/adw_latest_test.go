@@ -195,3 +195,34 @@ func TestAdwThemeScrollbar(t *testing.T) {
 		}
 	}
 }
+
+// TestAdwLinkedToggleFocusRing checks that on GNOME a toggle in a ToggleGroup shows its focus ring inside its edge, which the group's rounded clip would cut off outside it.
+func TestAdwLinkedToggleFocusRing(t *testing.T) {
+	bold, italic := false, false
+	var th *ui.Theme
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			th = c.Theme()
+			ui.Column(c).Fill().Padding(20).AlignItems(ui.Start).Children(func() {
+				ToggleGroup(c, func() {
+					Toggle(c, &bold, "Bold")
+					Toggle(c, &italic, "Italic")
+				})
+			})
+		})
+	}, 300, 120)
+	tester.Frame()
+	tester.Key(0, ui.KeyTab)
+	tester.Frame()
+	if !tester.Focused("Bold") {
+		t.Fatal("Tab does not focus the first toggle")
+	}
+	r, _ := tester.Find("Bold")
+	want := th.Surface.Mix(ui.RGB(th.Focus.R, th.Focus.G, th.Focus.B), float32(th.Focus.A)/255)
+	// The toggle is 34 high, its text centered in it.
+	top := r.Y + r.H/2 - 17
+	if got := adwPixel(tester, r.X+r.W/2, top+1); adwColorDiff(got, want) > 0.03 {
+		t.Fatalf("the focused toggle's top edge is %v, want the focus ring's %v", got, want)
+	}
+}
