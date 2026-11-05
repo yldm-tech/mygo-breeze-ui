@@ -230,9 +230,9 @@ func EditableText(c *ui.Context, value *string) ui.Element {
 
 // ---- fields of package ui, in the platform's text field box ----
 
-// Autocomplete creates a text input editing *value that suggests below it those of suggestions containing what was typed, in the box the platform draws around its text fields: Up and Down move among them and Enter or a click takes one, while Enter on none is Submitted. The list of suggestions is MyGo's, in the platform's theme. It is ui.Autocomplete's counterpart.
+// Autocomplete creates a text input editing *value that suggests below it those of suggestions containing what was typed, those starting with it first, in the box the platform draws around its text fields: Up and Down move among them and Enter or a click takes one, the caret going after it, while Enter on none is Submitted, and Escape closes the list. The list is drawn as the platform's menu: NSMenu's panel and rows on macOS, an AutoSuggestBox's suggestion list on Windows, a dropdown's popover on GNOME. It is ui.Autocomplete's counterpart, built as it is on ui.ComboboxBase, which keeps its keys, its focus and what assistive technology sees.
 func Autocomplete(c *ui.Context, value *string, suggestions []string) ui.Element {
-	return styleField(c, ui.Autocomplete(c, value, suggestions), singleLine)
+	return styleField(c, idiomAutocomplete(c, value, suggestions), singleLine)
 }
 
 // TokenField creates a field of tokens, as of tags or the recipients of a mail, in the box the platform draws around its text fields: *tokens shows as chips before an input where Enter or a comma adds what was typed, Backspace in it while empty takes out the last, and the suggestions containing what was typed show below it. The chips and the list are MyGo's, in the platform's theme: macOS's NSTokenField and Windows's TokenizingTextBox draw their own tokens, GNOME has no token field. It is ui.TokenField's counterpart.

@@ -9,19 +9,34 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Button creates a push button showing label, as the platform's push buttons look. Ask Clicked whether it was clicked; give it other content with Children and an empty label. It is ui.Button's counterpart.
+// Button creates a push button showing label, as the platform's push buttons look; inside a Toolbar, as the platform's toolbar items: a bordered NSToolbarItem on macOS, whose image-only items side by side share one platter, an AppBarButton on Windows, and on GNOME a raised text button or, without a label, a flat image button. Ask Clicked whether it was clicked; give it other content with Children and an empty label. It is ui.Button's counterpart.
 func Button(c *ui.Context, label string) ui.Element { return button(c, label, false) }
 
-// PrimaryButton creates a button in the accent color for the main action, as the platform draws its default button (macOS), accent button (Windows) or suggested action (GNOME). It is ui.PrimaryButton's counterpart.
+// PrimaryButton creates a button in the accent color for the main action, as the platform draws its default button (macOS), accent button (Windows) or suggested action (GNOME); inside a Toolbar on macOS, a prominent toolbar item, an accent capsule. It is ui.PrimaryButton's counterpart.
 func PrimaryButton(c *ui.Context, label string) ui.Element { return button(c, label, true) }
 
 func button(c *ui.Context, label string, primary bool) ui.Element {
 	b := ui.ButtonBase(c)
-	switch PlatformOf(c) {
-	case Windows:
+	kind := idiomText
+	switch {
+	case primary:
+		kind = idiomPrimary
+	case label == "":
+		kind = idiomImage
+	}
+	tb, i := idiomToolbarItem(c, b, kind)
+	switch p := PlatformOf(c); {
+	case p == Windows && tb != nil && !primary:
+		idiomFluentAppBarButton(c, b, label == "", false)
+	case p == Windows:
 		fluentButton(c, b, primary)
-	case Linux:
+	case p == Linux && tb != nil && kind == idiomImage:
+		idiomAdwFlatButton(c, b, false)
+	case p == Linux:
+		// Text buttons and the suggested action stay raised in a toolbar (_toolbars.scss).
 		adwButton(c, b, primary)
+	case tb != nil:
+		idiomMacToolbarItem(c, b, tb, i, primary)
 	default:
 		macButton(c, b, primary)
 	}
@@ -110,20 +125,36 @@ func Radio[T comparable](c *ui.Context, selected *T, value T, label string) ui.E
 	return row
 }
 
-// Toggle creates a button that stays pressed while *on, showing label, as the platform draws a toggle button; inside a ToggleGroup, as a segment of the group. It is ui.Toggle's counterpart.
+// Toggle creates a button that stays pressed while *on, showing label, as the platform draws a toggle button; inside a ToggleGroup, as a segment of the group; inside a Toolbar, as the platform's toolbar toggle: a one-item NSToolbarItemGroup on macOS, its platter in the accent while on, an AppBarToggleButton on Windows, and on GNOME a raised toggle button or, without a label, a flat image toggle. It is ui.Toggle's counterpart.
 func Toggle(c *ui.Context, on *bool, label string) ui.Element {
 	b := ui.ToggleBase(c, on)
 	grouped, first := nextInToggleGroup(c)
+	kind := idiomToggle
+	if grouped {
+		kind = idiomOther
+	}
+	tb, i := idiomToolbarItem(c, b, kind)
+	bar := tb != nil && !grouped
 	switch p := PlatformOf(c); {
+	case p == Windows && bar:
+		idiomFluentAppBarButton(c, b, label == "", *on)
 	case p == Windows:
 		fluentToggle(c, b, *on)
 	case p == Linux && grouped:
 		adwLinkedToggle(c, b, *on, first)
+	case p == Linux && bar && label == "":
+		idiomAdwFlatButton(c, b, *on)
 	case p == Linux:
 		adwToggle(c, b, *on)
 	case grouped:
 		// A segment of an NSSegmentedControl that selects any number of segments.
 		macSegment(c, b, *on, false)
+	case bar:
+		idiomMacToolbarItem(c, b, tb, i, *on)
+		if label == "" {
+			// An image toggle is a group's 36-point square item (measured: a one-image NSToolbarItemGroup is 36 by 36).
+			b.MinWidth(36).Padding(0)
+		}
 	default:
 		macToggle(c, b, *on)
 	}

@@ -287,7 +287,7 @@ func Breadcrumbs(c *ui.Context, items []string, chosen *int) ui.Element {
 			}
 			if i == len(items)-1 {
 				// Where the path is: no link.
-				cur := ui.Row(c).Key(i).AlignItems(ui.Center).MinWidth(24).Shrink(0.5)
+				cur := ui.Row(c).Key(i).AlignItems(ui.Center).MinWidth(24).Shrink(0.5).Role(ui.RoleNone)
 				navCrumb(c, p, cur, false)
 				cur.Children(func() { ui.Text(c, item).SingleLine() })
 				continue
@@ -310,15 +310,14 @@ func navCrumb(c *ui.Context, p Platform, e ui.Element, link bool) {
 	t := c.Theme()
 	switch p {
 	case Windows:
-		// A BreadcrumbBarItem: ControlContentThemeFontSize, padding 1,3 around a 20-DIP line, TextFillColorPrimary, Secondary under the pointer and Tertiary pressed; the current item is TextFillColorPrimary too.
+		// A BreadcrumbBarItem: ControlContentThemeFontSize, padding 1,3 around a 20-DIP line, TextFillColorPrimary, Secondary under the pointer and Tertiary pressed; the current item is TextFillColorPrimary at rest too.
+		// The current item takes a link's colors too (BreadcrumbBarCurrentHoverForegroundBrush TextFillColorSecondary and BreadcrumbBarCurrentPressedForegroundBrush TextFillColorTertiary, BreadcrumbBar_themeresources.xaml at cb1b8a6), as BreadcrumbBarItem.cpp puts the last item in CurrentPointerOver and CurrentPressed. Asked for its press, the current item takes the pointer's presses, which do nothing; assistive technology still does not see it (RoleNone).
 		fg := t.Text
-		if link {
-			switch {
-			case e.Pressed():
-				fg = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
-			case e.Hovered():
-				fg = t.TextMuted
-			}
+		switch {
+		case e.Pressed():
+			fg = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
+		case e.Hovered():
+			fg = t.TextMuted
 		}
 		e.MinHeight(26).Padding(3, 1).Radius(4).TextColor(fg)
 	case Linux:
@@ -414,6 +413,8 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 			b = ui.ForwardButton(c, r)
 		}
 	})
+	// A history button is an image item of a Toolbar, which AppKit joins with an image item beside it.
+	tb, i := idiomToolbarItem(c, b, idiomImage)
 	pressed, hovered, disabled := b.Pressed(), b.Hovered(), b.IsDisabled()
 	// dir is 1 while the glyph points left, the way back goes left to right, and -1 while it points right: forward, or back right to left.
 	dir := float32(-d)
@@ -463,20 +464,30 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 			pt.StrokePath(&chevron, 2, fg)
 		}
 	default:
-		// A bordered NSToolbarItem with an image in a window's toolbar, as AppKit renders it on macOS 27 offscreen, without the Liquid Glass material: a platter 36 points square, round, filled black at 1.6% (Aqua) or 6.7% (Dark Aqua) over the window, with a half-point line of black at 21% or 57% around it; pressed, black at 20% or white at 18%, measured. Adjacent items share one platter in AppKit; here each button has its own.
-		// The face is never ui.Transparent, which MyGo's Toolbar takes for a face of its own and fills under the pointer: a toolbar item does not mark the pointer offscreen (inferred for a live window).
-		face := t.Background.Mix(black, pick(t.Dark, float32(0.016), 0.067))
-		edge := t.Background.Mix(black, pick(t.Dark, float32(0.21), 0.57))
-		fg := t.Text
+		// A bordered NSToolbarItem with an image, drawn as this package's other toolbar items are (idiomMacPlatter, measured from a live capture of a key window on macOS 27.2): a platter 36 points square, round, its glyph black in Aqua and white in Dark Aqua, and in a Toolbar joined with an image item beside it, as Back and Forward share one platter in AppKit. Pressed in a Toolbar it takes the other toolbar items' face, black at 7.8% (235) in Aqua and (89,88,88) in Dark Aqua from the live capture; outside one, where AppKit has no such item, it keeps black at 20% or white at 17.8% over the window, measured offscreen on macOS 27, which TestHistoryButtonGlyphs holds it to.
+		// A toolbar item does not mark the pointer (none of the captures shows a hover).
+		fg := idiomMacInk(t, false)
+		fill := idiomMacRest
 		switch {
 		case disabled:
 			// tertiaryLabelColor (inferred: offscreen, in an inactive window, AppKit draws the glyph at 46% of the label's contrast, and disabled at 43% of that).
 			fg = tint(t.Background, t.Dark, pick(t.Dark, float32(0.259), 0.247))
 		case pressed:
-			face = pick(t.Dark, t.Background.Mix(black, 0.2), t.Background.Mix(white, 0.178))
-			fg = pick(t.Dark, black, white)
+			fill = idiomMacPressed
 		}
-		b.Size(36, 36).Padding(0).Radius(18).Border(0.5, edge).Background(face)
+		// The platter is painted in Draw; the background is a clear color that is not ui.Transparent, which MyGo's toolbar would fill.
+		b.Size(36, 36).Padding(0).Radius(18).Border(0, ui.Color{}).Background(ui.RGBA(255, 255, 255, 0))
+		before := tb != nil && idiomMacJoin(c, tb, i)
+		down := pick(t.Dark, t.Background.Mix(black, 0.2), t.Background.Mix(white, 0.178))
+		if tb != nil {
+			down = idiomMacPressedFace(t)
+		}
+		off := disabledOnce(b)
+		rtl := c.Direction() == ui.RightToLeft
+		b.Draw(func(pt *ui.Painter, rc ui.Rect) {
+			after := tb != nil && i+1 < len(tb.joined) && tb.joined[i+1]
+			idiomMacPlatter(pt, t, rc, fill, down, before, after, rtl, off())
+		})
 		glyph = func(pt *ui.Painter, rc ui.Rect) {
 			// SF Symbols' chevron.left (chevron.right mirrored) in the item, measured: about 8 by 14 points of ink with a stroke near 1.7, its point 4 points before the platter's middle.
 			cx, cy := rc.X+rc.W/2, rc.Y+rc.H/2
@@ -485,13 +496,28 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 			pt.StrokePath(&chevron, 1.7, fg)
 		}
 	}
-	b.DrawOver(glyph)
+	// The focus ring the platform's other toolbar items show, in place of MyGo's: AppKit's around the platter (macFocusRing), WinUI's focus visual 3 DIPs around the face (fluentFocusRing), libadwaita's 2 pixels inside the button's edge (_drawing.scss's focus-ring mixin, as adwFocusRing draws it). The focus is read as b is built, as macRing reads it.
+	ring := b.FocusVisible()
+	b.FocusRing(false).DrawOver(func(pt *ui.Painter, rc ui.Rect) {
+		glyph(pt, rc)
+		if !ring {
+			return
+		}
+		switch p {
+		case Windows:
+			fluentFocusRing(pt, t, rc, 3, 3, 3, 3, 4)
+		case Linux:
+			pt.Stroke(rc, t.Focus, 9, 2)
+		default:
+			macFocusRing(pt, rc, 18)
+		}
+	})
 	return b
 }
 
-// Toolbar creates a row of the controls fn builds, as along the top of a window, spaced as the platform's toolbar: NSToolbar's items on macOS, a CommandBar on Windows and a .toolbar box on GNOME. It is one stop of Tab, and Left and Right move the focus among its controls; controls that do not fit go into a menu at its end, as in ui.Toolbar. Package ui's buttons inside it take MyGo's toolbar look, without a face until hovered; this package's Button and Toggle keep the platform's button look, and BackButton and ForwardButton are drawn as the platform's. It is ui.Toolbar's counterpart.
+// Toolbar creates a row of the controls fn builds, as along the top of a window, spaced as the platform's toolbar: NSToolbar's items on macOS, a CommandBar on Windows and a .toolbar box on GNOME. It is one stop of Tab, and Left and Right move the focus among its controls; controls that do not fit go into a menu at its end, as in ui.Toolbar. Package ui's buttons inside it take MyGo's toolbar look, without a face until hovered; this package's Button, PrimaryButton, Toggle, MenuButton, PopoverMenuButton, BackButton and ForwardButton take the platform's toolbar item look: on macOS 36-point capsules, image-only items side by side sharing one platter and a toggle that is on in the accent; on Windows AppBarButtons and AppBarToggleButtons; on GNOME raised text buttons and flat image and menu buttons. A Popover, Modal or AlertDialog built inside fn takes it too, as MyGo's own toolbar look does. It is ui.Toolbar's counterpart.
 func Toolbar(c *ui.Context, fn func()) ui.Element {
-	tb := ui.Toolbar(c, fn)
+	tb := idiomBuildToolbar(c, fn)
 	switch PlatformOf(c) {
 	case Windows:
 		// CommandBar: AppBarThemeCompactHeight 48, CommandBarBackground ControlFillColorTransparent, padding 4,0,0,0, and its buttons' faces 36 high inside AppBarButtonInnerBorderMargin 2,6,2,6, 4 apart.

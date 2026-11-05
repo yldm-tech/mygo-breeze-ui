@@ -46,7 +46,7 @@
       "name": "Autocomplete",
       "category": "text",
       "look": "drawn",
-      "description": "A text input suggesting the options that contain what was typed, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry; the list of suggestions is MyGo's in the platform's theme.",
+      "description": "A text input suggesting the options that contain what was typed, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry; the suggestions show in the platform's menu: NSMenu's panel and rows, an AutoSuggestBox's list of ListViewItems, or a dropdown's popover.",
       "example": "breeze.Autocomplete(c, &app.city, cities).Label(\"City\")"
     },
     {

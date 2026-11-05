@@ -50,30 +50,79 @@ func Badge(c *ui.Context, text string) ui.Element {
 	return b
 }
 
-// styleMenuButton gives a button opening a menu the platform's look of its pull-down or menu button.
-func styleMenuButton(c *ui.Context, b ui.Element) ui.Element {
+// styleMenuButton gives b, a button opening a menu, the platform's look of its pull-down or menu button and its children: label, if any, and the platform's arrow. tb is the Toolbar b is item i of, nil outside one.
+//   - macOS: outside a toolbar a push button (macButton) with the arrow 4 points after its label; in a toolbar an NSMenuToolbarItem, its pull-down button a 36-point capsule (idiomMacPlatter) padded 12 before its 13-point label and 13 after the 7.5-point arrow, 4 points after the label (Share's is 71.5 points wide: 12 + 34.91 + 4.1 + 7.5 + 13, measured on macOS 27.2). The arrow outside a toolbar is inferred from the toolbar's.
+//   - Windows: outside a toolbar a DropDownButton, a button (fluentButton) with the 12-DIP ChevronDownSmall in TextFillColorSecondary 8 DIPs after its label; in a toolbar an AppBarButton with a flyout (idiomFluentAppBarButton), its SubItemChevron 5 DIPs after the label (AppBarButtonSubItemChevronLabelOnRightMargin -7,20,12,0 after the label's margin of 12) in TextFillColorSecondary, Tertiary pressed.
+//   - GNOME: a GtkMenuButton, whose button carries .arrow-button beside .text-button when it shows a label and the arrow, or .image-button when it shows only the arrow (gtkmenubutton.c's update_style_classes, GTK 4.24.0): padded 5px 9px with 4 pixels between the label and the 16-pixel pan-down arrow, or 5 around the arrow alone (_buttons.scss); raised outside a toolbar (adwButton) and flat inside one, as %toolbar makes button.arrow-button and button.image-button (_toolbars.scss of libadwaita 1.10.0).
+func styleMenuButton(c *ui.Context, b ui.Element, label string, tb *idiomToolbar, i int) ui.Element {
+	t := c.Theme()
+	var arrow func()
 	switch PlatformOf(c) {
 	case Windows:
-		fluentButton(c, b, false)
+		if tb != nil {
+			idiomFluentAppBarButton(c, b, false, false)
+			b.Gap(5)
+			color := t.TextMuted
+			if b.Pressed() {
+				color = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
+			}
+			arrow = func() { idiomFluentSubItemChevron(c, color) }
+		} else {
+			fluentButton(c, b, false)
+			arrow = func() {
+				ui.Box(c).Size(12, 12).Shrink(0).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
+					fluentChevronDown(p, r.X+r.W/2, r.Y+r.H/2, t.TextMuted)
+				})
+			}
+		}
 	case Linux:
-		// libadwaita's buttons have no border; MyGo's menu button has one.
-		adwButton(c, b, false)
-		b.Border(0, ui.Color{})
+		if tb != nil {
+			b.MinHeight(34).MinWidth(34).Radius(9).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center).Border(0, ui.Color{})
+			idiomAdwFlatFace(c, b, false)
+		} else {
+			adwButton(c, b, false)
+		}
+		if label == "" {
+			b.Padding(5)
+		} else {
+			b.Padding(5, 9).Gap(4)
+		}
+		color := adwTextOn(t, t.Background)
+		arrow = func() { idiomAdwArrow(c, color) }
 	default:
-		macButton(c, b, false)
-		b.Border(0, ui.Color{})
+		if tb != nil {
+			idiomMacToolbarItem(c, b, tb, i, false)
+			b.PaddingStart(12).PaddingEnd(13).Gap(4)
+			color := idiomMacInk(t, false)
+			arrow = func() { idiomMacChevron(c, color) }
+		} else {
+			macButton(c, b, false)
+			b.Gap(4)
+			face := macFace(t.Background, t.Dark)
+			if b.Pressed() {
+				face = macPressed(t.Background, t.Dark)
+			}
+			color := tint(face, t.Dark, 0.847)
+			arrow = func() { idiomMacChevron(c, color) }
+		}
 	}
+	b.Children(func() {
+		if label != "" {
+			ui.Text(c, label).SingleLine()
+		}
+		arrow()
+	})
 	return b
 }
 
-// MenuButton creates a button, drawn as the platform's pull-down button, opening the system's own menu below it, which build fills. It is ui.MenuButton's counterpart: the menu is native on every platform.
+// MenuButton creates a button, drawn as the platform's pull-down button, opening the system's own menu below it, which build fills; inside a Toolbar it is drawn as the platform's toolbar menu item. It is ui.MenuButton's counterpart, built as it is of ui.ButtonBase with Element.Menu: the menu is native on every platform.
 func MenuButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.Element {
-	return styleMenuButton(c, ui.MenuButton(c, label, build))
+	return idiomMenuButton(c, label, build, false)
 }
 
-// PopoverMenuButton creates a button, drawn as the platform's pull-down button, opening a menu that MyGo draws in the window in the platform's theme. It is ui.PopoverMenuButton's counterpart.
+// PopoverMenuButton creates a button, drawn as the platform's pull-down button (inside a Toolbar as the platform's toolbar menu item), opening a menu that MyGo draws in the window in the platform's menu colors and corners: NSMenu's on macOS, MenuFlyout's on Windows, popover.menu's on GNOME. Its rows' sizes are MyGo's. It is ui.PopoverMenuButton's counterpart, built as it is of ui.ButtonBase with Element.PopoverMenuButton.
 func PopoverMenuButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.Element {
-	return styleMenuButton(c, ui.PopoverMenuButton(c, label, build))
+	return idiomMenuButton(c, label, build, true)
 }
 
 // Popover shows fn's elements in a panel beside anchor while *open, as the platform draws a popover or a flyout; clicking outside it or pressing Escape sets *open to false. It is ui.Popover's counterpart.
