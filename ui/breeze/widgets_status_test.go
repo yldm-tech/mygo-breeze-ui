@@ -387,3 +387,43 @@ func TestScreenshotsStatus(t *testing.T) {
 		}
 	}
 }
+
+// TestInfoBarArrangements checks the arrangements Windows and GNOME switch between by the bar's width: in a wide bar WinUI's message follows the title on its line and AdwBanner's button sits beside its text; in a narrow one the message goes below the title, and the banner's button below its text. The bar is narrower than the window, so the first frame, which knows only the window's width, must be laid out again at the bar's.
+func TestInfoBarArrangements(t *testing.T) {
+	const message = "Restart to finish installing."
+	for _, p := range []Platform{Windows, Linux} {
+		for _, width := range []float32{560, 220} {
+			open := true
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Padding(16).Width(width + 32).Children(func() {
+						InfoBar(c, "info", "Update available", message, &open)
+					})
+				})
+			}, 800, 400)
+			tester.Frame()
+			tester.Frame()
+			narrow := width < 300
+			if p == Windows {
+				m, ok := tester.Find(message)
+				if !ok {
+					t.Fatalf("Windows: no message: %q", tester.Texts())
+				}
+				// Across, the message is 14 from the bar's top, at 16; below the title, further down.
+				if below := m.Y > 16+24; below != narrow {
+					t.Errorf("Windows width %v: the message is at %v", width, m)
+				}
+				continue
+			}
+			text, ok := tester.Find("Update available " + message)
+			if !ok {
+				t.Fatalf("GNOME: no banner text: %q", tester.Texts())
+			}
+			b, _ := tester.Find(infoBarCloseName(p))
+			if below := b.Y >= text.Y+text.H; below != narrow {
+				t.Errorf("GNOME width %v: the button %v, the text %v", width, b, text)
+			}
+		}
+	}
+}

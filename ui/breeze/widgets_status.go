@@ -134,29 +134,54 @@ func macInfoBarSymbol(p *ui.Painter, r ui.Rect, severity int, col, cut ui.Color)
 	p.Fill(ui.Rect{X: cx - 0.7*s, Y: cy - 1*s, W: 1.4 * s, H: 4.4 * s}, cut, 0.7*s)
 }
 
-// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high (InfoBarMinHeight), ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness), InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon (fluentToastIcon) with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message 12 after it at regular weight, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), 16 before the close button (InfoBarPanelMargin), the message going below the title when they do not fit beside each other; and the close button (fluentInfoBarClose). In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
+// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high (InfoBarMinHeight), ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness), InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon (fluentToastIcon) with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), while the two fit on one line, and otherwise the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
 func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element) {
 	t := c.Theme()
 	bg, iconFill := fluentToastColors(t, fluentSystemAccent(c), severity)
 	if severity == fluentToastInformational {
 		bg = pick(t.Dark, t.Background.Mix(ui.Hex("#f6f6f6"), 0.502), t.Background.Mix(white, 0.031))
 	}
+	// The panel's width: the bar less its border, the start padding, the icon and its margin, the panel's margin and the close button with its margins.
+	panel := prevWidth(c, bar) - 2 - 16 - 16 - 14 - 16
+	if closer != nil {
+		panel -= 48
+	}
+	tw, _ := c.MeasureText(0, ui.Span{Text: title, Size: 14, Weight: 600})
+	mw, _ := c.MeasureText(0, ui.Span{Text: message, Size: 14})
+	across := message == "" || tw+12+mw <= panel
 	bar.AlignItems(ui.Start).MinHeight(48).PaddingStart(16).Radius(4).Background(bg).
 		Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.098))).TextColor(t.Text).FontSize(14)
 	bar.Children(func() {
 		ui.Box(c).Size(16, 16).Shrink(0).MarginY(16).MarginEnd(14).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
 			fluentToastIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
 		})
-		ui.Row(c).Grow(1).Shrink(1).Wrap().AlignItems(ui.Start).MarginEnd(16).Padding(0, 0, 14, 0).Children(func() {
-			ui.Text(c, title).FontWeight(600).Margin(14, 0, 0, 0)
-			if message != "" {
-				ui.Text(c, message).Margin(14, 0, 0, 0).MarginStart(12)
-			}
-		})
+		if across {
+			ui.Row(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Padding(0, 0, 14, 0).Children(func() {
+				ui.Text(c, title).FontWeight(600).Margin(14, 0, 0, 0)
+				if message != "" {
+					ui.Text(c, message).Shrink(1).Margin(14, 0, 0, 0).MarginStart(12)
+				}
+			})
+		} else {
+			ui.Column(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Padding(14, 0, 18, 0).Children(func() {
+				ui.Text(c, title).FontWeight(600)
+				ui.Text(c, message).Margin(4, 0, 0, 0)
+			})
+		}
 		if closer != nil {
 			fluentInfoBarClose(c, closer("Close"))
 		}
 	})
+}
+
+// prevWidth returns e's width in the previous frame, as a platform's layout that switches between arrangements by the width it is given knows it; for an element that frame lacked it returns the window's width and asks for another frame, which lays it out at its own.
+func prevWidth(c *ui.Context, e ui.Element) float32 {
+	if w := e.Bounds().W; w > 0 {
+		return w
+	}
+	c.Invalidate()
+	w, _ := c.Size()
+	return w
 }
 
 // fluentInfoBarClose draws an InfoBar's close button (InfoBarCloseButtonStyle): 38 DIPs square (InfoBarCloseButtonSize) with a margin of 5, at the top, ControlCornerRadius, drawn with AppBarButton's brushes as InfoBar.xaml sets them: transparent, SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed; its 16-DIP Cancel symbol (InfoBarCloseButtonGlyphSize) in the text color.
@@ -178,30 +203,34 @@ func fluentInfoBarClose(c *ui.Context, b ui.Element) {
 // adwBannerShares are the shares of currentColor a GtkButton's face lays over what is behind it, at rest, under the pointer and pressed, in the light theme (where currentColor is window_fg_color, 80% opaque) and the dark one: $button_color and its hover and active shades.
 var adwBannerShares = [2][3]float32{{0.08, 0.12, 0.24}, {0.10, 0.15, 0.30}}
 
-// adwBanner draws an AdwBanner: a full-width strip of --banner-color (#7d7d83) mixed 30% into window_bg_color, in window_fg_color, padded 6 (_toolbars.scss); its title in .heading, bold, centered, wrapping; and, while it can be closed, its button at the end, a GtkButton at least 84 wide (BUTTON_HORZ_MIN_WIDTH) 6 after the title (HORZ_SPACING), centered on the strip's height (adw-banner.c). Without a button the title is padded a further 6 all around (HORZ_PADDING, VERT_PADDING). AdwBanner centers its title across the whole strip while it fits beside the button; a space as wide as the button before the title keeps it so here, and where it would not fit, AdwBanner moves the title to the start or the button below it while Breeze UI wraps the title in the middle. A banner has only a title: the message follows it in the same centered label, at regular weight (inferred). libadwaita's banners have no severity; the .error, .warning and .success classes only recolor accent-colored parts, which a banner's title is not, so every kind draws this same banner.
+// adwBanner draws an AdwBanner: a full-width strip of --banner-color (#7d7d83) mixed 30% into window_bg_color, in window_fg_color, padded 6 (_toolbars.scss); its title in .heading, bold, wrapping, centered across its lines; and, while it can be closed, its button, a GtkButton at least 84 wide (BUTTON_HORZ_MIN_WIDTH), as adw-banner.c's allocate_content places them: without a button the title centered and padded a further 6 all around (HORZ_PADDING, VERT_PADDING); with one, the button at the end, centered on the strip's height, and the title centered across the whole strip while it fits with 36 to spare on each side of the button (HORZ_SPACING_CENTERED), else 6 from the start (HORZ_PADDING) and 6 before the button (HORZ_SPACING); and where the title does not fit beside the button at its natural width, the button below the title, centered, at least 160 wide (BUTTON_VERT_MIN_WIDTH), 9 below it (VERT_SPACING), the two padded 6 above, below and at the sides. Breeze UI picks the arrangement from the banner's width in the previous frame. A banner has only a title: the message follows it in the same label, at regular weight (inferred). libadwaita's banners have no severity; the .error, .warning and .success classes only recolor accent-colored parts, which a banner's title is not, so every kind draws this same banner.
 func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func(string) ui.Element) {
 	t := c.Theme()
 	bg := t.Background.Mix(ui.Hex("#7d7d83"), 0.3)
 	fg := pick(t.Dark, bg.Mix(adwInk, 0.8), white)
-	bar.AlignItems(ui.Center).Gap(6).Padding(6).Background(bg).TextColor(fg)
-	bar.Children(func() {
-		const dismiss = "Dismiss"
-		var bw float32
-		if closer != nil {
-			w, _ := c.MeasureText(0, ui.Span{Text: dismiss, Size: t.FontSize, Weight: 700})
-			bw = max(84, w+34)
-			ui.Box(c).Width(bw).Shrink(0).Role(ui.RoleNone)
-		}
-		label := ui.RichText(c).Grow(1).Shrink(1).TextAlign(ui.Center).Children(func() {
+	bar.Padding(6).Background(bg).TextColor(fg)
+	text := func() ui.Element {
+		return ui.RichText(c).Shrink(1).TextAlign(ui.Center).Children(func() {
 			ui.Text(c, title).FontWeight(700)
 			if message != "" {
 				ui.Text(c, " "+message)
 			}
 		})
-		if closer == nil {
-			label.Padding(6)
-			return
-		}
+	}
+	if closer == nil {
+		bar.Justify(ui.Center).AlignItems(ui.Center).Children(func() { text().Padding(6) })
+		return
+	}
+	const dismiss = "Dismiss"
+	bw, _ := c.MeasureText(0, ui.Span{Text: dismiss, Size: t.FontSize, Weight: 700})
+	bw += 34 // the button's padding of 17 on each side
+	tw, _ := c.MeasureText(0, ui.Span{Text: title, Size: t.FontSize, Weight: 700})
+	if message != "" {
+		mw, _ := c.MeasureText(0, ui.Span{Text: " " + message, Size: t.FontSize})
+		tw += mw
+	}
+	width := prevWidth(c, bar) - 12 // the strip's padding
+	button := func() ui.Element {
 		b := closer(dismiss)
 		adwButton(c, b, false)
 		shares := adwBannerShares[map[bool]int{false: 0, true: 1}[t.Dark]]
@@ -213,8 +242,27 @@ func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func
 			share = shares[1]
 		}
 		face := bg.Mix(pick(t.Dark, adwInk, white), share)
-		b.MinWidth(bw).Background(face).TextColor(adwTextOn(t, face)).Children(func() { ui.Text(c, dismiss).SingleLine() })
-	})
+		return b.Background(face).TextColor(adwTextOn(t, face)).Children(func() { ui.Text(c, dismiss).SingleLine() })
+	}
+	switch {
+	case 6+tw+6+max(bw, 84) > width:
+		bar.Column().AlignItems(ui.Center).Gap(9).Padding(12).Children(func() {
+			text()
+			button().MinWidth(min(max(bw, 160), width))
+		})
+	case tw+(max(bw, 84)+36)*2 > width:
+		bar.AlignItems(ui.Center).Gap(6).PaddingStart(12).Children(func() {
+			text().Grow(1).TextAlign(ui.Start)
+			button().MinWidth(84)
+		})
+	default:
+		bar.AlignItems(ui.Center).Gap(6).Children(func() {
+			// A space as wide as the button keeps the title centered across the strip.
+			ui.Box(c).Width(max(bw, 84)).Shrink(0).Role(ui.RoleNone)
+			text().Grow(1)
+			button().MinWidth(84)
+		})
+	}
 }
 
 // ProgressRing creates a circular progress indicator filled to value between 0 and 1, as the platform draws a determinate ring: AppKit's NSProgressIndicator of style spinning with isIndeterminate false, WinUI's ProgressRing with IsIndeterminate false, and on GNOME, which has no determinate ring, a ring after AdwSpinner's (inferred). The ring fills clockwise from 12 o'clock in either reading direction, as a clock does. A negative value shows activity of unknown length: it is then Spinner. Assistive technology sees a progress indicator of value from 0 to 1, as for Progress; name it with Label. It is 32 points or DIPs across, as the platforms' regular rings are; Size makes it another size, as AppKit's small one, 16.
