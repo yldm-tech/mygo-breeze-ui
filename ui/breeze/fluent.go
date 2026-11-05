@@ -27,8 +27,6 @@ func fluentTheme(dark bool, accent ui.Color) *ui.Theme {
 	t := pick(dark, ui.LightTheme(), ui.DarkTheme())
 	fill := fluentAccentFill(accent, dark)
 	t.Accent = fill
-	t.AccentHover = t.Background.Mix(fill, 0.9) // AccentFillColorSecondary: the fill at 90%
-	t.AccentPressed = t.Background.Mix(fill, 0.8)
 	t.Radius, t.Spacing, t.FontSize = 4, 4, 14 // ControlCornerRadius, ControlContentThemeFontSize
 	if dark {
 		t.Background = ui.Hex("#202020") // SolidBackgroundFillColorBase
@@ -51,7 +49,17 @@ func fluentTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.AccentText = white
 		t.Focus = t.Background.Mix(black, 0.894)
 	}
-	t.Selection = accent.Alpha(0.4)
+	// AccentFillColorSecondaryBrush and AccentFillColorTertiaryBrush are the fill at Opacity 0.9 and 0.8 (Common_themeresources_any.xaml), laid over the window's SolidBackgroundFillColorBase set above.
+	t.AccentHover = t.Background.Mix(fill, 0.9)
+	t.AccentPressed = t.Background.Mix(fill, 0.8)
+	// SystemFillColorCritical, SystemFillColorCaution and SystemFillColorSuccess (Common_themeresources_any.xaml).
+	t.Danger = pick(dark, ui.Hex("#c42b1c"), ui.Hex("#ff99a4"))
+	t.Warning = pick(dark, ui.Hex("#9d5d00"), ui.Hex("#fce100"))
+	t.Success = pick(dark, ui.Hex("#0f7b0f"), ui.Hex("#6ccb5f"))
+	// ScrollBarThumbFill is ControlStrongFillColorDefault, #72000000 and #8BFFFFFF (ScrollBar_themeresources.xaml). The thumb keeps MyGo's 6 DIPs, the fill of WinUI's expanded thumb (a 12-DIP Rectangle inside a 6-DIP transparent ScrollBarThumbStrokeThickness), rather than the 2-DIP indicator WinUI shows while the pointer is away from the bar, as MyGo shows one thumb that is dragged too; which width a Windows render shows over content is not settled.
+	t.Scrollbar = pick(dark, ui.RGBA(0, 0, 0, 0x72/255.0), ui.RGBA(255, 255, 255, 0x8b/255.0))
+	// TextControlSelectionHighlightColor is AccentFillColorSelectedTextBackgroundBrush, the opaque SystemAccentColor, under TextOnAccentFillColorSelectedText, white (TextBox_themeresources.xaml, Common_themeresources_any.xaml). MyGo keeps the text's own color over the highlight: in the dark theme that is white, so the opaque accent is WinUI's; in the light theme the text is near black, so the accent stays translucent there to keep it readable.
+	t.Selection = pick(dark, accent.Alpha(0.4), accent)
 	// ToolTip: the in-app acrylic's fallback color, not the theme turned over.
 	t.Inverse, t.InverseText = pick(dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c")), t.Text
 	return t
