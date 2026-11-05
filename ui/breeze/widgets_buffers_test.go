@@ -334,40 +334,64 @@ func TestScrollKeepsUIBehaviorAndLayout(t *testing.T) {
 	}
 }
 
-// TestScrollBarTakesThePlatformsColor checks that the thumb MyGo paints in Scroll, while the pointer is over it, is the platform theme's Scrollbar color over the window's background, at the side MyGo puts it: the end of the container left to right, its start right to left. MyGo's thumb is ScrollbarWidth wide (6 when the theme leaves it 0), 3 DIPs in from the edge (scrollBars in paint.go).
+// TestScrollBarTakesThePlatformsColor checks that the thumbs MyGo paints in Scroll, ScrollHorizontal and ScrollBoth, while the pointer is over them, are the platform theme's Scrollbar color over the window's background, where MyGo puts them (scrollBars in paint.go): the vertical thumb at the end of the container left to right and at its start right to left, the horizontal thumb along its bottom, at the content's start, which is the right right to left. A thumb is ScrollbarWidth wide (6 when the theme leaves it 0), 3 DIPs in from the edge, at least 24 long and 2 DIPs into its track. The content is a bare box, so nothing but the background is under the thumbs.
 func TestScrollBarTakesThePlatformsColor(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dark := range []bool{false, true} {
 			for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
-				var th ui.Theme
-				tester := ui.NewTester(func(c *ui.Context) {
-					Preview(c, p, func() {
-						Use(c)
-						th = *c.Theme()
-						ui.Column(c).Fill().Padding(16).Children(func() {
-							newScroll(c, "Scroll", true).Height(240).Label("probe")
+				for _, kind := range scrollKinds {
+					var th ui.Theme
+					tester := ui.NewTester(func(c *ui.Context) {
+						Preview(c, p, func() {
+							Use(c)
+							th = *c.Theme()
+							var s ui.Element
+							switch kind {
+							case "Scroll":
+								s = Scroll(c)
+							case "ScrollHorizontal":
+								s = ScrollHorizontal(c)
+							default:
+								s = ScrollBoth(c)
+							}
+							ui.Column(c).Fill().Padding(16).Children(func() {
+								s.Height(240).Label("probe").Children(func() {
+									ui.Box(c).Size(900, 900).Shrink(0)
+								})
+							})
 						})
-					})
-				}, 400, 300)
-				tester.SetDark(dark)
-				tester.SetDirection(dir)
-				tester.Frame()
-				r := formsFind(t, tester, "probe")
-				tester.Move(r.X+r.W/2, r.Y+r.H/2)
-				tester.Frame()
-				width := th.ScrollbarWidth
-				if width <= 0 {
-					width = 6
-				}
-				x := r.X + r.W - 3 - width/2
-				if dir == ui.RightToLeft {
-					x = r.X + 3 + width/2
-				}
-				y := r.Y + 2 + 12 // within the thumb, which is at least 24 long and starts 2 DIPs down the track at the top
-				want := th.Background.Mix(ui.RGBA(th.Scrollbar.R, th.Scrollbar.G, th.Scrollbar.B, 1), float32(th.Scrollbar.A)/255)
-				got := tester.Image().RGBAAt(int(x), int(y))
-				if !formsNear(got, want, 3) {
-					t.Errorf("%v dark=%v %v: the thumb at %v,%v is %v, want the theme's Scrollbar %v over the background, %v", p, dark, dir, x, y, got, th.Scrollbar, want)
+					}, 400, 300)
+					tester.SetDark(dark)
+					tester.SetDirection(dir)
+					tester.Frame()
+					r := formsFind(t, tester, "probe")
+					tester.Move(r.X+r.W/2, r.Y+r.H/2)
+					tester.Frame()
+					width := th.ScrollbarWidth
+					if width <= 0 {
+						width = 6
+					}
+					want := th.Background.Mix(ui.RGBA(th.Scrollbar.R, th.Scrollbar.G, th.Scrollbar.B, 1), float32(th.Scrollbar.A)/255)
+					check := func(bar string, x, y float32) {
+						got := tester.Image().RGBAAt(int(x), int(y))
+						if !formsNear(got, want, 3) {
+							t.Errorf("%v dark=%v %v %s: the %s thumb at %v,%v is %v, want the theme's Scrollbar %v over the background, %v", p, dark, dir, kind, bar, x, y, got, th.Scrollbar, want)
+						}
+					}
+					if kind != "ScrollHorizontal" {
+						x := r.X + r.W - 3 - width/2
+						if dir == ui.RightToLeft {
+							x = r.X + 3 + width/2
+						}
+						check("vertical", x, r.Y+2+12)
+					}
+					if kind != "Scroll" {
+						x := r.X + 2 + 12
+						if dir == ui.RightToLeft {
+							x = r.X + r.W - 2 - 12
+						}
+						check("horizontal", x, r.Y+r.H-3-width/2)
+					}
 				}
 			}
 		}
