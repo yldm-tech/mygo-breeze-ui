@@ -157,7 +157,7 @@ class ToolbarItems: NSObject, NSToolbarDelegate {
 
 let toolbarItems = ToolbarItems()
 
-// renderToolbar renders a titled window's unified toolbar holding ToolbarItems' items, the window's frame view at 2x into an sRGB bitmap, and prints the frames of the items' views and platters. It renders offscreen with the items' platters, though lighter than a live window draws them and 32 points high where a live capture shows 36: its sizes along the toolbar and its shares over the platter are what compare.
+// renderToolbar renders a titled window's unified toolbar holding ToolbarItems' items, the window's frame view at 2x into an sRGB bitmap, and prints the frames of the items' views and platters. It renders offscreen with the items' platters, 36 points high as a live capture shows them though lighter: the sizes inside them compare, and their fills as shares of the platter.
 func renderToolbar(appearance: NSAppearance.Name, file: String) {
     let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: 520, height: 120), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
     win.appearance = NSAppearance(named: appearance)
