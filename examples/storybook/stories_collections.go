@@ -110,7 +110,7 @@ func collectionsStories() []*story {
 			controls: []control{toggleArg("src open", true)},
 			render: func(c *ui.Context, a *args) {
 				s := collectionsOutlineTableState(c)
-				cols := []ui.TableColumn{{Title: "Name"}, {Title: "Kind", Width: 90}}
+				cols := []ui.TableColumn{{Title: "Name"}, {Title: "Kind", Width: 80}}
 				collectionsSyncOpen(s, a.on["src open"], func() {
 					breeze.OutlineTable(c, s, cols, []string{"src", "docs", "go.mod"}, collectionsChildren, func(k string, col int) {
 						if col == 0 {
@@ -122,7 +122,7 @@ func collectionsStories() []*story {
 							kind = "Folder"
 						}
 						ui.Text(c, kind).SingleLine()
-					}).Size(340, 180).Label("Files")
+					}).Size(290, 200).Label("Files")
 				})
 			},
 			code: func(*args) string {
