@@ -9,8 +9,8 @@ func init() { storyGroups = append(storyGroups, inputsStories) }
 
 // inputsIcons are the icons the icon button stories offer, drawn in the color of the button's text.
 var inputsIcons = map[string]*ui.SVG{
-	"share": ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 1.5v9M4.8 4.5 8 1.5l3.2 3M5 7H3.5v7.5h9V7H11" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`)),
-	"trash": ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.8 10h6.4L12 4M6.5 6.5v5M9.5 6.5v5" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`)),
+	"share":  ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 1.5v9M4.8 4.5 8 1.5l3.2 3M5 7H3.5v7.5h9V7H11" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`)),
+	"trash":  ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.8 10h6.4L12 4M6.5 6.5v5M9.5 6.5v5" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`)),
 	"folder": navigationFolderIcon,
 }
 
