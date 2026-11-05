@@ -1,0 +1,424 @@
+// WinUI 3's own controls, for comparing Breeze UI's Windows look with them.
+//
+// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert), and a fifth set of the same controls held in their PointerOver and Pressed visual states, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
+//
+// Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and the flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene. ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
+//
+// It is an unpackaged app (WindowsPackageType None) that carries the Windows App SDK with it (WindowsAppSDKSelfContained), built with the .NET 8 SDK or later on Windows 10 version 2004 (build 19041) or later, x64:
+//
+//	dotnet build -c Release -m:4 tools/winui-reference/WinUIReference.csproj
+//	tools\winui-reference\bin\Release\net8.0-windows10.0.26100.0\win-x64\winui-reference.exe <dir>
+//
+// It must run in an interactive desktop session (not over SSH, which cannot show windows); started from a remote shell, a scheduled task with /IT runs it in the signed-in user's session:
+//
+//	schtasks /Create /TN winui-reference /TR "<exe> <dir>" /SC ONCE /ST 23:59 /IT /F
+//	schtasks /Run /TN winui-reference
+//	(wait for <dir>\done.txt)
+//	schtasks /Delete /TN winui-reference /F
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.XamlTypeInfo;
+using Windows.Foundation;
+using Windows.Graphics;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
+using Windows.UI;
+
+namespace WinUIReference;
+
+public static class Program
+{
+    [STAThread]
+    static int Main(string[] args)
+    {
+        // Never outlive a minute, whatever happens.
+        using var watchdog = new Timer(_ => Environment.Exit(3), null, TimeSpan.FromSeconds(55), Timeout.InfiniteTimeSpan);
+        WinRT.ComWrappersSupport.InitializeComWrappers();
+        Application.Start(p =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
+            _ = new App(args.Length > 0 ? args[0] : ".");
+        });
+        return App.ExitCode;
+    }
+}
+
+// A scene: controls placed on a canvas W by H DIPs, each named for the report, and what to open over them.
+record Scene(string File, int W, int H, string Xaml, string[] Items, Func<FrameworkElement, ElementTheme, Task>? Open = null);
+
+public sealed class App : Application, IXamlMetadataProvider
+{
+    public static int ExitCode;
+    const int Scale = 2;
+    readonly string outDir;
+    readonly StringBuilder report = new();
+    readonly XamlControlsXamlMetaDataProvider provider = new();
+
+    public App(string dir) { outDir = dir; }
+
+    public IXamlType GetXamlType(Type type) => provider.GetXamlType(type);
+    public IXamlType GetXamlType(string fullName) => provider.GetXamlType(fullName);
+    public XmlnsDefinition[] GetXmlnsDefinitions() => provider.GetXmlnsDefinitions();
+
+    // Windows's default accent and the shades Windows derives from it.
+    static readonly (string Key, string Hex)[] Accent =
+    [
+        ("SystemAccentColor", "#0078D4"),
+        ("SystemAccentColorLight1", "#429CE3"), ("SystemAccentColorLight2", "#76B9ED"), ("SystemAccentColorLight3", "#A6D8FF"),
+        ("SystemAccentColorDark1", "#005A9E"), ("SystemAccentColorDark2", "#004275"), ("SystemAccentColorDark3", "#002642"),
+    ];
+
+    static Color Hex(string s) => Color.FromArgb(255, Convert.ToByte(s[1..3], 16), Convert.ToByte(s[3..5], 16), Convert.ToByte(s[5..7], 16));
+
+    protected override async void OnLaunched(LaunchActivatedEventArgs e)
+    {
+        Resources.MergedDictionaries.Add(new XamlControlsResources());
+        foreach (var (key, hex) in Accent)
+        {
+            Resources[key] = Hex(hex);
+        }
+        try
+        {
+            Directory.CreateDirectory(outDir);
+            var xaml = System.Diagnostics.FileVersionInfo.GetVersionInfo(Path.Combine(AppContext.BaseDirectory, "Microsoft.UI.Xaml.dll"));
+            var sdk = System.Diagnostics.FileVersionInfo.GetVersionInfo(typeof(Microsoft.Windows.ApplicationModel.WindowsAppRuntime.RuntimeInfo).Assembly.Location);
+            report.AppendLine($"Windows App SDK {sdk.ProductVersion}, Microsoft.UI.Xaml.dll {xaml.FileVersion}, Windows {Environment.OSVersion.Version}");
+            var window = MakeWindow();
+            foreach (var scene in Scenes())
+            {
+                foreach (var theme in new[] { ElementTheme.Light, ElementTheme.Dark })
+                {
+                    await Render(window, scene, theme);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            report.AppendLine("error: " + ex);
+            ExitCode = 1;
+        }
+        File.WriteAllText(Path.Combine(outDir, "report.txt"), report.ToString());
+        File.WriteAllText(Path.Combine(outDir, "done.txt"), ExitCode.ToString());
+        Exit();
+    }
+
+    const string Ns = "xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
+
+    static string Canvas(int w, int h, string body) =>
+        $"<Canvas {Ns} Width=\"{w}\" Height=\"{h}\" Background=\"{{ThemeResource SolidBackgroundFillColorBaseBrush}}\">{body}</Canvas>";
+
+    static IEnumerable<Scene> Scenes()
+    {
+        // referenceView: three buttons, three check boxes and three switches. Breeze UI's switch shows no On or Off content.
+        yield return new Scene("winui", 360, 200, Canvas(360, 200, """
+            <Button x:Name="button" Canvas.Left="16" Canvas.Top="16" Content="Cancel"/>
+            <Button x:Name="accent-button" Canvas.Left="110" Canvas.Top="16" Content="Save" Style="{StaticResource AccentButtonStyle}"/>
+            <Button x:Name="disabled-button" Canvas.Left="200" Canvas.Top="16" Content="Disabled" IsEnabled="False"/>
+            <CheckBox x:Name="checkbox-off" Canvas.Left="16" Canvas.Top="64" Content="Unchecked"/>
+            <CheckBox x:Name="checkbox-on" Canvas.Left="130" Canvas.Top="64" Content="Checked" IsChecked="True"/>
+            <CheckBox x:Name="checkbox-disabled" Canvas.Left="240" Canvas.Top="64" Content="Disabled" IsChecked="True" IsEnabled="False"/>
+            <ToggleSwitch x:Name="switch-off" Canvas.Left="16" Canvas.Top="106" OnContent="" OffContent=""/>
+            <ToggleSwitch x:Name="switch-on" Canvas.Left="100" Canvas.Top="106" OnContent="" OffContent="" IsOn="True"/>
+            <ToggleSwitch x:Name="switch-disabled" Canvas.Left="184" Canvas.Top="106" OnContent="" OffContent="" IsEnabled="False"/>
+            """), ["button", "accent-button", "disabled-button", "checkbox-off", "checkbox-on", "checkbox-disabled", "switch-off", "switch-on", "switch-disabled"]);
+
+        // referenceView2: radio buttons, fields, a ComboBox, a toggle, a slider, a progress bar, a SelectorBar (Segmented), a ProgressRing and a multi-line TextBox.
+        yield return new Scene("winui2", 520, 330, Canvas(520, 330, """
+            <RadioButton x:Name="radio-off" Canvas.Left="16" Canvas.Top="16" Content="Off" GroupName="size"/>
+            <RadioButton x:Name="radio-on" Canvas.Left="100" Canvas.Top="16" Content="On" GroupName="size" IsChecked="True"/>
+            <TextBox x:Name="text-field" Canvas.Left="16" Canvas.Top="50" Width="180" PlaceholderText="Name"/>
+            <AutoSuggestBox x:Name="search-field" Canvas.Left="220" Canvas.Top="50" Width="180" PlaceholderText="Search" QueryIcon="Find"/>
+            <ComboBox x:Name="combo-box" Canvas.Left="16" Canvas.Top="90" SelectedIndex="0">
+              <x:String>Medium</x:String><x:String>Small</x:String><x:String>Large</x:String>
+            </ComboBox>
+            <ToggleButton x:Name="toggle" Canvas.Left="220" Canvas.Top="90" Content="Bold" IsChecked="True"/>
+            <Slider x:Name="slider" Canvas.Left="16" Canvas.Top="130" Width="180" Minimum="0" Maximum="100" Value="40"/>
+            <ProgressBar x:Name="progress" Canvas.Left="220" Canvas.Top="142" Width="180" Minimum="0" Maximum="100" Value="40"/>
+            <SelectorBar x:Name="selector-bar" Canvas.Left="16" Canvas.Top="170">
+              <SelectorBarItem Text="Day" IsSelected="True"/><SelectorBarItem Text="Week"/><SelectorBarItem Text="Month"/>
+            </SelectorBar>
+            <ProgressRing x:Name="progress-ring" Canvas.Left="220" Canvas.Top="170" IsActive="True"/>
+            <TextBox x:Name="text-area" Canvas.Left="16" Canvas.Top="220" Width="180" Height="70" AcceptsReturn="True" TextWrapping="Wrap" Text="Notes"/>
+            """), ["radio-off", "radio-on", "text-field", "search-field", "combo-box", "toggle", "slider", "progress", "selector-bar", "progress-ring", "text-area"]);
+
+        // referenceView3: a hyperlink in text, a divider (DividerStrokeColorDefault), two ToggleButtons 8 apart (ToggleGroup), a DropDownButton (MenuButton) and a button with its Flyout open below it.
+        yield return new Scene("winui3", 400, 240, Canvas(400, 240, """
+            <TextBlock x:Name="link" Canvas.Left="16" Canvas.Top="16"><Hyperlink NavigateUri="https://example.com">Docs</Hyperlink></TextBlock>
+            <Rectangle x:Name="divider" Canvas.Left="16" Canvas.Top="50" Width="200" Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+            <StackPanel x:Name="toggle-group" Canvas.Left="16" Canvas.Top="70" Orientation="Horizontal" Spacing="8">
+              <ToggleButton Content="Bold" IsChecked="True"/><ToggleButton Content="Italic"/>
+            </StackPanel>
+            <DropDownButton x:Name="menu-button" Canvas.Left="16" Canvas.Top="120" Content="Sort">
+              <DropDownButton.Flyout><MenuFlyout><MenuFlyoutItem Text="Name"/></MenuFlyout></DropDownButton.Flyout>
+            </DropDownButton>
+            <Button x:Name="info" Canvas.Left="200" Canvas.Top="70" Content="Info"/>
+            """), ["link", "divider", "toggle-group", "menu-button", "info"], OpenFlyout);
+
+        // The alert: a ContentDialog with a title, a message, the default (primary) button and the close button, over a window showing a line of text 16 DIPs in.
+        yield return new Scene("winui-alert", 560, 340, $$"""
+            <Grid {{Ns}} Width="560" Height="340" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+              <TextBlock x:Name="content" Margin="16" Text="Window content"/>
+              <ContentDialog x:Name="dialog" Title="Delete “Notes”?" Content="You can’t undo this action." PrimaryButtonText="Delete" CloseButtonText="Cancel" DefaultButton="Primary"/>
+            </Grid>
+            """, ["content", "dialog"], OpenDialog);
+
+        // The controls of the first two sets held in their PointerOver and Pressed states, by VisualStateManager.GoToState, which the pointer reaches but a still bitmap does not.
+        yield return new Scene("winui-states", 520, 260, Canvas(520, 260, """
+            <Button x:Name="button-hover" Tag="PointerOver" Canvas.Left="16" Canvas.Top="16" Content="Cancel"/>
+            <Button x:Name="button-pressed" Tag="Pressed" Canvas.Left="110" Canvas.Top="16" Content="Cancel"/>
+            <Button x:Name="accent-hover" Tag="PointerOver" Canvas.Left="204" Canvas.Top="16" Content="Save" Style="{StaticResource AccentButtonStyle}"/>
+            <Button x:Name="accent-pressed" Tag="Pressed" Canvas.Left="284" Canvas.Top="16" Content="Save" Style="{StaticResource AccentButtonStyle}"/>
+            <CheckBox x:Name="checkbox-off-hover" Tag="UncheckedPointerOver" Canvas.Left="16" Canvas.Top="64" Content="Off"/>
+            <CheckBox x:Name="checkbox-off-pressed" Tag="UncheckedPressed" Canvas.Left="140" Canvas.Top="64" Content="Off"/>
+            <CheckBox x:Name="checkbox-on-hover" Tag="CheckedPointerOver" Canvas.Left="264" Canvas.Top="64" Content="On" IsChecked="True"/>
+            <CheckBox x:Name="checkbox-on-pressed" Tag="CheckedPressed" Canvas.Left="388" Canvas.Top="64" Content="On" IsChecked="True"/>
+            <ToggleSwitch x:Name="switch-off-hover" Tag="PointerOver" Canvas.Left="16" Canvas.Top="106" OnContent="" OffContent=""/>
+            <ToggleSwitch x:Name="switch-off-pressed" Tag="Pressed" Canvas.Left="140" Canvas.Top="106" OnContent="" OffContent=""/>
+            <ToggleSwitch x:Name="switch-on-hover" Tag="PointerOver" Canvas.Left="264" Canvas.Top="106" OnContent="" OffContent="" IsOn="True"/>
+            <ToggleSwitch x:Name="switch-on-pressed" Tag="Pressed" Canvas.Left="388" Canvas.Top="106" OnContent="" OffContent="" IsOn="True"/>
+            <RadioButton x:Name="radio-off-pressed" Tag="Pressed" Canvas.Left="16" Canvas.Top="150" Content="Off" GroupName="a"/>
+            <RadioButton x:Name="radio-on-hover" Tag="PointerOver" Canvas.Left="140" Canvas.Top="150" Content="On" GroupName="b" IsChecked="True"/>
+            <RadioButton x:Name="radio-on-pressed" Tag="Pressed" Canvas.Left="264" Canvas.Top="150" Content="On" GroupName="c" IsChecked="True"/>
+            <Slider x:Name="slider-hover" Tag="PointerOver" Canvas.Left="16" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
+            <Slider x:Name="slider-pressed" Tag="Pressed" Canvas.Left="220" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
+            """), ["button-hover", "button-pressed", "accent-hover", "accent-pressed", "checkbox-off-hover", "checkbox-off-pressed", "checkbox-on-hover", "checkbox-on-pressed", "switch-off-hover", "switch-off-pressed", "switch-on-hover", "switch-on-pressed", "radio-off-pressed", "radio-on-hover", "radio-on-pressed", "slider-hover", "slider-pressed"], HoldStates);
+    }
+
+    // OpenFlyout opens the button's Flyout below it, aligned to its start, as Breeze UI's popover is, to read where WinUI places the FlyoutPresenter, then closes it and puts a FlyoutPresenter with the same content there in the scene, as RenderTargetBitmap does not draw popups and the scene's scale does not reach them.
+    static async Task OpenFlyout(FrameworkElement root, ElementTheme theme)
+    {
+        var info = (Button)root.FindName("info");
+        var flyout = new Flyout { Content = new TextBlock { Text = "Details" }, ShouldConstrainToRootBounds = true };
+        flyout.ShowAt(info, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft, ShowMode = FlyoutShowMode.Transient });
+        await Task.Delay(1000);
+        FlyoutPresenter? shown = null;
+        foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root.XamlRoot))
+        {
+            shown ??= Find<FlyoutPresenter>(popup.Child);
+        }
+        if (shown == null)
+        {
+            throw new InvalidOperationException("the flyout did not open");
+        }
+        // The popup is not scaled with the scene: its offset from the button's bottom start, in the window's DIPs, is the offset in the scene's.
+        var target = info.TransformToVisual(null).TransformPoint(new Point(0, info.ActualHeight));
+        var opened = shown.TransformToVisual(null).TransformPoint(new Point(0, 0));
+        var below = info.TransformToVisual(root).TransformPoint(new Point(0, info.ActualHeight));
+        var at = new Point(below.X + opened.X - target.X, below.Y + opened.Y - target.Y);
+        double w = shown.ActualWidth, h = shown.ActualHeight;
+        flyout.Hide();
+        var presenter = new FlyoutPresenter { Name = "flyout", Content = new TextBlock { Text = "Details" }, Width = w, Height = h };
+        Microsoft.UI.Xaml.Controls.Canvas.SetLeft(presenter, at.X);
+        Microsoft.UI.Xaml.Controls.Canvas.SetTop(presenter, at.Y);
+        ((Panel)root).Children.Add(presenter);
+        await WhenLoaded(presenter);
+        await Task.Delay(500);
+    }
+
+    static T? Find<T>(DependencyObject? e) where T : DependencyObject
+    {
+        if (e == null)
+        {
+            return null;
+        }
+        if (e is T found)
+        {
+            return found;
+        }
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(e); i++)
+        {
+            if (Find<T>(VisualTreeHelper.GetChild(e, i)) is T t)
+            {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    // OpenDialog shows the scene's ContentDialog in place, inside the scene, rather than in a popup, so that the scene's scale reaches it.
+    static async Task OpenDialog(FrameworkElement root, ElementTheme theme)
+    {
+        var dialog = (ContentDialog)root.FindName("dialog");
+        _ = dialog.ShowAsync(ContentDialogPlacement.InPlace);
+        await Task.Delay(1500);
+    }
+
+    // HoldStates puts each control into the visual state its Tag names.
+    static async Task HoldStates(FrameworkElement root, ElementTheme theme)
+    {
+        foreach (var child in ((Panel)root).Children)
+        {
+            if (child is Control control && control.Tag is string state)
+            {
+                VisualStateManager.GoToState(control, state, false);
+                // A slider's thumb is a Thumb with visual states of its own, which scale its inner circle.
+                if (Find<Thumb>(control) is Thumb thumb)
+                {
+                    VisualStateManager.GoToState(thumb, state, false);
+                }
+            }
+        }
+        await Task.Delay(800);
+    }
+
+    // MakeWindow shows an empty borderless tool window far off every screen without activating it, large enough for every scene at 2x.
+    static Window MakeWindow()
+    {
+        var window = new Window();
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        SetWindowLongPtr(hwnd, GwlExStyle, GetWindowLongPtr(hwnd, GwlExStyle) | WsExNoActivate | WsExToolWindow);
+        var appWindow = window.AppWindow;
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.SetBorderAndTitleBar(false, false);
+            presenter.IsResizable = false;
+            presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+        }
+        appWindow.IsShownInSwitchers = false;
+        appWindow.MoveAndResize(new RectInt32(-8000, -8000, 1200, 760));
+        appWindow.Show(false);
+        return window;
+    }
+
+    // Render draws scene in theme at 2x. The window's rasterization scale is the screen's, 1 here, and RenderTargetBitmap.RenderAsync with a larger size only stretches that bitmap, so the scene is scaled by a ScaleTransform and its RasterizationScale set to match, which makes WinUI draw its shapes and text at 2x.
+    async Task Render(Window window, Scene scene, ElementTheme theme)
+    {
+        var root = (FrameworkElement)XamlReader.Load(scene.Xaml);
+        root.RequestedTheme = theme;
+        root.HorizontalAlignment = HorizontalAlignment.Left;
+        root.VerticalAlignment = VerticalAlignment.Top;
+        root.RenderTransform = new ScaleTransform { ScaleX = Scale, ScaleY = Scale };
+        root.RasterizationScale = Scale;
+        int pw = scene.W * Scale, ph = scene.H * Scale;
+        var host = new Grid { Width = pw, Height = ph, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        host.Children.Add(root);
+        window.Content = host;
+        await WhenLoaded(root);
+        await Task.Delay(700);
+        if (scene.Open != null)
+        {
+            await scene.Open(root, theme);
+        }
+        var mode = theme == ElementTheme.Dark ? "dark" : "light";
+        var pixels = await Pixels(host, pw, ph);
+        await WritePng(Path.Combine(outDir, $"{scene.File}-{mode}.png"), pixels, pw, ph);
+        report.AppendLine($"== {scene.File}-{mode}.png (window rasterization scale {root.XamlRoot.RasterizationScale}, scene {root.RasterizationScale})");
+        var items = scene.Items.ToList();
+        if (root.FindName("flyout") != null)
+        {
+            items.Add("flyout");
+        }
+        foreach (var name in items)
+        {
+            var e = (FrameworkElement)root.FindName(name);
+            var p = e.TransformToVisual(root).TransformPoint(new Point(0, 0));
+            report.AppendLine($"{name} x={p.X} top={p.Y} w={e.ActualWidth} h={e.ActualHeight}");
+            int x0 = (int)Math.Round(p.X * Scale), y0 = (int)Math.Round(p.Y * Scale), w = (int)Math.Round(e.ActualWidth * Scale), h = (int)Math.Round(e.ActualHeight * Scale);
+            report.AppendLine("  row: " + Runs(Enumerable.Range(Math.Max(0, x0 - 4), Math.Min(pw, x0 + w + 4) - Math.Max(0, x0 - 4)).Select(x => Value(pixels, pw, x, Math.Min(ph - 1, y0 + h / 2)))));
+            report.AppendLine("  col: " + Runs(Enumerable.Range(Math.Max(0, y0 - 4), Math.Min(ph, y0 + h + 4) - Math.Max(0, y0 - 4)).Select(y => Value(pixels, pw, Math.Min(pw - 1, x0 + w / 2), y))));
+            Parts(e, root, "  ", 0);
+        }
+        File.WriteAllText(Path.Combine(outDir, "report.txt"), report.ToString());
+    }
+
+    // Parts reports the named, visible template parts and the text blocks inside e, with their frames relative to root.
+    void Parts(DependencyObject e, UIElement root, string indent, int depth)
+    {
+        int n = VisualTreeHelper.GetChildrenCount(e);
+        for (int i = 0; i < n; i++)
+        {
+            var child = VisualTreeHelper.GetChild(e, i);
+            if (child is FrameworkElement f && f.Visibility == Visibility.Visible && f.ActualWidth > 0 && f.ActualHeight > 0)
+            {
+                string label = f is TextBlock tb ? $"TextBlock \"{tb.Text}\" {tb.FontFamily?.Source} {tb.FontSize} {tb.FontWeight.Weight}" : f.Name;
+                if (!string.IsNullOrEmpty(label))
+                {
+                    var p = f.TransformToVisual(root).TransformPoint(new Point(0, 0));
+                    report.AppendLine($"{indent}{new string(' ', depth)}{label} ({f.GetType().Name}) x={p.X} top={p.Y} w={f.ActualWidth} h={f.ActualHeight} opacity={f.Opacity}");
+                }
+                Parts(child, root, indent, depth + 1);
+            }
+            else if (child is not FrameworkElement)
+            {
+                Parts(child, root, indent, depth + 1);
+            }
+        }
+    }
+
+    static Task WhenLoaded(FrameworkElement e)
+    {
+        if (e.IsLoaded)
+        {
+            return Task.CompletedTask;
+        }
+        var done = new TaskCompletionSource();
+        e.Loaded += (_, _) => done.TrySetResult();
+        return done.Task;
+    }
+
+    // Pixels renders e at w by h pixels: premultiplied BGRA rows.
+    static async Task<byte[]> Pixels(UIElement e, int w, int h)
+    {
+        var bitmap = new RenderTargetBitmap();
+        await bitmap.RenderAsync(e, w, h);
+        if (bitmap.PixelWidth != w || bitmap.PixelHeight != h)
+        {
+            throw new InvalidOperationException($"rendered {bitmap.PixelWidth}x{bitmap.PixelHeight}, asked for {w}x{h}");
+        }
+        return (await bitmap.GetPixelsAsync()).ToArray();
+    }
+
+    static string Value(byte[] px, int w, int x, int y)
+    {
+        int i = (y * w + x) * 4;
+        byte b = px[i], g = px[i + 1], r = px[i + 2];
+        return r == g && g == b ? r.ToString() : $"#{r:x2}{g:x2}{b:x2}";
+    }
+
+    static string Runs(IEnumerable<string> values)
+    {
+        var v = values.ToList();
+        var s = new List<string>();
+        for (int i = 0; i < v.Count;)
+        {
+            int j = i;
+            while (j < v.Count && v[j] == v[i])
+            {
+                j++;
+            }
+            s.Add(j - i > 1 ? $"{v[i]}x{j - i}" : v[i]);
+            i = j;
+        }
+        return string.Join(" ", s);
+    }
+
+    static async Task WritePng(string path, byte[] pixels, int w, int h)
+    {
+        using var stream = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, (uint)w, (uint)h, 96 * Scale, 96 * Scale, pixels);
+        await encoder.FlushAsync();
+        stream.Seek(0);
+        using var file = File.Create(path);
+        await stream.AsStreamForRead().CopyToAsync(file);
+    }
+
+    const int GwlExStyle = -20;
+    const nint WsExNoActivate = 0x08000000, WsExToolWindow = 0x00000080;
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    static extern nint GetWindowLongPtr(nint hwnd, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
+}
