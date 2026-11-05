@@ -12,9 +12,10 @@ import (
 //
 // macOS values are measured from AppKit's NSLevelIndicator and NSTextFinder's find bar rendered at 2x, as tools/appkit-reference/reference.swift renders the other controls, or read from AppKit (NSFont.toolTipsFont); AppKit draws tooltips, notifications and contact monograms out of a view's reach, so those are inferred. Windows values are WinUI 3's theme resources (ToolTip_themeresources.xaml, InfoBar_themeresources.xaml and InfoBar.xaml, ProgressBar_themeresources.xaml, RatingControl_themeresources.xaml and RatingControl.cpp, PersonPicture_themeresources.xaml and PersonPicture.cpp, Common_themeresources_any.xaml). GNOME values are libadwaita 1.7.6's stylesheet (_tooltip.scss, _misc.scss for toasts, _level-bar.scss, _avatar.scss, _toolbars.scss for the search bar, _colors.scss, _defaults.scss), adw-toast-widget.ui and .c, adw-avatar.c, and GTK 4.18's gtktooltip.c, gtktooltipwindow.ui and gtklevelbar.c; GNOME has no rating control, so its stars are GNOME Software's (gs-star-widget.c and style.css of 48.0).
 
-// Tooltip shows text by anchor while the pointer rests on it or the keyboard focus comes to it, in the platform's tooltip: a small panel below the element on macOS, WinUI's ToolTip above it on Windows, and GTK's tooltip below it on GNOME. It is built on ui.TooltipBase, so the timing, Escape and the one-at-a-time rule are MyGo's; it adds text to anchor's Description for assistive technology, which does not read the tip, as Element.Tooltip does. It returns anchor, as Element.Tooltip does, whose counterpart it is.
+// Tooltip shows text by anchor while the pointer rests on it or the keyboard focus comes to it, in the platform's tooltip: a small panel below the element on macOS, WinUI's ToolTip above it on Windows, and GTK's tooltip below it on GNOME. It is built on ui.TooltipBase, so the timing, Escape, a disabled anchor showing none and the one-at-a-time rule are MyGo's. Assistive technology does not read the tip, so text becomes anchor's Description, as Element.Tooltip makes it; unlike Element.Tooltip, which keeps a Description given before it, Tooltip replaces one, as package ui offers no way to read it: give a Description of your own after Tooltip. It returns anchor, as Element.Tooltip does, whose counterpart it is.
 func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
-	if text == "" {
+	if text == "" || !anchor.Valid() {
+		// ui.TooltipBase needs an anchor of the frame; Element.Tooltip on an empty Element does nothing too.
 		return anchor
 	}
 	anchor.Description(text)
@@ -122,33 +123,33 @@ func fluentToastViewport(c *ui.Context, viewport ui.Element) {
 
 // InfoBar severities, from a toast's Type.
 const (
-	fluentInfoBarInformational = iota
-	fluentInfoBarSuccess
-	fluentInfoBarWarning
-	fluentInfoBarError
+	fluentToastInformational = iota
+	fluentToastSuccess
+	fluentToastWarning
+	fluentToastError
 )
 
-// fluentInfoBarSeverity returns the InfoBar severity a toast's Type names: "success", "warning", "error" (or "danger", "critical"); any other is informational.
-func fluentInfoBarSeverity(typ string) int {
+// fluentToastSeverity returns the InfoBar severity a toast's Type names: "success", "warning", "error" (or "danger", "critical"); any other is informational.
+func fluentToastSeverity(typ string) int {
 	switch strings.ToLower(typ) {
 	case "success":
-		return fluentInfoBarSuccess
+		return fluentToastSuccess
 	case "warning":
-		return fluentInfoBarWarning
+		return fluentToastWarning
 	case "error", "danger", "critical":
-		return fluentInfoBarError
+		return fluentToastError
 	}
-	return fluentInfoBarInformational
+	return fluentToastInformational
 }
 
-// fluentInfoBarColors returns an InfoBar's background and its icon's fill for a severity: SystemFillColorSolidAttentionBackground (the solid one, as the toast floats over content) or SystemFillColorSuccessBackground, CautionBackground and CriticalBackground behind the content; SystemFillColorAttention (the accent fill) or SystemFillColorSuccess, Caution and Critical for the icon.
-func fluentInfoBarColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
+// fluentToastColors returns an InfoBar's background and its icon's fill for a severity: SystemFillColorSolidAttentionBackground (the solid one, as the toast floats over content) or SystemFillColorSuccessBackground, CautionBackground and CriticalBackground behind the content; SystemFillColorAttention (the accent fill) or SystemFillColorSuccess, Caution and Critical for the icon.
+func fluentToastColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
 	switch severity {
-	case fluentInfoBarSuccess:
+	case fluentToastSuccess:
 		return pick(t.Dark, ui.Hex("#dff6dd"), ui.Hex("#393d1b")), pick(t.Dark, ui.Hex("#0f7b0f"), ui.Hex("#6ccb5f"))
-	case fluentInfoBarWarning:
+	case fluentToastWarning:
 		return pick(t.Dark, ui.Hex("#fff4ce"), ui.Hex("#433519")), pick(t.Dark, ui.Hex("#9d5d00"), ui.Hex("#fce100"))
-	case fluentInfoBarError:
+	case fluentToastError:
 		return pick(t.Dark, ui.Hex("#fde7e9"), ui.Hex("#442726")), pick(t.Dark, ui.Hex("#c42b1c"), ui.Hex("#ff99a4"))
 	}
 	return pick(t.Dark, ui.Hex("#f7f7f7"), ui.Hex("#2e2e2e")), t.Accent
@@ -158,14 +159,14 @@ func fluentInfoBarColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
 func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	t := c.Theme()
 	w, _ := c.Size()
-	severity := fluentInfoBarSeverity(ts.Type)
-	bg, iconFill := fluentInfoBarColors(t, severity)
+	severity := fluentToastSeverity(ts.Type)
+	bg, iconFill := fluentToastColors(t, severity)
 	parts.Root.Row().AlignItems(ui.Start).MinHeight(48).MaxWidth(min(w-32, 640)).PaddingStart(16).Radius(4).
 		Background(bg).Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.098))).TextColor(t.Text).FontSize(14).
 		Shadow(0, 8, 16, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
 	parts.Root.Children(func() {
 		ui.Box(c).Size(16, 16).Shrink(0).MarginY(16).MarginEnd(14).Draw(func(p *ui.Painter, r ui.Rect) {
-			fluentInfoBarIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
+			fluentToastIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
 		})
 		ui.Row(c).Grow(1).Shrink(1).Wrap().AlignItems(ui.Start).MarginEnd(16).Padding(0, 0, 14, 0).Children(func() {
 			ui.Text(c, ts.Title).FontWeight(600).Margin(14, 0, 0, 0)
@@ -187,23 +188,23 @@ func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 			dismiss.Background(hover)
 		}
 		dismiss.Children(func() {
-			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { drawCross(p, r, 0.22, 1, t.Text) })
+			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.22, 1, t.Text) })
 		})
 	})
 }
 
-// fluentInfoBarIcon draws an InfoBar's icon: the round InfoBarIconBackgroundGlyph in the severity's color, and on it in TextFillColorInverse the glyph of the severity (Segoe Fluent Icons' info, check mark, exclamation mark or cross), drawn here as paths.
-func fluentInfoBarIcon(p *ui.Painter, r ui.Rect, severity int, fill, mark ui.Color) {
+// fluentToastIcon draws an InfoBar's icon: the round InfoBarIconBackgroundGlyph in the severity's color, and on it in TextFillColorInverse the glyph of the severity (Segoe Fluent Icons' info, check mark, exclamation mark or cross), drawn here as paths.
+func fluentToastIcon(p *ui.Painter, r ui.Rect, severity int, fill, mark ui.Color) {
 	p.Fill(r, fill, r.W/2)
 	cx, cy := r.X+r.W/2, r.Y+r.H/2
 	switch severity {
-	case fluentInfoBarSuccess:
+	case fluentToastSuccess:
 		var path ui.Path
 		path.MoveTo(cx-3.5, cy+0.2).LineTo(cx-1.2, cy+2.5).LineTo(cx+3.6, cy-2.4)
 		p.StrokePath(&path, 1.3, mark)
-	case fluentInfoBarError:
-		drawCross(p, ui.Rect{X: cx - 3, Y: cy - 3, W: 6, H: 6}, 0, 1.3, mark)
-	case fluentInfoBarWarning:
+	case fluentToastError:
+		toastCross(p, ui.Rect{X: cx - 3, Y: cy - 3, W: 6, H: 6}, 0, 1.3, mark)
+	case fluentToastWarning:
 		p.Fill(ui.Rect{X: cx - 0.65, Y: cy - 4, W: 1.3, H: 5}, mark, 0.65)
 		p.Fill(ui.Rect{X: cx - 0.8, Y: cy + 2.3, W: 1.6, H: 1.6}, mark, 0.8)
 	default:
@@ -212,8 +213,8 @@ func fluentInfoBarIcon(p *ui.Painter, r ui.Rect, severity int, fill, mark ui.Col
 	}
 }
 
-// drawCross strokes an × in r, inset by a share in of its size on every side.
-func drawCross(p *ui.Painter, r ui.Rect, in, width float32, col ui.Color) {
+// toastCross strokes an × in r, inset by a share in of its size on every side.
+func toastCross(p *ui.Painter, r ui.Rect, in, width float32, col ui.Color) {
 	x0, y0, x1, y1 := r.X+r.W*in, r.Y+r.H*in, r.X+r.W*(1-in), r.Y+r.H*(1-in)
 	var path ui.Path
 	path.MoveTo(x0, y0).LineTo(x1, y1).MoveTo(x1, y0).LineTo(x0, y1)
@@ -260,7 +261,7 @@ func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 		}
 		dismiss.Children(func() {
 			// window-close-symbolic, a 16-pixel icon.
-			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { drawCross(p, r, 0.25, 1.5, white) })
+			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.25, 1.5, white) })
 		})
 	})
 }
@@ -376,7 +377,7 @@ func fluentMeter(c *ui.Context, m ui.Element, frac float32, level int) {
 	})
 }
 
-// adwMeter draws a GtkLevelBar of continuous mode: an 8-pixel $trough_color trough with round ends, and the filled block round at both ends in accent_bg_color (the .high offset), warning_bg_color (.low) at the warning level, error_bg_color at the critical one, which libadwaita has no offset for (inferred), and success_bg_color (.full) once the value reaches the top, as GtkLevelBar's default offsets do.
+// adwMeter draws a GtkLevelBar of continuous mode: an 8-pixel $trough_color trough with round ends, and the filled block round at both ends in accent_bg_color (the .high class), warning_bg_color (.low) at the warning level, error_bg_color at the critical one, which libadwaita has no class for (inferred), and success_bg_color (.full) once the value reaches the top, where GtkLevelBar's full offset is. The levels are MyGo's: GtkLevelBar's default offsets (0.25, 0.75 and 1 in gtklevelbar.c) would color a value .low up to a quarter and .full above three quarters, which a meter with levels of its own does not follow.
 func adwMeter(c *ui.Context, m ui.Element, frac float32, level int, full bool) {
 	t := c.Theme()
 	fill := t.Accent
@@ -400,19 +401,18 @@ func adwMeter(c *ui.Context, m ui.Element, frac float32, level int, full bool) {
 	})
 }
 
-// Avatar creates a picture of a person or a thing named name: the image, cropped to a circle, or initials, as the platform draws a contact without a picture: macOS's gray monogram, WinUI's PersonPicture, or libadwaita's AdwAvatar on a gradient it picks from the name. It is as high as MyGo's, 2.25 times the font size; the initials follow its size. It is ui.Avatar's counterpart: assistive technology sees an image named name.
+// Avatar creates a picture of a person or a thing named name: the image, cropped to a circle, or initials, as the platform draws a contact without a picture: macOS's gray monogram, WinUI's PersonPicture, or libadwaita's AdwAvatar on a gradient it picks from the name. It is ui.Avatar restyled, as large as MyGo's; MyGo's initials stay, transparent, under the platform's, which follow its size. It is ui.Avatar's counterpart: assistive technology sees an image named name.
 func Avatar(c *ui.Context, name string, image *ui.Bitmap) ui.Element {
 	t := c.Theme()
 	p := PlatformOf(c)
-	size := t.FontSize * 2.25
-	e := ui.Box(c).Size(size, size).Radius(size / 2).Clip().Shrink(0).Center().Role(ui.RoleImage).Label(name)
+	e := ui.Avatar(c, name, image)
 	if image != nil {
-		e.Children(func() { ui.Image(c, image).Fit(ui.Cover).Fill() })
 		if p == Windows {
 			fluentAvatarStroke(t, e)
 		}
 		return e
 	}
+	e.TextColor(ui.Transparent)
 	switch p {
 	case Windows:
 		fluentAvatar(t, e, name)
@@ -500,6 +500,9 @@ var adwAvatarColors = [14][3]ui.Color{
 
 // adwAvatarColor returns the index into adwAvatarColors that adw-avatar.c picks for text: GLib's g_str_hash (djb2 over signed bytes) modulo the 14 colors. An empty name gets a random color in libadwaita; here the first.
 func adwAvatarColor(text string) int {
+	if text == "" {
+		return 0
+	}
 	h := uint32(5381)
 	for i := 0; i < len(text); i++ {
 		h = h<<5 + h + uint32(int32(int8(text[i])))
@@ -507,8 +510,8 @@ func adwAvatarColor(text string) int {
 	return int(h % uint32(len(adwAvatarColors)))
 }
 
-// adwInitials returns the initials adw-avatar.c takes from text: uppercased and trimmed, its first character and the one after its last space.
-func adwInitials(text string) string {
+// adwAvatarInitials returns the initials adw-avatar.c takes from text: uppercased and trimmed, its first character and the one after its last space.
+func adwAvatarInitials(text string) string {
 	s := []rune(strings.TrimSpace(strings.ToUpper(text)))
 	if len(s) == 0 {
 		return ""
@@ -529,7 +532,7 @@ func adwInitials(text string) string {
 func adwAvatar(e ui.Element, name string) {
 	col := adwAvatarColors[adwAvatarColor(name)]
 	e.LinearGradient(ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: col[1], At: 0}, {Color: col[2], At: 1}}})
-	in := adwInitials(name)
+	in := adwAvatarInitials(name)
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
 		if in == "" {
 			return
@@ -549,7 +552,7 @@ type ratingLook struct {
 	box, gap, inner float32
 }
 
-// Rating creates a row of max stars of which *value are filled, as the platform draws a rating: AppKit's NSLevelIndicator of rating style, WinUI's RatingControl, and on GNOME, which has no rating control, GNOME Software's stars. A click on a star sets it, a click on the star set clears it, and the arrows, Home and End change it while it has the focus; Changed reports a new value. It is ui.Rating's counterpart, built in a column of its own: MyGo's stars are left transparent there, sized to the platform's, and the platform's are drawn over them, so the pointer, the keys, the focus and what assistive technology sees (a slider from 0 to max) are MyGo's.
+// Rating creates a row of max stars of which *value are filled, as the platform draws a rating: AppKit's NSLevelIndicator of rating style, WinUI's RatingControl, and on GNOME, which has no rating control, GNOME Software's stars. A click on a star sets it, a click on the star set clears it, and the arrows, Home and End change it while it has the focus; Changed reports a new value. It is ui.Rating's counterpart, built in a column of its own: MyGo's stars are left transparent there, sized to the platform's, and the platform's are drawn over them, so the pointer, the keys, the focus and what assistive technology sees (a slider from 0 to max) are MyGo's. It returns ui.Rating's row, inside that column: Label, Disabled and Changed work on it as on ui.Rating's, but the column, not the row, takes the place in the parent's layout, so give a margin or a grow to an element around it.
 func Rating(c *ui.Context, value *int, max int) ui.Element {
 	p := PlatformOf(c)
 	look := ratingLook{box: 11, gap: 1, inner: 0.4} // NSLevelIndicator: 12-point stars, measured, side by side
@@ -566,7 +569,9 @@ func Rating(c *ui.Context, value *int, max int) ui.Element {
 	var r ui.Element
 	ui.Themed(c, &th).Background(ui.Transparent).AlignItems(ui.Start).Children(func() { r = ui.Rating(c, value, max) })
 	t := c.Theme()
+	// Under the pointer, unless the rating or what holds it is disabled, as ui.Rating shows its own hover.
 	px, _, over := r.PointerPosition()
+	over = over && r.Hovered()
 	n := max
 	rtl := c.Direction() == ui.RightToLeft
 	// at returns the box of star i: from the start of the reading direction, as ui.Rating lays them out.

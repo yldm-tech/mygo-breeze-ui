@@ -62,15 +62,6 @@ func feedbackStories() []*story {
 			code: func(a *args) string {
 				return fmt.Sprintf("breeze.Meter(c, app.used, 0, 100, &ui.MeterLevels{Warning: %.0f, Critical: %.0f}).Label(\"Disk\")", *a.num["warning"], *a.num["critical"])
 			}},
-		{component: "Avatar", name: "Initials", category: "Feedback",
-			controls: []control{textArg("name", "Ada Lovelace")},
-			render: func(c *ui.Context, a *args) {
-				ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-					breeze.Avatar(c, *a.text["name"], nil)
-					ui.Text(c, *a.text["name"])
-				})
-			},
-			code: func(a *args) string { return "breeze.Avatar(c, " + q(*a.text["name"]) + ", nil)" }},
 		{component: "Toasts", name: "Default", category: "Feedback",
 			controls: []control{textArg("message", "Note deleted"), choiceArg("type", "info", "info", "success", "warning", "error"), toggleArg("action", true)},
 			render: func(c *ui.Context, a *args) {
@@ -100,6 +91,17 @@ func feedbackStories() []*story {
 			code: func(a *args) string {
 				return "breeze.Tooltip(c, breeze.Button(c, \"Share\"), " + q(*a.text["tip"]) + ")"
 			}},
+
+		// ---- Data ----
+		{component: "Avatar", name: "Initials", category: "Data",
+			controls: []control{textArg("name", "Ada Lovelace")},
+			render: func(c *ui.Context, a *args) {
+				ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+					breeze.Avatar(c, *a.text["name"], nil)
+					ui.Text(c, *a.text["name"])
+				})
+			},
+			code: func(a *args) string { return "breeze.Avatar(c, " + q(*a.text["name"]) + ", nil)" }},
 	}
 }
 
