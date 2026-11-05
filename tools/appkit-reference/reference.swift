@@ -79,6 +79,29 @@ func secondSet() -> [Item] {
     ]
 }
 
+// Noop is the target of controls that draw disabled without an action.
+class Noop: NSObject {
+    @objc func act(_ sender: Any?) {}
+}
+
+let noop = Noop()
+
+// inputsSet lays out the controls of TestScreenshotsInputs (inputsView in ui/breeze/widgets_inputs_test.go): two NSSecureTextFields, empty with a placeholder and holding a password, an NSComboButton of style split, and bordered push buttons showing only an image, the second disabled.
+func inputsSet() -> [Item] {
+    let empty = NSSecureTextField(string: ""); empty.placeholderString = "Password"
+    let filled = NSSecureTextField(string: "hunter2")
+    let menu = NSMenu(); menu.addItem(withTitle: "Save As…", action: nil, keyEquivalent: ""); menu.addItem(withTitle: "Save All", action: nil, keyEquivalent: "")
+    // An NSComboButton without an action draws its title disabled.
+    let combo = NSComboButton(title: "Save", menu: menu, target: noop, action: #selector(Noop.act(_:))); combo.style = .split
+    let share = NSButton(image: NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Share")!, target: nil, action: nil); share.bezelStyle = .push
+    let trash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete")!, target: nil, action: nil); trash.bezelStyle = .push; trash.isEnabled = false
+    return [
+        Item(name: "secure-field-empty", view: empty, x: 16, y: 16, size: NSSize(width: 180, height: empty.fittingSize.height)),
+        Item(name: "secure-field", view: filled, x: 220, y: 16, size: NSSize(width: 180, height: filled.fittingSize.height)),
+        Item(name: "combo-button", view: combo, x: 16, y: 64), Item(name: "image-button", view: share, x: 160, y: 64), Item(name: "image-button-disabled", view: trash, x: 220, y: 64),
+    ]
+}
+
 func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NSAppearance.Name, file: String) {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: W, height: H))
     root.appearance = NSAppearance(named: appearance)
@@ -115,4 +138,5 @@ func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NS
 for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
     render(firstSet(), width: 360, height: 200, appearance: appearance, file: "appkit-\(mode).png")
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
+    render(inputsSet(), width: 520, height: 180, appearance: appearance, file: "appkit-inputs-\(mode).png")
 }
