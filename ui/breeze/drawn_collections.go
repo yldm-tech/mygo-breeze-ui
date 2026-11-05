@@ -50,12 +50,13 @@ type collRow struct {
 	rtl                      bool
 }
 
-// collRowLook is where a collection puts the platform's row in the rect it paints: macInset and fluentInset are how far in from the row's start and end AppKit's selection and WinUI's backplate begin (negative to go past it), and pillRadius rounds WinUI's selection indicator.
+// collRowLook is where a collection puts the platform's row in the rect it paints: macInset and fluentInset are how far in from the row's start and end AppKit's selection and WinUI's backplate begin (negative to go past it), pillRadius rounds WinUI's selection indicator, and pillGrows makes it grow with a row taller than 56, as ListViewItem's does (TreeViewItem's is 16 high whatever the item's height).
 type collRowLook struct {
 	macInset, fluentInset, pillRadius float32
+	pillGrows                         bool
 }
 
-// collPaintRow paints the platform's row in r: on macOS the selection of an inset NSTableView, corners of 8 in macListSelection's color (as macListRow draws it), square on the sides of chosen rows beside it; on Windows a ListViewItem's or TreeViewItem's backplate, 2 DIPs in from the row's top and bottom (s_backplateMargin, TreeViewItemPresenterMargin 4,2), corners of 4, SubtleFillColorSecondary while chosen or under the pointer and SubtleFillColorTertiary while both (ListViewItem_themeresources.xaml, TreeView_themeresources.xaml), with the 3 by 16 DIP pill of AccentFillColorDefault at the chosen row's start (s_selectionIndicatorSize; TreeViewItem.xaml's SelectionIndicator, HorizontalAlignment Left); on GNOME a square fill, $view_selected_color (the accent at 25%, 32% under the pointer) or $view_hover_color (currentColor at 4%) (_lists.scss row:selected and row.activatable:hover, _colors.scss of libadwaita 1.10.0). The pressed rows' looks are not drawn: the press is MyGo's row's, which a cover cannot ask without taking its clicks.
+// collPaintRow paints the platform's row in r: on macOS the selection of an inset NSTableView, corners of 8 in macListSelection's color (as macListRow draws it), square on the sides of chosen rows beside it; on Windows a ListViewItem's or TreeViewItem's backplate, 2 DIPs in from the row's top and bottom (s_backplateMargin, TreeViewItemPresenterMargin 4,2), corners of 4, SubtleFillColorSecondary while chosen or under the pointer and SubtleFillColorTertiary while both (ListViewItem_themeresources.xaml, TreeView_themeresources.xaml), with the 3 by 16 DIP pill of AccentFillColorDefault at the chosen row's start (s_selectionIndicatorSize, ListViewItemSelectionIndicatorCornerRadius 1.5; TreeViewItem.xaml's SelectionIndicator, HorizontalAlignment Left, RadiusX and RadiusY 2); on GNOME a square fill, $view_selected_color (the accent at 25%, 32% under the pointer) or $view_hover_color (currentColor at 4%) (_lists.scss row:selected and row.activatable:hover, _colors.scss of libadwaita 1.10.0). The pressed rows' looks are not drawn: the press is MyGo's row's, which a cover cannot ask without taking its clicks.
 func collPaintRow(p *ui.Painter, pl Platform, t *ui.Theme, bg ui.Color, r ui.Rect, row collRow, look collRowLook) {
 	switch pl {
 	case Windows:
@@ -73,7 +74,12 @@ func collPaintRow(p *ui.Painter, pl Platform, t *ui.Theme, bg ui.Color, r ui.Rec
 			collFillCorners(p, plate, fill, 4, collSides(row, false))
 		}
 		if row.chosen && row.start {
-			h := min(plate.H, 16)
+			// s_selectionIndicatorMargin keeps 20 DIPs above and below a growing pill.
+			h := float32(16)
+			if look.pillGrows {
+				h = max(h, r.H-40)
+			}
+			h = min(plate.H, h)
 			x := plate.X
 			if row.rtl {
 				x = plate.X + plate.W - 3
@@ -361,7 +367,7 @@ func (rs *collRows) cell(c *ui.Context, i, col int, align ui.Align, lead float32
 		}
 		pt.Fill(box, bg, 0)
 		row := collRow{chosen: chosen, hovered: rs.hovered[i], focused: focused, above: rs.chosen[i-1], below: rs.chosen[i+1], start: rs.first[i] == col, end: rs.last[i] == col, rtl: rtl}
-		collPaintRow(pt, p, t, bg, box, row, collRowLook{macInset: 4, pillRadius: 1.5})
+		collPaintRow(pt, p, t, bg, box, row, collRowLook{macInset: 4, pillRadius: 1.5, pillGrows: true})
 		if branch {
 			ab := ui.Rect{X: r.X - arrow, Y: r.Y + (r.H-arrow)/2, W: arrow, H: arrow}
 			if rtl {
