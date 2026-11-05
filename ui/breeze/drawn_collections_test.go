@@ -777,3 +777,258 @@ func TestEditableTextDrawsThePlatformsFrame(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectionsShowTheFocusAfterTab checks on every platform that Tab from a button gives each drawn collection the keyboard focus and that MyGo's focus ring shows around it, over the covers: around the table, the outline, the grid and the editable text, and around the tree's first item, which takes the focus.
+func TestCollectionsShowTheFocusAfterTab(t *testing.T) {
+	for _, p := range Platforms {
+		for _, w := range []string{"Table", "Outline", "Grid", "Tree", "Edit"} {
+			s := newCollState()
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Fill().Padding(20).Gap(16).AlignItems(ui.Start).Children(func() {
+						Button(c, "Before")
+						switch w {
+						case "Table":
+							Table(c, &s.table, []ui.TableColumn{{Title: "Name"}}, 3, func(r, col int) { ui.Text(c, s.names[r]) }).Size(200, 140).Label(w)
+						case "Outline":
+							Outline(c, &s.outline, []string{"src", "go.mod"}, collChildren, func(k string) { ui.Text(c, k) }).Size(200, 140).Label(w)
+						case "Grid":
+							GridView(c, &s.grid, len(collColors), 46, 34, func(i int) { ui.Text(c, collColors[i]) }).Size(220, 90).Label(w)
+						case "Tree":
+							Tree(c, func() { TreeItem(c, "Library", &s.srcOpen, func() { TreeItem(c, "Songs", nil, nil) }) }).Width(200).Label(w)
+						case "Edit":
+							EditableText(c, &s.title).Label(w)
+						}
+					})
+				})
+			}, 320, 260)
+			tester.Frame()
+			collClick(t, tester, "Before")
+			shown := *tester.Image()
+			shown.Pix = append([]uint8(nil), shown.Pix...)
+			tester.Key(0, ui.KeyTab)
+			tester.Frame()
+			focused, ok := w, true
+			r, _ := tester.Find(w)
+			// The rows of pixels 2 DIPs outside the element taking the focus, where only its ring paints: the tree's item is its label's height and the platform's row height apart.
+			above, below := r.Y-2, r.Y+r.H+1
+			if w == "Tree" {
+				focused = "Library"
+				l, _ := tester.Find(focused)
+				h := map[Platform]float32{Mac: 24, Windows: 28, Linux: l.H + 4}[p]
+				above = l.Y - (h-l.H)/2 - 2
+				below = above + h + 3
+			}
+			if !tester.Focused(focused) {
+				t.Fatalf("%v %s: Tab did not give it the focus", p, w)
+			}
+			img := tester.Image()
+			ringed := 0
+			for x := int(r.X) + 6; x < int(r.X+r.W)-6; x++ {
+				for _, y := range []int{int(above), int(below)} {
+					if img.RGBAAt(x, y) != shown.RGBAAt(x, y) {
+						ringed++
+					}
+				}
+			}
+			if want := int(r.W) - 12; ok && ringed < want {
+				t.Fatalf("%v %s: the focus ring changed %d pixels above and below it, want %d", p, w, ringed, want)
+			}
+		}
+	}
+}
+
+// TestCollectionsDisabled checks on every platform that a disabled outline, outline table, tree and editable text refuse the pointer and the keys: a click neither chooses a row nor opens an item, its chevron does not open it, and a double click or Enter does not edit the text.
+func TestCollectionsDisabled(t *testing.T) {
+	for _, p := range Platforms {
+		th := collThemeOf(p, false)
+		orow, trow := -1, -1
+		var outline, table ui.OutlineState[string]
+		outline.List.Selected, table.List.Selected = &orow, &trow
+		open, clicked := false, false
+		name := "Draft.txt"
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				ui.Column(c).Fill().Padding(8).Gap(8).AlignItems(ui.Start).Children(func() {
+					Outline(c, &outline, []string{"src", "go.mod"}, collChildren, func(k string) { ui.Text(c, "o "+k).SingleLine() }).Size(220, 80).Label("Outline").Disabled(true)
+					OutlineTable(c, &table, []ui.TableColumn{{Title: "Name"}}, []string{"src"}, collChildren, func(k string, col int) { ui.Text(c, "t "+k).SingleLine() }).Size(220, 90).Label("Table").Disabled(true)
+					Tree(c, func() {
+						if TreeItem(c, "Library", &open, func() { TreeItem(c, "Songs", nil, nil) }).Clicked() {
+							clicked = true
+						}
+					}).Width(220).Label("Tree").Disabled(true)
+					EditableText(c, &name).Label("Name").Disabled(true)
+				})
+			})
+		}, 300, 340)
+		tester.Frame()
+		for _, s := range []string{"o go.mod", "t src", "Library"} {
+			if err := tester.Click(s); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+		}
+		if orow != -1 || trow != -1 || clicked {
+			t.Fatalf("%v: clicks on disabled collections chose outline row %d, table row %d, clicked the tree %v", p, orow, trow, clicked)
+		}
+		o, _ := tester.Find("o src")
+		tester.ClickAt(o.X-th.Space(1)-8-map[Platform]float32{Windows: 8}[p], o.Y+o.H/2)
+		tb, _ := tester.Find("t src")
+		tester.ClickAt(tb.X-8, tb.Y+tb.H/2)
+		lib, _ := tester.Find("Library")
+		tester.ClickAt(lib.X-map[Platform]float32{Mac: 0, Windows: 12, Linux: 4}[p]-8, lib.Y+lib.H/2)
+		tester.Frame()
+		if outline.Open.Has("src") || table.Open.Has("src") || open {
+			t.Fatalf("%v: a click on a disabled chevron opened the outline %v, the table %v, the tree %v", p, outline.Open.Has("src"), table.Open.Has("src"), open)
+		}
+		r, _ := tester.Find("Draft.txt")
+		tester.ClickAt(r.X+4, r.Y+r.H/2)
+		tester.ClickAt(r.X+4, r.Y+r.H/2)
+		tester.Frame()
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if collEditing(tester) {
+			t.Fatalf("%v: a disabled editable text is being edited", p)
+		}
+	}
+}
+
+// TestCollectionsTakeNilAndEmptyInput checks on every platform that what package ui accepts builds without panicking: a table and a grid without a state, which choose nothing and still show their content, a table, a grid, an outline, an outline table and a tree of nothing, a TreeItem with children but no open, which is a leaf, and an empty editable text, which a double click still edits.
+func TestCollectionsTakeNilAndEmptyInput(t *testing.T) {
+	for _, p := range Platforms {
+		var outline, table ui.OutlineState[string]
+		empty := ""
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				ui.Column(c).Fill().Padding(8).Gap(8).AlignItems(ui.Start).Children(func() {
+					Table(c, nil, []ui.TableColumn{{Title: "Name"}}, 2, func(row, col int) { ui.Text(c, []string{"One", "Two"}[row]) }).Size(200, 110)
+					Table(c, nil, nil, 0, func(row, col int) {}).Size(200, 40)
+					GridView(c, nil, 2, 60, 30, func(i int) { ui.Text(c, []string{"Left", "Right"}[i]) }).Size(200, 40)
+					GridView(c, nil, 0, 60, 30, func(i int) {}).Size(200, 20)
+					Outline(c, &outline, nil, collChildren, func(k string) { ui.Text(c, k) }).Size(200, 20)
+					OutlineTable(c, &table, []ui.TableColumn{{Title: "Kind"}}, nil, collChildren, func(k string, col int) { ui.Text(c, k) }).Size(200, 40)
+					Tree(c, func() {})
+					Tree(c, func() { TreeItem(c, "Leaf", nil, func() { TreeItem(c, "Hidden", nil, nil) }) }).Width(200)
+					EditableText(c, &empty).Label("Empty").Width(120)
+				})
+			})
+		}, 320, 480)
+		tester.Frame()
+		for _, s := range []string{"One", "Two", "Left", "Right", "Kind", "Leaf"} {
+			if !tester.HasText(s) {
+				t.Fatalf("%v: %q is missing: %v", p, s, tester.Texts())
+			}
+		}
+		if tester.HasText("Hidden") {
+			t.Fatalf("%v: a TreeItem without open showed its children", p)
+		}
+		for _, s := range []string{"Two", "Right", "Leaf"} {
+			if err := tester.Click(s); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+		}
+		r, ok := tester.Find("Empty")
+		if !ok {
+			t.Fatalf("%v: the empty editable text is missing", p)
+		}
+		tester.ClickAt(r.X+2, r.Y+r.H/2)
+		tester.ClickAt(r.X+2, r.Y+r.H/2)
+		tester.Frame()
+		tester.Type("Named")
+		tester.Frame()
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if empty != "Named" {
+			t.Fatalf("%v: editing the empty text gave %q", p, empty)
+		}
+	}
+}
+
+// TestGridViewItemsFillTheirCellsAndMirror checks on every platform that content growing in an item fills the cell inside the platform's padding (WinUI centers an item's content, which MyGo's layout would shrink to nothing), and that a right-to-left grid chooses with a click and moves the choice with the arrows the other way.
+func TestGridViewItemsFillTheirCellsAndMirror(t *testing.T) {
+	for _, p := range Platforms {
+		for _, rtl := range []bool{false, true} {
+			item := 0
+			grid := &ui.GridState{Selected: &item, Label: func(i int) string { return collColors[i] }}
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					GridView(c, grid, len(collColors), 60, 50, func(i int) {
+						ui.Column(c).Grow(1).Justify(ui.Center).Label("Swatch " + collColors[i]).Children(func() { ui.Text(c, strings.ToLower(collColors[i])) })
+					}).Size(300, 70).Label("Grid")
+				})
+			}, 320, 90)
+			if rtl {
+				tester.SetDirection(ui.RightToLeft)
+			}
+			tester.Frame()
+			name := fmt.Sprintf("%v rtl=%v", p, rtl)
+			sw, _ := tester.Find("Swatch Red")
+			pad := map[Platform]float32{Mac: 2, Windows: 2, Linux: 3}[p]
+			if want := float32(50) - 2*pad; sw.H < want-0.5 || sw.W < 40 {
+				t.Fatalf("%s: the growing content of an item is %v, want %v high and its cell's width", name, sw, want)
+			}
+			collClick(t, tester, "blue")
+			if item != 2 || !tester.Focused("Grid") {
+				t.Fatalf("%s: a click chose item %d, focused %v", name, item, tester.Focused("Grid"))
+			}
+			back := ui.KeyLeft
+			if rtl {
+				back = ui.KeyRight
+			}
+			tester.Key(0, back)
+			tester.Frame()
+			if item != 1 {
+				t.Fatalf("%s: the back arrow chose item %d, want 1", name, item)
+			}
+			red, _ := tester.Find("red")
+			green, _ := tester.Find("green")
+			if (red.X < green.X) == rtl {
+				t.Fatalf("%s: the first item is at %v and the second at %v", name, red.X, green.X)
+			}
+		}
+	}
+}
+
+// TestEditableTextInATableDrawsThePlatformsFrame checks that the frame an editable text draws while it is edited holds inside a drawn table's row, as F2 edits the chosen row's name: on Windows the input's edge is a TextBox's above its accent line, on GNOME the input's own fill, never MyGo's accent border, and Escape gives the focus back to the table.
+func TestEditableTextInATableDrawsThePlatformsFrame(t *testing.T) {
+	for _, p := range []Platform{Windows, Linux} {
+		th := collThemeOf(p, false)
+		names := append([]string(nil), collectionFiles...)
+		sel := 1
+		state := &ui.ListState{Selected: &sel}
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				Table(c, state, []ui.TableColumn{{Title: "Name"}}, len(names), func(row, col int) { EditableText(c, &names[row]).Label(fmt.Sprintf("Name %d", row)) }).Size(260, 240).Label("Files")
+			})
+		}, 300, 260)
+		tester.Frame()
+		collClick(t, tester, "Budget.xlsx")
+		tester.Key(0, ui.KeyF2)
+		tester.Frame()
+		if !collEditing(tester) {
+			t.Fatalf("%v: F2 did not edit the chosen row's name", p)
+		}
+		box, _ := tester.Find("Name 1")
+		mid := box.X + box.W/2
+		edge, bottom := collAt(tester, mid, box.Y-2.5), collAt(tester, mid, box.Y+box.H+2.5)
+		switch {
+		case collNear(edge, th.Accent, 8):
+			t.Fatalf("%v: the input's edge is MyGo's accent border %v", p, edge)
+		case p == Windows && (!collNear(edge, th.Border, 2) || !collNear(bottom, th.Accent, 2)):
+			t.Fatalf("%v: the input's edge is %v and its bottom %v, want %v and the accent %v", p, edge, bottom, th.Border, th.Accent)
+		case p == Linux && !collNear(edge, th.Background, 2):
+			t.Fatalf("%v: the input's edge is %v, want its fill %v", p, edge, th.Background)
+		}
+		tester.Key(0, ui.KeyEscape)
+		tester.Frame()
+		if collEditing(tester) || !tester.Focused("Files") || names[1] != "Budget.xlsx" {
+			t.Fatalf("%v: Escape left the name %q, editing %v, the table focused %v", p, names[1], collEditing(tester), tester.Focused("Files"))
+		}
+	}
+}

@@ -424,6 +424,8 @@ func Tree(c *ui.Context, fn func()) ui.Element {
 		items := ui.Themed(c, &th).Background(ui.Transparent).Role(ui.RoleNone)
 		// The focus of the frame before, as the column holding the items has it before they build.
 		collTreeTheme(p, t, &th, items.FocusWithin())
+		// Themed took the text's color from th before collTreeTheme set it.
+		items.TextColor(th.Text)
 		items.Children(fn)
 	})
 	if p == Linux {

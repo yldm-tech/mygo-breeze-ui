@@ -417,7 +417,7 @@ func collStyleTable(p Platform, tb ui.Element, bg ui.Color) {
 
 // ---- GridView ----
 
-// collGridChosen reports whether item i of a grid is chosen. GridState's Selector keeps its methods unexported, so a grid choosing several items is read through the exported Has of the Selection it holds when its keys are the items' indexes or strings; with keys of another type only the item last chosen, *Selected, is drawn chosen (MyGo needs a GridState.Chosen to tell them all without reflection).
+// collGridChosen reports whether item i of a grid is chosen. GridState's Selector keeps its methods unexported, so a grid choosing several items is read through the exported Has of the Selection it holds when its keys are ints (the items' indexes without Key) or strings, by a type assertion; with keys of another type only the item last chosen, *Selected, is drawn chosen (MyGo needs a GridState.Chosen to tell them all without reflection).
 func collGridChosen(s *ui.GridState, i int) bool {
 	if s == nil || s.Selected == nil {
 		return false
@@ -425,11 +425,16 @@ func collGridChosen(s *ui.GridState, i int) bool {
 	if s.Selection == nil {
 		return *s.Selected == i
 	}
-	if s.Key == nil {
+	var key any = i
+	if s.Key != nil {
+		key = s.Key(i)
+	}
+	switch k := key.(type) {
+	case int:
 		if sel, ok := s.Selection.(*ui.Selection[int]); ok {
-			return sel.Has(i)
+			return sel.Has(k)
 		}
-	} else if k, ok := s.Key(i).(string); ok {
+	case string:
 		if sel, ok := s.Selection.(*ui.Selection[string]); ok {
 			return sel.Has(k)
 		}
@@ -439,7 +444,7 @@ func collGridChosen(s *ui.GridState, i int) bool {
 
 // collGridCell gives the cover of a grid's item the platform's item. MyGo's cell (ui/gridview.go GridState.cell) is a column with a 2-DIP border, clear unless chosen, filled with the accent at 20% inside an accent border while chosen in a grid with the focus, SurfacePressed inside a Border-colored one while chosen otherwise, and SurfaceHover under the pointer; the cover reaches over its border with negative margins and paints over all of them:
 //   - macOS: NSCollectionView draws no selection of its own, so its items are drawn as an inset table's rows are (inferred): macListSelection's color with corners of 8 while chosen, white text while the grid has the focus, nothing under the pointer.
-//   - Windows: GridViewItem (GridViewItem_themeresources.xaml, ListViewBaseItemChrome.cpp): its content centered (HorizontalContentAlignment and VerticalContentAlignment Center), corners of 4 (GridViewItemCornerRadius); under the pointer SubtleFillColorSecondary inside a 1-DIP border of ControlStrokeColorOnAccentTertiary (#37000000) and the text in TextFillColorSecondary (GridViewItemForegroundPointerOver); chosen, SubtleFillColorTertiary 1 DIP in (SetBackplateMargin, as the border is opaque) inside a 2-DIP border of AccentFillColorDefault (GridViewItemSelectedBorderThickness, AccentFillColorSecondary under the pointer) and a 1-DIP inner border of ControlSolidFillColorDefault (#ffffff, #454545) with corners of 3 (s_innerBorderCornerRadius).
+//   - Windows: GridViewItem (GridViewItem_themeresources.xaml, ListViewBaseItemChrome.cpp): its content centered from top to bottom (VerticalContentAlignment Center; HorizontalContentAlignment Center is left out, as MyGo's layout gives a child of a column centered across it no more than its own width, so an item's growing content, an image with Grow(1) or a column, would shrink to nothing), corners of 4 (GridViewItemCornerRadius); under the pointer SubtleFillColorSecondary inside a 1-DIP border of ControlStrokeColorOnAccentTertiary (#37000000) and the text in TextFillColorSecondary (GridViewItemForegroundPointerOver); chosen, SubtleFillColorTertiary 1 DIP in (SetBackplateMargin, as the border is opaque) inside a 2-DIP border of AccentFillColorDefault (GridViewItemSelectedBorderThickness, AccentFillColorSecondary under the pointer) and a 1-DIP inner border of ControlSolidFillColorDefault (#ffffff, #454545) with corners of 3 (s_innerBorderCornerRadius).
 //   - GNOME: gridview > child (_views.scss): padded 3px with corners of 9 ($button_radius), $view_selected_color while chosen ($view_selected_hover_color under the pointer) and $view_hover_color under the pointer, as its items are activatable.
 //
 // MyGo's keyboard cursor ring and the line where dragged items would drop are drawn over the cover, and its gap of Space(2) between items stays (WinUI's items are 4 apart, GridViewItem's Margin 0,0,4,4).
@@ -447,7 +452,7 @@ func collGridCell(p Platform, t *ui.Theme, cover ui.Element, bg ui.Color, chosen
 	text := collText(p, t, bg, chosen, focused)
 	switch p {
 	case Windows:
-		cover.Padding(2).Justify(ui.Center).AlignItems(ui.Center)
+		cover.Padding(2).Justify(ui.Center)
 		if hovered && !chosen {
 			text = t.TextMuted
 		}
