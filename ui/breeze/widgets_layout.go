@@ -95,7 +95,7 @@ func Collapsible(c *ui.Context, label string, open *bool, fn func()) ui.Element 
 	return root
 }
 
-// macDisclosure draws an NSButton of bezel style disclosure beside its label: a 13-point box holding a chevron 8 points tall and 4 deep, stroked 1.5 points in black at 25% (white at 43.6% in Dark Aqua), pointing right and turning down as it opens, with the label 2 points after it in a row 24 points high (SwiftUI's DisclosureGroup rows, 32.5 points apart in a VStack spaced 8). The focus ring goes around the box, as AppKit draws it around the button.
+// macDisclosure draws an NSButton of bezel style disclosure beside its label: a 13-point box holding a chevron 7 points tall and 3.5 deep along its stroke's middle, stroked 1.5 points with round ends in black at 25% (white at 43.6% in Dark Aqua), pointing right and turning down as it opens, with the label 2 points after it in a row 24 points high (SwiftUI's DisclosureGroup rows, 32.5 points apart in a VStack spaced 8). The focus ring goes around the box, as AppKit draws it around the button.
 func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32) {
 	t := c.Theme()
 	ink := pick(t.Dark, t.Background.Mix(black, macDisclosureLightAlpha), t.Background.Mix(white, macDisclosureDarkAlpha))
@@ -103,7 +103,7 @@ func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32)
 	tr.AlignSelf(ui.Start).AlignItems(ui.Center).Gap(2).MinHeight(24).FocusRing(false)
 	tr.Children(func() {
 		ui.Box(c).Size(13, 13).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			strokeDisclosureChevron(p, r.X+r.W/2, r.Y+r.H/2, 90*progress, rtl, 2, 4, 4, 1.5, ink)
+			strokeDisclosureChevron(p, r.X+r.W/2, r.Y+r.H/2, 90*progress, rtl, 1.75, 3.5, 3.5, 1.5, ink)
 			if tr.FocusVisible() {
 				p.FocusRing(r, radii(3))
 			}
