@@ -43,6 +43,13 @@
       "example": "if breeze.AlertDialog(c, &app.confirm, \"Delete?\", \"This cannot be undone.\", \"Delete\", \"Cancel\") == 0 {\n\tapp.delete()\n}"
     },
     {
+      "name": "Autocomplete",
+      "category": "text",
+      "look": "drawn",
+      "description": "A text input suggesting the options that contain what was typed, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry; the list of suggestions is MyGo's in the platform's theme.",
+      "example": "breeze.Autocomplete(c, &app.city, cities).Label(\"City\")"
+    },
+    {
       "name": "Avatar",
       "category": "data",
       "look": "drawn",
@@ -148,6 +155,13 @@
       "example": "breeze.Divider(c)"
     },
     {
+      "name": "EditableText",
+      "category": "text",
+      "look": "themed",
+      "description": "A text edited in place, as a file's name in Finder: package ui's, in the platform's theme. The input it shows while editing is built inside it, out of reach of a style applied to what it returns.",
+      "example": "if breeze.EditableText(c, &app.name).Changed() {\n\tapp.rename()\n}"
+    },
+    {
       "name": "Field",
       "category": "layout",
       "look": "drawn",
@@ -183,11 +197,25 @@
       "example": "breeze.ForwardButton(c, app.router)"
     },
     {
+      "name": "GridView",
+      "category": "data",
+      "look": "themed",
+      "description": "A scrolling grid of items built as they show: package ui's, in the platform's theme. MyGo builds each item's frame around its content, so the cells of NSCollectionView, GridView and GtkGridView are not drawn.",
+      "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
+    },
+    {
       "name": "Link",
       "category": "actions",
       "look": "drawn",
       "description": "Text that opens a URL in the platform's link color: AppKit's linkColor, Windows 11's AccentTextFillColorPrimary with its pointer-over and pressed shades, libadwaita's accent_color; underlined on Windows and GNOME.",
       "example": "breeze.Link(c, \"Docs\", \"https://github.com/egoist/mygo\")"
+    },
+    {
+      "name": "List",
+      "category": "data",
+      "look": "drawn",
+      "description": "A scrolling list of rows built as they show: macOS's inset NSTableView with its rounded selection, Windows 11's ListView with the accent pill on the chosen item, or GNOME's GtkListView with the accent-tinted row. The choice, the keys and accessibility are MyGo's.",
+      "example": "breeze.List(c, &app.files, len(app.names), func(i int) {\n\tui.Text(c, app.names[i])\n})"
     },
     {
       "name": "MenuButton",
@@ -216,6 +244,20 @@
       "look": "themed",
       "description": "A field editing a number with a stepper beside it: package ui's, in the platform's theme. Its field and stepper are built inside it, out of reach of a style applied to what it returns.",
       "example": "breeze.NumberInput(c, &app.count, 0, 10, 1)"
+    },
+    {
+      "name": "Outline",
+      "category": "data",
+      "look": "themed",
+      "description": "A list of items in a tree, built as they show: package ui's, in the platform's theme. MyGo builds the arrows and the chosen row around the content, out of reach of NSOutlineView's, TreeView's or GtkTreeExpander's look.",
+      "example": "breeze.Outline(c, &app.files, roots, children, func(path string) {\n\tui.Text(c, path)\n})"
+    },
+    {
+      "name": "OutlineTable",
+      "category": "data",
+      "look": "themed",
+      "description": "An outline whose rows are a table's, the arrows in its first column: package ui's, in the platform's theme, as Table and Outline are.",
+      "example": "breeze.OutlineTable(c, &app.files, columns, roots, children, func(path string, col int) {\n\tui.Text(c, path)\n})"
     },
     {
       "name": "Popover",
@@ -433,6 +475,13 @@
       "look": "drawn",
       "description": "Toggles joined as the platform joins them: an NSSegmentedControl selecting any segments on macOS, a box.linked on GNOME, ToggleButtons side by side on Windows 11, which has no joined toggles.",
       "example": "breeze.ToggleGroup(c, func() {\n\tbreeze.Toggle(c, &app.bold, \"B\")\n\tbreeze.Toggle(c, &app.italic, \"I\")\n})"
+    },
+    {
+      "name": "TokenField",
+      "category": "text",
+      "look": "drawn",
+      "description": "A field of tokens, as of tags, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry. The chips and the suggestions are MyGo's in the platform's theme, not NSTokenField's or TokenizingTextBox's tokens; GNOME has no token field.",
+      "example": "breeze.TokenField(c, &app.tags, allTags).Label(\"Tags\")"
     },
     {
       "name": "Toolbar",
