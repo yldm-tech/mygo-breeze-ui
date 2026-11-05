@@ -1,11 +1,12 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders two sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // The window is offscreen and never key, so AppKit would draw it inactive, its accent controls (a checked box, an on switch, the default button, the chosen segment) gray. Its NSWindow subclass answers hasKeyAppearance (an NSWindow method outside the SDK's headers) with true, so they are drawn as in the active window, as Breeze UI draws them; -inactive leaves the window inactive. Materials (Liquid Glass, vibrancy), menus, popovers, tooltips and focus rings still do not render into the bitmap.
 //
 //	swift tools/appkit-reference/reference.swift [-inactive] <dir>
 import AppKit
+import SwiftUI
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
@@ -79,6 +80,51 @@ func secondSet() -> [Item] {
     ]
 }
 
+// StatusBar is the closest macOS has to an inline message bar, which breeze.InfoBar draws there: a row of a grouped Form holding a Label of an SF Symbol in the severity's color over a bold title and a secondary message, and a borderless button showing xmark. The Form insets its section 20 points, which statusSet takes back by placing the view 20 points up and to the left.
+struct StatusBar: View {
+    let symbol: String, color: Color, title: String, closable: Bool
+    var body: some View {
+        Form {
+            Section {
+                HStack(alignment: .firstTextBaseline) {
+                    Label { VStack(alignment: .leading, spacing: 2) { Text(title).bold(); Text("Some message about it.").foregroundStyle(.secondary) } } icon: { Image(systemName: symbol).foregroundStyle(color) }
+                    Spacer()
+                    if closable { Button {} label: { Image(systemName: "xmark") }.buttonStyle(.borderless) }
+                }
+            }
+        }.formStyle(.grouped).scrollDisabled(true).scrollContentBackground(.hidden)
+    }
+}
+
+// statusSet is TestScreenshotsStatus's statusView: four message bars, one of each severity, the first and the last closable, 16 from the window's edges and 68 apart, and determinate spinning progress indicators of 0.25, 0.6, 1 and 0 at the regular size and one of 0.6 at the small size below them.
+func statusSet() -> [Item] {
+    var items: [Item] = []
+    let bars: [(String, Color, String)] = [("info.circle.fill", .accentColor, "Informational"), ("checkmark.circle.fill", .green, "Success"), ("exclamationmark.triangle.fill", .yellow, "Warning"), ("xmark.octagon.fill", .red, "Error")]
+    for (i, b) in bars.enumerated() {
+        let view = NSHostingView(rootView: StatusBar(symbol: b.0, color: b.1, title: b.2, closable: i == 0 || i == 3))
+        items.append(Item(name: "bar-\(b.2.lowercased())", view: view, x: -4, y: 16 + CGFloat(i) * 68 - 20, size: NSSize(width: 568, height: 94)))
+    }
+    for (i, v) in [0.25, 0.6, 1, 0].enumerated() {
+        let ring = NSProgressIndicator(); ring.style = .spinning; ring.isIndeterminate = false; ring.minValue = 0; ring.maxValue = 1; ring.doubleValue = v
+        items.append(Item(name: "ring-\(v)", view: ring, x: 16 + CGFloat(i) * 48, y: 300, size: NSSize(width: 32, height: 32)))
+    }
+    let small = NSProgressIndicator(); small.style = .spinning; small.isIndeterminate = false; small.controlSize = .small; small.minValue = 0; small.maxValue = 1; small.doubleValue = 0.6
+    items.append(Item(name: "ring-small", view: small, x: 208, y: 308, size: NSSize(width: 16, height: 16)))
+    return items
+}
+
+// statusPageSet is TestScreenshotsStatus's statusPageView: SwiftUI's ContentUnavailableView filling the window, with a magnifying glass, a title, a description and a button.
+func statusPageSet() -> [Item] {
+    let page = NSHostingView(rootView: ContentUnavailableView {
+        Label("No Results", systemImage: "magnifyingglass")
+    } description: {
+        Text("Check the spelling or try a new search.")
+    } actions: {
+        Button("Clear Search") {}
+    })
+    return [Item(name: "content-unavailable", view: page, x: 0, y: 0, size: NSSize(width: 560, height: 420))]
+}
+
 func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NSAppearance.Name, file: String) {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: W, height: H))
     root.appearance = NSAppearance(named: appearance)
@@ -115,4 +161,6 @@ func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NS
 for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
     render(firstSet(), width: 360, height: 200, appearance: appearance, file: "appkit-\(mode).png")
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
+    render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
+    render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
 }
