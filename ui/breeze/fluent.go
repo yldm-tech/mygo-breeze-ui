@@ -308,7 +308,24 @@ func fluentUnderHalf(want, under ui.Color) ui.Color {
 // fluentSwitch draws a ToggleSwitch: a 40 by 20 track, a 1-DIP stroke while off, and a round knob of 12 DIPs that grows to 14 under the pointer and stretches to 17 wide while pressed, moving in 83 milliseconds.
 func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 	t := c.Theme()
-	hovered, pressed := sw.Hovered(), sw.Pressed()
+	fluentSwitchTrack(c, t, sw, sw.Hovered(), sw.Pressed(), on)
+	// The focus target is SwitchAreaGrid: every column of the switch's grid, the 40-DIP track, the 12-DIP gap and the On or Off content, which Breeze's switch does not show, so 52 DIPs, and its rows, 10 + 20 + 10 less its Margin 0,5, so 30 DIPs around the track; grown by FocusVisualMargin -7,-3,-7,-3 with corners of ControlCornerRadius (ToggleSwitch_themeresources.xaml).
+	sw.FocusRing(false)
+	rtl := c.Direction() == ui.RightToLeft
+	sw.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if !sw.FocusVisible() {
+			return
+		}
+		area := ui.Rect{X: r.X, Y: r.Y - 5, W: r.W + 12, H: r.H + 10}
+		if rtl {
+			area.X -= 12
+		}
+		fluentFocusRing(p, t, area, 7, 3, 7, 3, 4)
+	})
+}
+
+// fluentSwitchTrack draws a ToggleSwitch's track and knob on sw, laid over t's Background, under the pointer if hovered and pressed if pressed: the look of fluentSwitch without its focus visual, for a switch whose state is another element's, as SwitchRow's.
+func fluentSwitchTrack(c *ui.Context, t *ui.Theme, sw ui.Element, hovered, pressed, on bool) {
 	pos := knob(sw, on, 83*time.Millisecond)
 	at := along(c, pos)
 	offFill, offStroke, offInner := fluentUnchecked(t, hovered, pressed)
@@ -335,19 +352,6 @@ func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 		cx := r.X + r.H/2 + at*(r.W-r.H)
 		x := cx - h/2 - at*(w-h)
 		p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-h)/2, W: w, H: h}, knobFill, h/2)
-	})
-	// The focus target is SwitchAreaGrid: every column of the switch's grid, the 40-DIP track, the 12-DIP gap and the On or Off content, which Breeze's switch does not show, so 52 DIPs, and its rows, 10 + 20 + 10 less its Margin 0,5, so 30 DIPs around the track; grown by FocusVisualMargin -7,-3,-7,-3 with corners of ControlCornerRadius (ToggleSwitch_themeresources.xaml).
-	sw.FocusRing(false)
-	rtl := c.Direction() == ui.RightToLeft
-	sw.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if !sw.FocusVisible() {
-			return
-		}
-		area := ui.Rect{X: r.X, Y: r.Y - 5, W: r.W + 12, H: r.H + 10}
-		if rtl {
-			area.X -= 12
-		}
-		fluentFocusRing(p, t, area, 7, 3, 7, 3, 4)
 	})
 }
 

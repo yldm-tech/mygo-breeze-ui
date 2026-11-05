@@ -200,7 +200,7 @@ func Accordion(c *ui.Context, fn func()) ui.Element {
 	return a
 }
 
-// AccordionItem creates a section of an Accordion: a header showing title, which a click opens and closes, as do Enter and Space, and below it what fn builds while *open. Changed reports a click. In an Accordion it is a row of the platform's box: below a separator inset 10 points on macOS, an Expander's card on Windows, below the separator of a boxed list's rows on GNOME. Its header is MyGo's. It is ui.AccordionItem's counterpart.
+// AccordionItem creates a section of an Accordion: a header showing title, which a click opens and closes, as do Enter and Space, and below it what fn builds while *open. Changed reports a click. In an Accordion it is a row of the platform's box: below a separator inset 10 points on macOS, an Expander's card on Windows, below the separator of a boxed list's rows on GNOME. Its header is MyGo's. Rows built in fn (ActionRow, SwitchRow) reach across its content to its edges, as a DisclosureGroup's rows in a grouped form, a SettingsExpander's items and AdwExpanderRow's nested rows do. It is ui.AccordionItem's counterpart.
 func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Element {
 	first, in := true, false
 	if v, ok := accordions.Load(c); ok {
@@ -210,7 +210,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 		first, in = g.built == 1, true
 	}
 	p := PlatformOf(c)
-	item := ui.AccordionItem(c, title, open, fn)
+	item := ui.AccordionItem(c, title, open, func() { rowsCollect(c, rowsInAccordion, fn) })
 	if !in {
 		return item
 	}
@@ -238,7 +238,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	return item
 }
 
-// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. It is ui.Fieldset's counterpart.
+// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. Rows built in fn (ActionRow, SwitchRow) join as a settings page joins them: one section on macOS and a boxed list on GNOME, without the padding, and on Windows SettingsCards 4 DIPs apart. It is ui.Fieldset's counterpart.
 func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -265,7 +265,7 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 			// The labels of a form are as wide as the widest, so its fields line up only where they start and end alike.
 			box.MarginStart(-pad).MarginEnd(-pad)
 		}
-		box.Children(fn)
+		rowsFinish(c, box, rowsCollect(c, rowsInFieldset, func() { box.Children(fn) }))
 	})
 	switch p {
 	case Windows:
