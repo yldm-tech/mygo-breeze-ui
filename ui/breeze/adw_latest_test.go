@@ -226,3 +226,46 @@ func TestAdwLinkedToggleFocusRing(t *testing.T) {
 		t.Fatalf("the focused toggle's top edge is %v, want the focus ring's %v", got, want)
 	}
 }
+
+// TestAdwSidebarHeadingSpacing checks that on GNOME a section's heading sits where AdwSidebar puts it: the first one's text at the list's top padding of 6, 12 above its section's first row, and another's text 14 below the row above it.
+func TestAdwSidebarHeadingSpacing(t *testing.T) {
+	s := newNavState()
+	tester := ui.NewTester(navView(Linux, s), 800, 420)
+	tester.Frame()
+	find := func(text string) ui.Rect {
+		r, ok := tester.Find(text)
+		if !ok {
+			t.Fatalf("%q is missing", text)
+		}
+		return r
+	}
+	near := func(what string, got, want float32) {
+		if got < want-0.5 || got > want+0.5 {
+			t.Fatalf("%s is %v, want %v", what, got, want)
+		}
+	}
+	// A row is 42 high with its label centered in it.
+	rowTop := func(text string) float32 { r := find(text); return r.Y + r.H/2 - 21 }
+	head, next := find("Mailboxes"), find("Smart Mailboxes")
+	near("the first heading's top", head.Y, 6)
+	near("the space below the first heading", rowTop("Inbox")-(head.Y+head.H), 12)
+	near("the space above the second heading", next.Y-(rowTop("Drafts")+42), 14)
+	near("the space below the second heading", rowTop("Flagged")-(next.Y+next.H), 12)
+}
+
+// TestAdwAlertResponsesFit checks that on GNOME an alert's responses stay inside it when their least width of 60 would not let them fit side by side, as libadwaita would stack them.
+func TestAdwAlertResponsesFit(t *testing.T) {
+	open := true
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			AlertDialog(c, &open, "Save changes?", "Unsaved changes will be lost.", "Cancel", "Discard", "Later", "Save")
+		})
+	}, 600, 500)
+	tester.Frame()
+	// The alert is at most 372 wide, centered, its responses 24 in from its sides.
+	right := float32(600+372)/2 - 24
+	if r, ok := tester.Find("Save"); !ok || r.X+r.W > right {
+		t.Fatalf("the last response's label ends at %v, past the alert's response area at %v", r.X+r.W, right)
+	}
+}
