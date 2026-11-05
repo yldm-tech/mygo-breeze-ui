@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open) and table; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, status and statuspage; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -525,11 +525,39 @@ def table_set():
     return Scene(520, 500, root, named={"table": table, "outlinetable": outline_table, "outline": outline, "grid": grid, "tree": tree})
 
 
+def status_set():
+    """TestScreenshotsStatus's statusView: four banners, 16 from the window's edges and 68 apart, the first and the last with a Dismiss button (banners have no severity, so the four differ only in their titles), and AdwSpinners where the determinate rings are, as libadwaita has no determinate ring."""
+    items, named = [], {}
+    for i, title in enumerate(["Informational", "Success", "Warning", "Error"]):
+        banner = Adw.Banner(title=title + " Some message about it.", revealed=True)
+        if i in (0, 3):
+            banner.set_button_label("Dismiss")
+        banner.set_size_request(528, -1)
+        items.append((banner, 16, 16 + 68 * i))
+        named["banner-" + title.lower()] = banner
+    for i in range(4):
+        spinner = Adw.Spinner()
+        spinner.set_size_request(32, 32)
+        items.append((spinner, 16 + 48 * i, 300))
+    small = Adw.Spinner()
+    small.set_size_request(16, 16)
+    items.append((small, 208, 308))
+    return fixed(560, 360, items, named=named)
+
+
+def status_page_set():
+    """TestScreenshotsStatus's statusPageView: an AdwStatusPage filling the window with system-search-symbolic, a title, a description and a button."""
+    button = Gtk.Button(label="Clear Search", halign=Gtk.Align.CENTER)
+    page = Adw.StatusPage(icon_name="system-search-symbolic", title="No Results", description="Check the spelling or try a new search.", child=button)
+    return Scene(560, 420, page, named={"statuspage": page, "button": button})
+
+
 SETS = [
     ("first", "adwaita", first_set), ("second", "adwaita2", second_set), ("alert", "adwaita-alert", alert_set), ("third", "adwaita3", third_set),
     ("feedback", "adwaita-feedback", feedback_set), ("layout", "adwaita-layout", layout_set), ("nav", "adwaita-nav", nav_set),
     ("values", "adwaita-values", values_set), ("collections", "adwaita-collections", collections_set), ("forms", "adwaita-forms", forms_set),
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
+    ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
 ]
 
 
