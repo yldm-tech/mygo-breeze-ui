@@ -113,19 +113,25 @@ func TestMacDisabledCheckedMarkIsGray(t *testing.T) {
 		checked, choice := true, "a"
 		tester := ui.NewTester(macAt(40, 40, func(c *ui.Context) {
 			ui.Column(c).Gap(24).AlignItems(ui.Start).Children(func() {
-				Checkbox(c, &checked, "Disabled").Disabled(true)
-				Radio(c, &choice, "a", "Disabled").Disabled(true)
+				Checkbox(c, &checked, "Check").Disabled(true)
+				Radio(c, &choice, "a", "Choice").Disabled(true)
 			})
 		}), 300, 140)
 		tester.SetScale(2)
 		tester.SetDark(dark)
 		tester.Frame()
 		want := pick(dark, ui.RGB(175, 175, 175), ui.RGB(98, 98, 98))
+		// The box and the dot are centered on their labels, whose height follows the host's font, so their middle rows are the labels'.
+		check, ok1 := tester.Find("Check")
+		choose, ok2 := tester.Find("Choice")
+		if !ok1 || !ok2 {
+			t.Fatalf("no labels among %q", tester.Texts())
+		}
 		// The middle row of the box crosses the mark's first stroke 3.5 points in; the radio button's dot is at its center.
-		if got := macPixel(tester, 2*40+7, 2*48); !macNear(got, want, 3) {
+		if got := macPixel(tester, 2*40+7, int(2*(check.Y+check.H/2)+0.5)); !macNear(got, want, 3) {
 			t.Errorf("dark %v: disabled check mark %v, want %v", dark, got, want)
 		}
-		if got := macPixel(tester, 2*48, 2*(40+16+24+8)); !macNear(got, want, 3) {
+		if got := macPixel(tester, 2*48, int(2*(choose.Y+choose.H/2)+0.5)); !macNear(got, want, 3) {
 			t.Errorf("dark %v: disabled radio dot %v, want %v", dark, got, want)
 		}
 	}

@@ -124,6 +124,21 @@ func formsTesterAt(p Platform, dir ui.Direction, w, h int, scale float32, view f
 	return tester
 }
 
+// formsWeightsDiffer reports whether the host's font draws text at weight a with other ink than at weight b: a font family with only a regular and a bold face, as DejaVu Sans on a Linux runner, draws 400 and 500 alike, and 600 and 700 alike, so a weight drawn over MyGo's cannot show there.
+func formsWeightsDiffer(a, b int) bool {
+	var ink [2]int
+	for i, w := range []int{a, b} {
+		var th *ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			th = c.Theme()
+			ui.Column(c).Padding(16).Children(func() { ui.Text(c, "Full name Shipping").FontWeight(w) })
+		}, 300, 60)
+		tester.Frame()
+		ink[i], _ = formsInk(tester, ui.Rect{W: 300, H: 60}, th.Background, th.Text)
+	}
+	return ink[0] != ink[1]
+}
+
 // formsFind returns the box of the element showing s, failing the test without it.
 func formsFind(t *testing.T, tester *ui.Tester, s string) ui.Rect {
 	t.Helper()
@@ -638,7 +653,9 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 		if where[0] != where[1] {
 			t.Errorf("Windows %v: label, input and description at %v, with ui.Field at %v", dir, where[0], where[1])
 		}
-		if ink[0] >= ink[1] || ink[0] == 0 {
+		if !formsWeightsDiffer(400, 500) {
+			t.Logf("Windows %v: the host's font draws 400 and 500 alike, so the label's weight is not compared", dir)
+		} else if ink[0] >= ink[1] || ink[0] == 0 {
 			t.Errorf("Windows %v: the label has %d dark pixels, MyGo's %d", dir, ink[0], ink[1])
 		}
 		if d := edge[0] - edge[1]; d < -1.5 || d > 1.5 {
@@ -684,7 +701,9 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 		if d0, d1 := legendRows[0][0]-legendRows[1][0], legendRows[0][1]-legendRows[1][1]; d0 < -1 || d0 > 1 || d1 < -1 || d1 > 1 {
 			t.Errorf("GNOME %v: the legend's ink spans rows %v, MyGo's %v", dir, legendRows[0], legendRows[1])
 		}
-		if legendInk[0] <= legendInk[1] {
+		if !formsWeightsDiffer(700, 600) {
+			t.Logf("GNOME %v: the host's font draws 600 and 700 alike, so the legend's weight is not compared", dir)
+		} else if legendInk[0] <= legendInk[1] {
 			t.Errorf("GNOME %v: the bold legend has %d dark pixels, MyGo's semibold %d", dir, legendInk[0], legendInk[1])
 		}
 		if d := legendEdge[0] - legendEdge[1]; d < -1.5 || d > 1.5 {
