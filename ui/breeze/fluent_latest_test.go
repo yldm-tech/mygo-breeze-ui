@@ -132,3 +132,43 @@ func TestFluentCheckAndRadioMinWidth(t *testing.T) {
 		t.Errorf("radio button %v DIPs wide, want at least 120", radioW)
 	}
 }
+
+// TestFluentSelectFocus checks that a ComboBox with the keyboard's focus shows its template's focus look, not the system focus visual: the accent Pill 1 DIP in from the box's start, mirrored right to left, which is not there without the focus.
+func TestFluentSelectFocus(t *testing.T) {
+	for _, rtl := range []bool{false, true} {
+		sel := "Medium"
+		var box ui.Rect
+		var accent ui.Color
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Windows, func() {
+				Use(c)
+				accent = c.Theme().Accent
+				ui.Column(c).Fill().Padding(24).AlignItems(ui.Start).Children(func() {
+					box = Select(c, &sel, []string{"Small", "Medium"}).Bounds()
+				})
+			})
+		}, 240, 90)
+		if rtl {
+			tester.SetDirection(ui.RightToLeft)
+		}
+		tester.Frame()
+		tester.Frame()
+		x := int(box.X + 2)
+		if rtl {
+			x = int(box.X + box.W - 3)
+		}
+		y := int(box.Y + box.H/2)
+		pill := func() ui.Color {
+			r, g, b, a := tester.Image().At(x, y).RGBA()
+			return ui.Color{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: uint8(a >> 8)}
+		}
+		if near(pill(), accent) {
+			t.Fatalf("rtl %v: the pill shows without the focus", rtl)
+		}
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if got := pill(); !near(got, accent) {
+			t.Errorf("rtl %v: with the keyboard's focus the box's start is %v, want the accent pill %v", rtl, got, accent)
+		}
+	}
+}

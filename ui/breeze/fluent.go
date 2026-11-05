@@ -84,7 +84,7 @@ func fluentElevation(t *ui.Theme, h float32) ui.LinearGradient {
 	return ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: def, At: 0}, {Color: def, At: (h - 3) / h}, {Color: sec, At: (h - 1) / h}, {Color: sec, At: 1}}}
 }
 
-// fluentFocusRing draws WinUI's system focus visual whose outer edge is bounds, the focus target grown by the negative of its FocusVisualMargin: the 2-DIP primary stroke in FocusStrokeColorOuter (the theme's Focus) and inside it the 1-DIP secondary stroke in FocusStrokeColorInner, #B3FFFFFF in the light theme and #B3000000 in the dark one (Common_themeresources_any.xaml). The thicknesses are FocusRectManager.cpp's defaults, 2 and 1. radius is the target's corner radius; AdjustCornerRadius in the same file adds the mean of the two margins at each corner for the outer stroke and takes the primary's 2 off again for the inner one. MyGo's FocusRing draws its 2-DIP ring 1 to 3 DIPs outside the rect it is given, so it is given bounds less 3.
+// fluentFocusRing draws WinUI's system focus visual whose outer edge is bounds, the focus target grown by the negative of its FocusVisualMargin: the 2-DIP primary stroke in FocusStrokeColorOuter (the theme's Focus) and inside it the 1-DIP secondary stroke in FocusStrokeColorInner, #B3FFFFFF in the light theme and #B3000000 in the dark one (Common_themeresources_any.xaml). FocusRectManager.cpp's GetFocusOptionsForElement takes the thicknesses from the element's FocusVisualPrimaryThickness and FocusVisualSecondaryThickness, whose defaults, 2 and 1, are FrameworkElement's documented ones and not in the sources read (inferred; the same file's hyperlink focus options also use 2 and 1), and ConfigureFocusElement puts the inner stroke inside the outer one. radius is the target's corner radius; AdjustCornerRadius in the same file adds the mean of the two margins at each corner for the outer stroke and takes the primary's 2 off again for the inner one. MyGo's FocusRing draws its 2-DIP ring 1 to 3 DIPs outside the rect it is given, so it is given bounds less 3.
 func fluentFocusRing(p *ui.Painter, t *ui.Theme, target ui.Rect, start, top, end, bottom, radius float32) {
 	bounds := ui.Rect{X: target.X - start, Y: target.Y - top, W: target.W + start + end, H: target.H + top + bottom}
 	outer := radius + (top+start)/2
@@ -182,11 +182,11 @@ func fluentCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	}
 	box.Size(20, 20).Radius(4).Background(fill).Border(1, stroke)
 	// The check mark draws in by its TrimEnd from 0 to 1 over frames 15 to 34 of the 60-frame-a-second Lottie (NormalOffToNormalOn, 317 ms) along cubic-bezier(0.55,0,0,1); unchecked, it is gone within 4 frames, drawn here at once.
-	target := float32(0)
+	target, dur := float32(0), time.Duration(0)
 	if on {
-		target = 1
+		target, dur = 1, 317*time.Millisecond
 	}
-	drawn := box.AnimateWith("breeze-check", target, 317*time.Millisecond, ui.CubicBezier(0.55, 0, 0, 1))
+	drawn := box.AnimateWith("breeze-check", target, dur, ui.CubicBezier(0.55, 0, 0, 1))
 	box.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if on {
 			// AnimatedAcceptVisualSource.cpp's check, (-15.172,0.016) to (-5,10.188) to (15.337,-10.337) stroked 4 with round caps and join, in a shape scaled 0.7 at 24,23 in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box moved down 1 by the AnimatedIcon's Margin 0,1,0,-1: x = 10 + 0.30625·px, y = 10.5625 + 0.30625·py, and a stroke of 4·0.7·1.05·20/48 = 1.225 DIPs. No state scales the check, so the stroke is that at every size.
@@ -343,7 +343,7 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	})
 }
 
-// fluentSelect draws a closed ComboBox: a button's face and elevation border, 32 DIPs high and at least ComboBoxThemeMinWidth (64) wide with padding 12,5,0,7, a 12-DIP chevron 14 DIPs from its end in TextFillColorSecondary, and the focus visual 3 DIPs around it (FocusVisualMargin -3, ComboBox_themeresources.xaml).
+// fluentSelect draws a closed ComboBox: a button's face and elevation border, 32 DIPs high and at least ComboBoxThemeMinWidth (64) wide with padding 12,5,0,7, a 12-DIP chevron 14 DIPs from its end in TextFillColorSecondary. Its keyboard focus is drawn by its template, not by the system focus visual, which DefaultComboBoxStyle turns off (UseSystemFocusVisuals is IsApplicationFocusVisualKindReveal, False): in the Focused and FocusedPressed states, which ComboBox_Partial.cpp picks for focus other than the pointer's, HighlightBackground shows 4 DIPs around the box (Margin -4) with a 2-DIP ComboBoxBackgroundBorderBrushFocused edge (FocusStrokeColorOuter, the theme's Focus), ComboBoxHiglightBorderCornerRadius 7 and ComboBoxBackgroundFocused (ControlFillColorDefault) behind the box, and the 3 by 16 accent Pill (ComboBoxItemPill, AccentFillColorDefault, corners of 1.5) shows 1 DIP in from the box's start (ComboBox_themeresources.xaml).
 func fluentSelect(c *ui.Context, trigger ui.Element, selected string) {
 	t := c.Theme()
 	pressed, hovered := trigger.Pressed(), trigger.Hovered()
@@ -362,10 +362,19 @@ func fluentSelect(c *ui.Context, trigger ui.Element, selected string) {
 		trigger.Border(1, ui.Color{}).BorderLinearGradient(fluentElevation(t, 32))
 	}
 	focused := trigger.FocusVisible()
+	rtl := c.Direction() == ui.RightToLeft
 	trigger.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if focused {
-			fluentFocusRing(p, t, r, 3, 3, 3, 3, 4)
+		if !focused {
+			return
 		}
+		// HighlightBackground's fill shows only in the 2 DIPs between its edge and the box; its edge is MyGo's ring, which lies 1 to 3 DIPs outside the rect it is given.
+		p.Stroke(ui.Rect{X: r.X - 2, Y: r.Y - 2, W: r.W + 4, H: r.H + 4}, t.Surface, 5, 2)
+		p.FocusRing(ui.Rect{X: r.X - 1, Y: r.Y - 1, W: r.W + 2, H: r.H + 2}, radii(4))
+		x := r.X + 1
+		if rtl {
+			x = r.X + r.W - 1 - 3
+		}
+		p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-16)/2, W: 3, H: 16}, t.Accent, 1.5)
 	})
 	nudge := fluentChevronNudge(trigger, pressed)
 	trigger.Children(func() {
@@ -416,11 +425,12 @@ func fluentMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 		item.Background(secondary)
 	}
 	if chosen {
-		scale := float32(1)
+		// The Selected state animates no ScaleY, so the pill is whole again at once on release.
+		scale, dur := float32(1), time.Duration(0)
 		if pressed {
-			scale = 0.625
+			scale, dur = 0.625, 167*time.Millisecond
 		}
-		scale = item.AnimateWith("breeze-pill", scale, 167*time.Millisecond, ui.CubicBezier(0, 0, 0, 1))
+		scale = item.AnimateWith("breeze-pill", scale, dur, ui.CubicBezier(0, 0, 0, 1))
 		item.Draw(func(p *ui.Painter, r ui.Rect) {
 			x := r.X
 			if c.Direction() == ui.RightToLeft {
@@ -568,7 +578,7 @@ func fluentSegmentedTrack(c *ui.Context, track ui.Element) {
 	track.PaddingY(4).AlignItems(ui.Stretch)
 }
 
-// fluentSegment draws a SelectorBarItem (SelectorBar.xaml, SelectorBar_themeresources.xaml): padding 12,10,12,7 above its own 3-DIP row for the pill, text in TextFillColorPrimary, Secondary under the pointer and Tertiary pressed, while the chosen one is Secondary both under the pointer and pressed (SelectedPointerOver and SelectedPressed take SelectorBarItemForegroundPointerOver); chosen, the 4 by 3 accent pill at the bottom of the item, centered, scaled 4 wide to 16 over 167 ms along KeySpline 0,0,0,1. Its RadiusX 0.5 and RadiusY 1, scaled with it, round its corners 2 by 1, drawn here with corners of 1 as MyGo's rectangles have circular corners. The focus visual is 2 DIPs around it (SelectorBarItemFocusVisualMargin -2).
+// fluentSegment draws a SelectorBarItem (SelectorBar.xaml, SelectorBar_themeresources.xaml): padding 12,10,12,7 above its own 3-DIP row for the pill, text in TextFillColorPrimary, Secondary under the pointer and Tertiary pressed, while the chosen one is Secondary both under the pointer and pressed (SelectedPointerOver and SelectedPressed take SelectorBarItemForegroundPointerOver); chosen, the 4 by 3 accent pill at the bottom of the item, centered, scaled 4 wide to 16 and fading in over 167 ms along KeySpline 0,0,0,1. Its RadiusX 0.5 and RadiusY 1, scaled with it, round its corners 2 by 1, drawn here with corners of 1 as MyGo's rectangles have circular corners. The focus visual is 2 DIPs around it (SelectorBarItemFocusVisualMargin -2).
 func fluentSegment(c *ui.Context, seg ui.Element, chosen bool) {
 	t := c.Theme()
 	fg := t.Text
@@ -581,15 +591,16 @@ func fluentSegment(c *ui.Context, seg ui.Element, chosen bool) {
 		fg = t.TextMuted
 	}
 	seg.Padding(10, 12, 10, 12).Radius(4).Justify(ui.Center).AlignItems(ui.Center).TextColor(fg).FocusRing(false)
-	grown := float32(0)
+	// The Selected states take the pill's ScaleX to 4 and its Opacity to 1 over ComboBoxItemScaleAnimationDuration along the same spline; the Unselected ones animate neither, so it goes at once.
+	grown, dur := float32(0), time.Duration(0)
 	if chosen {
-		grown = 1
+		grown, dur = 1, 167*time.Millisecond
 	}
-	grown = seg.AnimateWith("breeze-pill", grown, 167*time.Millisecond, ui.CubicBezier(0, 0, 0, 1))
+	grown = seg.AnimateWith("breeze-pill", grown, dur, ui.CubicBezier(0, 0, 0, 1))
 	if chosen {
 		seg.Draw(func(p *ui.Painter, r ui.Rect) {
 			w := 4 + 12*grown
-			p.Fill(ui.Rect{X: r.X + (r.W-w)/2, Y: r.Y + r.H - 3, W: w, H: 3}, t.Accent, 1)
+			p.Fill(ui.Rect{X: r.X + (r.W-w)/2, Y: r.Y + r.H - 3, W: w, H: 3}, t.Accent.Alpha(grown), 1)
 		})
 	}
 	focused := seg.FocusVisible()
