@@ -120,6 +120,11 @@ func paintChecks(p *ui.Painter, r ui.Rect, size float32) {
 	}
 }
 
+// hideWellSwatch sizes a color well w by h with corners of radius and keeps MyGo's swatch inside it from showing: a transparent border half as wide as the well is high leaves its children no room to paint in, so the platform's swatch, painted over the well, is the only one, also at the half opacity of a disabled well, through which a swatch underneath would show. The well's pointer, keys, focus ring and accessibility stay MyGo's.
+func hideWellSwatch(b ui.Element, w, h, radius float32) {
+	b.Size(w, h).Padding(0).Radius(radius).Background(ui.Transparent).Border(h/2, ui.Color{}).Clip()
+}
+
 // paintSwatch paints color over r with corners of radius, over a checkerboard when it is not opaque.
 func paintSwatch(p *ui.Painter, r ui.Rect, color ui.Color, radius float32) {
 	if color.A < 255 {
@@ -201,12 +206,11 @@ func macColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 		bezel = tint(t.Background, t.Dark, macTroughDownAlpha)
 	}
 	edge := macWellEdge(color, t.Dark)
-	b.Size(48, 24).Padding(0).Radius(12).Background(ui.Transparent).Border(0, ui.Color{})
-	// The bezel is painted over MyGo's swatch, which is centered in the well and a little taller than AppKit's.
+	hideWellSwatch(b, 48, 24, 12)
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(r, bezel, r.H/2)
+		p.Stroke(r, bezel, r.H/2, 3)
 		s := ui.Rect{X: r.X + 3, Y: r.Y + 3, W: r.W - 6, H: r.H - 6}
-		p.Fill(s, edge, s.H/2)
+		p.Stroke(s, edge, s.H/2, 1)
 		in := ui.Rect{X: s.X + 1, Y: s.Y + 1, W: s.W - 2, H: s.H - 2}
 		paintSwatch(p, in, color, in.H/2)
 	})
@@ -300,7 +304,7 @@ func fluentTimeInput(c *ui.Context, f ui.Element) {
 	f.Padding(3, 10, 6, 10)
 }
 
-// fluentColorWell draws a DropDownButton showing the color, as WinUI's apps open a ColorPicker from one: a button's face and elevation border, 32 DIPs high, ButtonPadding 11 at the start, MyGo's swatch with corners of 4 (ControlCornerRadius) and a 1-DIP ControlStrokeColorDefault edge (inferred), then the ChevronDownSmall glyph, 8 DIPs in a 12-DIP box 8 after the content, in TextFillColorSecondary (Tertiary under the pointer and pressed).
+// fluentColorWell draws a DropDownButton showing the color, as WinUI's apps open a ColorPicker from one: a button's face and elevation border, 32 DIPs high; ButtonPadding 11 at the start; a swatch 36 by 20 (MyGo's size) with corners of 4 (ControlCornerRadius) and a 1-DIP ControlStrokeColorDefault edge (inferred); then the ChevronDownSmall glyph, 8 DIPs in a 12-DIP box 8 after the swatch, in TextFillColorSecondary (Tertiary under the pointer and pressed), and ButtonPadding 11 at the end: 80 DIPs wide.
 func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	t := c.Theme()
 	pressed, hovered := b.Pressed(), b.Hovered()
@@ -315,26 +319,40 @@ func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	if pressed || hovered {
 		chevron = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.545)) // TextFillColorTertiary
 	}
-	b.Height(32).Padding(5, 0).PaddingStart(11).PaddingEnd(11 + 8 + 12).Radius(4).Background(face)
-	if pressed {
-		b.Border(1, t.Border)
-	} else {
-		b.Border(1, ui.Color{}).BorderLinearGradient(fluentElevation(t, 32))
-	}
+	hideWellSwatch(b, 1+11+36+8+12+11+1, 32, 4)
 	rtl := c.Direction() == ui.RightToLeft
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		// MyGo's swatch is 36 by 20, 1 + 11 in from the start and 1 + 5 from the top.
-		x := r.X + 12
-		cx := r.X + r.W - 12 - 6
+		fluentWellBorder(p, r, t, pressed)
+		p.Fill(ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}, face, 3)
+		x, cx := r.X+12, r.X+r.W-12-6
 		if rtl {
 			x, cx = r.X+r.W-12-36, r.X+12+6
 		}
-		p.Stroke(ui.Rect{X: x, Y: r.Y + 6, W: 36, H: 20}, t.Border, 4, 1)
+		s := ui.Rect{X: x, Y: r.Y + (r.H-20)/2, W: 36, H: 20}
+		paintSwatch(p, s, color, 4)
+		p.Stroke(s, t.Border, 4, 1)
 		cy := r.Y + r.H/2
 		var path ui.Path
 		path.MoveTo(cx-4, cy-2).LineTo(cx, cy+2).LineTo(cx+4, cy-2)
 		p.StrokePath(&path, 1, chevron)
 	})
+}
+
+// fluentWellBorder strokes a button's 1-DIP border around r: ControlElevationBorderBrush (as fluentElevation lays it, its 3-DIP blend drawn as a step 2 DIPs from the edge, which keeps the strokes from overlapping), or ControlStrokeColorDefault while pressed.
+func fluentWellBorder(p *ui.Painter, r ui.Rect, t *ui.Theme, pressed bool) {
+	if pressed {
+		p.Stroke(r, t.Border, 4, 1)
+		return
+	}
+	def, sec := t.Background.Mix(black, 0.059), t.Background.Mix(black, 0.161)
+	split := r.Y + r.H - 2
+	top, bottom := def, sec
+	if t.Dark {
+		def, sec = t.Background.Mix(white, 0.071), t.Background.Mix(white, 0.094)
+		split, top, bottom = r.Y+2, sec, def
+	}
+	p.Clip(ui.Rect{X: r.X, Y: r.Y, W: r.W, H: split - r.Y}, 0, func() { p.Stroke(r, top, 4, 1) })
+	p.Clip(ui.Rect{X: r.X, Y: split, W: r.W, H: r.Y + r.H - split}, 0, func() { p.Stroke(r, bottom, 4, 1) })
 }
 
 // ---- GNOME ----
@@ -441,10 +459,9 @@ func adwColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	}
 	light := (0.30*float32(color.R)+0.59*float32(color.G)+0.11*float32(color.B))/255 > 0.5
 	edge := pick(t.Dark, adwInk, white).Alpha(pick(t.Dark, float32(0.08), 0.10))
-	b.Width(46).Height(34).Padding(5).Radius(9).Background(ui.Transparent).Border(0, ui.Color{})
-	// The face is painted over MyGo's swatch, which is shorter than GTK's.
+	hideWellSwatch(b, 36+10, 34, 9)
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(r, face, 9)
+		p.Stroke(r, face, 9, 5)
 		s := ui.Rect{X: r.X + 5, Y: r.Y + 5, W: r.W - 10, H: r.H - 10}
 		paintSwatch(p, s, color, 4.5)
 		if light {
