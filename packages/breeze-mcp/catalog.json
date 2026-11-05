@@ -316,6 +316,27 @@
       "example": "breeze.Rating(c, &app.stars, 5).Label(\"Rating\")"
     },
     {
+      "name": "Scroll",
+      "category": "layout",
+      "look": "themed",
+      "description": "A container scrolling its children vertically: package ui's, its scroll bar painted by MyGo in the platform's scroll bar color and width (the overlay knob's black or white at 50% on macOS, WinUI's ScrollBarThumbFill, GNOME's 3-pixel slider at 20%). MyGo paints the bar itself from the theme alone, so its thickness, track, arrows and growth under the pointer are MyGo's on every platform.",
+      "example": "breeze.Scroll(c).Grow(1).Children(func() {\n\tfor _, line := range app.lines {\n\t\tui.Text(c, line)\n\t}\n})"
+    },
+    {
+      "name": "ScrollBoth",
+      "category": "layout",
+      "look": "themed",
+      "description": "A container scrolling its children both ways, as a canvas or a wide table does: package ui's, its two scroll bars painted by MyGo in the platform's scroll bar color and width, as Scroll's.",
+      "example": "breeze.ScrollBoth(c).Size(400, 300).Children(func() {\n\tui.Box(c).Size(1200, 900)\n})"
+    },
+    {
+      "name": "ScrollHorizontal",
+      "category": "layout",
+      "look": "themed",
+      "description": "A row scrolling its children horizontally: package ui's, its scroll bar painted by MyGo in the platform's scroll bar color and width, as Scroll's.",
+      "example": "breeze.ScrollHorizontal(c).Gap(8).Children(func() {\n\tfor _, tag := range app.tags {\n\t\tbreeze.Button(c, tag)\n\t}\n})"
+    },
+    {
       "name": "SearchField",
       "category": "text",
       "look": "drawn",
@@ -442,11 +463,25 @@
       "example": "breeze.TextArea(c, &app.notes)"
     },
     {
+      "name": "TextAreaBuffer",
+      "category": "text",
+      "look": "drawn",
+      "description": "A multi-line text input editing a ui.TextBuffer, whose edits never copy the whole document, in the same text view as TextArea: a bezel-bordered view on macOS, a TextBox on Windows 11, a framed view on GNOME. Editing, undo, the selection, input methods and scrolling are MyGo's.",
+      "example": "breeze.TextAreaBuffer(c, app.document).Grow(1)"
+    },
+    {
       "name": "TextInput",
       "category": "text",
       "look": "drawn",
       "description": "A single-line text input in the platform's field: macOS's bezeled field with its focus ring, Windows 11's TextBox with the accent line, or GNOME's filled entry.",
       "example": "breeze.TextInput(c, &app.name).Placeholder(\"Name\")"
+    },
+    {
+      "name": "TextInputBuffer",
+      "category": "text",
+      "look": "drawn",
+      "description": "A single-line text input editing a ui.TextBuffer, in the same field as TextInput: macOS's bezeled field with its focus ring, Windows 11's TextBox with the accent line, or GNOME's filled entry. Editing, undo, the selection and input methods are MyGo's.",
+      "example": "breeze.TextInputBuffer(c, app.command).Placeholder(\"Command\")"
     },
     {
       "name": "TimeInput",
