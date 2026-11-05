@@ -43,11 +43,25 @@
       "example": "if breeze.AlertDialog(c, &app.confirm, \"Delete?\", \"This cannot be undone.\", \"Delete\", \"Cancel\") == 0 {\n\tapp.delete()\n}"
     },
     {
+      "name": "BackButton",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: a macOS 26 toolbar item, a 36-point round platter with a hairline around SF Symbols' chevron, Windows 11's NavigationView back button with its arrow, or GNOME's flat image button with go-previous-symbolic, as in a header bar.",
+      "example": "breeze.BackButton(c, app.router)"
+    },
+    {
       "name": "Badge",
       "category": "feedback",
       "look": "drawn",
       "description": "A small label for a count: Windows 11's InfoBadge in the accent color, GNOME's indicator badge; macOS has no badge control of its own and keeps MyGo's.",
       "example": "breeze.Badge(c, \"3\")"
+    },
+    {
+      "name": "Breadcrumbs",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A path whose items but the last are links: macOS's NSPathControl in secondaryLabelColor with chevrons, Windows 11's BreadcrumbBar, or the path bar of GNOME's Files, bold buttons separated by slashes in a trough.",
+      "example": "if breeze.Breadcrumbs(c, path, &app.chosen).Label(\"Path\").Changed() {\n\tapp.open(path[:app.chosen+1])\n}"
     },
     {
       "name": "Button",
@@ -111,6 +125,13 @@
       "look": "drawn",
       "description": "A column of fields: the labels in a column before the controls on macOS and GNOME, as ui.Form lays them out, and above the controls on Windows 11, 12 DIPs between fields, as its controls take their headers.",
       "example": "breeze.Form(c, func() {\n\tbreeze.Field(c, \"Name\", func() { breeze.TextInput(c, &app.name) })\n})"
+    },
+    {
+      "name": "ForwardButton",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A button going forward in a router's history, drawn as BackButton is on each platform, its glyph pointing the other way.",
+      "example": "breeze.ForwardButton(c, app.router)"
     },
     {
       "name": "Link",
@@ -202,6 +223,27 @@
       "look": "drawn",
       "description": "A drop-down choosing one of a list: macOS's pop-up button and menu, Windows 11's ComboBox with its accent pill, or GNOME's drop-down and popover.",
       "example": "breeze.Select(c, &app.size, []string{\"Small\", \"Medium\", \"Large\"})"
+    },
+    {
+      "name": "Sidebar",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A sidebar of sections and items, which the arrows and typing choose among: macOS's source list, its selection in the accent color while it has the focus and gray otherwise, Windows 11's NavigationView pane, or GNOME's navigation sidebar.",
+      "example": "breeze.Sidebar(c, &app.mailbox, func() {\n\tbreeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\t\tbreeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\")\n\t})\n}).Width(220)"
+    },
+    {
+      "name": "SidebarItem",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 36-pixel navigation sidebar row on GNOME.",
+      "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
+    },
+    {
+      "name": "SidebarSection",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or a dimmed heading on GNOME.",
+      "example": "breeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
     },
     {
       "name": "Slider",
@@ -300,6 +342,13 @@
       "look": "drawn",
       "description": "Toggles joined as the platform joins them: an NSSegmentedControl selecting any segments on macOS, a box.linked on GNOME, ToggleButtons side by side on Windows 11, which has no joined toggles.",
       "example": "breeze.ToggleGroup(c, func() {\n\tbreeze.Toggle(c, &app.bold, \"B\")\n\tbreeze.Toggle(c, &app.italic, \"I\")\n})"
+    },
+    {
+      "name": "Toolbar",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu: 52 points high with its items 8 apart as a macOS 26 window's toolbar, Windows 11's CommandBar, or GNOME's .toolbar.",
+      "example": "breeze.Toolbar(c, func() {\n\tbreeze.BackButton(c, app.router)\n\tui.Spacer(c)\n\tbreeze.Button(c, \"Share\")\n}).Label(\"Actions\")"
     },
     {
       "name": "Tree",
