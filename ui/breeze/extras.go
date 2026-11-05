@@ -87,7 +87,7 @@ func Popover(c *ui.Context, anchor ui.Element, open *bool, fn func()) ui.Element
 		Preview(c, p, func() {
 			switch p {
 			case Windows:
-				fluentFlyout(c, panel)
+				fluentFlyout(c, panel, anchor.Bounds().W)
 			case Linux:
 				adwPopover(c, panel)
 			default:

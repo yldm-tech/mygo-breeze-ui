@@ -116,7 +116,7 @@ func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32)
 	})
 }
 
-// fluentExpanderHeader draws an Expander's header: a card at least 48 DIPs high (ExpanderMinHeight) with CardBackgroundFillColorDefault inside a 1-DIP CardStrokeColorDefault border, corners of 4 (ControlCornerRadius), the bottom ones square while it is open; the header text 16 DIPs in (ExpanderHeaderPadding), and the chevron button at its end, 32 DIPs (ExpanderChevronButtonSize) with a margin of 20,0,8,0 (ExpanderChevronMargin), SubtleFillColorSecondary under the pointer and Tertiary pressed, around the 12-DIP chevron glyph (E70D, E70E), which turns from down to up.
+// fluentExpanderHeader draws an Expander's header: a card at least 48 DIPs high (ExpanderMinHeight) with CardBackgroundFillColorDefault inside a 1-DIP CardStrokeColorDefault border, corners of 4 (ControlCornerRadius), the bottom ones square while it is open; the header text 16 DIPs in (ExpanderHeaderPadding), and the chevron button at its end, 32 DIPs (ExpanderChevronButtonSize) with a margin of 20,0,8,0 (ExpanderChevronMargin), SubtleFillColorSecondary under the pointer and Tertiary pressed, around the 12-DIP chevron of AnimatedChevronUpDownSmallVisualSource, which turns from down to up.
 func fluentExpanderHeader(c *ui.Context, root, tr ui.Element, label string, progress float32) {
 	t := c.Theme()
 	fill, _, stroke := fluentExpanderCard(t)
@@ -138,8 +138,8 @@ func fluentExpanderHeader(c *ui.Context, root, tr ui.Element, label string, prog
 	tr.Children(func() {
 		ui.Text(c, label).Grow(1)
 		ui.Box(c).Size(32, 32).Shrink(0).MarginStart(20).Radius(4).Background(chevron).Draw(func(p *ui.Painter, r ui.Rect) {
-			// Segoe Fluent Icons' chevron in a 12-DIP glyph: 10 wide, 5 deep, a 1-DIP stroke (inferred from the glyph's outline).
-			strokeDisclosureChevron(p, r.X+r.W/2, r.Y+r.H/2, 90+180*progress, false, 2.5, 5, 5, 1, t.Text)
+			// AnimatedChevronUpDownSmallVisualSource's chevron in the 12-DIP glyph (ExpanderChevronGlyphSize): (-3.543,-1.793) to (0.02,1.707) to (3.489,-1.715) about the center, stroked with the sprite's default 1 and round ends and corner, scaled 4 in a 48-unit visual shown at a quarter, so 7 DIPs wide and 3.5 deep with a 1-DIP stroke (AnimatedChevronUpDownSmallVisualSource.cpp). It points down closed and turns half a turn open; the small bounce of its offset as it turns is left out.
+			strokeDisclosureChevron(p, r.X+r.W/2, r.Y+r.H/2, 90+180*progress, false, 1.75, 3.5, 3.5, 1, t.Text)
 		})
 	})
 }
