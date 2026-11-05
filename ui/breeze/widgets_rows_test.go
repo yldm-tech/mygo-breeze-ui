@@ -291,3 +291,49 @@ func TestScreenshotsRows(t *testing.T) {
 		}
 	}
 }
+
+// TestSwitchRowShowsPointerAndFocus checks the switch row's states on every platform: under the pointer its background changes on Windows and GNOME, as a clickable SettingsCard and an activatable row of a boxed list do, and stays on macOS, whose form rows do not light up; with the focus from the keyboard it shows a ring on every platform.
+func TestSwitchRowShowsPointerAndFocus(t *testing.T) {
+	for _, p := range Platforms {
+		on := false
+		tester := layoutTester(p, 420, 200, func(c *ui.Context) {
+			Use(c)
+			ui.Column(c).Padding(24).Children(func() {
+				SwitchRow(c, "Dark mode", "", &on)
+			})
+		})
+		tester.Frame()
+		row, ok := tester.Find("Dark mode")
+		if !ok {
+			t.Fatalf("%v: no row", p)
+		}
+		before := tester.Image()
+		// Inside the row before its text, which every platform insets by 10 or more.
+		x, y := int(row.X+4), int(row.Y+row.H/2)
+		rest := before.RGBAAt(x, y)
+		tester.Move(row.X+row.W/2, row.Y+row.H/2)
+		tester.Frame()
+		hover := tester.Image().RGBAAt(x, y)
+		if lit := hover != rest; lit != (p != Mac) {
+			t.Errorf("%v: under the pointer the row reads %v, at rest %v", p, hover, rest)
+		}
+		tester.Move(0, 0)
+		tester.Frame()
+		rest2 := tester.Image()
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if !tester.Focused("Dark mode") {
+			t.Fatalf("%v: Tab did not focus the row", p)
+		}
+		focused := tester.Image()
+		changed := 0
+		for i := range focused.Pix {
+			if focused.Pix[i] != rest2.Pix[i] {
+				changed++
+			}
+		}
+		if changed == 0 {
+			t.Errorf("%v: the focus from the keyboard shows no ring", p)
+		}
+	}
+}
