@@ -2,11 +2,14 @@ package breeze
 
 import (
 	"fmt"
+	"image"
+	"image/draw"
 	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -148,6 +151,113 @@ func TestScreenshots(t *testing.T) {
 				t.Fatalf("%v: the third set is missing its popover or toggles", p)
 			}
 			writeShot(t, dir, fmt.Sprintf("breeze3-%s-%s.png", strings.ToLower(p.String()), mode), third)
+		}
+	}
+}
+
+// windowsState is a control of tools/winui-reference's fifth set, which holds WinUI's controls in their PointerOver and Pressed states: where it is, the region around it that its shot is cut from, whether the pointer presses it or only moves over it, and what builds it.
+type windowsState struct {
+	x, y    float32
+	region  image.Rectangle // in DIPs
+	pressed bool
+	build   func(c *ui.Context) ui.Element
+}
+
+func windowsStates() []windowsState {
+	off, on := false, true
+	size, chosen := "S", "M"
+	volume := 40.0
+	button := func(label string, primary bool) func(c *ui.Context) ui.Element {
+		return func(c *ui.Context) ui.Element {
+			if primary {
+				return PrimaryButton(c, label)
+			}
+			return Button(c, label)
+		}
+	}
+	check := func(v *bool, label string) func(c *ui.Context) ui.Element {
+		return func(c *ui.Context) ui.Element { return Checkbox(c, v, label) }
+	}
+	sw := func(v *bool) func(c *ui.Context) ui.Element {
+		return func(c *ui.Context) ui.Element { return Switch(c, v) }
+	}
+	radio := func(v *string, label string) func(c *ui.Context) ui.Element {
+		return func(c *ui.Context) ui.Element { return Radio(c, v, "M", label) }
+	}
+	slider := func(c *ui.Context) ui.Element { return Slider(c, &volume, 0, 100).Width(180) }
+	r := func(x0, y0, x1, y1 int) image.Rectangle { return image.Rect(x0, y0, x1, y1) }
+	return []windowsState{
+		{16, 16, r(0, 0, 106, 56), false, button("Cancel", false)},
+		{110, 16, r(106, 0, 200, 56), true, button("Cancel", false)},
+		{204, 16, r(200, 0, 280, 56), false, button("Save", true)},
+		{284, 16, r(280, 0, 380, 56), true, button("Save", true)},
+		{16, 64, r(0, 56, 136, 100), false, check(&off, "Off")},
+		{140, 64, r(136, 56, 260, 100), true, check(&off, "Off")},
+		{264, 64, r(260, 56, 384, 100), false, check(&on, "On")},
+		{388, 64, r(384, 56, 520, 100), true, check(&on, "On")},
+		{16, 106, r(0, 100, 136, 146), false, sw(&off)},
+		{140, 106, r(136, 100, 260, 146), true, sw(&off)},
+		{264, 106, r(260, 100, 384, 146), false, sw(&on)},
+		{388, 106, r(384, 100, 520, 146), true, sw(&on)},
+		{16, 150, r(0, 146, 136, 188), true, radio(&size, "Off")},
+		{140, 150, r(136, 146, 260, 188), false, radio(&chosen, "On")},
+		{264, 150, r(260, 146, 384, 188), true, radio(&chosen, "On")},
+		{16, 194, r(0, 188, 210, 240), false, slider},
+		{220, 194, r(210, 188, 420, 240), true, slider},
+	}
+}
+
+// TestScreenshotsWindowsStates writes the controls of tools/winui-reference's fifth set, each under the pointer or pressed by it, as breeze-states-windows-light.png and -dark.png, cut together from one shot per control as the pointer is over one control at a time.
+func TestScreenshotsWindowsStates(t *testing.T) {
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, dark := range []bool{false, true} {
+		out := image.NewRGBA(image.Rect(0, 0, 520*2, 260*2))
+		for i, s := range windowsStates() {
+			var box ui.Rect
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, Windows, func() {
+					Use(c)
+					ui.Box(c).Fill().Children(func() {
+						ui.Box(c).Absolute().Left(s.x).Top(s.y).Children(func() { box = s.build(c).Bounds() })
+					})
+				})
+			}, 520, 260)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.Frame()
+			tester.Frame()
+			if box.W == 0 {
+				t.Fatalf("state %d: the control has no size", i)
+			}
+			// The slider is pressed on its thumb, at 40, so that its value stays.
+			px, py := box.X+box.W/2, box.Y+box.H/2
+			if box.W == 180 {
+				px = box.X + 9 + 0.4*(box.W-18)
+			}
+			tester.Move(px, py)
+			if s.pressed {
+				tester.Press(px, py)
+			}
+			tester.Advance(time.Second)
+			tester.Frame()
+			if i == 0 {
+				draw.Draw(out, out.Bounds(), tester.Image(), image.Point{}, draw.Src)
+			}
+			reg := image.Rect(s.region.Min.X*2, s.region.Min.Y*2, s.region.Max.X*2, s.region.Max.Y*2)
+			draw.Draw(out, reg, tester.Image(), reg.Min, draw.Src)
+		}
+		if dir == "" {
+			continue
+		}
+		f, err := os.Create(filepath.Join(dir, fmt.Sprintf("breeze-states-windows-%s.png", map[bool]string{false: "light", true: "dark"}[dark])))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, out); err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
 		}
 	}
 }
