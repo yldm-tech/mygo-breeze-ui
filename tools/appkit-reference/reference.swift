@@ -106,7 +106,7 @@ func rowsSet() -> [Item] {
     let privacy = RowsForm {
         Section("Privacy") {
             Toggle(isOn: .constant(true)) { Text("Location"); Text("Apps may ask for it") }
-            LabeledContent("Camera", value: "2 apps")
+            LabeledContent { EmptyView() } label: { Text("Camera"); Text("2 apps") }
         }
     }
     let network = RowsForm {
@@ -118,10 +118,10 @@ func rowsSet() -> [Item] {
     return [
         hosted("group-box", card.frame(width: 300), x: 16, y: 16, w: 300, h: 26),
         hosted("form-rows", settings, x: -4, y: 37.5, w: 340, h: 200),
-        hosted("form-row-value", storage, x: -4, y: 195.5, w: 340, h: 80),
-        hosted("form-switch-disabled", bluetooth, x: -4, y: 248, w: 340, h: 77),
-        hosted("form-section-header", privacy, x: 320, y: -4, w: 340, h: 170),
-        hosted("form-disclosure-rows", network, x: 320, y: 142, w: 340, h: 166),
+        hosted("form-row-value", storage, x: -4, y: 196.5, w: 340, h: 80),
+        hosted("form-switch-disabled", bluetooth, x: -4, y: 249.5, w: 340, h: 77),
+        hosted("form-section-header", privacy, x: 320, y: -4.5, w: 340, h: 190),
+        hosted("form-disclosure-rows", network, x: 320, y: 143, w: 340, h: 166),
     ]
 }
 
