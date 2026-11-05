@@ -106,3 +106,43 @@ func TestMacFocusRing(t *testing.T) {
 		t.Errorf("past the focus ring %v, want the window", got)
 	}
 }
+
+// TestMacDisabledCheckedMarkIsGray checks the mark of a disabled checked box and the dot of a disabled chosen radio button as AppKit draws them in a key window on macOS 27.2: 175 over the 236 box in Aqua and 98 over the 46 box in Dark Aqua. MyGo halves the opacity of each fill on its own, so the mark is composited over the box as shown.
+func TestMacDisabledCheckedMarkIsGray(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		checked, choice := true, "a"
+		tester := ui.NewTester(macAt(40, 40, func(c *ui.Context) {
+			ui.Column(c).Gap(24).AlignItems(ui.Start).Children(func() {
+				Checkbox(c, &checked, "Disabled").Disabled(true)
+				Radio(c, &choice, "a", "Disabled").Disabled(true)
+			})
+		}), 300, 140)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		want := pick(dark, ui.RGB(175, 175, 175), ui.RGB(98, 98, 98))
+		// The middle row of the box crosses the mark's first stroke 3.5 points in; the radio button's dot is at its center.
+		if got := macPixel(tester, 2*40+7, 2*48); !near(got, want, 3) {
+			t.Errorf("dark %v: disabled check mark %v, want %v", dark, got, want)
+		}
+		if got := macPixel(tester, 2*48, 2*(40+16+24+8)); !near(got, want, 3) {
+			t.Errorf("dark %v: disabled radio dot %v, want %v", dark, got, want)
+		}
+	}
+}
+
+// TestMacSliderRingOverKnob checks that the focus ring of a slider's knob is drawn over the knob's edge, as a live capture of a key window on macOS 27.2 shows it in Dark Aqua: the knob's outermost half point reads the ring over white, not white.
+func TestMacSliderRingOverKnob(t *testing.T) {
+	v := 40.0
+	tester := ui.NewTester(macAt(40, 40, func(c *ui.Context) { Slider(c, &v, 0, 100).Width(180) }), 300, 120)
+	tester.SetScale(2)
+	tester.SetDark(true)
+	tester.Frame()
+	tester.Key(0, ui.KeyTab)
+	tester.Frame()
+	// The knob's center is 10 + 0.4 of 160 points in, its edge 10 points after it.
+	edge := 2*(40+10+64+10) - 1
+	if got := macPixel(tester, edge, 2*48); got == white || !near(got, ui.RGB(150, 212, 255), 6) {
+		t.Errorf("knob edge under the ring %v, want the ring over white", got)
+	}
+}

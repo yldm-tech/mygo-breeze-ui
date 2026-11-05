@@ -177,11 +177,11 @@ func macStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 		}
 		p.Fill(fill, t.Accent, 3)
 		k := ui.Rect{X: x - kw/2, Y: r.Y + (r.H-kh)/2, W: kw, H: kh}
+		macKnobShadow(p, k)
+		p.Fill(k, knobFill, kh/2)
 		if focused {
 			macFocusRing(p, k, kh/2)
 		}
-		macKnobShadow(p, k)
-		p.Fill(k, knobFill, kh/2)
 	})
 }
 

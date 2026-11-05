@@ -159,12 +159,12 @@ func macCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	})
 }
 
-// macDisabledOn returns the box and the mark of a checked check box or a chosen radio button that is disabled: AppKit draws them gray, not in the accent, reading 236 and 175 in Aqua and 46 and 98 in Dark Aqua on screen (measured, in a key window). MyGo draws a disabled element at half opacity, so these are the colors that give those readings at half opacity over the window: black at 14.9% and 62.7% in Aqua, white at 14.2% and 60.4% in Dark Aqua (computed from the measurements).
+// macDisabledOn returns the box and the mark of a checked check box or a chosen radio button that is disabled: AppKit draws them gray, not in the accent, reading 236 and 175 in Aqua and 46 and 98 in Dark Aqua on screen (measured by reference.swift in a key window on macOS 27.2, the radio button's dot as the check box's mark). MyGo draws a disabled element at half opacity, each fill on its own, so the box is the color that reads so at half opacity over the window, black at 14.9% in Aqua and white at 14.2% in Dark Aqua, and the mark the one that reads so at half opacity over the box as shown, black at 55.3% and white at 53.3% (computed from the measurements; rendered, they read 236 and 175, 46 and 98).
 func macDisabledOn(t *ui.Theme) (box, mark ui.Color) {
-	return tint(t.Background, t.Dark, pick(t.Dark, float32(0.149), 0.142)), tint(t.Background, t.Dark, pick(t.Dark, float32(0.627), 0.604))
+	return tint(t.Background, t.Dark, pick(t.Dark, float32(0.149), 0.142)), tint(t.Background, t.Dark, pick(t.Dark, float32(0.553), 0.533))
 }
 
-// macSwitch draws an NSSwitch of macOS 26: a 54 by 24 point track with a 32 by 20 point capsule knob, 2 points in from the track's edge, and AppKit's focus ring around the track.
+// macSwitch draws an NSSwitch of macOS 26 and 27 (measured again on 27.2): a 54 by 24 point track with a 32 by 20 point capsule knob, 2 points in from the track's edge, and AppKit's focus ring around the track.
 func macSwitch(c *ui.Context, sw ui.Element, on bool) {
 	t := c.Theme()
 	pos := knob(sw, on, 200*time.Millisecond)
@@ -185,7 +185,8 @@ func macSwitch(c *ui.Context, sw ui.Element, on bool) {
 // ---- more of AppKit's controls, measured as the ones above ----
 
 const (
-	macSeparatorAlpha  = 0.294 // the line between two segments that are not chosen
+	macSeparatorAlpha  = 0.294 // the line between two segments that are not chosen, in Aqua: 180 over white
+	macSeparatorDark   = 0.311 // and in Dark Aqua: it reads 100 (reference.swift on macOS 27.2)
 	macFieldBorder     = 0.149 // an NSTextField's bezel in Aqua, black
 	macFieldBorderDark = 0.093 // and in Dark Aqua, white
 	macFieldDarkFill   = 0.267 // a text field's fill in Dark Aqua: black over the window
@@ -325,7 +326,7 @@ func macKnobShadow(p *ui.Painter, k ui.Rect) {
 	p.Shadow(k, k.H/2, 0, -1.25, 4, 0, ui.RGBA(0, 0, 0, 0.09))
 }
 
-// macSlider draws an NSSlider: a 6-point track of systemFill, filled with the accent up to a 20 by 16 point capsule knob, with AppKit's focus ring around the knob, under it.
+// macSlider draws an NSSlider: a 6-point track of systemFill, filled with the accent up to a 20 by 16 point capsule knob, with AppKit's focus ring around the knob.
 func macSlider(c *ui.Context, s ui.Element, frac float32) {
 	t := c.Theme()
 	const kw, kh = 20, 16
@@ -345,12 +346,12 @@ func macSlider(c *ui.Context, s ui.Element, frac float32) {
 		}
 		p.Fill(fill, t.Accent, 3)
 		k := ui.Rect{X: x - kw/2, Y: r.Y + (r.H-kh)/2, W: kw, H: kh}
-		if s.FocusVisible() {
-			// AppKit draws the knob over the ring: the ring reads flush outside it, 3.5 points wide (live capture).
-			macFocusRing(p, k, kh/2)
-		}
 		macKnobShadow(p, k)
 		p.Fill(k, knobFill, kh/2)
+		if s.FocusVisible() {
+			// AppKit draws the ring over the knob's edge, as around its other controls: in a live capture in Dark Aqua the knob's outermost pixel reads the ring over white.
+			macFocusRing(p, k, kh/2)
+		}
 	})
 	s.FocusRing(false)
 }
@@ -415,21 +416,22 @@ func macSegmentedTrack(c *ui.Context, track ui.Element) {
 	track.MinHeight(24).Radius(6).Background(macFace(t.Background, t.Dark)).AlignItems(ui.Stretch)
 }
 
-// macSegment draws a segment: 12 points either side of its label, a line between two that are not chosen, and the chosen one in the accent with a white label, as a key window draws it whether the control selects one segment or any (#0078f9 with a 255 label in Aqua, #067eff in Dark Aqua, measured by reference.swift on macOS 27.2; t.Accent here). AppKit's focus ring goes around the segment that has the focus.
+// macSegment draws a segment: 12 points either side of its label, a line between two that are not chosen, and the chosen one in the accent with a white label, as a key window draws it whether the control selects one segment or any (#0078f9 with a 255 label in Aqua, #067eff in Dark Aqua, measured by reference.swift on macOS 27.2; t.Accent here). The other labels are labelColor over the track's face, 36 on 235 in Aqua and 223 on 48 in Dark Aqua (measured), as a push button's. AppKit's focus ring goes around the segment that has the focus.
 func macSegment(c *ui.Context, seg ui.Element, chosen, separator bool) {
 	t := c.Theme()
-	seg.Padding(0, 12).Radius(6).Justify(ui.Center).AlignItems(ui.Center).TextColor(t.Text)
+	seg.Padding(0, 12).Radius(6).Justify(ui.Center).AlignItems(ui.Center).TextColor(tint(macFace(t.Background, t.Dark), t.Dark, 0.847))
 	switch {
 	case chosen && seg.Pressed():
 		seg.Background(t.AccentPressed).TextColor(t.AccentText)
 	case chosen:
 		seg.Background(t.Accent).TextColor(t.AccentText)
 	case seg.Pressed():
-		seg.Background(macPressed(t.Background, t.Dark))
+		face := macPressed(t.Background, t.Dark)
+		seg.Background(face).TextColor(tint(face, t.Dark, 0.847))
 	}
 	macRing(seg, 6)
 	if separator {
-		line := tint(t.Background, t.Dark, macSeparatorAlpha)
+		line := tint(t.Background, t.Dark, pick(t.Dark, float32(macSeparatorAlpha), macSeparatorDark))
 		seg.Draw(func(p *ui.Painter, r ui.Rect) {
 			x := r.X
 			if c.Direction() == ui.RightToLeft {
@@ -440,30 +442,36 @@ func macSegment(c *ui.Context, seg ui.Element, chosen, separator bool) {
 	}
 }
 
-// macTabList draws the tabs of an NSTabView, which macOS draws as a segmented control, centered over the page: a live capture of a key window on macOS 27.2 shows a 24-point strip of black at 7.5% (236 over white, white at 7.3% in Dark Aqua), a push button's face.
+// macTabList draws the tabs of an NSTabView, which macOS draws as a segmented control, centered over the page: a live capture of a key window on macOS 27.2 shows a 24-point strip of a push button's face (236 over white; white at 7.2% over the window in Dark Aqua).
 func macTabList(c *ui.Context, list ui.Element) {
 	macSegmentedTrack(c, list)
 	list.AlignSelf(ui.Center)
 }
 
-// macTab draws a tab of an NSTabView as a live capture of a key window on macOS 27.2 shows it: the chosen one a raised platter 2 points inside the strip, white in Aqua and white at 20% over the window in Dark Aqua (the strip reads 236 and the platter 255 with a 227 edge over white; 52, 81 and a 135 edge in Dark Aqua), not the accent, its label in labelColor; no lines between the others. The platter's corners, concentric with the strip's, and its shadow are inferred from the capture. AppKit's focus ring goes around the tab that has the focus (inferred from the segments').
+// macTab draws a tab of an NSTabView as a live capture of a key window on macOS 27.2 shows it, converted to sRGB: the chosen one a raised platter 1.5 points inside the strip, not the accent, white in Aqua (251 to 255) and white at 20% over the window in Dark Aqua (78 to 81 over a window tinted to 34), with a half-point edge that is lighter above and below than at the sides: 224 to 227 above and below and 167 to 190 at the sides in Aqua, 134 above and below and 17 at the sides in Dark Aqua, and under it a faint shadow (233 under it on the 236 strip). The labels are labelColor over what is under them: 39 on the platter and 36 on the strip in Aqua, 228 and 224 in Dark Aqua. There are no lines between the tabs. The platter's corners, concentric with the strip's, and the shadow's size are inferred from the capture. AppKit's focus ring goes around the tab that has the focus (inferred from the segments').
 func macTab(c *ui.Context, tab ui.Element, chosen bool) {
 	t := c.Theme()
-	tab.Padding(0, 12).Radius(6).Justify(ui.Center).AlignItems(ui.Center).TextColor(t.Text)
+	face := macFace(t.Background, t.Dark)
 	if !chosen && tab.Pressed() {
-		tab.Background(macPressed(t.Background, t.Dark))
+		face = macPressed(t.Background, t.Dark)
+		tab.Background(face)
 	}
+	tab.Padding(0, 12).Radius(6).Justify(ui.Center).AlignItems(ui.Center).TextColor(tint(face, t.Dark, 0.847))
 	macRing(tab, 6)
 	if !chosen {
 		return
 	}
 	fill := pick(t.Dark, white, tint(t.Background, true, 0.2))
-	edge := tint(fill, t.Dark, pick(t.Dark, float32(0.11), 0.3))
+	tab.TextColor(tint(fill, t.Dark, 0.847))
+	ends := tint(fill, t.Dark, pick(t.Dark, float32(0.11), 0.3))
+	sides := fill.Mix(black, pick(t.Dark, float32(0.35), 0.77))
 	tab.Draw(func(p *ui.Painter, r ui.Rect) {
-		k := ui.Rect{X: r.X + 2, Y: r.Y + 2, W: r.W - 4, H: r.H - 4}
-		p.Shadow(k, 4, 0, 0.5, 1.5, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.12), 0.4)))
-		p.Fill(k, fill, 4)
-		p.Stroke(k, edge, 4, 0.5)
+		const in, radius = 1.5, 4.5
+		k := ui.Rect{X: r.X + in, Y: r.Y + in, W: r.W - 2*in, H: r.H - 2*in}
+		p.Shadow(k, radius, 0, 0.5, 1, 0, ui.RGBA(0, 0, 0, 0.05))
+		p.Fill(k, sides, radius)
+		p.Fill(ui.Rect{X: k.X + 0.5, Y: k.Y, W: k.W - 1, H: k.H}, ends, radius-0.5)
+		p.Fill(ui.Rect{X: k.X + 0.5, Y: k.Y + 0.5, W: k.W - 1, H: k.H - 1}, fill, radius-0.5)
 	})
 }
 
