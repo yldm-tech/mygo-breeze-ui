@@ -139,7 +139,8 @@ func colorWellSwatch(p *ui.Painter, r ui.Rect, color ui.Color, radius, size floa
 
 // AppKit's controls of this group, measured as mac.go's are, from NSSlider, NSDatePicker and NSColorWell rendered at 2x on macOS 27 in Aqua and Dark Aqua.
 const (
-	macStepTickAlpha       = 0.25  // a slider's tick mark, black or white over the window
+	macStepTickAlpha       = 0.259 // a slider's tick mark in Aqua, tertiaryLabelColor: black over the window, 189 over white
+	macStepTickAlphaDark   = 0.247 // and in Dark Aqua, white: 86 over the window
 	macDateBorder          = 0.078 // NSDatePicker's bezel in Aqua, black over the window
 	macDateBorderDark      = 0.049 // and in Dark Aqua, white
 	macDateFillDark        = 0.233 // its field in Dark Aqua, black over the window
@@ -148,13 +149,13 @@ const (
 	macDatePickerMinHeight = 23    // its 21-point frame with the bezel drawn a point outside it
 )
 
-// macStepSlider draws an NSSlider with tick marks below it, as Slider draws one without: a 6-point track of systemFill, filled with the accent up to a 20 by 16 point capsule knob, and a round tick of 2 points, a quarter black (white in Dark Aqua) over the window, 3 points below the track at each step, where the knob's center comes to it. The control stays 16 points high, as AppKit's intrinsic size is; the ticks are at its bottom edge. The knob is white in Aqua and in Dark Aqua alike, as NSSlider's measured 255 in both.
+// macStepSlider draws an NSSlider with tick marks below it, as Slider draws one without: a 6-point track of systemFill, filled with the accent up to a 20 by 16 point capsule knob with AppKit's shadow and focus ring, and a round tick of 2 points in tertiaryLabelColor (measured in a key window on macOS 27.2: 189 over white, 86 over the window in Dark Aqua), 3 points below the track at each step, where the knob's center comes to it. The control stays 16 points high, as AppKit's intrinsic size is; the ticks are at its bottom edge. The knob is white in Aqua and in Dark Aqua alike, as NSSlider's measured 255 in both.
 func macStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 	t := c.Theme()
 	const kw, kh = 20, 16
 	s.Height(kh).PaddingX(kw / 2).MinWidth(60).FocusRing(false)
 	trough := tint(t.Background, t.Dark, macTroughAlpha)
-	dot := tint(t.Background, t.Dark, macStepTickAlpha)
+	dot := tint(t.Background, t.Dark, pick(t.Dark, float32(macStepTickAlpha), macStepTickAlphaDark))
 	knobFill := white
 	rtl := c.Direction() == ui.RightToLeft
 	at := along(c, frac)
@@ -176,26 +177,27 @@ func macStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 		}
 		p.Fill(fill, t.Accent, 3)
 		k := ui.Rect{X: x - kw/2, Y: r.Y + (r.H-kh)/2, W: kw, H: kh}
-		p.Shadow(k, kh/2, 0, 0.5, 2, 0, ui.RGBA(0, 0, 0, 0.25))
+		macKnobShadow(p, k)
 		p.Fill(k, knobFill, kh/2)
 		if focused {
-			p.FocusRing(k, radii(kh/2))
+			macFocusRing(p, k, kh/2)
 		}
 	})
 }
 
-// macDatePicker draws the bezel of an NSDatePicker of style textField: a 1-point line, lighter than a text field's, around a white field (darker than the window in Dark Aqua) with corners of 7, 23 points high with the line, which AppKit draws a point outside the control's 21-point frame. The focus ring goes around it while ringed, as AppKit draws it around the date picker being edited.
+// macDatePicker draws the bezel of an NSDatePicker of style textField: a 1-point line, lighter than a text field's, around a white field (darker than the window in Dark Aqua) with corners of 7, 23 points high with the line, which AppKit draws a point outside the control's 21-point frame (the bezel, fill and text measured again in a key window on macOS 27.2: 235 and 41, a 23 field in Dark Aqua, labelColor text). AppKit's focus ring goes around it while ringed or while it has the focus from the keyboard, as around a text field (macField; inferred for the date picker).
 func macDatePicker(c *ui.Context, e ui.Element, ringed bool) {
 	t := c.Theme()
 	fill, border := white, t.Background.Mix(black, macDateBorder)
 	if t.Dark {
 		fill, border = t.Background.Mix(black, macDateFillDark), t.Background.Mix(white, macDateBorderDark)
 	}
-	e.MinHeight(macDatePickerMinHeight).Radius(macDatePickerRadius).Background(fill).Border(0, ui.Color{}).TextColor(t.Text)
+	e.MinHeight(macDatePickerMinHeight).Radius(macDatePickerRadius).Background(fill).Border(0, ui.Color{}).TextColor(t.Text).FocusRing(false)
+	ringed = ringed || e.FocusVisible()
 	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		p.Stroke(r, border, macDatePickerRadius, 1)
 		if ringed {
-			p.FocusRing(r, radii(macDatePickerRadius))
+			macFocusRing(p, ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}, macDatePickerRadius-1)
 		}
 	})
 }

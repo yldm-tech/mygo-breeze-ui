@@ -1,15 +1,22 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders two sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2), writes them as PNGs and prints, for every control, its frame and the gray values along its middle row and column as runs (value x count), from which the sizes and fills in ui/breeze/mac.go were read. Grays have the same values in Display P3, which AppKit writes, and in sRGB, which MyGo writes, so they compare directly.
+// It renders two sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
-// AppKit renders the window offscreen and inactive, so accent controls (a checked box, an on switch, the default button) show gray here.
+// The window is offscreen and never key, so AppKit would draw it inactive, its accent controls (a checked box, an on switch, the default button, the chosen segment) gray. Its NSWindow subclass answers hasKeyAppearance (an NSWindow method outside the SDK's headers) with true, so they are drawn as in the active window, as Breeze UI draws them; -inactive leaves the window inactive. Materials (Liquid Glass, vibrancy), menus, popovers, tooltips and focus rings still do not render into the bitmap.
 //
-//	swift tools/appkit-reference/reference.swift <dir>
+//	swift tools/appkit-reference/reference.swift [-inactive] <dir>
 import AppKit
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
-let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
+let args = CommandLine.arguments.dropFirst()
+let inactive = args.contains("-inactive")
+let out = args.last(where: { $0 != "-inactive" }) ?? "."
+
+// A window that draws as the key window, unless -inactive.
+class KeyWindow: NSWindow {
+    @objc func hasKeyAppearance() -> Bool { !inactive }
+}
 
 struct Item {
     let name: String
@@ -19,7 +26,7 @@ struct Item {
     var size: NSSize? = nil
 }
 
-func runs(_ v: [Int]) -> String {
+func runs(_ v: [String]) -> String {
     var s: [String] = []
     var i = 0
     while i < v.count {
@@ -82,14 +89,19 @@ func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NS
         it.view.frame = NSRect(x: it.x, y: H - it.y - s.height, width: s.width, height: s.height)
         root.addSubview(it.view)
     }
-    let win = NSWindow(contentRect: NSRect(x: -4000, y: -4000, width: W, height: H), styleMask: [.borderless], backing: .buffered, defer: false)
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: W, height: H), styleMask: [.borderless], backing: .buffered, defer: false)
     win.contentView = root
     root.layoutSubtreeIfNeeded()
     root.display()
-    let rep = root.bitmapImageRepForCachingDisplay(in: root.bounds)!
+    // An sRGB bitmap at 2x: cacheDisplay draws into the bitmap's own color space.
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = root.bounds.size
     root.cacheDisplay(in: root.bounds, to: rep)
     try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
-    func gray(_ x: Int, _ y: Int) -> Int { var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y); return p[0] }
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
     print("== \(file)")
     for it in items {
         let f = it.view.frame

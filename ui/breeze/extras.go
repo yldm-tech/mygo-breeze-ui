@@ -33,7 +33,7 @@ func Divider(c *ui.Context) ui.Element {
 	case Linux:
 		d.Background(adwSeparator(t))
 	default:
-		d.Background(t.Background.Mix(pick(t.Dark, black, white), 0.098)) // separatorColor
+		d.Background(macSeparator(t.Background, t.Dark))
 	}
 	return d
 }
@@ -156,7 +156,7 @@ func Stepper(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	case Linux:
 		s.Width(34).Radius(9).Background(t.Surface).Border(0, ui.Color{})
 	default:
-		s.Width(20).Radius(6).Background(macFace(t.Background, t.Dark)).Border(0, ui.Color{})
+		macStepper(c, s)
 	}
 	return s
 }
