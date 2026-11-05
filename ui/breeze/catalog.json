@@ -22,6 +22,20 @@
   ],
   "components": [
     {
+      "name": "Accordion",
+      "category": "layout",
+      "look": "drawn",
+      "description": "Sections that open and close one above the other, Up and Down moving between their headers: a section of a grouped form on macOS, as NSBox and System Settings draw it, Expander cards 4 DIPs apart on Windows 11, or a boxed list on GNOME. The headers and their arrows are MyGo's.",
+      "example": "breeze.Accordion(c, func() {\n\tbreeze.AccordionItem(c, \"General\", &app.general, func() {})\n})"
+    },
+    {
+      "name": "AccordionItem",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A section of an Accordion: a row under a separator inset 10 points on macOS, an Expander's card on Windows 11, a row of a boxed list on GNOME; its header is MyGo's.",
+      "example": "breeze.AccordionItem(c, \"Privacy\", &app.privacy, func() {\n\tbreeze.Checkbox(c, &app.share, \"Share usage data\")\n})"
+    },
+    {
       "name": "AlertDialog",
       "category": "overlays",
       "look": "drawn",
@@ -50,6 +64,20 @@
       "example": "breeze.Checkbox(c, &app.remember, \"Remember me\")"
     },
     {
+      "name": "CheckboxGroup",
+      "category": "choices",
+      "look": "themed",
+      "description": "A check box over the check boxes it groups, checked when they all are and mixed when some are: package ui's, in the platform's theme. The boxes built with breeze.Checkbox are the platform's; the one over them is MyGo's 16-DIP box, which has no base for it, smaller than Windows 11's and GNOME's boxes below it.",
+      "example": "breeze.CheckboxGroup(c, \"Notifications\", func() {\n\tbreeze.Checkbox(c, &app.mail, \"Mail\")\n\tbreeze.Checkbox(c, &app.calendar, \"Calendar\")\n})"
+    },
+    {
+      "name": "Collapsible",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A disclosure showing its content while open: macOS's disclosure chevron beside its label, Windows 11's Expander with its header card and chevron button, or GNOME's GtkExpander arrow.",
+      "example": "breeze.Collapsible(c, \"Advanced\", &app.advanced, func() {\n\tbreeze.Checkbox(c, &app.verbose, \"Verbose logging\")\n})"
+    },
+    {
       "name": "Combobox",
       "category": "choices",
       "look": "drawn",
@@ -69,6 +97,20 @@
       "look": "drawn",
       "description": "A labeled control: in a Form the labels line up before the controls as in a macOS form; elsewhere the label is above, 8 DIPs on Windows 11 as a TextBox's header.",
       "example": "breeze.Field(c, \"Name\", func() {\n\tbreeze.TextInput(c, &app.name)\n})"
+    },
+    {
+      "name": "Fieldset",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A group of fields under a legend: a grouped form section on macOS (NSBox's fill), the fields under a Body Strong header on Windows 11, which has no group box, or a card under an AdwPreferencesGroup's title on GNOME.",
+      "example": "breeze.Fieldset(c, \"Shipping\", func() {\n\tbreeze.Field(c, \"Address\", func() { breeze.TextInput(c, &app.address) })\n})"
+    },
+    {
+      "name": "Form",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A column of fields: the labels in a column before the controls on macOS and GNOME, as ui.Form lays them out, and above the controls on Windows 11, 12 DIPs between fields, as its controls take their headers.",
+      "example": "breeze.Form(c, func() {\n\tbreeze.Field(c, \"Name\", func() { breeze.TextInput(c, &app.name) })\n})"
     },
     {
       "name": "Link",
@@ -174,6 +216,34 @@
       "look": "drawn",
       "description": "An indicator of work of unknown length: macOS's spokes, Windows 11's ProgressRing, or GNOME's AdwSpinner.",
       "example": "breeze.Spinner(c)"
+    },
+    {
+      "name": "Split",
+      "category": "layout",
+      "look": "themed",
+      "description": "Two panes side by side with a divider that a drag or the arrows move: package ui's, its 1-DIP line in the theme's border color, 1 wide as NSSplitView's thin divider and GtkPaned's separator are. MyGo's divider turns to the accent under the pointer, as none of the platforms' do, and grabs 6 DIPs.",
+      "example": "breeze.Split(c, &app.sidebar, app.files, app.editor).Fill()"
+    },
+    {
+      "name": "SplitPercent",
+      "category": "layout",
+      "look": "themed",
+      "description": "Split with the first pane's share of the room in percent: package ui's, in the platform's theme.",
+      "example": "breeze.SplitPercent(c, &app.share, app.files, app.editor).Fill()"
+    },
+    {
+      "name": "SplitVertical",
+      "category": "layout",
+      "look": "themed",
+      "description": "Split with the first pane above the second: package ui's, in the platform's theme.",
+      "example": "breeze.SplitVertical(c, &app.top, app.editor, app.console).Fill()"
+    },
+    {
+      "name": "SplitVerticalPercent",
+      "category": "layout",
+      "look": "themed",
+      "description": "SplitPercent with the first pane above the second: package ui's, in the platform's theme.",
+      "example": "breeze.SplitVerticalPercent(c, &app.share, app.editor, app.console).Fill()"
     },
     {
       "name": "Stepper",
