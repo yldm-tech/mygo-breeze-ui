@@ -14,7 +14,7 @@ type Platform uint8
 const (
 	// Auto follows the system the app runs on: Mac on macOS, Windows on Windows, Linux elsewhere.
 	Auto Platform = iota
-	// Mac draws the controls of macOS 26 and later.
+	// Mac draws the controls of macOS 26 and later, as macOS 27 draws them.
 	Mac
 	// Windows draws the controls of Windows 11 (WinUI 3, Fluent 2).
 	Windows

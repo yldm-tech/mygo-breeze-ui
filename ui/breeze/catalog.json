@@ -3,7 +3,7 @@
   "platforms": [
     {
       "name": "macOS",
-      "description": "AppKit's controls of macOS 26 and later, measured from AppKit's own rendering.",
+      "description": "AppKit's controls of macOS 26 and 27, measured from AppKit's own rendering on macOS 27.2 in a key window.",
       "value": "macOS 26+",
       "example": "breeze.SetPlatform(breeze.Mac)"
     },
@@ -15,8 +15,8 @@
     },
     {
       "name": "Linux",
-      "description": "GNOME's libadwaita controls, from the libadwaita 1.7 stylesheet.",
-      "value": "GNOME 48",
+      "description": "GNOME's libadwaita controls, from the libadwaita 1.10 stylesheet (GTK 4.24, adwaita-icon-theme 51).",
+      "value": "GNOME 51",
       "example": "breeze.SetPlatform(breeze.Linux)"
     }
   ],
@@ -60,7 +60,7 @@
       "name": "BackButton",
       "category": "navigation",
       "look": "drawn",
-      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: a macOS 26 toolbar item, a 36-point round platter with a hairline around SF Symbols' chevron, Windows 11's NavigationView back button with its arrow, or GNOME's flat image button with go-previous-symbolic, as in a header bar.",
+      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: a macOS toolbar item, a 36-point platter with a hairline around SF Symbols' chevron, shared with ForwardButton in a Toolbar, Windows 11's NavigationView back button with its arrow, or GNOME's flat image button with go-previous-symbolic, as in a header bar.",
       "example": "breeze.BackButton(c, app.router)"
     },
     {
@@ -81,7 +81,7 @@
       "name": "Button",
       "category": "actions",
       "look": "drawn",
-      "description": "A push button: macOS's push button, Windows 11's button with its elevation border, or GNOME's text button.",
+      "description": "A push button: macOS's push button, Windows 11's button with its elevation border, or GNOME's text button; in a Toolbar, the platform's toolbar item: a 36-point capsule on macOS, an AppBarButton on Windows 11, a raised text button on GNOME.",
       "example": "if breeze.Button(c, \"Cancel\").Clicked() {\n\tapp.cancel()\n}"
     },
     {
@@ -137,7 +137,7 @@
       "name": "DateInput",
       "category": "text",
       "look": "drawn",
-      "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, Windows 11's CalendarDatePicker, or a GNOME entry, as GTK has no date field. The calendar icon and the calendar are MyGo's.",
+      "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, without an icon, Windows 11's CalendarDatePicker, or a GNOME entry with its icon at 70%, as GTK has no date field. The calendar is MyGo's.",
       "example": "breeze.DateInput(c, &app.due).Label(\"Due\")"
     },
     {
@@ -165,14 +165,14 @@
       "name": "Field",
       "category": "layout",
       "look": "drawn",
-      "description": "A labeled control: in a Form the labels line up before the controls as in a macOS form; elsewhere the label is above, 8 DIPs on Windows 11 as a TextBox's header.",
+      "description": "A labeled control: in a Form the labels line up before the controls as in a macOS form; elsewhere the label is above, 8 DIPs on Windows 11 at regular weight as a TextBox's header.",
       "example": "breeze.Field(c, \"Name\", func() {\n\tbreeze.TextInput(c, &app.name)\n})"
     },
     {
       "name": "Fieldset",
       "category": "layout",
       "look": "drawn",
-      "description": "A group of fields under a legend: a grouped form section on macOS (NSBox's fill), the fields under a Body Strong header on Windows 11, which has no group box, or a card under an AdwPreferencesGroup's title on GNOME.",
+      "description": "A group of fields under a legend: a grouped form section on macOS (NSBox's fill), the fields under a Body Strong header on Windows 11, which has no group box, or a card under an AdwPreferencesGroup's bold title on GNOME.",
       "example": "breeze.Fieldset(c, \"Shipping\", func() {\n\tbreeze.Field(c, \"Address\", func() { breeze.TextInput(c, &app.address) })\n})"
     },
     {
@@ -221,7 +221,7 @@
       "name": "MenuButton",
       "category": "actions",
       "look": "drawn",
-      "description": "A button drawn as the platform's pull-down button, opening the system's own native menu.",
+      "description": "A button drawn as the platform's pull-down button with its chevron, or as a toolbar item in a Toolbar, opening the system's own native menu.",
       "example": "breeze.MenuButton(c, \"Sort\", func(m *ui.Menu) {\n\tm.Item(\"Name\")\n})"
     },
     {
@@ -270,14 +270,14 @@
       "name": "PopoverMenuButton",
       "category": "actions",
       "look": "drawn",
-      "description": "A button drawn as the platform's pull-down button, opening a menu MyGo draws in the window in the platform's theme.",
+      "description": "A button drawn as the platform's pull-down button with its chevron, or as a toolbar item in a Toolbar, opening a menu MyGo draws in the window in the platform's menu colors and corners.",
       "example": "breeze.PopoverMenuButton(c, \"More\", func(m *ui.Menu) {\n\tm.Item(\"Rename\")\n})"
     },
     {
       "name": "PrimaryButton",
       "category": "actions",
       "look": "drawn",
-      "description": "The main action in the accent color: macOS's default button, Windows 11's accent button or GNOME's suggested action.",
+      "description": "The main action in the accent color: macOS's default button, Windows 11's accent button or GNOME's suggested action; in a Toolbar, the platform's toolbar item.",
       "example": "if breeze.PrimaryButton(c, \"Save\").Clicked() {\n\tapp.save()\n}"
     },
     {
@@ -326,7 +326,7 @@
       "name": "Segmented",
       "category": "choices",
       "look": "drawn",
-      "description": "A segmented control choosing one of a few views: macOS's NSSegmentedControl, Windows 11's SelectorBar, or GNOME's AdwToggleGroup.",
+      "description": "A segmented control choosing one of a few views: macOS's NSSegmentedControl, the chosen segment in the accent color as a key window draws it, Windows 11's SelectorBar, or GNOME's AdwToggleGroup.",
       "example": "breeze.Segmented(c, &app.view, \"Day\", \"Week\", \"Month\")"
     },
     {
@@ -340,21 +340,21 @@
       "name": "Sidebar",
       "category": "navigation",
       "look": "drawn",
-      "description": "A sidebar of sections and items, which the arrows and typing choose among: macOS's source list, its selection in the accent color while it has the focus and gray otherwise, Windows 11's NavigationView pane, or GNOME's navigation sidebar.",
+      "description": "A sidebar of sections and items, which the arrows and typing choose among: macOS's source list, its selection in the accent color while it has the focus and gray otherwise, Windows 11's NavigationView pane, or GNOME's AdwSidebar.",
       "example": "breeze.Sidebar(c, &app.mailbox, func() {\n\tbreeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\t\tbreeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\")\n\t})\n}).Width(220)"
     },
     {
       "name": "SidebarItem",
       "category": "navigation",
       "look": "drawn",
-      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 36-pixel navigation sidebar row on GNOME.",
+      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 42-pixel AdwSidebar row on GNOME.",
       "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
     },
     {
       "name": "SidebarSection",
       "category": "navigation",
       "look": "drawn",
-      "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or a dimmed heading on GNOME.",
+      "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or AdwSidebar's bold heading on GNOME.",
       "example": "breeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
     },
     {
@@ -431,7 +431,7 @@
       "name": "Tabs",
       "category": "navigation",
       "look": "drawn",
-      "description": "Tabs choosing a page: macOS's tab view, Windows 11's SelectorBar, or GNOME's notebook tabs.",
+      "description": "Tabs choosing a page: macOS's tab view with the chosen tab on a raised platter, Windows 11's SelectorBar, or GNOME's notebook tabs.",
       "example": "breeze.Tabs(c, &app.tab, \"General\", \"Advanced\")"
     },
     {
@@ -452,7 +452,7 @@
       "name": "TimeInput",
       "category": "text",
       "look": "drawn",
-      "description": "A field of a time of day whose hours, minutes and half of the day each take the focus: in macOS's NSDatePicker bezel, Windows 11's TimePicker button, 242 wide with the segments spread across it, or a GNOME entry. The segments, their keys and the colon between the hours and the minutes are MyGo's.",
+      "description": "A field of a time of day whose hours, minutes and half of the day each take the focus: in macOS's NSDatePicker bezel with the colon in labelColor, Windows 11's TimePicker button, 242 wide with the segments spread across it, or a GNOME entry. The segments and their keys are MyGo's.",
       "example": "breeze.TimeInput(c, &app.alarm).Label(\"Alarm\")"
     },
     {
@@ -466,7 +466,7 @@
       "name": "Toggle",
       "category": "actions",
       "look": "drawn",
-      "description": "A button that stays pressed: macOS's push-on-push-off button, Windows 11's ToggleButton in the accent color, or GNOME's checked toggle button.",
+      "description": "A button that stays pressed: macOS's push-on-push-off button, in the accent color while on as a key window draws it, Windows 11's ToggleButton in the accent color, or GNOME's checked toggle button; in a Toolbar, the platform's toolbar item.",
       "example": "breeze.Toggle(c, &app.bold, \"Bold\")"
     },
     {
@@ -487,7 +487,7 @@
       "name": "Toolbar",
       "category": "actions",
       "look": "drawn",
-      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu: 52 points high with its items 8 apart as a macOS 26 window's toolbar, Windows 11's CommandBar, or GNOME's .toolbar.",
+      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu, its buttons, toggles and menu buttons drawn as the platform's toolbar items: 52 points high with 36-point capsules 8 apart as a macOS window's toolbar, adjacent image items sharing a platter, Windows 11's CommandBar with AppBarButtons, or GNOME's .toolbar with flat image buttons.",
       "example": "breeze.Toolbar(c, func() {\n\tbreeze.BackButton(c, app.router)\n\tui.Spacer(c)\n\tbreeze.Button(c, \"Share\")\n}).Label(\"Actions\")"
     },
     {
