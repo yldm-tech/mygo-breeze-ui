@@ -196,6 +196,16 @@ func TextArea(c *ui.Context, value *string) ui.Element {
 	return styleField(c, ui.TextArea(c, value), multiLine)
 }
 
+// TextInputBuffer creates a single-line text input editing value, a ui.TextBuffer whose edits never copy the whole document, in the box TextInput draws: the same bezel, focus ring, fill, placeholder and disabled look on every platform. Editing, the selection, undo, input methods and assistive technology are MyGo's, as ui.TextInputBuffer gives them; MyGo styles a buffer input with the padding, background, border and corners of ui.TextInput (styledBufferInput in textbuffer_input.go), which styleField replaces as it does TextInput's. It is ui.TextInputBuffer's counterpart.
+func TextInputBuffer(c *ui.Context, value *ui.TextBuffer) ui.Element {
+	return styleField(c, ui.TextInputBuffer(c, value), singleLine)
+}
+
+// TextAreaBuffer creates a multi-line text input editing value, a ui.TextBuffer whose edits never copy the whole document and whose layout keeps only the paragraphs in view, in the box TextArea draws: the same text view frame, focus ring, fill and disabled look on every platform. Editing, the selection, undo, input methods, its scrolling and assistive technology are MyGo's, as ui.TextAreaBuffer gives them. It is ui.TextAreaBuffer's counterpart.
+func TextAreaBuffer(c *ui.Context, value *ui.TextBuffer) ui.Element {
+	return styleField(c, ui.TextAreaBuffer(c, value), multiLine)
+}
+
 // SearchField creates a field for a search query with a magnifying glass, and a button clearing it while it holds text, as the platform's search fields look. It is ui.SearchField's counterpart.
 func SearchField(c *ui.Context, query *string) ui.Element {
 	return styleField(c, ui.SearchField(c, query), searchLine)

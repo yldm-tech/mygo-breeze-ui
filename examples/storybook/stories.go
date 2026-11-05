@@ -103,6 +103,7 @@ func stories() []*story {
 func baseStories() []*story {
 	sizes := []string{"Small", "Medium", "Large"}
 	fonts := []string{"Serif", "Sans", "Mono"}
+	var command, document bufferArg
 	return []*story{
 		// ---- Actions ----
 		{component: "Button", name: "Default", category: "Actions",
@@ -252,6 +253,24 @@ func baseStories() []*story {
 				disabled(a, breeze.TextArea(c, a.text["value"]).Size(300, 120).Label("Notes"))
 			},
 			code: func(*args) string { return "breeze.TextArea(c, &app.notes)" }},
+		{component: "TextInputBuffer", name: "Default", category: "Text",
+			controls: []control{textArg("value", ""), textArg("placeholder", "Command"), toggleArg("disabled", false)},
+			render: func(c *ui.Context, a *args) {
+				doc := command.bind(a.text["value"])
+				disabled(a, breeze.TextInputBuffer(c, doc).Placeholder(*a.text["placeholder"]).Width(260).Label("Command"))
+			},
+			code: func(a *args) string {
+				return "app.command = ui.NewTextBuffer(\"\")\n// ...\nbreeze.TextInputBuffer(c, app.command).Placeholder(" + q(*a.text["placeholder"]) + ")"
+			}},
+		{component: "TextAreaBuffer", name: "Default", category: "Text",
+			controls: []control{textArg("value", "Notes for the meeting"), toggleArg("disabled", false)},
+			render: func(c *ui.Context, a *args) {
+				doc := document.bind(a.text["value"])
+				disabled(a, breeze.TextAreaBuffer(c, doc).Size(300, 120).Label("Notes"))
+			},
+			code: func(*args) string {
+				return "app.document = ui.NewTextBuffer(text)\n// ...\nbreeze.TextAreaBuffer(c, app.document)"
+			}},
 		{component: "NumberInput", name: "Default", category: "Text",
 			controls: []control{numberArg("value", 12, 0, 100)},
 			render: func(c *ui.Context, a *args) {
@@ -401,6 +420,26 @@ func baseStories() []*story {
 				return "breeze.Tree(c, func() {\n\tbreeze.TreeItem(c, \"src\", &app.srcOpen, func() {\n\t\tbreeze.TreeItem(c, \"main.go\", nil, nil)\n\t})\n})"
 			}},
 	}
+}
+
+// bufferArg is the ui.TextBuffer a story's buffer input edits, kept in step with the story's text control: a change of the control replaces the buffer's text, and an edit in the buffer shows in the control.
+type bufferArg struct {
+	doc  *ui.TextBuffer
+	seen string // the text the control and the buffer last agreed on
+}
+
+// bind returns the buffer, after bringing value and the buffer to the same text.
+func (b *bufferArg) bind(value *string) *ui.TextBuffer {
+	switch {
+	case b.doc == nil:
+		b.doc = ui.NewTextBuffer(*value)
+	case b.doc.String() != b.seen:
+		*value = b.doc.String()
+	case *value != b.seen:
+		b.doc.Set(*value)
+	}
+	b.seen = *value
+	return b.doc
 }
 
 func indexOf(list []string, s string) int {

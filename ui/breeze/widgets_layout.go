@@ -380,3 +380,12 @@ func SplitPercent(c *ui.Context, p *float32, first func(), second func()) ui.Ele
 func SplitVerticalPercent(c *ui.Context, p *float32, first func(), second func()) ui.Element {
 	return formsSplit(c, func(a, b func()) ui.Element { return ui.SplitVerticalPercent(c, p, a, b) }, first, second)
 }
+
+// Scroll creates a container that scrolls its children vertically. Give it a size, or Grow it within its parent. It is package ui's: MyGo paints a scroll container's bar itself after its children (Painter.scrollbars in paint.go), from the theme's Scrollbar color and ScrollbarWidth alone, with a geometry of its own (the thumb 3 DIPs in from the edge, at least 24 long, 2 DIPs wider only while dragged) and only while the pointer is over the container or drags the thumb; no element can reach its thickness, track, outline, arrows or growth under the pointer, and hiding it (Scrollbars(false)) takes its pointer targets with it. With Use its thumb takes the platform's color and width: the overlay scroller's knob on macOS (black or white at 50%, 6 DIPs), WinUI's ScrollBarThumbFill (6 DIPs), and GNOME's overlay slider while the pointer is away from the bar (currentColor at 20%, 3 pixels). The wheel, the keys, the drag of the thumb, TrackScroll and ScrollbarInsets are MyGo's. It is ui.Scroll's counterpart.
+func Scroll(c *ui.Context) ui.Element { return ui.Scroll(c) }
+
+// ScrollBoth creates a container that scrolls its children both ways, as a canvas, a wide table or code does. Give it a size, or Grow it within its parent. It is package ui's, its two bars painted by MyGo in the platform's theme as Scroll's are. It is ui.ScrollBoth's counterpart.
+func ScrollBoth(c *ui.Context) ui.Element { return ui.ScrollBoth(c) }
+
+// ScrollHorizontal creates a row that scrolls its children horizontally. It is package ui's, its bar painted by MyGo in the platform's theme as Scroll's is. It is ui.ScrollHorizontal's counterpart.
+func ScrollHorizontal(c *ui.Context) ui.Element { return ui.ScrollHorizontal(c) }
