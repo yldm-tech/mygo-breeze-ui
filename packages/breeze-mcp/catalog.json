@@ -519,6 +519,13 @@
       "example": "breeze.Tabs(c, &app.tab, \"General\", \"Advanced\")"
     },
     {
+      "name": "Text",
+      "category": "text",
+      "look": "drawn",
+      "description": "A text in a step of the platform's type ramp: TextLargeTitle, TextTitle, TextSubtitle, TextHeading, TextBody or TextCaption, drawn in macOS's text styles (largeTitle 26 points, title1 22, title2 17, headline 13 bold, body 13, caption1 10), Windows 11's TextBlock styles (TitleLarge 40, Title 28, Subtitle 20 and BodyStrong 14 in semibold, Body 14, Caption 12) or libadwaita's classes (.title-1, .title-2, .title-4, .heading, a plain label, .caption), in the theme's font. TextSecondary added with | dims a step as secondaryLabelColor, TextFillColorSecondary or .dimmed do. The style comes after the text and can be left out: without one it is TextBody, which draws what ui.Text draws, so breeze.Text(c, s) replaces ui.Text(c, s); wrapping, selection and right-to-left text are ui.Text's.",
+      "example": "breeze.Text(c, \"Settings\", breeze.TextTitle)\nbreeze.Text(c, \"Applies to every window.\", breeze.TextCaption|breeze.TextSecondary)"
+    },
+    {
       "name": "TextArea",
       "category": "text",
       "look": "drawn",
