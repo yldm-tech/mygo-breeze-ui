@@ -47,8 +47,8 @@ func TestTroughsStandOut(t *testing.T) {
 			"mac trough":      tint(th.Background, th.Dark, macTroughAlpha),
 			"mac face":        macFace(th.Background, th.Dark),
 			"adwaita trough":  adwTrough(th, false, false),
-			"fluent stroke":   func() ui.Color { _, s := fluentUnchecked(th, false, false); return s }(),
-			"fluent off knob": fluentOffKnob(th),
+			"fluent stroke":   func() ui.Color { _, s, _ := fluentUnchecked(th, false, false); return s }(),
+			"fluent off knob": func() ui.Color { f, _, _ := fluentUnchecked(th, false, false); return fluentOffKnob(th, f) }(),
 		}
 		for part, c := range parts {
 			d := lum(c) - lum(th.Background)

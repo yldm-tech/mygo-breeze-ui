@@ -21,12 +21,45 @@ func fluentSystemAccent(c *ui.Context) ui.Color {
 	return fluentAccent
 }
 
-// fluentAccentFill returns AccentFillColorDefault for the system accent: SystemAccentColorDark1 in the light theme and SystemAccentColorLight2 in the dark one. Windows computes those shades; these mixes give its default accent's exactly (#005a9e and about #76b9ed).
+// fluentDefaultShades are the shades Windows derives from its default accent, #0078d4: SystemAccentColorLight2 and Light3 (2, 3) and Dark1 to Dark3 (-1 to -3). tools/winui-reference sets them so to render WinUI's controls, and its accent button reads #005a9e in the light theme and #76b9ed in the dark one, its hyperlink #004275 and #a6d8ff (measured from WinUI 3 3.3 in Windows App SDK 2.6.5 on Windows 11 26H2 by tools/winui-reference).
+var fluentDefaultShades = map[int]ui.Color{2: ui.Hex("#76b9ed"), 3: ui.Hex("#a6d8ff"), -1: ui.Hex("#005a9e"), -2: ui.Hex("#004275"), -3: ui.Hex("#002642")}
+
+// fluentShadeMix is how far fluentShade mixes another accent with white (positive n) or black (negative n): mixes that give the default accent's shades within a few levels, as Windows's own derivation is not public.
+var fluentShadeMix = map[int]float32{2: 0.48, 3: 0.68, -1: 0.25, -2: 0.45, -3: 0.68}
+
+// fluentShade returns SystemAccentColorLight<n> for n of 2 or 3, or SystemAccentColorDark<-n> for n of -1 to -3: Windows's own shades for its default accent, mixes with white or black for another one.
+func fluentShade(accent ui.Color, n int) ui.Color {
+	accent.A = 255
+	if accent == fluentAccent {
+		return fluentDefaultShades[n]
+	}
+	if n > 0 {
+		return accent.Mix(white, fluentShadeMix[n])
+	}
+	return accent.Mix(black, fluentShadeMix[n])
+}
+
+// fluentAccentFill returns AccentFillColorDefault for the system accent: SystemAccentColorDark1 in the light theme and SystemAccentColorLight2 in the dark one.
 func fluentAccentFill(accent ui.Color, dark bool) ui.Color {
 	if dark {
-		return accent.Mix(white, 0.48)
+		return fluentShade(accent, 2)
 	}
-	return accent.Mix(black, 0.25)
+	return fluentShade(accent, -1)
+}
+
+// fluentSecondaryOver returns TextFillColorSecondary, #9E000000 in the light theme and #C5FFFFFF in the dark one, laid over under: the color of a ComboBox's or a DropDownButton's chevron on its face and of an off switch's knob on its track, which WinUI draws translucent over them rather than over the window (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the chevron reads 95 on the face of 251 where the window's TextFillColorSecondary is 92, 207 on 45 in the dark theme; the knob 90 on the track of 237, 87 under the pointer and 84 pressed).
+func fluentSecondaryOver(t *ui.Theme, under ui.Color) ui.Color {
+	return under.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0x9e)/255, 0xc5/255.0))
+}
+
+// fluentInnerStroke draws the inner half of the 1-DIP stroke of a WinUI Rectangle or Ellipse with a corner radius of radius along r, in c. Such a shape's fill reaches the middle of its stroke, so a translucent stroke reads as itself over the window on its outer half and over the fill on its inner half: an unchecked box's ControlStrongStrokeColorDefault reads 134 and 131 in the light theme, 191 and 173 pressed, and a checked box's AccentFillColorSecondary stroke under the pointer reads the fill, #1869a6, then #025b9e, the accent at 90% laid twice (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference). The element's border draws the outer half.
+func fluentInnerStroke(p *ui.Painter, r ui.Rect, radius float32, c ui.Color) {
+	p.Stroke(ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: r.W - 1, H: r.H - 1}, c, max(radius-0.5, 0), 0.5)
+}
+
+// fluentTwice returns a fill of the accent at alpha a laid over the window twice, as the inner half of the stroke of a checked box or a chosen radio button under the pointer (a 0.9) or pressed (a 0.8) reads, its stroke the same translucent brush as its fill.
+func fluentTwice(t *ui.Theme, a float32) ui.Color {
+	return t.Background.Mix(t.Accent, 1-(1-a)*(1-a))
 }
 
 func fluentTheme(dark bool, accent ui.Color) *ui.Theme {
@@ -84,6 +117,16 @@ func fluentElevation(t *ui.Theme, h float32) ui.LinearGradient {
 	return ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: def, At: 0}, {Color: def, At: (h - 3) / h}, {Color: sec, At: (h - 1) / h}, {Color: sec, At: 1}}}
 }
 
+// fluentElevationOver is ControlElevationBorderBrush as fluentElevation lays it, left translucent, for a border drawn over something other than the window: a slider's thumb over its track, where WinUI's thumb edge reads #005595 over the light theme's accent and 126 over the gray track, 161 over the dark theme's (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
+func fluentElevationOver(t *ui.Theme, h float32) ui.LinearGradient {
+	if t.Dark {
+		def, sec := white.Alpha(0x12/255.0), white.Alpha(0x18/255.0)
+		return ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: sec, At: 0}, {Color: sec, At: 1 / h}, {Color: def, At: 3 / h}, {Color: def, At: 1}}}
+	}
+	def, sec := black.Alpha(0x0f/255.0), black.Alpha(0x29/255.0)
+	return ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: def, At: 0}, {Color: def, At: (h - 3) / h}, {Color: sec, At: (h - 1) / h}, {Color: sec, At: 1}}}
+}
+
 // fluentFocusRing draws WinUI's system focus visual whose outer edge is bounds, the focus target grown by the negative of its FocusVisualMargin: the 2-DIP primary stroke in FocusStrokeColorOuter (the theme's Focus) and inside it the 1-DIP secondary stroke in FocusStrokeColorInner, #B3FFFFFF in the light theme and #B3000000 in the dark one (Common_themeresources_any.xaml). FocusRectManager.cpp's GetFocusOptionsForElement takes the thicknesses from the element's FocusVisualPrimaryThickness and FocusVisualSecondaryThickness, whose defaults, 2 and 1, are FrameworkElement's documented ones and not in the sources read (inferred; the same file's hyperlink focus options also use 2 and 1), and ConfigureFocusElement puts the inner stroke inside the outer one. radius is the target's corner radius; AdjustCornerRadius in the same file adds the mean of the two margins at each corner for the outer stroke and takes the primary's 2 off again for the inner one. MyGo's FocusRing draws its 2-DIP ring 1 to 3 DIPs outside the rect it is given, so it is given bounds less 3.
 func fluentFocusRing(p *ui.Painter, t *ui.Theme, target ui.Rect, start, top, end, bottom, radius float32) {
 	bounds := ui.Rect{X: target.X - start, Y: target.Y - top, W: target.W + start + end, H: target.H + top + bottom}
@@ -123,12 +166,9 @@ func fluentButton(c *ui.Context, b ui.Element, primary bool) {
 		}
 		return
 	}
-	face, fg := t.Surface, t.Text
-	switch {
-	case pressed:
-		face, fg = t.SurfacePressed, t.TextMuted
-	case hovered:
-		face = t.SurfaceHover
+	face, fg := fluentFace(t, pressed, hovered), t.Text
+	if pressed {
+		fg = t.TextMuted
 	}
 	b.Background(face).TextColor(fg)
 	if pressed {
@@ -138,49 +178,79 @@ func fluentButton(c *ui.Context, b ui.Element, primary bool) {
 	}
 }
 
-// fluentUnchecked returns the fill and the stroke of an unchecked check box, or of a switch that is off: CheckBoxCheckBackgroundFillUnchecked and CheckBoxCheckBackgroundStrokeUnchecked (ToggleSwitchFillOff and ToggleSwitchStrokeOff are the same).
-func fluentUnchecked(t *ui.Theme, hovered, pressed bool) (fill, stroke ui.Color) {
+// fluentFace returns a button's ControlFillColorDefault, Secondary under the pointer and Tertiary pressed, laid over the window.
+func fluentFace(t *ui.Theme, pressed, hovered bool) ui.Color {
+	switch {
+	case pressed:
+		return t.SurfacePressed
+	case hovered:
+		return t.SurfaceHover
+	}
+	return t.Surface
+}
+
+// fluentUnchecked returns the fill and the stroke of an unchecked check box, or of a switch that is off: CheckBoxCheckBackgroundFillUnchecked and CheckBoxCheckBackgroundStrokeUnchecked (ToggleSwitchFillOff and ToggleSwitchStrokeOff are the same), the stroke, ControlStrongStrokeColorDefault, laid over the window for its outer half and over the fill for its inner half (fluentInnerStroke).
+func fluentUnchecked(t *ui.Theme, hovered, pressed bool) (fill, stroke, inner ui.Color) {
 	bg := t.Background
+	k, a := black, float32(0.447)
 	if t.Dark {
-		fill, stroke = bg.Mix(black, 0.098), bg.Mix(white, 0.545)
+		k, a = white, 0.545
+		fill = bg.Mix(black, 0.098)
 		switch {
 		case pressed:
 			fill = bg.Mix(white, 0.071)
 		case hovered:
 			fill = bg.Mix(white, 0.043)
 		}
-		return fill, stroke
-	}
-	fill, stroke = bg.Mix(black, 0.024), bg.Mix(black, 0.447)
-	switch {
-	case pressed:
-		fill = bg.Mix(black, 0.094)
-	case hovered:
-		fill = bg.Mix(black, 0.059)
-	}
-	return fill, stroke
-}
-
-// fluentCheckbox draws a CheckBox: a 20-DIP box with corners of 4 and a 1-DIP stroke, 8 DIPs from its label, in a row at least 32 high and 120 wide (CheckBoxHeight, CheckBoxMinWidth); checked, the accent fill with the check mark of AnimatedAcceptVisualSource in TextOnAccentFillColorPrimary, drawing itself in as WinUI's does. The focus visual goes around the whole row, grown by CheckBoxFocusVisualMargin -7,-3,-7,-3 (CheckBox_themeresources.xaml).
-func fluentCheckbox(c *ui.Context, row, box ui.Element, on bool) {
-	t := c.Theme()
-	row.Gap(8).MinHeight(32).MinWidth(120)
-	hovered, pressed := row.Hovered(), row.Pressed()
-	fill, stroke := fluentUnchecked(t, hovered, pressed)
-	mark := t.AccentText
-	if on {
-		fill = t.Accent
+	} else {
+		fill = bg.Mix(black, 0.024)
 		switch {
 		case pressed:
-			fill, mark = t.AccentPressed, mark.Alpha(pick(t.Dark, float32(0.7), 0.5))
+			fill = bg.Mix(black, 0.094)
 		case hovered:
-			fill = t.AccentHover
+			fill = bg.Mix(black, 0.059)
 		}
-		stroke = fill
-	} else if pressed {
-		stroke = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.216), 0.157))
 	}
-	box.Size(20, 20).Radius(4).Background(fill).Border(1, stroke)
+	return fill, bg.Mix(k, a), fill.Mix(k, a)
+}
+
+// fluentPressedStroke returns the stroke of an unchecked check box or radio button that is pressed, ControlStrongStrokeColorDisabled (#37000000, #28FFFFFF), laid over the window and over fill.
+func fluentPressedStroke(t *ui.Theme, fill ui.Color) (stroke, inner ui.Color) {
+	k, a := black, float32(0x37)/255
+	if t.Dark {
+		k, a = white, 0x28/255.0
+	}
+	return t.Background.Mix(k, a), fill.Mix(k, a)
+}
+
+// fluentCheckbox draws a CheckBox: a 20-DIP box with corners of 4 and a 1-DIP stroke, 8 DIPs from its label, in a row at least 32 high and 120 wide (CheckBoxHeight, CheckBoxMinWidth); checked, the accent fill with the check mark of AnimatedAcceptVisualSource in TextOnAccentFillColorPrimary, drawing itself in as WinUI's does, or with mixed the indeterminate dash (formsFluentDash), and gray when disabled. The focus visual goes around the whole row, grown by CheckBoxFocusVisualMargin -7,-3,-7,-3 (CheckBox_themeresources.xaml).
+func fluentCheckbox(c *ui.Context, row, box ui.Element, on, mixed bool) {
+	t := c.Theme()
+	// WinUI does not center the box and the label in the row: the box is centered in a grid CheckBoxHeight (32) high at the top, so 6 DIPs down, and the label is at the top of the ContentPresenter inside the style's Padding 8,5,0,0, so 5 DIPs down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the box's top at 6 and the label's text box at 5, which put its baseline 1.5 DIPs above where centering the label put Breeze UI's).
+	row.Gap(8).MinHeight(32).MinWidth(120).AlignItems(ui.Start).Padding(5, 0, 0, 0)
+	hovered, pressed := row.Hovered(), row.Pressed()
+	fill, stroke, inner := fluentUnchecked(t, hovered, pressed)
+	if !on && pressed {
+		stroke, inner = fluentPressedStroke(t, fill)
+	}
+	mark := t.AccentText
+	if on {
+		fill, inner = t.Accent, t.Accent
+		switch {
+		case pressed:
+			fill, inner, mark = t.AccentPressed, fluentTwice(t, 0.8), mark.Alpha(pick(t.Dark, float32(0.7), 0.5))
+		case hovered:
+			fill, inner = t.AccentHover, fluentTwice(t, 0.9)
+		}
+	}
+	box.Size(20, 20).Radius(4).Margin(1, 0, 0, 0)
+	if on {
+		// Disabled is known only once the row is built, so a checked box is filled as it is painted, its stroke the fill.
+		box.Border(1, ui.Color{})
+	} else {
+		box.Background(fill).Border(1, stroke)
+	}
+	disabled := disabledOnce(row)
 	// The check mark draws in by its TrimEnd from 0 to 1 over frames 15 to 34 of the 60-frame-a-second Lottie (NormalOffToNormalOn, 317 ms) along cubic-bezier(0.55,0,0,1); unchecked, it is gone within 4 frames, drawn here at once.
 	target, dur := float32(0), time.Duration(0)
 	if on {
@@ -188,12 +258,26 @@ func fluentCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	}
 	drawn := box.AnimateWith("breeze-check", target, dur, ui.CubicBezier(0.55, 0, 0, 1))
 	box.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if on {
-			// AnimatedAcceptVisualSource.cpp's check, (-15.172,0.016) to (-5,10.188) to (15.337,-10.337) stroked 4 with round caps and join, in a shape scaled 0.7 at 24,23 in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box moved down 1 by the AnimatedIcon's Margin 0,1,0,-1: x = 10 + 0.30625·px, y = 10.5625 + 0.30625·py, and a stroke of 4·0.7·1.05·20/48 = 1.225 DIPs. No state scales the check, so the stroke is that at every size.
-			var path ui.Path
-			path.MoveTo(r.X+5.354, r.Y+10.567).LineTo(r.X+8.469, r.Y+13.683).LineTo(r.X+14.697, r.Y+7.397).Trim(0, drawn)
-			p.StrokePath(&path, 1.225, mark)
+		if !on {
+			fluentInnerStroke(p, r, 4, inner)
+			return
 		}
+		face, ring, mark := fill, inner, mark
+		if disabled() {
+			face, ring, mark = fluentDisabledOn(t)
+		}
+		p.Fill(r, face, 4)
+		if ring != face {
+			fluentInnerStroke(p, r, 4, ring)
+		}
+		if mixed {
+			formsFluentDash(p, r, mark)
+			return
+		}
+		// AnimatedAcceptVisualSource.cpp's check, (-15.172,0.016) to (-5,10.188) to (15.337,-10.337) stroked 4 with round caps and join, in a shape scaled 0.7 at 24,23 in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box moved down 1 by the AnimatedIcon's Margin 0,1,0,-1: x = 10 + 0.30625·px, y = 10.5625 + 0.30625·py, and a stroke of 4·0.7·1.05·20/48 = 1.225 DIPs. No state scales the check, so the stroke is that at every size.
+		var path ui.Path
+		path.MoveTo(r.X+5.354, r.Y+10.567).LineTo(r.X+8.469, r.Y+13.683).LineTo(r.X+14.697, r.Y+7.397).Trim(0, drawn)
+		p.StrokePath(&path, 1.225, mark)
 	})
 	row.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if row.FocusVisible() {
@@ -202,13 +286,32 @@ func fluentCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	})
 }
 
+// fluentDisabledOn returns the box, the inner half of its stroke and the mark of a checked check box that is disabled: WinUI draws the box in AccentFillColorDisabled (#37000000, #28FFFFFF), its stroke the same brush laid twice on its inner half, and the mark in TextOnAccentFillColorDisabled (white, #87FFFFFF), reading 191, 150 and 255 in the light theme and 67, 96 and 167 in the dark one (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference). MyGo draws a disabled element at half opacity, each fill on its own, so each is the color that reads so at half opacity over what is under it (fluentUnderHalf); the mark can only come to 223 and 161 so, white being the lightest there is.
+func fluentDisabledOn(t *ui.Theme) (box, ring, mark ui.Color) {
+	k, a, onAccent := black, float32(0x37)/255, white
+	if t.Dark {
+		k, a = white, 0x28/255.0
+	}
+	face, twice := t.Background.Mix(k, a), t.Background.Mix(k, 1-(1-a)*(1-a))
+	if t.Dark {
+		onAccent = face.Mix(white, 0x87/255.0)
+	}
+	return fluentUnderHalf(face, t.Background), fluentUnderHalf(twice, face), fluentUnderHalf(onAccent, face)
+}
+
+// fluentUnderHalf returns the color that reads as want when drawn at half opacity over under, as far as one can.
+func fluentUnderHalf(want, under ui.Color) ui.Color {
+	ch := func(w, u uint8) uint8 { return uint8(min(max(2*int(w)-int(u), 0), 255)) }
+	return ui.Color{R: ch(want.R, under.R), G: ch(want.G, under.G), B: ch(want.B, under.B), A: 255}
+}
+
 // fluentSwitch draws a ToggleSwitch: a 40 by 20 track, a 1-DIP stroke while off, and a round knob of 12 DIPs that grows to 14 under the pointer and stretches to 17 wide while pressed, moving in 83 milliseconds.
 func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 	t := c.Theme()
 	hovered, pressed := sw.Hovered(), sw.Pressed()
 	pos := knob(sw, on, 83*time.Millisecond)
 	at := along(c, pos)
-	offFill, offStroke := fluentUnchecked(t, hovered, pressed)
+	offFill, offStroke, offInner := fluentUnchecked(t, hovered, pressed)
 	onFill := t.Accent
 	switch {
 	case pressed:
@@ -216,7 +319,8 @@ func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 	case hovered:
 		onFill = t.AccentHover
 	}
-	knobFill := fluentOffKnob(t).Mix(t.AccentText, pos)
+	knobFill := fluentOffKnob(t, offFill).Mix(t.AccentText, pos)
+	inner := offInner.Mix(onFill, pos)
 	sw.Size(40, 20).Radius(10).Background(offFill.Mix(onFill, pos)).Border(1, offStroke.Mix(onFill, pos))
 	w, h := float32(12), float32(12)
 	switch {
@@ -226,6 +330,7 @@ func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 		w, h = 14, 14
 	}
 	sw.Draw(func(p *ui.Painter, r ui.Rect) {
+		fluentInnerStroke(p, r, 10, inner)
 		// The knob's center goes from 10 to 30 DIPs; pressed, it keeps its outer edge and stretches toward the other end.
 		cx := r.X + r.H/2 + at*(r.W-r.H)
 		x := cx - h/2 - at*(w-h)
@@ -246,10 +351,8 @@ func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 	})
 }
 
-// fluentOffKnob is ToggleSwitchKnobFillOff: TextFillColorSecondary, a gray knob on the track.
-func fluentOffKnob(t *ui.Theme) ui.Color {
-	return t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.62), 0.773))
-}
+// fluentOffKnob is ToggleSwitchKnobFillOff, TextFillColorSecondary, a gray knob laid over the track's fill, track.
+func fluentOffKnob(t *ui.Theme, track ui.Color) ui.Color { return fluentSecondaryOver(t, track) }
 
 // ---- more of WinUI 3's controls, from the same theme resources ----
 
@@ -261,46 +364,63 @@ func fluentSubtle(t *ui.Theme) (hover, pressed ui.Color) {
 	return t.Background.Mix(black, 0.035), t.Background.Mix(black, 0.024)
 }
 
-// fluentRadio draws a RadioButton: a 20-DIP circle with a 1-DIP stroke, 8 DIPs from its label in a row at least 32 high and 120 wide (the style's MinWidth); chosen, the accent with a dot of TextOnAccentFillColorPrimary, 12 DIPs across, growing to 14 under the pointer and shrinking to 10 pressed over ControlNormalAnimationDuration (250 ms) along ControlFastOutSlowInKeySpline 0,0,0,1, back to 12 at once, inside a 1-DIP AccentControlElevationBorderBrush stroke (RadioButtonCheckGlyphStrokeChecked); not chosen and pressed, PressedCheckGlyph, a dot of the same fill growing from 4 to 10 DIPs over ControlFastAnimationDuration (167 ms). The focus visual goes around the whole row, grown by FocusVisualMargin -7,-3,-7,-3 (RadioButton_themeresources.xaml).
+// fluentRadio draws a RadioButton: a 20-DIP circle with a 1-DIP stroke, 8 DIPs from its label in a row at least 32 high and 120 wide (the style's MinWidth); chosen, the accent with a dot of TextOnAccentFillColorPrimary, 12 DIPs across, growing to 14 under the pointer and shrinking to 10 pressed over ControlNormalAnimationDuration (250 ms) along ControlFastOutSlowInKeySpline 0,0,0,1, back to 12 at once, inside a 1-DIP AccentControlElevationBorderBrush stroke (RadioButtonCheckGlyphStrokeChecked); pressed, PressedCheckGlyph, a dot of the same fill growing from 4 to 10 DIPs over ControlFastAnimationDuration (167 ms), over the chosen dot's ring too. The focus visual goes around the whole row, grown by FocusVisualMargin -7,-3,-7,-3 (RadioButton_themeresources.xaml).
 func fluentRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
-	row.Gap(8).MinHeight(32).MinWidth(120)
+	// The circle is centered in a grid 32 high at the top and the label at the top inside the style's Padding 8,6,0,0, so both 6 DIPs down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
+	row.Gap(8).MinHeight(32).MinWidth(120).AlignItems(ui.Start).Padding(6, 0, 0, 0)
 	hovered, pressed := row.Hovered(), row.Pressed()
-	fill, stroke := fluentUnchecked(t, hovered, pressed)
+	fill, stroke, inner := fluentUnchecked(t, hovered, pressed)
 	if pressed && !on {
-		stroke = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.216), 0.157))
+		stroke, inner = fluentPressedStroke(t, fill)
 	}
 	ease := ui.CubicBezier(0, 0, 0, 1)
 	size, dur := float32(12), time.Duration(0)
 	if on {
-		fill = t.Accent
+		fill, inner = t.Accent, t.Accent
 		switch {
 		case pressed:
-			fill, size, dur = t.AccentPressed, 10, 250*time.Millisecond
+			fill, inner, size, dur = t.AccentPressed, fluentTwice(t, 0.8), 10, 250*time.Millisecond
 		case hovered:
-			fill, size, dur = t.AccentHover, 14, 250*time.Millisecond
+			fill, inner, size, dur = t.AccentHover, fluentTwice(t, 0.9), 14, 250*time.Millisecond
 		}
 		stroke = fill
 	}
 	d := dot.AnimateWith("breeze-dot", size, dur, ease)
 	down := pressed && !on
 	pressSize, pressDur := float32(4), time.Duration(0)
-	if down {
+	if pressed {
 		pressSize, pressDur = 10, 167*time.Millisecond
 	}
 	press := dot.AnimateWith("breeze-press-dot", pressSize, pressDur, ease)
-	// AccentControlElevationBorderBrush over the dot: ControlStrokeColorOnAccentDefault (#14FFFFFF) and, in the bottom DIP blending into it by 3 DIPs from the bottom, ControlStrokeColorOnAccentSecondary (#66000000 in the light theme, #23000000 in the dark one), the brush's ScaleY -1 putting the secondary at the bottom in both (Common_themeresources_any.xaml).
-	on1 := t.AccentText.Mix(white, 0x14/255.0)
-	sec := t.AccentText.Mix(black, pick(t.Dark, float32(0x66)/255, 0x23/255.0))
+	// AccentControlElevationBorderBrush over the dot: ControlStrokeColorOnAccentDefault (#14FFFFFF) and, in the bottom DIP blending into it by 3 DIPs from the bottom, ControlStrokeColorOnAccentSecondary (#66000000 in the light theme, #23000000 in the dark one), the brush's ScaleY -1 putting the secondary at the bottom in both (Common_themeresources_any.xaml). The dot's fill reaches the middle of that stroke, so its outer half lies over the accent around the dot, translucent: at the dot's bottom WinUI's reads #00365f over the light theme's #005a9e, and a 12-DIP dot's fill is 11 across (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
+	on1 := white.Alpha(0x14 / 255.0)
+	sec := black.Alpha(pick(t.Dark, float32(0x66)/255, 0x23/255.0))
+	// Under the pointer and pressed, the CommonStates set the dot's Stroke to RadioButtonCheckGlyphStrokePointerOver and Pressed, CircleElevationBorderBrush: ControlStrokeColorDefault down to half the dot's height, blending into ControlStrokeColorSecondary by 70% (#0F000000 and #29000000, #12FFFFFF and #18FFFFFF in the dark theme; RadioButton_themeresources.xaml, Common_themeresources_any.xaml). Under the pointer WinUI's reads so, #17639d above the dot and #14598d below it over the light theme's accent (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference). Pressed, the Pressed state also shows PressedCheckGlyph, a Border of RadioButtonCheckGlyphFillPressed (TextOnAccentFillColorPrimary) without a border thickness, growing from 4 to 10 DIPs over ControlFastAnimationDuration above the dot, which shrinks to 10 over ControlNormalAnimationDuration; the Checked state hides it with a To animation that the Pressed state's, started later, overrides, so it covers the dot's ring: WinUI's pressed render reads a 10-DIP dot of TextOnAccentFillColorPrimary without a ring (RadioButton_themeresources.xaml; measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
+	cdef, csec := black.Alpha(0x0f/255.0), black.Alpha(0x29/255.0)
+	if t.Dark {
+		cdef, csec = white.Alpha(0x12/255.0), white.Alpha(0x18/255.0)
+	}
+	circle := ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: cdef, At: 0}, {Color: cdef, At: 0.5}, {Color: csec, At: 0.7}, {Color: csec, At: 1}}}
 	dot.Size(20, 20).Radius(10).Background(fill).Border(1, stroke)
 	dot.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if inner != fill {
+			fluentInnerStroke(p, r, 10, inner)
+		}
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
 		switch {
 		case on:
-			p.Fill(ui.Rect{X: cx - d/2, Y: cy - d/2, W: d, H: d}, t.AccentText, d/2)
+			p.Fill(ui.Rect{X: cx - d/2 + 0.5, Y: cy - d/2 + 0.5, W: d - 1, H: d - 1}, t.AccentText, d/2-0.5)
 			var ring ui.Path
 			ring.Circle(cx, cy, d/2-0.5)
-			p.StrokePathGradient(&ring, 1, ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: on1, At: 0}, {Color: on1, At: (d - 3) / d}, {Color: sec, At: (d - 1) / d}, {Color: sec, At: 1}}})
+			g := ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: on1, At: 0}, {Color: on1, At: (d - 3) / d}, {Color: sec, At: (d - 1) / d}, {Color: sec, At: 1}}}
+			if hovered || pressed {
+				g = circle
+			}
+			p.StrokePathGradient(&ring, 1, g)
+			if pressed {
+				p.Fill(ui.Rect{X: cx - press/2, Y: cy - press/2, W: press, H: press}, t.AccentText, press/2)
+			}
 		case down:
 			p.Fill(ui.Rect{X: cx - press/2, Y: cy - press/2, W: press, H: press}, t.AccentText, press/2)
 		}
@@ -326,7 +446,8 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	case f.Hovered():
 		fill = t.SurfaceHover
 	}
-	f.Padding(5, 6, 6, 10).Radius(4).Background(fill).Border(0, ui.Color{})
+	// The 1-DIP border, drawn over the box here, is inside the template's BorderElement, and TextControlThemePadding 10,5,6,6 inside it: the text starts 11 DIPs in and 6 down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text box at 27,56 in a TextBox at 16,50). The template mirrors right to left, so the sides are the start and the end.
+	f.Padding(6, 0, 7, 0).PaddingStart(11).PaddingEnd(7).Radius(4).Background(fill).Border(0, ui.Color{})
 	if kind != multiLine {
 		f.MinHeight(32)
 	}
@@ -347,14 +468,12 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 func fluentSelect(c *ui.Context, trigger ui.Element, selected string) {
 	t := c.Theme()
 	pressed, hovered := trigger.Pressed(), trigger.Hovered()
-	face, fg := t.Surface, t.Text
-	switch {
-	case pressed:
-		face, fg = t.SurfacePressed, t.TextMuted
-	case hovered:
-		face = t.SurfaceHover
+	face, fg := fluentFace(t, pressed, hovered), t.Text
+	if pressed {
+		fg = t.TextMuted
 	}
-	trigger.MinHeight(32).MinWidth(64).Padding(5, 14, 7, 12).Gap(12).Radius(4).Justify(ui.SpaceBetween).AlignItems(ui.Center).
+	// ComboBoxPadding 12,5,0,7 and the DropDownGlyph's Margin 0,0,14,0 are from the box's outer edge, the 1-DIP border drawn inside them, where MyGo's padding starts inside the border: the text starts 12 DIPs in and the chevron ends 14 from the end (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text at 28 and the 12-DIP glyph at 92 in a ComboBox from 16 to 118), at the start and the end as the template mirrors right to left.
+	trigger.MinHeight(32).MinWidth(64).Padding(5, 0, 7, 0).PaddingStart(11).PaddingEnd(13).Gap(12).Radius(4).Justify(ui.SpaceBetween).AlignItems(ui.Center).
 		Background(face).TextColor(fg).FocusRing(false)
 	if pressed {
 		trigger.Border(1, t.Border)
@@ -379,8 +498,9 @@ func fluentSelect(c *ui.Context, trigger ui.Element, selected string) {
 	nudge := fluentChevronNudge(trigger, pressed)
 	trigger.Children(func() {
 		ui.Text(c, selected).SingleLine()
+		// The DropDownGlyph is as high as the box, so the chevron is centered on the box, 1 DIP below the middle of the padded content (5 above, 7 below), in TextFillColorSecondary over the face (fluentSecondaryOver).
 		ui.Box(c).Size(12, 12).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			fluentChevronDown(p, r.X+r.W/2, r.Y+r.H/2+nudge, t.TextMuted)
+			fluentChevronDown(p, r.X+r.W/2, r.Y+r.H/2+1+nudge, fluentSecondaryOver(t, face))
 		})
 	})
 }
@@ -404,7 +524,12 @@ func fluentChevronNudge(e ui.Element, pressed bool) float32 {
 func fluentMenu(c *ui.Context, panel ui.Element) {
 	t := c.Theme()
 	panel.Margin(4, 0, 0, 0).Padding(4, 0).Radius(8).Background(pick(t.Dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c"))).
-		Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.2))).Shadow(0, 8, 16, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
+		Border(1, fluentFlyoutStroke(t)).Shadow(0, 8, 16, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
+}
+
+// fluentFlyoutStroke is SurfaceStrokeColorFlyout, #0F000000 in the light theme and #33000000 in the dark one, laid over the window: a flyout's background stops inside its border, so the translucent edge reads over what is behind the flyout, not over the flyout's own fill, which MyGo's border is drawn over (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the edge reads 229 and 26 above a flyout over the window, where over its fill it would read 234 and 35).
+func fluentFlyoutStroke(t *ui.Theme) ui.Color {
+	return t.Background.Mix(black, pick(t.Dark, float32(0x0f)/255, 0x33/255.0))
 }
 
 // fluentMenuItem draws a ComboBoxItem: padding 11,5,11,7 inside a margin of 5,2, corners of 3, and the chosen one marked by a 3 by 16 accent pill at its start. Its background is SubtleFillColorSecondary under the pointer and while chosen, Tertiary pressed and while chosen under the pointer, and Secondary chosen and pressed (ComboBoxItemBackground*); pressed, its text is TextFillColorSecondary, and the chosen one's pill shrinks to ComboBoxItemPillMinScale, 0.625, over ComboBoxItemScaleAnimationDuration, 167 ms, along KeySpline 0,0,0,1 (ComboBox_themeresources.xaml).
@@ -480,11 +605,11 @@ func fluentSliderState(t *ui.Theme, s ui.Element) (inner float32, accent ui.Colo
 	return 10.3, t.Accent
 }
 
-// fluentSliderThumb draws a slider's thumb centered on cx, cy: the 18-DIP Thumb's Border with Margin -2, so 22 DIPs, with SliderThumbCornerRadius 10, a 1-DIP SliderThumbBorderBrush (ControlElevationBorderBrush, laid over the window as fluentElevation does) around SliderOuterThumbBackground (ControlSolidFillColorDefault, #FFFFFF and #454545), and the inner dot of the given size in accent (Slider_themeresources.xaml).
+// fluentSliderThumb draws a slider's thumb centered on cx, cy: the 18-DIP Thumb's Border with Margin -2, so 22 DIPs, with SliderThumbCornerRadius 10, a 1-DIP SliderThumbBorderBrush (ControlElevationBorderBrush, translucent over the track as fluentElevationOver lays it) around SliderOuterThumbBackground (ControlSolidFillColorDefault, #FFFFFF and #454545), and the inner dot of the given size in accent (Slider_themeresources.xaml).
 func fluentSliderThumb(p *ui.Painter, t *ui.Theme, cx, cy, inner float32, accent ui.Color) {
 	const thumb = 22
 	k := ui.Rect{X: cx - thumb/2, Y: cy - thumb/2, W: thumb, H: thumb}
-	p.FillGradient(k, fluentElevation(t, thumb), 10)
+	p.FillGradient(k, fluentElevationOver(t, thumb), 10)
 	p.Fill(ui.Rect{X: k.X + 1, Y: k.Y + 1, W: thumb - 2, H: thumb - 2}, pick(t.Dark, white, ui.Hex("#454545")), 9)
 	p.Fill(ui.Rect{X: cx - inner/2, Y: cy - inner/2, W: inner, H: inner}, accent, inner/2)
 }
@@ -625,11 +750,16 @@ func fluentDialogShadow(t *ui.Theme, panel ui.Element) {
 		Shadow(0, 32, 64, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.19), 0.37)))
 }
 
+// fluentDialogStroke is a ContentDialog's border, SurfaceStrokeColorDefault (#66757575), laid over SmokeFillColorDefault over the window: the dialog's background stops inside its border, so the edge reads over what is behind the dialog, not over its own fill (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: shown in place, without the smoke, its sides read 177 and 178 and its top 184 where over the dialog's fill they would read 193, the shadow behind darkening them).
+func fluentDialogStroke(t *ui.Theme) ui.Color {
+	return t.Background.Mix(black, 0.3).Mix(ui.Hex("#757575"), 0x66/255.0)
+}
+
 // fluentDialog draws a ContentDialog: 320 to 548 DIPs wide, OverlayCornerRadius, a 1-DIP SurfaceStrokeColorDefault border, LayerFillColorAlt inside its 24-DIP padding, over SmokeFillColorDefault.
 func fluentDialog(c *ui.Context, back, panel ui.Element) {
 	t := c.Theme()
 	back.Background(ui.RGBA(0, 0, 0, 0.3))
-	panel.MinWidth(320).MaxWidth(548).Padding(24).Gap(12).Radius(8).Border(1, ui.RGBA(117, 117, 117, 0.4)).
+	panel.MinWidth(320).MaxWidth(548).Padding(24).Gap(12).Radius(8).Border(1, fluentDialogStroke(t)).
 		Background(pick(t.Dark, white, t.Background.Mix(white, 0.051)))
 	fluentDialogShadow(t, panel)
 }
@@ -638,7 +768,7 @@ func fluentDialog(c *ui.Context, back, panel ui.Element) {
 func fluentAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
 	t := c.Theme()
 	back.Background(ui.RGBA(0, 0, 0, 0.3))
-	panel.MinWidth(320).MaxWidth(548).Radius(8).Border(1, ui.RGBA(117, 117, 117, 0.4)).Background(t.Background).Clip().AlignItems(ui.Stretch)
+	panel.MinWidth(320).MaxWidth(548).Radius(8).Border(1, fluentDialogStroke(t)).Background(t.Background).Clip().AlignItems(ui.Stretch)
 	fluentDialogShadow(t, panel)
 	panel.Children(func() {
 		ui.Column(c).Padding(24).Background(pick(t.Dark, white, t.Background.Mix(white, 0.051))).
@@ -665,27 +795,22 @@ func fluentAlert(c *ui.Context, back, panel ui.Element, title, message string, n
 
 // ---- links, dividers, badges, flyouts and grouped toggles ----
 
-// fluentLinkColor returns a hyperlink's foreground: AccentTextFillColorPrimary (SystemAccentColorDark2 in the light theme, Light3 in the dark one), Secondary under the pointer (Dark3, Light3) and Tertiary pressed (Dark1, Light2). Windows computes the shades from the accent; these mixes give the default accent's (#004275, #002642, #005a9e; about #a6d8ff and #76b9ed).
+// fluentLinkColor returns a hyperlink's foreground: AccentTextFillColorPrimary (SystemAccentColorDark2 in the light theme, Light3 in the dark one), Secondary under the pointer (Dark3, Light3) and Tertiary pressed (Dark1, Light2), the shades of fluentShade.
 func fluentLinkColor(c *ui.Context, hovered, pressed bool) ui.Color {
-	t := c.Theme()
-	base := fluentAccent
-	if a := c.Preferences().Accent; a.A > 0 {
-		base = a
-		base.A = 255
-	}
-	if t.Dark {
+	base := fluentSystemAccent(c)
+	if c.Theme().Dark {
 		if pressed {
-			return base.Mix(white, 0.48)
+			return fluentShade(base, 2)
 		}
-		return base.Mix(white, 0.68)
+		return fluentShade(base, 3)
 	}
 	switch {
 	case pressed:
-		return base.Mix(black, 0.25)
+		return fluentShade(base, -1)
 	case hovered:
-		return base.Mix(black, 0.68)
+		return fluentShade(base, -3)
 	}
-	return base.Mix(black, 0.45)
+	return fluentShade(base, -2)
 }
 
 // fluentDivider is DividerStrokeColorDefault.
@@ -704,7 +829,7 @@ func fluentFlyout(c *ui.Context, panel ui.Element, anchorW float32) {
 	t := c.Theme()
 	panel.Margin(4, 0, 0, 0).Padding(15, 16, 17, 16).Gap(8).MinWidth(max(96, anchorW)).MinHeight(40).MaxWidth(456).Radius(8).
 		Background(pick(t.Dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c"))).
-		Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.2))).
+		Border(1, fluentFlyoutStroke(t)).
 		Shadow(0, 8, 17, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
 }
 

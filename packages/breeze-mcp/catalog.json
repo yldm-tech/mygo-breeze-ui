@@ -9,7 +9,7 @@
     },
     {
       "name": "Windows",
-      "description": "WinUI 3's Fluent 2 controls of Windows 11, from the theme resources of microsoft-ui-xaml.",
+      "description": "WinUI 3's Fluent 2 controls of Windows 11, from the theme resources of microsoft-ui-xaml, the core controls compared with WinUI 3's own rendering.",
       "value": "Windows 11",
       "example": "breeze.SetPlatform(breeze.Windows)"
     },

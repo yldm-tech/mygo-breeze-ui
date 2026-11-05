@@ -60,7 +60,8 @@ func formsDrawCheckbox(c *ui.Context, p Platform, row, box ui.Element, state for
 	on := state != formsCheckOff
 	switch p {
 	case Windows:
-		fluentCheckbox(c, row, box, on)
+		// fluentCheckbox paints the checked box as it draws its mark, so it draws the dash in place of the check itself.
+		fluentCheckbox(c, row, box, on, state == formsCheckMixed)
 	case Linux:
 		adwCheckbox(c, row, box, on)
 	default:
@@ -70,8 +71,6 @@ func formsDrawCheckbox(c *ui.Context, p Platform, row, box ui.Element, state for
 		return
 	}
 	switch p {
-	case Windows:
-		formsFluentDash(c, row, box)
 	case Linux:
 		formsAdwDash(c, box)
 	default:
@@ -101,19 +100,12 @@ func formsMacDash(c *ui.Context, row, box ui.Element) {
 	})
 }
 
-// formsFluentDash draws a CheckBox's indeterminate glyph over the box fluentCheckbox fills as checked (CheckBoxCheckBackgroundFillIndeterminate and its stroke are AccentFillColorDefault, Secondary under the pointer and Tertiary pressed, as checked): AnimatedAcceptVisualSource.cpp's Geometry_0, a line from (-11.75,-0.125) to (11.875,-0.125) stroked 4 with round caps in a shape scaled 0.7 at 24,24, in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box without the checked glyph's Margin (IndeterminateNormal sets CheckGlyph.Margin 0): x = 10 + 0.30625·px, y = 10 + 0.30625·py, so from (6.402, 9.962) to (13.637, 9.962), 1.225 DIPs wide. The glyph is TextOnAccentFillColorPrimary, Secondary pressed (CheckBoxCheckGlyphForegroundIndeterminatePressed), as fluentCheckbox's check mark.
-func formsFluentDash(c *ui.Context, row, box ui.Element) {
-	t := c.Theme()
-	mark := t.AccentText
-	if row.Pressed() {
-		mark = mark.Alpha(pick(t.Dark, float32(0.7), 0.5))
-	}
-	box.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		s := r.W / 20
-		var path ui.Path
-		path.MoveTo(r.X+6.402*s, r.Y+9.962*s).LineTo(r.X+13.637*s, r.Y+9.962*s)
-		p.StrokePath(&path, 1.225*s, mark)
-	})
+// formsFluentDash draws a CheckBox's indeterminate glyph over the box fluentCheckbox fills as checked (CheckBoxCheckBackgroundFillIndeterminate and its stroke are AccentFillColorDefault, Secondary under the pointer and Tertiary pressed, as checked): AnimatedAcceptVisualSource.cpp's Geometry_0, a line from (-11.75,-0.125) to (11.875,-0.125) stroked 4 with round caps in a shape scaled 0.7 at 24,24, in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box without the checked glyph's Margin (IndeterminateNormal sets CheckGlyph.Margin 0): x = 10 + 0.30625·px, y = 10 + 0.30625·py, so from (6.402, 9.962) to (13.637, 9.962), 1.225 DIPs wide. The glyph is TextOnAccentFillColorPrimary, Secondary pressed (CheckBoxCheckGlyphForegroundIndeterminatePressed), as fluentCheckbox's check mark, which passes mark, the color it draws the check mark in.
+func formsFluentDash(p *ui.Painter, r ui.Rect, mark ui.Color) {
+	s := r.W / 20
+	var path ui.Path
+	path.MoveTo(r.X+6.402*s, r.Y+9.962*s).LineTo(r.X+13.637*s, r.Y+9.962*s)
+	p.StrokePath(&path, 1.225*s, mark)
 }
 
 // formsAdwDash draws a GtkCheckButton's :indeterminate indicator over the box adwCheckbox fills as checked (_checks.scss styles :checked and :indeterminate alike, accent_bg_color under accent_fg_color): assets/dash.svg, a capsule from 1 to 13 across and 5 to 9 down with ends of radius 2 in the 14-pixel icon, which the indicator's padding of 3 puts at 4 to 16 and 8 to 12 of the 20-pixel box.

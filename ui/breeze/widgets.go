@@ -60,7 +60,7 @@ func Checkbox(c *ui.Context, checked *bool, label string) ui.Element {
 	})
 	switch PlatformOf(c) {
 	case Windows:
-		fluentCheckbox(c, row, box, on)
+		fluentCheckbox(c, row, box, on, false)
 	case Linux:
 		adwCheckbox(c, row, box, on)
 	default:
