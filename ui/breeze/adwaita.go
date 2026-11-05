@@ -505,9 +505,15 @@ func adwPopover(c *ui.Context, panel ui.Element) {
 // adwSeparator is a separator's color, $border_color: currentColor at 15%.
 func adwSeparator(t *ui.Theme) ui.Color { return t.Border }
 
-// adwBadge draws an indicator badge (indicatorbin.badge): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides.
+// adwBadge draws an indicator badge (indicatorbin.badge, _view-switcher.scss): a capsule at least 13 pixels high, currentColor at 40% with bold white text at 0.6rem, padded 4 at the sides. In a Sidebar it is the count AdwViewSwitcherSidebar (libadwaita 1.9+) puts at the end of an AdwSidebar item (view-switcher-sidebar .indicator, _sidebars.scss): a capsule at least 1.6em square, bold white text at font-size smaller (GTK's factor of 1.2, inferred) padded 6 at the sides, over currentColor at 40% over sidebar_bg_color.
 func adwBadge(c *ui.Context, b ui.Element) {
 	t := c.Theme()
+	if navCurrentSidebar(c) != nil {
+		size := t.FontSize / 1.2
+		b.MinHeight(size*1.6).MinWidth(size*1.6).Padding(0, 6).Radius(999).Background(adwInkAlpha(t, adwSidebarBg(t), 0.4)).
+			TextColor(white).FontSize(size).FontWeight(700).Border(0, ui.Color{})
+		return
+	}
 	b.MinHeight(13).MinWidth(13).Padding(0, 4).Radius(7).Background(adwInkAlpha(t, t.Background, 0.4)).
 		TextColor(white).FontSize(t.FontSize*0.6).FontWeight(700).Border(0, ui.Color{})
 }

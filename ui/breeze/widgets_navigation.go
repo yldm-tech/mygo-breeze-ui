@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// ---- sidebars: AppKit's source list, WinUI 3's NavigationView pane, libadwaita's .navigation-sidebar ----
+// ---- sidebars: AppKit's source list, WinUI 3's NavigationView pane, libadwaita's AdwSidebar ----
 
 // navSidebars holds the Sidebar each window is building, which its sections and items read.
 var navSidebars sync.Map // *ui.Context -> *navSidebar
@@ -66,7 +66,7 @@ func Sidebar(c *ui.Context, selected *string, fn func()) ui.Element {
 	return sb
 }
 
-// SidebarSection creates a section of a Sidebar under title, holding the items fn builds while *open is true; a click on the title shows and hides them, as in ui.SidebarSection. The title is drawn as the platform heads a group of its sidebar: AppKit's group row, NavigationViewItemHeader or a dimmed heading on GNOME. A nil open keeps the section open. It is ui.SidebarSection's counterpart.
+// SidebarSection creates a section of a Sidebar under title, holding the items fn builds while *open is true; a click on the title shows and hides them, as in ui.SidebarSection. The title is drawn as the platform heads a group of its sidebar: AppKit's group row, NavigationViewItemHeader or AdwSidebar's heading on GNOME. A nil open keeps the section open. It is ui.SidebarSection's counterpart.
 func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -84,10 +84,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 		}
 		first, top, below = 2+short/2, short/2, 1+short/2
 	case Linux:
-		// libadwaita 1.7 has no sidebar headings: .heading .dim-label, the text at 55% (inferred), lined up with the rows' labels, 12 pixels below the row above (inferred).
-		head.FontSize, head.Spacing, head.Radius = t.FontSize+1, 4, 9
-		head.TextMuted = adwInkAlpha(t, adwSidebarBg(t), 0.55)
-		top = 12
+		first, top, below = adwSidebarHeading(t, &head)
 	default:
 		// AppKit's group row, measured on macOS 27: 11-point semibold text in a row 19 points high, 2 points inside the selection's inset, the first 13 points from the top (an item's row would be 10) and the others 13 points below the row above, in tertiaryLabelColor (black at 26% in Aqua, white at 25% in Dark Aqua; rendered offscreen, without the sidebar's vibrancy, AppKit draws it lighter still, 20% and 12%). MyGo's title row is 18 points high with the space below it, so the margins above put its text where AppKit's is, the items following half a point higher.
 		head.FontSize, head.Spacing, head.Radius = 12, 2, 8
@@ -120,7 +117,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 	return sec
 }
 
-// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise, its label semibold; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME a row 36 high, the chosen one darker. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
+// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise, its label semibold; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME an AdwSidebar row, 42 high, the chosen one darker. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
 func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -243,11 +240,19 @@ func adwSidebarBorder(t *ui.Theme) ui.Color {
 	return adwSidebarBg(t).Mix(adwInk, pick(t.Dark, float32(0.07), 0.36))
 }
 
-// adwSidebarItem draws a row of a .navigation-sidebar list: at least 36 pixels high, padding 0 8px, corners of $menu_radius (9), currentColor at 7% under the pointer, and while selected at 10%, 13% under the pointer and 19% pressed. The 12 pixels between a row's icon and its label are inferred, as libadwaita leaves a row's content to the app.
+// adwSidebarHeading sets head, the theme MyGo draws a SidebarSection's title in, to the header AdwSidebar (libadwaita 1.9+) gives a section, and returns the space SidebarSection leaves above the first section, above another and below the title. adw-sidebar.c's create_header puts the title in a .heading label, bold at the body size (MyGo draws its titles semibold), in sidebar_fg_color, not dimmed, inside a box; the box has a margin of $menu_margin (6) and the label one of 6 (_sidebars.scss), so the text is 12 pixels in from the sidebar's edge, 14 below the row above (with that row's bottom margin of 2) and 12 above the section's first row, and the first section's header has no margin above, its text at the list's top padding of 6. AdwSidebar shows a separator in place of an untitled section's header, which MyGo's SidebarSection, always heading its section, does not.
+func adwSidebarHeading(t *ui.Theme, head *ui.Theme) (first, top, below float32) {
+	// MyGo pads the title Space(1) above and below and Space(2) at the sides, and leaves Space(0.5) between it and the items: a Spacing of 3 puts the text 6 inside the sidebar's padding of 6. The sidebar's body leaves 2 between sections, a row's bottom margin.
+	head.FontSize, head.Spacing, head.Radius = t.FontSize+1, 3, 9
+	head.TextMuted = adwSidebarFg(t)
+	return -3, 14 - 2 - 3, 12 - 3 - 1.5
+}
+
+// adwSidebarItem draws a row of an AdwSidebar (libadwaita 1.9+): sidebar .navigation-sidebar > row > box, padding 3px 14px around a content at least 36 pixels high, so 42 pixels high, its icon 12 pixels before its label (border-spacing), corners of $menu_radius (9), currentColor at 7% under the pointer, and while selected at 10%, 13% under the pointer and 19% pressed (_sidebars.scss), as libadwaita's doc/images/sidebar.png shows.
 func adwSidebarItem(c *ui.Context, item ui.Element, chosen bool) {
 	t := c.Theme()
 	bg := adwSidebarBg(t)
-	item.MinHeight(36).Padding(0, 8).Gap(12).Radius(9)
+	item.MinHeight(42).Padding(3, 14).Gap(12).Radius(9)
 	if !chosen {
 		return
 	}
@@ -269,7 +274,7 @@ func Breadcrumbs(c *ui.Context, items []string, chosen *int) ui.Element {
 	t := c.Theme()
 	row := ui.Row(c).AlignItems(ui.Center).MinWidth(0).Role(ui.RoleGroup)
 	if p == Linux {
-		// #NautilusPathBar: currentColor at 10%, corners of 9.
+		// Nautilus 51.0's .nautilus-pathbar (src/resources/style.css): currentColor at 10%, corners of 9.
 		row.Background(adwInkAlpha(t, t.Background, 0.10)).Radius(9)
 	} else if p != Windows {
 		// An NSPathControl of style standard is 22 points high, its first item's text 5 points in, measured.
@@ -317,7 +322,7 @@ func navCrumb(c *ui.Context, p Platform, e ui.Element, link bool) {
 		}
 		e.MinHeight(26).Padding(3, 1).Radius(4).TextColor(fg)
 	case Linux:
-		// #NautilusPathButton: a button 24 pixels high without vertical padding, margin 3, corners of 7, its label bold; the others than the current one dimmed, without a background but under the pointer, where they take a button's hover color (currentColor at 15%) and their full color, 30% pressed.
+		// Nautilus 51.0's .nautilus-path-button: a button 24 pixels high without vertical padding, margin 3, corners of 7, its label bold; the others than the current one dimmed, without a background but under the pointer, where they take a button's hover color (currentColor at 15%) and their full color, 30% pressed.
 		trough := adwInkAlpha(t, t.Background, 0.10)
 		e.Margin(3).MinHeight(24).PaddingX(10).Radius(7).FontWeight(700).TextColor(t.Text)
 		if !link {
@@ -345,7 +350,7 @@ func navCrumb(c *ui.Context, p Platform, e ui.Element, link bool) {
 func navCrumbSeparator(c *ui.Context, p Platform) {
 	t := c.Theme()
 	if p == Linux {
-		// G_DIR_SEPARATOR_S in a .dim-label, in the weight of the text around it.
+		// G_DIR_SEPARATOR_S in a .dim-label, in the weight of the text around it (nautilus-pathbar.c of Nautilus 51.0).
 		ui.Text(c, "/").Role(ui.RoleNone).FontWeight(400).TextColor(t.TextMuted)
 		return
 	}
@@ -451,7 +456,7 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 		}
 		b.Size(34, 34).Padding(0).Radius(9).Border(0, ui.Color{}).Background(face)
 		glyph = func(pt *ui.Painter, rc ui.Rect) {
-			// Adwaita's go-previous-symbolic (go-next-symbolic mirrored), adwaita-icon-theme 48: a chevron in a 16-pixel icon from 11,2 to 5,8 to 11,14, a 2-pixel round stroke.
+			// Adwaita's go-previous-symbolic (go-next-symbolic mirrored), adwaita-icon-theme 51.0: a chevron in a 16-pixel icon from 11,2 to 5,8 to 11,14, a 2-pixel round stroke.
 			cx, cy := rc.X+rc.W/2, rc.Y+rc.H/2
 			var chevron ui.Path
 			chevron.MoveTo(cx+3*dir, cy-6).LineTo(cx-3*dir, cy).LineTo(cx+3*dir, cy+6)
