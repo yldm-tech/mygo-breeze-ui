@@ -54,7 +54,7 @@ func styleList(c *ui.Context, p Platform, l ui.Element) ui.Element {
 
 // ---- macOS: NSTableView of style inset ----
 
-// macListRow draws a row of an inset NSTableView: 24 points high (the rows of rowSizeStyle default on macOS 26, measured), the content 8 points in (the cell view starts 6 points into the row's selection, its text field 2 more, as Interface Builder's cell template places it; inferred), and while chosen a rectangle with corners of 8 (measured from NSTableRowView's drawSelection at 2x) in selectedContentBackgroundColor with white text while the list has the focus, or unemphasizedSelectedContentBackgroundColor with the text's own color while it has not. Rows chosen together make one block, rounded at its ends only: NSTableRowView squares the corners on the side of a chosen previous or next row (measured from drawSelection with isPreviousRowSelected and isNextRowSelected). AppKit's rows do not change under the pointer. chosen gathers the rows chosen in the frame, for the block.
+// macListRow draws a row of an inset NSTableView: 24 points high (the rows of rowSizeStyle default, measured), the content 8 points in from the selection (measured: the cell view starts 16 points into the row, 6 into its selection, and a label's text 2 into its NSTextField; the text field is taken flush with the cell view, as it was in the rendered table, inferred for Interface Builder's template, which may set it further in), and while chosen a rectangle with corners of 8 (measured from the drawSelection of a row view in an inset table at 2x, matching a rounded rectangle of radius 8) in selectedContentBackgroundColor with white text while the list has the focus, or unemphasizedSelectedContentBackgroundColor with the text's own color while it has not. Rows chosen together make one block, rounded at its ends only: NSTableRowView squares the corners on the side of a chosen previous or next row (measured from drawSelection with isPreviousRowSelected and isNextRowSelected). AppKit's rows do not change under the pointer. chosen gathers the rows chosen in the frame, for the block.
 func macListRow(c *ui.Context, cell ui.Element, r ui.ListRow, chosen map[int]bool) {
 	t := c.Theme()
 	// The text's own color, rather than the accent's text MyGo gives the chosen row.
@@ -83,7 +83,7 @@ func macListRow(c *ui.Context, cell ui.Element, r ui.ListRow, chosen map[int]boo
 	})
 }
 
-// macListSelection returns the fill of a chosen row: selectedContentBackgroundColor while the list has the focus, #0064e1 in Aqua and #0059d1 in Dark Aqua for the blue accent (measured), a darker shade of another accent (a mix, inferred); unemphasizedSelectedContentBackgroundColor while it has not, #dcdcdc and #464646 (measured).
+// macListSelection returns the fill of a chosen row: selectedContentBackgroundColor while the list has the focus, #0064e1 in Aqua and #0059d1 in Dark Aqua for the blue accent (resolved in AppKit), and for another accent that accent mixed with 16% black in Aqua and 24% in Dark Aqua, the mix closest to what AppKit resolves for the red, orange, green, purple and pink accents (within 13 and 18 of 255 per channel; AppKit darkens the accent's Oklab lightness and chroma rather than mixing in black); unemphasizedSelectedContentBackgroundColor while it has not, #dcdcdc and #464646 whatever the accent (resolved in AppKit).
 func macListSelection(t *ui.Theme, focused bool) ui.Color {
 	switch {
 	case !focused:
@@ -91,12 +91,12 @@ func macListSelection(t *ui.Theme, focused bool) ui.Color {
 	case t.Accent == macAccent:
 		return pick(t.Dark, ui.Hex("#0064e1"), ui.Hex("#0059d1"))
 	}
-	return t.Accent.Mix(black, pick(t.Dark, float32(0.12), 0.18))
+	return t.Accent.Mix(black, pick(t.Dark, float32(0.16), 0.24))
 }
 
 // ---- Windows 11: WinUI 3's ListView ----
 
-// fluentListRow draws a ListViewItem (ListViewItem_themeresources.xaml and ListViewBaseItemChrome.cpp): at least 40 DIPs high (ListViewItemMinHeight), its content after the inline selection indicator's 7 DIPs and the item's Padding 16,0,12,0, in TextFillColorPrimary whatever its state; a backplate 4,2 in from its edges (s_backplateMargin) with corners of 4 (ListViewItemCornerRadius), SubtleFillColorSecondary while chosen or under the pointer and SubtleFillColorTertiary while chosen and under the pointer; and on the chosen one a 3 by 16 DIP pill of AccentFillColorDefault, 4 DIPs from the item's start, centered, with corners of 1.5 (s_selectionIndicatorSize, s_selectionIndicatorMargin, ListViewItemSelectionIndicatorCornerRadius), growing with an item taller than 56. The backplate shows under the pointer only when hovers, for a row that can be chosen.
+// fluentListRow draws a ListViewItem (ListViewItem_themeresources.xaml and ListViewBaseItemChrome.cpp): at least 40 DIPs high (ListViewItemMinHeight), its content after the inline selection indicator's 7 DIPs and the item's Padding 16,0,12,0, in TextFillColorPrimary whatever its state; a backplate 4,2 in from its edges (s_backplateMargin) with corners of 4 (ListViewItemCornerRadius), SubtleFillColorSecondary while chosen or under the pointer and SubtleFillColorTertiary while chosen and under the pointer; and on the chosen one a 3 by 16 DIP pill of AccentFillColorDefault, 4 DIPs from the item's start, centered, with corners of 1.5 (s_selectionIndicatorSize, s_selectionIndicatorMargin, ListViewItemSelectionIndicatorCornerRadius), growing with an item taller than 56. The backplate shows under the pointer only when hovers, for a row that can be chosen. The pressed item's backplates (SubtleFillColorTertiary, or SubtleFillColorSecondary while chosen) and its pill 6 DIPs shorter (s_selectionIndicatorHeightShrinkage) are not drawn: the press belongs to MyGo's row, which ListRow does not report, and asking the cell for it would take the row's clicks.
 func fluentListRow(c *ui.Context, cell ui.Element, r ui.ListRow, hovers bool) {
 	t := c.Theme()
 	cell.MinHeight(40).PaddingStart(16 + 7).PaddingEnd(12).Justify(ui.Center).Background(t.Background).TextColor(t.Text)
@@ -131,7 +131,7 @@ func fluentListRow(c *ui.Context, cell ui.Element, r ui.ListRow, hovers bool) {
 // adwListViewBg is view_bg_color, the background of lists and text views: #ffffff and #1d1d20 (_defaults.scss).
 func adwListViewBg(t *ui.Theme) ui.Color { return pick(t.Dark, white, ui.Hex("#1d1d20")) }
 
-// adwListRow draws a row of a GtkListView of class rich-list (_lists.scss): padded 8px 12px with a min-height of 32px, so 48 pixels high, square, in view_fg_color over view_bg_color; while chosen $view_selected_color, the accent at 25% ($view_selected_hover_color, 32%, under the pointer), and under the pointer $view_hover_color, currentColor at 4%, as rows that can be chosen are activatable: the hover shows only when hovers.
+// adwListRow draws a row of a GtkListView of class rich-list (_lists.scss): padded 8px 12px with a min-height of 32px, so 48 pixels high, square, in view_fg_color over view_bg_color; while chosen $view_selected_color, the accent at 25% ($view_selected_hover_color, 32%, under the pointer), and under the pointer $view_hover_color, currentColor at 4%, as rows that can be chosen are activatable: the hover shows only when hovers. The pressed row's $view_active_color (8%) and $view_selected_active_color (39%) are not drawn, the press being MyGo's row's, as on Windows.
 func adwListRow(c *ui.Context, cell ui.Element, r ui.ListRow, hovers bool) {
 	t := c.Theme()
 	bg := adwListViewBg(t)
