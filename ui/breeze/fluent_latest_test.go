@@ -354,3 +354,104 @@ func TestFluentOverlayStrokes(t *testing.T) {
 		}
 	}
 }
+
+// TestFluentMixedBoxIsFilled checks that a CheckboxGroup's box with some of its boxes checked is filled with the accent and shows the indeterminate dash on Windows: fluentCheckbox paints a checked box as it draws its mark, so a dash drawn over the box on its own would leave the box unpainted.
+func TestFluentMixedBoxIsFilled(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		a, b := true, false
+		var accent, mark ui.Color
+		tester := fluentShot(dark, 300, 200, func(c *ui.Context) {
+			accent, mark = c.Theme().Accent, c.Theme().AccentText
+			ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() {
+				CheckboxGroup(c, "All", func() {
+					Checkbox(c, &a, "One")
+					Checkbox(c, &b, "Two")
+				})
+			})
+		})
+		// The head's box is 6 DIPs below the top of its row, at the column's padding.
+		box := ui.Rect{X: 16, Y: 16 + 6, W: 20, H: 20}
+		if got := fluentPixel(tester, box.X+3, box.Y+3); !fluentWithin(got, accent, 2) {
+			t.Errorf("dark %v: the mixed box reads %v, want the accent %v", dark, got, accent)
+		}
+		if got := fluentPixel(tester, box.X+10, box.Y+10); !fluentWithin(got, mark, 40) {
+			t.Errorf("dark %v: the mixed box's dash reads %v, want %v", dark, got, mark)
+		}
+	}
+}
+
+// TestFluentChosenRadioPressed checks a chosen radio button while pressed against WinUI 3's rendering (tools/winui-reference, WinUI 3 3.3 on Windows 11 26H2): PressedCheckGlyph covers the dot's ring, so the 10-DIP dot reads TextOnAccentFillColorPrimary to its edge.
+func TestFluentChosenRadioPressed(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		size := "M"
+		var row ui.Rect
+		var mark ui.Color
+		tester := fluentShot(dark, 200, 80, func(c *ui.Context) {
+			mark = c.Theme().AccentText
+			ui.Box(c).Fill().Children(func() {
+				ui.Box(c).Absolute().Left(16).Top(16).Children(func() { row = Radio(c, &size, "M", "On").Bounds() })
+			})
+		})
+		cx, cy := row.X+10, row.Y+6+10
+		tester.Move(cx, cy)
+		tester.Press(cx, cy)
+		tester.Advance(time.Second)
+		tester.Frame()
+		if got := fluentPixel(tester, cx-4.25, cy); !fluentWithin(got, mark, 3) {
+			t.Errorf("dark %v: the pressed dot reads %v at its edge, WinUI's %v", dark, got, mark)
+		}
+	}
+}
+
+// TestFluentSelectInsetRightToLeft checks that the ComboBox's text keeps WinUI's 12-DIP inset from the box's start right to left, as WinUI's template mirrors.
+func TestFluentSelectInsetRightToLeft(t *testing.T) {
+	sel := "Medium"
+	var box ui.Rect
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Windows, func() {
+			Use(c)
+			ui.Column(c).Fill().Padding(16).AlignItems(ui.Start).Children(func() {
+				box = Select(c, &sel, []string{"Medium", "Small"}).Bounds()
+			})
+		})
+	}, 300, 80)
+	tester.SetDirection(ui.RightToLeft)
+	tester.Frame()
+	tester.Frame()
+	r, ok := tester.Find("Medium")
+	if end := box.X + box.W - (r.X + r.W); !ok || end != 12 {
+		t.Errorf("the ComboBox's text ends %v DIPs from the box's end right to left, want 12", end)
+	}
+}
+
+// TestFluentMenuButtonChevron checks a DropDownButton's chevron against WinUI 3's rendering (tools/winui-reference, WinUI 3 3.3 on Windows 11 26H2): TextFillColorSecondary laid over the button's face, reading 95 on the face of 251 in the light theme and 207 on 45 in the dark one.
+func TestFluentMenuButtonChevron(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		var b ui.Rect
+		tester := fluentShot(dark, 200, 80, func(c *ui.Context) {
+			ui.Box(c).Fill().Children(func() {
+				ui.Box(c).Absolute().Left(16).Top(16).Children(func() {
+					b = MenuButton(c, "Sort", func(m *ui.Menu) { m.Item("Name") }).Bounds()
+				})
+			})
+		})
+		text, ok := tester.Find("Sort")
+		if !ok {
+			t.Fatal("no label")
+		}
+		// The chevron is the most contrasting pixel between the label's end and the button's; over the window, without the face under it, it would read 92 and 204.
+		want, face := pick(dark, uint8(95), 207), pick(dark, uint8(251), 45)
+		best, far := ui.Color{}, -1
+		for y := b.Y + 1; y < b.Y+b.H-1; y += 0.5 {
+			for x := text.X + text.W + 1; x < b.X+b.W-1; x += 0.5 {
+				got := fluentPixel(tester, x, y)
+				if d := int(got.R) - int(face); d*d > far {
+					best, far = got, d*d
+				}
+			}
+		}
+		if !fluentWithin(best, ui.RGBA(want, want, want, 1), 1) {
+			t.Errorf("dark %v: the chevron reads %v at its strongest, WinUI's %d", dark, best, want)
+		}
+	}
+}

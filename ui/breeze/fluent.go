@@ -223,8 +223,8 @@ func fluentPressedStroke(t *ui.Theme, fill ui.Color) (stroke, inner ui.Color) {
 	return t.Background.Mix(k, a), fill.Mix(k, a)
 }
 
-// fluentCheckbox draws a CheckBox: a 20-DIP box with corners of 4 and a 1-DIP stroke, 8 DIPs from its label, in a row at least 32 high and 120 wide (CheckBoxHeight, CheckBoxMinWidth); checked, the accent fill with the check mark of AnimatedAcceptVisualSource in TextOnAccentFillColorPrimary, drawing itself in as WinUI's does, and gray when disabled. The focus visual goes around the whole row, grown by CheckBoxFocusVisualMargin -7,-3,-7,-3 (CheckBox_themeresources.xaml).
-func fluentCheckbox(c *ui.Context, row, box ui.Element, on bool) {
+// fluentCheckbox draws a CheckBox: a 20-DIP box with corners of 4 and a 1-DIP stroke, 8 DIPs from its label, in a row at least 32 high and 120 wide (CheckBoxHeight, CheckBoxMinWidth); checked, the accent fill with the check mark of AnimatedAcceptVisualSource in TextOnAccentFillColorPrimary, drawing itself in as WinUI's does, or with mixed the indeterminate dash (formsFluentDash), and gray when disabled. The focus visual goes around the whole row, grown by CheckBoxFocusVisualMargin -7,-3,-7,-3 (CheckBox_themeresources.xaml).
+func fluentCheckbox(c *ui.Context, row, box ui.Element, on, mixed bool) {
 	t := c.Theme()
 	// WinUI does not center the box and the label in the row: the box is centered in a grid CheckBoxHeight (32) high at the top, so 6 DIPs down, and the label is at the top of the ContentPresenter inside the style's Padding 8,5,0,0, so 5 DIPs down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the box's top at 6 and the label's text box at 5, which put its baseline 1.5 DIPs above where centering the label put Breeze UI's).
 	row.Gap(8).MinHeight(32).MinWidth(120).AlignItems(ui.Start).Padding(5, 0, 0, 0)
@@ -269,6 +269,10 @@ func fluentCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 		p.Fill(r, face, 4)
 		if ring != face {
 			fluentInnerStroke(p, r, 4, ring)
+		}
+		if mixed {
+			formsFluentDash(p, r, mark)
+			return
 		}
 		// AnimatedAcceptVisualSource.cpp's check, (-15.172,0.016) to (-5,10.188) to (15.337,-10.337) stroked 4 with round caps and join, in a shape scaled 0.7 at 24,23 in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box moved down 1 by the AnimatedIcon's Margin 0,1,0,-1: x = 10 + 0.30625·px, y = 10.5625 + 0.30625·py, and a stroke of 4·0.7·1.05·20/48 = 1.225 DIPs. No state scales the check, so the stroke is that at every size.
 		var path ui.Path
@@ -360,7 +364,7 @@ func fluentSubtle(t *ui.Theme) (hover, pressed ui.Color) {
 	return t.Background.Mix(black, 0.035), t.Background.Mix(black, 0.024)
 }
 
-// fluentRadio draws a RadioButton: a 20-DIP circle with a 1-DIP stroke, 8 DIPs from its label in a row at least 32 high and 120 wide (the style's MinWidth); chosen, the accent with a dot of TextOnAccentFillColorPrimary, 12 DIPs across, growing to 14 under the pointer and shrinking to 10 pressed over ControlNormalAnimationDuration (250 ms) along ControlFastOutSlowInKeySpline 0,0,0,1, back to 12 at once, inside a 1-DIP AccentControlElevationBorderBrush stroke (RadioButtonCheckGlyphStrokeChecked); not chosen and pressed, PressedCheckGlyph, a dot of the same fill growing from 4 to 10 DIPs over ControlFastAnimationDuration (167 ms). The focus visual goes around the whole row, grown by FocusVisualMargin -7,-3,-7,-3 (RadioButton_themeresources.xaml).
+// fluentRadio draws a RadioButton: a 20-DIP circle with a 1-DIP stroke, 8 DIPs from its label in a row at least 32 high and 120 wide (the style's MinWidth); chosen, the accent with a dot of TextOnAccentFillColorPrimary, 12 DIPs across, growing to 14 under the pointer and shrinking to 10 pressed over ControlNormalAnimationDuration (250 ms) along ControlFastOutSlowInKeySpline 0,0,0,1, back to 12 at once, inside a 1-DIP AccentControlElevationBorderBrush stroke (RadioButtonCheckGlyphStrokeChecked); pressed, PressedCheckGlyph, a dot of the same fill growing from 4 to 10 DIPs over ControlFastAnimationDuration (167 ms), over the chosen dot's ring too. The focus visual goes around the whole row, grown by FocusVisualMargin -7,-3,-7,-3 (RadioButton_themeresources.xaml).
 func fluentRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
 	// The circle is centered in a grid 32 high at the top and the label at the top inside the style's Padding 8,6,0,0, so both 6 DIPs down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
@@ -385,14 +389,14 @@ func fluentRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	d := dot.AnimateWith("breeze-dot", size, dur, ease)
 	down := pressed && !on
 	pressSize, pressDur := float32(4), time.Duration(0)
-	if down {
+	if pressed {
 		pressSize, pressDur = 10, 167*time.Millisecond
 	}
 	press := dot.AnimateWith("breeze-press-dot", pressSize, pressDur, ease)
 	// AccentControlElevationBorderBrush over the dot: ControlStrokeColorOnAccentDefault (#14FFFFFF) and, in the bottom DIP blending into it by 3 DIPs from the bottom, ControlStrokeColorOnAccentSecondary (#66000000 in the light theme, #23000000 in the dark one), the brush's ScaleY -1 putting the secondary at the bottom in both (Common_themeresources_any.xaml). The dot's fill reaches the middle of that stroke, so its outer half lies over the accent around the dot, translucent: at the dot's bottom WinUI's reads #00365f over the light theme's #005a9e, and a 12-DIP dot's fill is 11 across (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
 	on1 := white.Alpha(0x14 / 255.0)
 	sec := black.Alpha(pick(t.Dark, float32(0x66)/255, 0x23/255.0))
-	// Under the pointer and pressed, the CommonStates set the dot's Stroke to RadioButtonCheckGlyphStrokePointerOver and Pressed, CircleElevationBorderBrush: ControlStrokeColorDefault down to half the dot's height, blending into ControlStrokeColorSecondary by 70% (#0F000000 and #29000000, #12FFFFFF and #18FFFFFF in the dark theme; RadioButton_themeresources.xaml, Common_themeresources_any.xaml). Under the pointer WinUI's reads so, #17639d above the dot and #14598d below it over the light theme's accent (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference); its pressed render showed no ring, which the sources do not explain, so the sources' ring is drawn pressed too.
+	// Under the pointer and pressed, the CommonStates set the dot's Stroke to RadioButtonCheckGlyphStrokePointerOver and Pressed, CircleElevationBorderBrush: ControlStrokeColorDefault down to half the dot's height, blending into ControlStrokeColorSecondary by 70% (#0F000000 and #29000000, #12FFFFFF and #18FFFFFF in the dark theme; RadioButton_themeresources.xaml, Common_themeresources_any.xaml). Under the pointer WinUI's reads so, #17639d above the dot and #14598d below it over the light theme's accent (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference). Pressed, the Pressed state also shows PressedCheckGlyph, a Border of RadioButtonCheckGlyphFillPressed (TextOnAccentFillColorPrimary) without a border thickness, growing from 4 to 10 DIPs over ControlFastAnimationDuration above the dot, which shrinks to 10 over ControlNormalAnimationDuration; the Checked state hides it with a To animation that the Pressed state's, started later, overrides, so it covers the dot's ring: WinUI's pressed render reads a 10-DIP dot of TextOnAccentFillColorPrimary without a ring (RadioButton_themeresources.xaml; measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
 	cdef, csec := black.Alpha(0x0f/255.0), black.Alpha(0x29/255.0)
 	if t.Dark {
 		cdef, csec = white.Alpha(0x12/255.0), white.Alpha(0x18/255.0)
@@ -414,6 +418,9 @@ func fluentRadio(c *ui.Context, row, dot ui.Element, on bool) {
 				g = circle
 			}
 			p.StrokePathGradient(&ring, 1, g)
+			if pressed {
+				p.Fill(ui.Rect{X: cx - press/2, Y: cy - press/2, W: press, H: press}, t.AccentText, press/2)
+			}
 		case down:
 			p.Fill(ui.Rect{X: cx - press/2, Y: cy - press/2, W: press, H: press}, t.AccentText, press/2)
 		}
@@ -439,8 +446,8 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	case f.Hovered():
 		fill = t.SurfaceHover
 	}
-	// The 1-DIP border, drawn over the box here, is inside the template's BorderElement, and TextControlThemePadding 10,5,6,6 inside it: the text starts 11 DIPs in and 6 down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text box at 27,56 in a TextBox at 16,50).
-	f.Padding(6, 7, 7, 11).Radius(4).Background(fill).Border(0, ui.Color{})
+	// The 1-DIP border, drawn over the box here, is inside the template's BorderElement, and TextControlThemePadding 10,5,6,6 inside it: the text starts 11 DIPs in and 6 down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text box at 27,56 in a TextBox at 16,50). The template mirrors right to left, so the sides are the start and the end.
+	f.Padding(6, 0, 7, 0).PaddingStart(11).PaddingEnd(7).Radius(4).Background(fill).Border(0, ui.Color{})
 	if kind != multiLine {
 		f.MinHeight(32)
 	}
@@ -465,8 +472,8 @@ func fluentSelect(c *ui.Context, trigger ui.Element, selected string) {
 	if pressed {
 		fg = t.TextMuted
 	}
-	// ComboBoxPadding 12,5,0,7 and the DropDownGlyph's Margin 0,0,14,0 are from the box's outer edge, the 1-DIP border drawn inside them, where MyGo's padding starts inside the border: the text starts 12 DIPs in and the chevron ends 14 from the end (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text at 28 and the 12-DIP glyph at 92 in a ComboBox from 16 to 118).
-	trigger.MinHeight(32).MinWidth(64).Padding(5, 13, 7, 11).Gap(12).Radius(4).Justify(ui.SpaceBetween).AlignItems(ui.Center).
+	// ComboBoxPadding 12,5,0,7 and the DropDownGlyph's Margin 0,0,14,0 are from the box's outer edge, the 1-DIP border drawn inside them, where MyGo's padding starts inside the border: the text starts 12 DIPs in and the chevron ends 14 from the end (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text at 28 and the 12-DIP glyph at 92 in a ComboBox from 16 to 118), at the start and the end as the template mirrors right to left.
+	trigger.MinHeight(32).MinWidth(64).Padding(5, 0, 7, 0).PaddingStart(11).PaddingEnd(13).Gap(12).Radius(4).Justify(ui.SpaceBetween).AlignItems(ui.Center).
 		Background(face).TextColor(fg).FocusRing(false)
 	if pressed {
 		trigger.Border(1, t.Border)
@@ -743,7 +750,7 @@ func fluentDialogShadow(t *ui.Theme, panel ui.Element) {
 		Shadow(0, 32, 64, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.19), 0.37)))
 }
 
-// fluentDialogStroke is a ContentDialog's border, SurfaceStrokeColorDefault (#66757575), laid over SmokeFillColorDefault over the window: the dialog's background stops inside its border, so the edge reads over what is behind the dialog, not over its own fill (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: shown in place, without the smoke, its sides read 175 where over the dialog's fill they would read 193, the shadow behind darkening them).
+// fluentDialogStroke is a ContentDialog's border, SurfaceStrokeColorDefault (#66757575), laid over SmokeFillColorDefault over the window: the dialog's background stops inside its border, so the edge reads over what is behind the dialog, not over its own fill (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: shown in place, without the smoke, its sides read 177 and 178 and its top 184 where over the dialog's fill they would read 193, the shadow behind darkening them).
 func fluentDialogStroke(t *ui.Theme) ui.Color {
 	return t.Background.Mix(black, 0.3).Mix(ui.Hex("#757575"), 0x66/255.0)
 }

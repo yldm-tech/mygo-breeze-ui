@@ -223,19 +223,20 @@ func formsInkEdge(tester *ui.Tester, r ui.Rect, bg ui.Color, rtl bool) float32 {
 	return r.X + r.W
 }
 
-// formsCheckBoxAt returns the center of the box before the label at r of a check box on platform p: macCheckbox's 16-point box 6 before its label, fluentCheckbox's and adwCheckbox's 20 DIPs 8 and 4 before theirs, before it in the reading direction.
+// formsCheckBoxAt returns the center of the box before the label at r of a check box on platform p: macCheckbox's 16-point box 6 before its label, fluentCheckbox's and adwCheckbox's 20 DIPs 8 and 4 before theirs, before it in the reading direction. The box is centered on the label but on Windows, where fluentCheckbox puts the label 5 DIPs below the row's top and the box 6, so the box's middle 11 below the label's top whatever the font.
 func formsCheckBoxAt(p Platform, r ui.Rect, rtl bool) (x, y float32) {
 	size, gap := float32(16), float32(6)
+	y = r.Y + r.H/2
 	switch p {
 	case Windows:
-		size, gap = 20, 8
+		size, gap, y = 20, 8, r.Y-5+6+10
 	case Linux:
 		size, gap = 20, 4
 	}
 	if rtl {
-		return r.X + r.W + gap + size/2, r.Y + r.H/2
+		return r.X + r.W + gap + size/2, y
 	}
-	return r.X - gap - size/2, r.Y + r.H/2
+	return r.X - gap - size/2, y
 }
 
 // formsIconRect returns where MyGo's 14-DIP calendar icon is in a date field r padded pad at its ends.
