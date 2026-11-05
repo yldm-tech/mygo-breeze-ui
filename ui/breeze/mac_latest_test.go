@@ -24,8 +24,8 @@ func macPixel(tester *ui.Tester, x, y int) ui.Color {
 	return ui.RGB(px.R, px.G, px.B)
 }
 
-// near reports whether a and b differ by at most d in every channel.
-func near(a, b ui.Color, d int) bool {
+// macNear reports whether a and b differ by at most d in every channel.
+func macNear(a, b ui.Color, d int) bool {
 	diff := func(x, y uint8) int { return max(int(x)-int(y), int(y)-int(x)) }
 	return diff(a.R, b.R) <= d && diff(a.G, b.G) <= d && diff(a.B, b.B) <= d
 }
@@ -35,7 +35,7 @@ func TestMacThemeOfMacOS27(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		th := macTheme(dark, ui.Color{})
 		border := pick(dark, ui.RGB(230, 230, 230), ui.RGB(57, 57, 57))
-		if !near(th.Border, border, 1) {
+		if !macNear(th.Border, border, 1) {
 			t.Errorf("dark %v: Border %v, want separatorColor %v", dark, th.Border, border)
 		}
 		focus := pick(dark, ui.RGBA(27, 105, 249, 0.5), ui.RGBA(46, 169, 255, 0.5))
@@ -73,7 +73,7 @@ func TestMacAccentControlsDrawTheKeyWindow(t *testing.T) {
 			t.Errorf("dark %v: chosen segment %v, want the accent %v", dark, got, accent)
 		}
 		platter := pick(dark, white, tint(ui.Hex("#1e1e1e"), true, 0.2))
-		if got := macPixel(tester, 46, 172); !near(got, platter, 2) {
+		if got := macPixel(tester, 46, 172); !macNear(got, platter, 2) {
 			t.Errorf("dark %v: chosen tab %v, want the platter %v", dark, got, platter)
 		}
 	}
@@ -87,7 +87,7 @@ func TestMacDisabledCheckedBoxIsGray(t *testing.T) {
 		tester.SetDark(dark)
 		tester.Frame()
 		want := pick(dark, ui.RGB(236, 236, 236), ui.RGB(46, 46, 46))
-		if got := macPixel(tester, 42, 44); !near(got, want, 2) {
+		if got := macPixel(tester, 42, 44); !macNear(got, want, 2) {
 			t.Errorf("dark %v: disabled checked box %v, want %v", dark, got, want)
 		}
 	}
@@ -99,7 +99,7 @@ func TestMacFocusRing(t *testing.T) {
 	tester.Frame()
 	tester.Key(0, ui.KeyTab)
 	tester.Frame()
-	if got := macPixel(tester, 38, 52); !near(got, ui.Hex("#8db4fc"), 2) {
+	if got := macPixel(tester, 38, 52); !macNear(got, ui.Hex("#8db4fc"), 2) {
 		t.Errorf("focus ring %v, want #8db4fc", got)
 	}
 	if got := macPixel(tester, 35, 52); got != white {
@@ -122,10 +122,10 @@ func TestMacDisabledCheckedMarkIsGray(t *testing.T) {
 		tester.Frame()
 		want := pick(dark, ui.RGB(175, 175, 175), ui.RGB(98, 98, 98))
 		// The middle row of the box crosses the mark's first stroke 3.5 points in; the radio button's dot is at its center.
-		if got := macPixel(tester, 2*40+7, 2*48); !near(got, want, 3) {
+		if got := macPixel(tester, 2*40+7, 2*48); !macNear(got, want, 3) {
 			t.Errorf("dark %v: disabled check mark %v, want %v", dark, got, want)
 		}
-		if got := macPixel(tester, 2*48, 2*(40+16+24+8)); !near(got, want, 3) {
+		if got := macPixel(tester, 2*48, 2*(40+16+24+8)); !macNear(got, want, 3) {
 			t.Errorf("dark %v: disabled radio dot %v, want %v", dark, got, want)
 		}
 	}
@@ -142,7 +142,7 @@ func TestMacSliderRingOverKnob(t *testing.T) {
 	tester.Frame()
 	// The knob's center is 10 + 0.4 of 160 points in, its edge 10 points after it.
 	edge := 2*(40+10+64+10) - 1
-	if got := macPixel(tester, edge, 2*48); got == white || !near(got, ui.RGB(150, 212, 255), 6) {
+	if got := macPixel(tester, edge, 2*48); got == white || !macNear(got, ui.RGB(150, 212, 255), 6) {
 		t.Errorf("knob edge under the ring %v, want the ring over white", got)
 	}
 }

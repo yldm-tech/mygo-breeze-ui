@@ -17,8 +17,8 @@ func windowsTheme(t *testing.T, dark bool) *ui.Theme {
 	return got
 }
 
-// near reports whether a and b differ by at most 1 in each channel, as rounding leaves them.
-func near(a, b ui.Color) bool {
+// fluentNear reports whether a and b differ by at most 1 in each channel, as rounding leaves them.
+func fluentNear(a, b ui.Color) bool {
 	d := func(x, y uint8) bool { return int(x)-int(y) <= 1 && int(y)-int(x) <= 1 }
 	return d(a.R, b.R) && d(a.G, b.G) && d(a.B, b.B) && d(a.A, b.A)
 }
@@ -31,10 +31,10 @@ func TestFluentThemeFromWinUI(t *testing.T) {
 		if th.Background != bg {
 			t.Fatalf("dark %v: background %v, want %v", dark, th.Background, bg)
 		}
-		if want := bg.Mix(th.Accent, 0.9); !near(th.AccentHover, want) {
+		if want := bg.Mix(th.Accent, 0.9); !fluentNear(th.AccentHover, want) {
 			t.Errorf("dark %v: AccentHover %v, want the fill at 90%% over the window, %v", dark, th.AccentHover, want)
 		}
-		if want := bg.Mix(th.Accent, 0.8); !near(th.AccentPressed, want) {
+		if want := bg.Mix(th.Accent, 0.8); !fluentNear(th.AccentPressed, want) {
 			t.Errorf("dark %v: AccentPressed %v, want the fill at 80%% over the window, %v", dark, th.AccentPressed, want)
 		}
 		status := map[string][2]ui.Color{
@@ -47,7 +47,7 @@ func TestFluentThemeFromWinUI(t *testing.T) {
 				t.Errorf("dark %v: %s %v, want %v", dark, name, c[0], c[1])
 			}
 		}
-		if want := pick(dark, ui.RGBA(0, 0, 0, 0x72/255.0), ui.RGBA(255, 255, 255, 0x8b/255.0)); !near(th.Scrollbar, want) {
+		if want := pick(dark, ui.RGBA(0, 0, 0, 0x72/255.0), ui.RGBA(255, 255, 255, 0x8b/255.0)); !fluentNear(th.Scrollbar, want) {
 			t.Errorf("dark %v: Scrollbar %v, want ControlStrongFillColorDefault %v", dark, th.Scrollbar, want)
 		}
 		if dark && th.Selection != fluentAccent {
@@ -162,12 +162,12 @@ func TestFluentSelectFocus(t *testing.T) {
 			r, g, b, a := tester.Image().At(x, y).RGBA()
 			return ui.Color{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: uint8(a >> 8)}
 		}
-		if near(pill(), accent) {
+		if fluentNear(pill(), accent) {
 			t.Fatalf("rtl %v: the pill shows without the focus", rtl)
 		}
 		tester.Key(0, ui.KeyTab)
 		tester.Frame()
-		if got := pill(); !near(got, accent) {
+		if got := pill(); !fluentNear(got, accent) {
 			t.Errorf("rtl %v: with the keyboard's focus the box's start is %v, want the accent pill %v", rtl, got, accent)
 		}
 	}
