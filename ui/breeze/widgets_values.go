@@ -9,14 +9,14 @@ import (
 
 // ---- values: sliders with steps, dates, times and colors ----
 
-// StepSlider creates a slider setting *value to lo or a multiple of step from it, up to hi, with a tick mark at each, as the platform draws a slider with tick marks: AppKit's NSSlider with its dots below the track, WinUI's Slider with ticks below it (TickPlacement BottomRight), or GTK's GtkScale with marks after it. Dragging snaps to the ticks, and the arrows move by step. It is ui.StepSlider's counterpart, on ui.SliderBase.
+// StepSlider creates a slider setting *value to lo or a multiple of step from it, up to hi, with a tick mark at each, as the platform draws a slider with tick marks: AppKit's NSSlider with its dots below the track, WinUI's Slider with ticks below it (TickPlacement BottomRight), or GTK's GtkScale with marks after it. Dragging snaps to the ticks, and the arrows move by step. It is ui.StepSlider's counterpart: ui.StepSlider's own slider with Breeze UI's drawing in place of MyGo's, so it keeps going across under Vertical as ui.StepSlider does, which a SliderBase would not.
 func StepSlider(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
-	s := ui.SliderBase(c, value, lo, hi).Step(step)
+	s := ui.StepSlider(c, value, lo, hi, step)
 	frac := float32(0)
 	if hi > lo {
 		frac = float32(min(max((*value-lo)/(hi-lo), 0), 1))
 	}
-	ticks := stepTicks(lo, hi, step)
+	ticks := stepSliderTicks(lo, hi, step)
 	switch PlatformOf(c) {
 	case Windows:
 		fluentStepSlider(c, s, frac, ticks)
@@ -28,8 +28,8 @@ func StepSlider(c *ui.Context, value *float64, lo, hi, step float64) ui.Element 
 	return s
 }
 
-// stepTicks returns where along the track a StepSlider's tick marks go, from 0 at lo to 1 at hi: at lo and every multiple of step from it up to hi. Like MyGo's StepSlider it shows none for no step, or past 61 ticks, too many to tell apart.
-func stepTicks(lo, hi, step float64) []float32 {
+// stepSliderTicks returns where along the track a StepSlider's tick marks go, from 0 at lo to 1 at hi: at lo and every multiple of step from it up to hi. Like MyGo's StepSlider it shows none for no step, or past 61 ticks, too many to tell apart.
+func stepSliderTicks(lo, hi, step float64) []float32 {
 	if step <= 0 || hi <= lo {
 		return nil
 	}
@@ -107,8 +107,8 @@ func ColorWell(c *ui.Context, color *ui.Color) ui.Element {
 // ColorPicker creates a picker of *color: a square of saturation and brightness, sliders of hue and opacity, the color in hex and swatches. It is package ui's, laid out as AppKit's color panel; WinUI's ColorPicker and GTK's color chooser lay theirs out differently. Its parts are built inside it, so their colors and corners come from Use.
 func ColorPicker(c *ui.Context, color *ui.Color) ui.Element { return ui.ColorPicker(c, color) }
 
-// paintChecks paints a checkerboard of size squares over r, under a color that is not opaque, as MyGo's color well does and as the platforms show transparency (inferred: none of them states its squares' size or grays).
-func paintChecks(p *ui.Painter, r ui.Rect, size float32) {
+// colorWellChecks paints a checkerboard of size squares over r, under a color that is not opaque, as MyGo's color well does and as the platforms show transparency (inferred: none of them states its squares' size or grays).
+func colorWellChecks(p *ui.Painter, r ui.Rect, size float32) {
 	p.Fill(r, white, 0)
 	gray := ui.RGB(204, 204, 204)
 	for y, row := r.Y, 0; y < r.Y+r.H; y, row = y+size, row+1 {
@@ -125,10 +125,10 @@ func hideWellSwatch(b ui.Element, w, h, radius float32) {
 	b.Size(w, h).Padding(0).Radius(radius).Background(ui.Transparent).Border(h/2, ui.Color{}).Clip()
 }
 
-// paintSwatch paints color over r with corners of radius, over a checkerboard when it is not opaque.
-func paintSwatch(p *ui.Painter, r ui.Rect, color ui.Color, radius float32) {
+// colorWellSwatch paints color over r with corners of radius, over a checkerboard when it is not opaque.
+func colorWellSwatch(p *ui.Painter, r ui.Rect, color ui.Color, radius float32) {
 	if color.A < 255 {
-		p.Clip(r, radius, func() { paintChecks(p, r, 5) })
+		p.Clip(r, radius, func() { colorWellChecks(p, r, 5) })
 	}
 	p.Fill(r, color, radius)
 }
@@ -137,7 +137,7 @@ func paintSwatch(p *ui.Painter, r ui.Rect, color ui.Color, radius float32) {
 
 // AppKit's controls of this group, measured as mac.go's are, from NSSlider, NSDatePicker and NSColorWell rendered at 2x on macOS 27 in Aqua and Dark Aqua.
 const (
-	macTickAlpha           = 0.25  // a slider's tick mark, black or white over the window
+	macStepTickAlpha       = 0.25  // a slider's tick mark, black or white over the window
 	macDateBorder          = 0.078 // NSDatePicker's bezel in Aqua, black over the window
 	macDateBorderDark      = 0.049 // and in Dark Aqua, white
 	macDateFillDark        = 0.233 // its field in Dark Aqua, black over the window
@@ -152,7 +152,7 @@ func macStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 	const kw, kh = 20, 16
 	s.Height(kh).PaddingX(kw / 2).MinWidth(60).FocusRing(false)
 	trough := tint(t.Background, t.Dark, macTroughAlpha)
-	dot := tint(t.Background, t.Dark, macTickAlpha)
+	dot := tint(t.Background, t.Dark, macStepTickAlpha)
 	knobFill := pick(t.Dark, white, ui.Hex("#dddddd"))
 	rtl := c.Direction() == ui.RightToLeft
 	at := along(c, frac)
@@ -212,7 +212,7 @@ func macColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 		s := ui.Rect{X: r.X + 3, Y: r.Y + 3, W: r.W - 6, H: r.H - 6}
 		p.Stroke(s, edge, s.H/2, 1)
 		in := ui.Rect{X: s.X + 1, Y: s.Y + 1, W: s.W - 2, H: s.H - 2}
-		paintSwatch(p, in, color, in.H/2)
+		colorWellSwatch(p, in, color, in.H/2)
 	})
 }
 
@@ -273,8 +273,8 @@ func fluentStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32
 	})
 }
 
-// fluentPickerFace gives a date or time picker the face of a button: ControlFillColorDefault, Secondary under the pointer and Tertiary pressed, inside ControlElevationBorderBrush (ControlStrokeColorDefault while pressed), corners of 4, at least 32 DIPs high, as CalendarDatePicker and TimePicker draw theirs.
-func fluentPickerFace(c *ui.Context, e ui.Element, hovered, pressed bool) {
+// fluentDateTimeFace gives a date or time picker the face of a button: ControlFillColorDefault, Secondary under the pointer and Tertiary pressed, inside ControlElevationBorderBrush (ControlStrokeColorDefault while pressed), corners of 4, at least 32 DIPs high, as CalendarDatePicker and TimePicker draw theirs.
+func fluentDateTimeFace(c *ui.Context, e ui.Element, hovered, pressed bool) {
 	t := c.Theme()
 	face, fg := t.Surface, t.Text
 	switch {
@@ -293,14 +293,14 @@ func fluentPickerFace(c *ui.Context, e ui.Element, hovered, pressed bool) {
 
 // fluentDateInput draws a CalendarDatePicker: a picker's face as wide as its text, the date 12 DIPs in with 2 below it, and the calendar glyph centered in a 32-DIP column at the end, where MyGo's calendar icon is placed, in TextFillColorSecondary.
 func fluentDateInput(c *ui.Context, b ui.Element) {
-	fluentPickerFace(c, b, b.Hovered(), b.Pressed())
+	fluentDateTimeFace(c, b, b.Hovered(), b.Pressed())
 	// The icon is 14 DIPs wide: 9 from the end centers it in the last 32, and 9 after the text begins that column.
 	b.MinWidth(0).Padding(0, 0, 2, 0).PaddingStart(12).PaddingEnd(9).Gap(9)
 }
 
 // fluentTimeInput draws the button of a TimePicker around MyGo's segments: a picker's face, padded 3 above and 6 below as TimePickerHostPadding, the digits 12 DIPs in (inferred: WinUI centers each part in a column of its own, 80 DIPs at least, which MyGo's segments have not). Under the pointer it lightens as the button does.
 func fluentTimeInput(c *ui.Context, f ui.Element) {
-	fluentPickerFace(c, f, f.Hovered(), false)
+	fluentDateTimeFace(c, f, f.Hovered(), false)
 	f.Padding(3, 10, 6, 10)
 }
 
@@ -329,7 +329,7 @@ func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 			x, cx = r.X+r.W-12-36, r.X+12+6
 		}
 		s := ui.Rect{X: x, Y: r.Y + (r.H-20)/2, W: 36, H: 20}
-		paintSwatch(p, s, color, 4)
+		colorWellSwatch(p, s, color, 4)
 		p.Stroke(s, t.Border, 4, 1)
 		cy := r.Y + r.H/2
 		var path ui.Path
@@ -422,8 +422,8 @@ func adwMarkedSlider(cx, cy, rad float32) *ui.Path {
 	return path.Close()
 }
 
-// adwEntryBox draws a GtkEntry's box around a field MyGo builds of its own: 34 pixels high, corners of 9, currentColor at 10% without a border, and the 2-pixel focus ring inside its edge while ringed, as the entry draws it while the focus is within it. The fill is painted rather than set as the background, so a button underneath does not change it under the pointer: entries stay as they are.
-func adwEntryBox(c *ui.Context, e ui.Element, ringed bool) {
+// adwDateTimeEntry draws a GtkEntry's box around a field MyGo builds of its own: 34 pixels high, corners of 9, currentColor at 10% without a border, and the 2-pixel focus ring inside its edge while ringed, as the entry draws it while the focus is within it. The fill is painted rather than set as the background, so a button underneath does not change it under the pointer: entries stay as they are.
+func adwDateTimeEntry(c *ui.Context, e ui.Element, ringed bool) {
 	t := c.Theme()
 	fill := adwInkAlpha(t, t.Background, 0.10)
 	e.MinHeight(34).Radius(9).Background(ui.Transparent).Border(0, ui.Color{}).TextColor(t.Text).FocusRing(false)
@@ -437,13 +437,13 @@ func adwEntryBox(c *ui.Context, e ui.Element, ringed bool) {
 
 // adwDateInput draws a date field as a GtkEntry: GTK has no date field, and GNOME's apps show a date in an entry or a button opening a GtkCalendar. The text 9 pixels in and MyGo's calendar icon 6 after it (border-spacing), at MyGo's width.
 func adwDateInput(c *ui.Context, b ui.Element) {
-	adwEntryBox(c, b, b.Focused())
+	adwDateTimeEntry(c, b, b.Focused())
 	b.Padding(0, 9).Gap(6)
 }
 
 // adwTimeInput draws a time field as a GtkEntry, the digits 9 pixels in (MyGo's segments are padded 2 at their sides), with the focus ring while one of its segments has the focus.
 func adwTimeInput(c *ui.Context, f ui.Element) {
-	adwEntryBox(c, f, f.FocusWithin())
+	adwDateTimeEntry(c, f, f.FocusWithin())
 	f.Padding(0, 7)
 }
 
@@ -458,12 +458,14 @@ func adwColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 		face = t.SurfaceHover
 	}
 	light := (0.30*float32(color.R)+0.59*float32(color.G)+0.11*float32(color.B))/255 > 0.5
+	// _color-chooser.scss: an inset 1px of view_fg_color at 10%, which is rgb(0 0 6 / 80%) in light (8% in all) and white in dark.
 	edge := pick(t.Dark, adwInk, white).Alpha(pick(t.Dark, float32(0.08), 0.10))
 	hideWellSwatch(b, 36+10, 34, 9)
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		p.Stroke(r, face, 9, 5)
+		// The face fills the button under the swatch, as GTK paints the button's background behind its child, so no sliver of the window shows between the two corners.
+		p.Fill(r, face, 9)
 		s := ui.Rect{X: r.X + 5, Y: r.Y + 5, W: r.W - 10, H: r.H - 10}
-		paintSwatch(p, s, color, 4.5)
+		colorWellSwatch(p, s, color, 4.5)
 		if light {
 			p.Stroke(s, edge, 4.5, 1)
 		}

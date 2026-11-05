@@ -29,13 +29,13 @@ func TestStepTicks(t *testing.T) {
 		{0, 100, 1, nil}, // 101 ticks, too many to tell apart
 		{5, 5, 1, nil},
 	} {
-		got := stepTicks(c.lo, c.hi, c.step)
+		got := stepSliderTicks(c.lo, c.hi, c.step)
 		if len(got) != len(c.want) {
-			t.Fatalf("stepTicks(%v, %v, %v) = %v, want %v", c.lo, c.hi, c.step, got, c.want)
+			t.Fatalf("stepSliderTicks(%v, %v, %v) = %v, want %v", c.lo, c.hi, c.step, got, c.want)
 		}
 		for i := range got {
 			if math.Abs(float64(got[i]-c.want[i])) > 1e-6 {
-				t.Fatalf("stepTicks(%v, %v, %v) = %v, want %v", c.lo, c.hi, c.step, got, c.want)
+				t.Fatalf("stepSliderTicks(%v, %v, %v) = %v, want %v", c.lo, c.hi, c.step, got, c.want)
 			}
 		}
 	}
@@ -325,6 +325,157 @@ func TestScreenshotsValues(t *testing.T) {
 			shot("values-%s-%s.png", "")
 			shot("values-date-%s-%s.png", "Due")
 			shot("values-color-%s-%s.png", "Tint")
+		}
+	}
+}
+
+// TestStepSliderIsUIs checks on every platform that a StepSlider is ui.StepSlider's slider, not a SliderBase: Vertical leaves it going across, as ui.StepSlider stays, so a click three quarters along still sets three quarters, and Home and End go to lo and hi.
+func TestStepSliderIsUIs(t *testing.T) {
+	for _, p := range Platforms {
+		quality := 50.0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() {
+					StepSlider(c, &quality, 0, 100, 25).Width(200).Label("Quality").Vertical()
+				})
+			})
+		}, 300, 120)
+		tester.Frame()
+		r, ok := tester.Find("Quality")
+		if !ok {
+			t.Fatalf("%v: slider named Quality not found", p)
+		}
+		tester.ClickAt(r.X+r.W*0.8, r.Y+r.H/2)
+		tester.Frame()
+		if quality != 75 {
+			t.Fatalf("%v: Vertical made a click four fifths along set %v, want 75", p, quality)
+		}
+		tester.Key(0, ui.KeyHome)
+		tester.Frame()
+		if quality != 0 {
+			t.Fatalf("%v: Home set %v", p, quality)
+		}
+		tester.Key(0, ui.KeyEnd)
+		tester.Frame()
+		if quality != 100 {
+			t.Fatalf("%v: End set %v", p, quality)
+		}
+	}
+}
+
+// TestDateAndTimeInputsKeepTheirKeys checks on every platform, left to right and right to left, what the restyle could lose of the date and time fields: Escape closes the calendar without choosing, Space opens it from the field, a disabled date field does not open, Right moves from the hours to the minutes, and a disabled time field does not step.
+func TestDateAndTimeInputsKeepTheirKeys(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			due := time.Date(2026, 1, 5, 9, 30, 0, 0, time.UTC)
+			off := due
+			alarm := time.Date(2026, 1, 5, 7, 30, 0, 0, time.UTC)
+			frozen := alarm
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					ui.Column(c).Gap(16).Padding(16).AlignItems(ui.Start).Children(func() {
+						ui.Row(c).Gap(8).Children(func() {
+							TimeInput(c, &alarm).Label("Alarm")
+							TimeInput(c, &frozen).Label("Frozen").Disabled(true)
+						})
+						ui.Row(c).Gap(8).Children(func() {
+							DateInput(c, &due).Label("Due")
+							DateInput(c, &off).Label("Off").Disabled(true)
+						})
+					})
+				})
+			}, 480, 520)
+			tester.SetDirection(dir)
+			tester.SetRegion(i18n.Region{Locale: "en-GB", FirstWeekday: time.Monday, HourCycle: 24})
+			tester.Frame()
+			if err := tester.Click("Off"); err != nil {
+				t.Fatalf("%v %v: %v", p, dir, err)
+			}
+			tester.Frame()
+			if tester.HasText("January 2026") {
+				t.Fatalf("%v %v: a disabled date field opened its calendar", p, dir)
+			}
+			if err := tester.Click("Due"); err != nil {
+				t.Fatalf("%v %v: %v", p, dir, err)
+			}
+			tester.Frame()
+			tester.Key(0, ui.KeyEscape)
+			tester.Frame()
+			if tester.HasText("January 2026") || !due.Equal(time.Date(2026, 1, 5, 9, 30, 0, 0, time.UTC)) {
+				t.Fatalf("%v %v: Escape left the calendar open or chose %v", p, dir, due)
+			}
+			// MyGo's calendar leaves the focus nowhere on Escape; choosing a day gives it back to the field, where Space opens the calendar again.
+			if err := tester.Click("Due"); err != nil {
+				t.Fatalf("%v %v: %v", p, dir, err)
+			}
+			tester.Frame()
+			if err := tester.Click("6 January 2026"); err != nil {
+				t.Fatalf("%v %v: %v", p, dir, err)
+			}
+			tester.Frame()
+			if due.Day() != 6 || !tester.Focused("Due") {
+				t.Fatalf("%v %v: a click on the 6th chose %v, the field focused %v", p, dir, due, tester.Focused("Due"))
+			}
+			tester.Key(0, ui.KeySpace)
+			tester.Frame()
+			if !tester.HasText("January 2026") {
+				t.Fatalf("%v %v: Space did not open the calendar", p, dir)
+			}
+			tester.Key(0, ui.KeyEscape)
+			tester.Frame()
+			if err := tester.Click("07"); err != nil {
+				t.Fatalf("%v %v: %v", p, dir, err)
+			}
+			tester.Frame()
+			// The time reads left to right in a right-to-left interface too, so Right goes on to the minutes.
+			tester.Key(0, ui.KeyRight)
+			tester.Frame()
+			tester.Key(0, ui.KeyUp)
+			tester.Frame()
+			if alarm.Hour() != 7 || alarm.Minute() != 31 {
+				t.Fatalf("%v %v: Right and Up set %v, want 07:31", p, dir, alarm)
+			}
+			r, _ := tester.Find("Frozen")
+			tester.ClickAt(r.X+r.W/4, r.Y+r.H/2)
+			tester.Frame()
+			tester.Key(0, ui.KeyUp)
+			tester.Frame()
+			if !frozen.Equal(time.Date(2026, 1, 5, 7, 30, 0, 0, time.UTC)) {
+				t.Fatalf("%v %v: a disabled time field stepped to %v", p, dir, frozen)
+			}
+		}
+	}
+}
+
+// TestColorWellOpensFromTheKeyboard checks on every platform that Tab reaches the restyled color well and Enter opens its picker, which Escape closes, giving the focus back to the well.
+func TestColorWellOpensFromTheKeyboard(t *testing.T) {
+	for _, p := range Platforms {
+		tint := ui.Hex("#3b82f6")
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				ui.Row(c).Padding(16).Children(func() { ColorWell(c, &tint).Label("Tint") })
+			})
+		}, 480, 520)
+		tester.Frame()
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if !tester.Focused("Tint") {
+			t.Fatalf("%v: Tab did not reach the color well", p)
+		}
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if !tester.HasText("Red") {
+			t.Fatalf("%v: Enter did not open the picker: %q", p, tester.Texts())
+		}
+		tester.Key(0, ui.KeyEscape)
+		tester.Frame()
+		if tester.HasText("Red") || !tester.Focused("Tint") {
+			t.Fatalf("%v: Escape left the picker open, or the focus away from the well", p)
+		}
+		tester.Key(0, ui.KeySpace)
+		tester.Frame()
+		if !tester.HasText("Red") {
+			t.Fatalf("%v: Space did not open the picker", p)
 		}
 	}
 }
