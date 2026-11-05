@@ -1,0 +1,454 @@
+package breeze
+
+import (
+	"math"
+	"time"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// ---- values: sliders with steps, dates, times and colors ----
+
+// StepSlider creates a slider setting *value to lo or a multiple of step from it, up to hi, with a tick mark at each, as the platform draws a slider with tick marks: AppKit's NSSlider with its dots below the track, WinUI's Slider with ticks below it (TickPlacement BottomRight), or GTK's GtkScale with marks after it. Dragging snaps to the ticks, and the arrows move by step. It is ui.StepSlider's counterpart, on ui.SliderBase.
+func StepSlider(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
+	s := ui.SliderBase(c, value, lo, hi).Step(step)
+	frac := float32(0)
+	if hi > lo {
+		frac = float32(min(max((*value-lo)/(hi-lo), 0), 1))
+	}
+	ticks := stepTicks(lo, hi, step)
+	switch PlatformOf(c) {
+	case Windows:
+		fluentStepSlider(c, s, frac, ticks)
+	case Linux:
+		adwStepSlider(c, s, frac, ticks)
+	default:
+		macStepSlider(c, s, frac, ticks)
+	}
+	return s
+}
+
+// stepTicks returns where along the track a StepSlider's tick marks go, from 0 at lo to 1 at hi: at lo and every multiple of step from it up to hi. Like MyGo's StepSlider it shows none for no step, or past 61 ticks, too many to tell apart.
+func stepTicks(lo, hi, step float64) []float32 {
+	if step <= 0 || hi <= lo {
+		return nil
+	}
+	n := int(math.Floor((hi-lo)/step+1e-9)) + 1
+	if n > 61 {
+		return nil
+	}
+	ticks := make([]float32, n)
+	for i := range ticks {
+		ticks[i] = float32(float64(i) * step / (hi - lo))
+	}
+	return ticks
+}
+
+// RangeSlider creates a slider of two knobs setting *low and *high between lo and hi, with tick marks at the steps when step is above 0. It is package ui's: its knobs are elements inside it, which take the focus, and only MyGo's drawing knows which of them has it, so Breeze UI cannot draw their focus rings itself. Its track and knobs take the platform's accent and colors from Use.
+func RangeSlider(c *ui.Context, low, high *float64, lo, hi, step float64) ui.Element {
+	return ui.RangeSlider(c, low, high, lo, hi, step)
+}
+
+// DecimalInput creates a field editing *value as an exact decimal between lo and hi in steps of step, with buttons stepping it beside it. It is package ui's: its field and buttons are built inside it, out of reach of a style applied to what it returns.
+func DecimalInput(c *ui.Context, value *string, lo, hi, step string) ui.Element {
+	return ui.DecimalInput(c, value, lo, hi, step)
+}
+
+// DateInput creates a field showing *date in the user's regional formats, which opens a calendar below it, as the platform draws a date field: AppKit's NSDatePicker of style textField, WinUI's CalendarDatePicker, or a GNOME entry, as GTK has no date field of its own. The text, the calendar icon, the calendar and the keys are MyGo's. It is ui.DateInput's counterpart.
+func DateInput(c *ui.Context, date *time.Time) ui.Element {
+	b := ui.DateInput(c, date)
+	switch PlatformOf(c) {
+	case Windows:
+		fluentDateInput(c, b)
+	case Linux:
+		adwDateInput(c, b)
+	default:
+		macDatePicker(c, b, false)
+		// NSDatePicker is as wide as its text.
+		b.MinWidth(0).Padding(2, 4).Gap(6)
+	}
+	return b
+}
+
+// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the button of WinUI's TimePicker, or a GNOME entry. The segments and their keys are MyGo's. It is ui.TimeInput's counterpart.
+func TimeInput(c *ui.Context, tm *time.Time) ui.Element {
+	f := ui.TimeInput(c, tm)
+	switch PlatformOf(c) {
+	case Windows:
+		fluentTimeInput(c, f)
+	case Linux:
+		adwTimeInput(c, f)
+	default:
+		macDatePicker(c, f, f.FocusWithin())
+		// MyGo's segments are padded 2 at their sides, which brings the digits 4 in, as AppKit's.
+		f.Padding(2, 2)
+	}
+	return f
+}
+
+// Calendar creates a month's calendar choosing *date. It is package ui's, as SwiftUI's graphical date picker lays it out: its days and buttons are built inside it, out of reach of a style applied to what it returns. Its colors, corners and text size come from Use.
+func Calendar(c *ui.Context, date *time.Time) ui.Element { return ui.Calendar(c, date) }
+
+// ColorWell creates a swatch of *color that opens a color picker below it, as the platform draws a color well: AppKit's NSColorWell, a WinUI DropDownButton showing the color (WinUI has no color well; its ColorPicker is opened from such a button), or GTK's GtkColorDialogButton. The picker it opens is MyGo's. It is ui.ColorWell's counterpart.
+func ColorWell(c *ui.Context, color *ui.Color) ui.Element {
+	b := ui.ColorWell(c, color)
+	now := *color
+	switch PlatformOf(c) {
+	case Windows:
+		fluentColorWell(c, b, now)
+	case Linux:
+		adwColorWell(c, b, now)
+	default:
+		macColorWell(c, b, now)
+	}
+	return b
+}
+
+// ColorPicker creates a picker of *color: a square of saturation and brightness, sliders of hue and opacity, the color in hex and swatches. It is package ui's, laid out as AppKit's color panel; WinUI's ColorPicker and GTK's color chooser lay theirs out differently. Its parts are built inside it, so their colors and corners come from Use.
+func ColorPicker(c *ui.Context, color *ui.Color) ui.Element { return ui.ColorPicker(c, color) }
+
+// paintChecks paints a checkerboard of size squares over r, under a color that is not opaque, as MyGo's color well does and as the platforms show transparency (inferred: none of them states its squares' size or grays).
+func paintChecks(p *ui.Painter, r ui.Rect, size float32) {
+	p.Fill(r, white, 0)
+	gray := ui.RGB(204, 204, 204)
+	for y, row := r.Y, 0; y < r.Y+r.H; y, row = y+size, row+1 {
+		for x, col := r.X, 0; x < r.X+r.W; x, col = x+size, col+1 {
+			if (row+col)%2 == 0 {
+				p.Fill(ui.Rect{X: x, Y: y, W: min(size, r.X+r.W-x), H: min(size, r.Y+r.H-y)}, gray, 0)
+			}
+		}
+	}
+}
+
+// paintSwatch paints color over r with corners of radius, over a checkerboard when it is not opaque.
+func paintSwatch(p *ui.Painter, r ui.Rect, color ui.Color, radius float32) {
+	if color.A < 255 {
+		p.Clip(r, radius, func() { paintChecks(p, r, 5) })
+	}
+	p.Fill(r, color, radius)
+}
+
+// ---- macOS ----
+
+// AppKit's controls of this group, measured as mac.go's are, from NSSlider, NSDatePicker and NSColorWell rendered at 2x on macOS 27 in Aqua and Dark Aqua.
+const (
+	macTickAlpha           = 0.25  // a slider's tick mark, black or white over the window
+	macDateBorder          = 0.078 // NSDatePicker's bezel in Aqua, black over the window
+	macDateBorderDark      = 0.049 // and in Dark Aqua, white
+	macDateFillDark        = 0.233 // its field in Dark Aqua, black over the window
+	macWellEdgeShift       = 32    // a color well's swatch edge: each channel 32 darker in Aqua, lighter in Dark Aqua
+	macDatePickerRadius    = 7     // the outer edge of NSDatePicker's bezel
+	macDatePickerMinHeight = 23    // its 21-point frame with the bezel drawn a point outside it
+)
+
+// macStepSlider draws an NSSlider with tick marks below it, as Slider draws one without: a 6-point track of systemFill, filled with the accent up to a 20 by 16 point capsule knob, and a round tick of 2 points, a quarter black (white in Dark Aqua) over the window, 3 points below the track at each step, where the knob's center comes to it. The control stays 16 points high, as AppKit's intrinsic size is; the ticks are at its bottom edge.
+func macStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
+	t := c.Theme()
+	const kw, kh = 20, 16
+	s.Height(kh).PaddingX(kw / 2).MinWidth(60).FocusRing(false)
+	trough := tint(t.Background, t.Dark, macTroughAlpha)
+	dot := tint(t.Background, t.Dark, macTickAlpha)
+	knobFill := pick(t.Dark, white, ui.Hex("#dddddd"))
+	rtl := c.Direction() == ui.RightToLeft
+	at := along(c, frac)
+	focused := s.FocusVisible()
+	s.Draw(func(p *ui.Painter, r ui.Rect) {
+		track := ui.Rect{X: r.X, Y: r.Y + (r.H-6)/2, W: r.W, H: 6}
+		for _, f := range ticks {
+			if rtl {
+				f = 1 - f
+			}
+			x := r.X + kw/2 + f*(r.W-kw)
+			p.Fill(ui.Rect{X: x - 1, Y: track.Y + 6 + 3, W: 2, H: 2}, dot, 1)
+		}
+		p.Fill(track, trough, 3)
+		x := r.X + kw/2 + at*(r.W-kw)
+		fill := ui.Rect{X: r.X, Y: track.Y, W: x - r.X, H: 6}
+		if rtl {
+			fill = ui.Rect{X: x, Y: track.Y, W: r.X + r.W - x, H: 6}
+		}
+		p.Fill(fill, t.Accent, 3)
+		k := ui.Rect{X: x - kw/2, Y: r.Y + (r.H-kh)/2, W: kw, H: kh}
+		p.Shadow(k, kh/2, 0, 0.5, 2, 0, ui.RGBA(0, 0, 0, 0.25))
+		p.Fill(k, knobFill, kh/2)
+		if focused {
+			p.FocusRing(k, radii(kh/2))
+		}
+	})
+}
+
+// macDatePicker draws the bezel of an NSDatePicker of style textField: a 1-point line, lighter than a text field's, around a white field (darker than the window in Dark Aqua) with corners of 7, 23 points high with the line, which AppKit draws a point outside the control's 21-point frame. The focus ring goes around it while ringed, as AppKit draws it around the date picker being edited.
+func macDatePicker(c *ui.Context, e ui.Element, ringed bool) {
+	t := c.Theme()
+	fill, border := white, t.Background.Mix(black, macDateBorder)
+	if t.Dark {
+		fill, border = t.Background.Mix(black, macDateFillDark), t.Background.Mix(white, macDateBorderDark)
+	}
+	e.MinHeight(macDatePickerMinHeight).Radius(macDatePickerRadius).Background(fill).Border(0, ui.Color{}).TextColor(t.Text)
+	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		p.Stroke(r, border, macDatePickerRadius, 1)
+		if ringed {
+			p.FocusRing(r, radii(macDatePickerRadius))
+		}
+	})
+}
+
+// macColorWell draws an NSColorWell of the default style: a 48 by 24 point capsule of systemFill, and inside it, 3 points in, the color as a capsule with an edge of the color 32 a channel darker (lighter in Dark Aqua). Pressed, the capsule darkens as a pressed check box does (inferred).
+func macColorWell(c *ui.Context, b ui.Element, color ui.Color) {
+	t := c.Theme()
+	bezel := tint(t.Background, t.Dark, macTroughAlpha)
+	if b.Pressed() {
+		bezel = tint(t.Background, t.Dark, macTroughDownAlpha)
+	}
+	edge := macWellEdge(color, t.Dark)
+	b.Size(48, 24).Padding(0).Radius(12).Background(ui.Transparent).Border(0, ui.Color{})
+	// The bezel is painted over MyGo's swatch, which is centered in the well and a little taller than AppKit's.
+	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(r, bezel, r.H/2)
+		s := ui.Rect{X: r.X + 3, Y: r.Y + 3, W: r.W - 6, H: r.H - 6}
+		p.Fill(s, edge, s.H/2)
+		in := ui.Rect{X: s.X + 1, Y: s.Y + 1, W: s.W - 2, H: s.H - 2}
+		paintSwatch(p, in, color, in.H/2)
+	})
+}
+
+// macWellEdge returns the edge AppKit draws around a color well's swatch: the color with each channel shifted by macWellEdgeShift, darker in Aqua and lighter in Dark Aqua.
+func macWellEdge(color ui.Color, dark bool) ui.Color {
+	shift := func(v uint8) uint8 {
+		if dark {
+			return uint8(min(int(v)+macWellEdgeShift, 255))
+		}
+		return uint8(max(int(v)-macWellEdgeShift, 0))
+	}
+	return ui.Color{R: shift(color.R), G: shift(color.G), B: shift(color.B), A: 255}
+}
+
+// ---- Windows 11 ----
+
+// fluentStepSlider draws a Slider with TickPlacement BottomRight: 32 DIPs high, a 4-DIP track of ControlStrongFillColorDefault filled with the accent, the thumb of Slider (an 18-DIP Thumb whose border reaches 2 beyond it, around an accent dot that grows under the pointer and shrinks pressed), and a TickBar below the track: 1-DIP ticks 4 high (SliderOutsideTickBarThemeHeight) in SliderTickBarFill (ControlStrongFillColorDefault), 4 below the track. The thumb's center and the ticks travel the track less the Thumb's 18 DIPs, as TickBar arranges them.
+func fluentStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
+	t := c.Theme()
+	const thumb, travel = 22, 18
+	s.Height(32).PaddingX(travel / 2).MinWidth(60).FocusRing(false)
+	inner := float32(10.3)
+	accent := t.Accent
+	switch {
+	case s.Pressed():
+		inner, accent = 8.5, t.AccentPressed
+	case s.Hovered():
+		inner, accent = 14, t.AccentHover
+	}
+	strong := t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.545))
+	face := pick(t.Dark, white, ui.Hex("#454545"))
+	rtl := c.Direction() == ui.RightToLeft
+	at := along(c, frac)
+	focused := s.FocusVisible()
+	s.Draw(func(p *ui.Painter, r ui.Rect) {
+		ty := r.Y + (r.H-4)/2
+		for _, f := range ticks {
+			if rtl {
+				f = 1 - f
+			}
+			x := r.X + travel/2 + f*(r.W-travel)
+			p.Fill(ui.Rect{X: x - 0.5, Y: ty + 4 + 4, W: 1, H: 4}, strong, 0)
+		}
+		p.Fill(ui.Rect{X: r.X, Y: ty, W: r.W, H: 4}, strong, 2)
+		x := r.X + travel/2 + at*(r.W-travel)
+		fill := ui.Rect{X: r.X, Y: ty, W: x - r.X, H: 4}
+		if rtl {
+			fill = ui.Rect{X: x, Y: ty, W: r.X + r.W - x, H: 4}
+		}
+		p.Fill(fill, t.Accent, 2)
+		k := ui.Rect{X: x - thumb/2, Y: r.Y + (r.H-thumb)/2, W: thumb, H: thumb}
+		p.Fill(k, face.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.161), 0.094)), thumb/2)
+		p.Fill(ui.Rect{X: k.X + 1, Y: k.Y + 1, W: thumb - 2, H: thumb - 2}, face, thumb/2-1)
+		p.Fill(ui.Rect{X: x - inner/2, Y: k.Y + (thumb-inner)/2, W: inner, H: inner}, accent, inner/2)
+		if focused {
+			p.FocusRing(k, radii(thumb/2))
+		}
+	})
+}
+
+// fluentPickerFace gives a date or time picker the face of a button: ControlFillColorDefault, Secondary under the pointer and Tertiary pressed, inside ControlElevationBorderBrush (ControlStrokeColorDefault while pressed), corners of 4, at least 32 DIPs high, as CalendarDatePicker and TimePicker draw theirs.
+func fluentPickerFace(c *ui.Context, e ui.Element, hovered, pressed bool) {
+	t := c.Theme()
+	face, fg := t.Surface, t.Text
+	switch {
+	case pressed:
+		face, fg = t.SurfacePressed, t.TextMuted // CalendarDatePickerTextForegroundPressed, TextFillColorSecondary
+	case hovered:
+		face = t.SurfaceHover
+	}
+	e.MinHeight(32).Radius(4).Background(face).TextColor(fg)
+	if pressed {
+		e.Border(1, t.Border)
+	} else {
+		e.Border(1, ui.Color{}).BorderLinearGradient(fluentElevation(t, 32))
+	}
+}
+
+// fluentDateInput draws a CalendarDatePicker: a picker's face as wide as its text, the date 12 DIPs in with 2 below it, and the calendar glyph centered in a 32-DIP column at the end, where MyGo's calendar icon is placed, in TextFillColorSecondary.
+func fluentDateInput(c *ui.Context, b ui.Element) {
+	fluentPickerFace(c, b, b.Hovered(), b.Pressed())
+	// The icon is 14 DIPs wide: 9 from the end centers it in the last 32, and 9 after the text begins that column.
+	b.MinWidth(0).Padding(0, 0, 2, 0).PaddingStart(12).PaddingEnd(9).Gap(9)
+}
+
+// fluentTimeInput draws the button of a TimePicker around MyGo's segments: a picker's face, padded 3 above and 6 below as TimePickerHostPadding, the digits 12 DIPs in (inferred: WinUI centers each part in a column of its own, 80 DIPs at least, which MyGo's segments have not). Under the pointer it lightens as the button does.
+func fluentTimeInput(c *ui.Context, f ui.Element) {
+	fluentPickerFace(c, f, f.Hovered(), false)
+	f.Padding(3, 10, 6, 10)
+}
+
+// fluentColorWell draws a DropDownButton showing the color, as WinUI's apps open a ColorPicker from one: a button's face and elevation border, 32 DIPs high, ButtonPadding 11 at the start, MyGo's swatch with corners of 4 (ControlCornerRadius) and a 1-DIP ControlStrokeColorDefault edge (inferred), then the ChevronDownSmall glyph, 8 DIPs in a 12-DIP box 8 after the content, in TextFillColorSecondary (Tertiary under the pointer and pressed).
+func fluentColorWell(c *ui.Context, b ui.Element, color ui.Color) {
+	t := c.Theme()
+	pressed, hovered := b.Pressed(), b.Hovered()
+	face := t.Surface
+	chevron := t.TextMuted
+	switch {
+	case pressed:
+		face = t.SurfacePressed
+	case hovered:
+		face = t.SurfaceHover
+	}
+	if pressed || hovered {
+		chevron = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.545)) // TextFillColorTertiary
+	}
+	b.Height(32).Padding(5, 0).PaddingStart(11).PaddingEnd(11 + 8 + 12).Radius(4).Background(face)
+	if pressed {
+		b.Border(1, t.Border)
+	} else {
+		b.Border(1, ui.Color{}).BorderLinearGradient(fluentElevation(t, 32))
+	}
+	rtl := c.Direction() == ui.RightToLeft
+	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		// MyGo's swatch is 36 by 20, 1 + 11 in from the start and 1 + 5 from the top.
+		x := r.X + 12
+		cx := r.X + r.W - 12 - 6
+		if rtl {
+			x, cx = r.X+r.W-12-36, r.X+12+6
+		}
+		p.Stroke(ui.Rect{X: x, Y: r.Y + 6, W: 36, H: 20}, t.Border, 4, 1)
+		cy := r.Y + r.H/2
+		var path ui.Path
+		path.MoveTo(cx-4, cy-2).LineTo(cx, cy+2).LineTo(cx+4, cy-2)
+		p.StrokePath(&path, 1, chevron)
+	})
+}
+
+// ---- GNOME ----
+
+// adwStepSlider draws a GtkScale with marks after it (.marks-after): as Slider, a 4-pixel trough of $trough_color filled with the accent, padded 12 but below, where the marks are; the slider a 20-pixel circle whose bottom-right corner is square, turned 45 degrees so it points down at the marks; and the marks, 1-pixel indicators 6 high, 6 below the 20-pixel range, in currentColor at --dim-opacity. The scale stays 44 pixels high: 12 above, 20 of range and 12 of marks.
+func adwStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
+	t := c.Theme()
+	const d = 20
+	hovered, pressed := s.Hovered(), s.Pressed()
+	s.Height(12 + d + 12).PaddingX(12).MinWidth(60).FocusRing(false)
+	trough := adwTrough(t, false, false)
+	fill := t.Accent
+	knobFill := pick(t.Dark, white, t.Background.Mix(white, 0.8))
+	if hovered || pressed {
+		trough, fill, knobFill = adwTrough(t, true, false), t.AccentHover, white
+	}
+	rtl := c.Direction() == ui.RightToLeft
+	at := along(c, frac)
+	focused := s.FocusVisible()
+	s.Draw(func(p *ui.Painter, r ui.Rect) {
+		cy := r.Y + 12 + d/2
+		left, width := r.X+12, r.W-24
+		for _, f := range ticks {
+			if rtl {
+				f = 1 - f
+			}
+			x := left + f*width
+			p.Fill(ui.Rect{X: x - 0.5, Y: cy + d/2 + 6, W: 1, H: 6}, t.TextMuted, 0)
+		}
+		p.Fill(ui.Rect{X: left, Y: cy - 2, W: width, H: 4}, trough, 2)
+		x := left + at*width
+		bar := ui.Rect{X: left, Y: cy - 2, W: x - left, H: 4}
+		if rtl {
+			bar = ui.Rect{X: x, Y: cy - 2, W: left + width - x, H: 4}
+		}
+		p.Fill(bar, fill, 2)
+		// The shadow 1px 1px 4px, turned with the slider, falls straight down; it is cast by the circle alone.
+		p.Shadow(ui.Rect{X: x - d/2, Y: cy - d/2, W: d, H: d}, d/2, 0, 1.4, 4, 0, ui.RGBA(0, 0, 6, 0.2))
+		p.FillPath(adwMarkedSlider(x, cy, d/2+1), t.Background.Mix(adwInk, 0.1))
+		p.FillPath(adwMarkedSlider(x, cy, d/2), knobFill)
+		if focused {
+			p.StrokePath(adwMarkedSlider(x, cy, d/2+3), 2, t.Focus)
+		}
+	})
+}
+
+// adwMarkedSlider returns the outline of a scale's slider with marks after it, of radius rad around cx, cy: a circle but for its square corner, which points straight down, rad times the square root of 2 below the center.
+func adwMarkedSlider(cx, cy, rad float32) *ui.Path {
+	var path ui.Path
+	point := func(a float64) (float32, float32) {
+		return cx + rad*float32(math.Cos(a)), cy + rad*float32(math.Sin(a))
+	}
+	path.MoveTo(cx, cy+rad*math.Sqrt2)
+	// The sides of the corner touch the circle at 45 degrees either side of straight down; the circle goes round over the top from one to the other, in three quarters drawn as cubic curves.
+	a := math.Pi / 4
+	x, y := point(a)
+	path.LineTo(x, y)
+	for range 3 {
+		b := a - math.Pi/2
+		k := float32(4.0 / 3 * math.Tan((b-a)/4))
+		x0, y0 := point(a)
+		x1, y1 := point(b)
+		path.CubeTo(x0-k*rad*float32(math.Sin(a)), y0+k*rad*float32(math.Cos(a)),
+			x1+k*rad*float32(math.Sin(b)), y1-k*rad*float32(math.Cos(b)), x1, y1)
+		a = b
+	}
+	return path.Close()
+}
+
+// adwEntryBox draws a GtkEntry's box around a field MyGo builds of its own: 34 pixels high, corners of 9, currentColor at 10% without a border, and the 2-pixel focus ring inside its edge while ringed, as the entry draws it while the focus is within it. The fill is painted rather than set as the background, so a button underneath does not change it under the pointer: entries stay as they are.
+func adwEntryBox(c *ui.Context, e ui.Element, ringed bool) {
+	t := c.Theme()
+	fill := adwInkAlpha(t, t.Background, 0.10)
+	e.MinHeight(34).Radius(9).Background(ui.Transparent).Border(0, ui.Color{}).TextColor(t.Text).FocusRing(false)
+	e.Draw(func(p *ui.Painter, r ui.Rect) { p.Fill(r, fill, 9) })
+	e.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if ringed {
+			p.Stroke(r, t.Focus, 9, 2)
+		}
+	})
+}
+
+// adwDateInput draws a date field as a GtkEntry: GTK has no date field, and GNOME's apps show a date in an entry or a button opening a GtkCalendar. The text 9 pixels in and MyGo's calendar icon 6 after it (border-spacing), at MyGo's width.
+func adwDateInput(c *ui.Context, b ui.Element) {
+	adwEntryBox(c, b, b.Focused())
+	b.Padding(0, 9).Gap(6)
+}
+
+// adwTimeInput draws a time field as a GtkEntry, the digits 9 pixels in (MyGo's segments are padded 2 at their sides), with the focus ring while one of its segments has the focus.
+func adwTimeInput(c *ui.Context, f ui.Element) {
+	adwEntryBox(c, f, f.FocusWithin())
+	f.Padding(0, 7)
+}
+
+// adwColorWell draws a GtkColorDialogButton: a button (button.color) padded 5 around its swatch, 34 pixels high as a button is at least, the swatch as wide as "Black" in the text (about MyGo's 36, inferred) and as high as the button's content, corners of 4.5, with a 1-pixel inner edge of view_fg_color at 10% on a light color (a color whose intensity is above a half, as gtkcolorswatch.c decides).
+func adwColorWell(c *ui.Context, b ui.Element, color ui.Color) {
+	t := c.Theme()
+	face := t.Surface
+	switch {
+	case b.Pressed():
+		face = t.SurfacePressed
+	case b.Hovered():
+		face = t.SurfaceHover
+	}
+	light := (0.30*float32(color.R)+0.59*float32(color.G)+0.11*float32(color.B))/255 > 0.5
+	edge := pick(t.Dark, adwInk, white).Alpha(pick(t.Dark, float32(0.08), 0.10))
+	b.Width(46).Height(34).Padding(5).Radius(9).Background(ui.Transparent).Border(0, ui.Color{})
+	// The face is painted over MyGo's swatch, which is shorter than GTK's.
+	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(r, face, 9)
+		s := ui.Rect{X: r.X + 5, Y: r.Y + 5, W: r.W - 10, H: r.H - 10}
+		paintSwatch(p, s, color, 4.5)
+		if light {
+			p.Stroke(s, edge, 4.5, 1)
+		}
+	})
+}
