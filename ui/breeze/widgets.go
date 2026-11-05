@@ -300,14 +300,13 @@ func Tabs(c *ui.Context, selected *int, labels ...string) ui.Element {
 	parts.List.Children(func() {
 		for i, label := range labels {
 			tab := parts.Tab(i)
-			sep := i > 0 && i != *selected && i-1 != *selected
 			switch p {
 			case Windows:
 				fluentTab(c, tab, i == *selected)
 			case Linux:
 				adwTab(c, tab, i == *selected)
 			default:
-				macSegment(c, tab, i == *selected, sep)
+				macTab(c, tab, i == *selected)
 			}
 			tab.Children(func() { ui.Text(c, label).SingleLine() })
 		}

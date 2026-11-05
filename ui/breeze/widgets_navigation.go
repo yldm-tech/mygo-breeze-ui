@@ -187,7 +187,7 @@ func macSidebarItem(c *ui.Context, item ui.Element, chosen, focused, hasIcon boo
 	}
 }
 
-// macSidebarSelection is the emphasized selection of a source list: #0070f5 in Aqua and #007aff, controlAccentColor, in Dark Aqua for the blue accent, measured from a row view drawn emphasized (AppKit renders it in Display P3, converted here to sRGB). For another accent it is the accent, a little darker in Aqua (inferred).
+// macSidebarSelection is the emphasized selection of a source list: #0070f5 in Aqua and #007aff, controlAccentColor, in Dark Aqua for the blue accent, measured from a row view drawn emphasized and again from a live capture of a key window's sidebar on macOS 27.2 (#0070f5 and #007aff, converted from the display's profile to sRGB). For another accent it is the accent, a little darker in Aqua (inferred).
 func macSidebarSelection(t *ui.Theme) ui.Color {
 	if t.Accent == macAccent {
 		return pick(t.Dark, ui.Hex("#0070f5"), ui.Hex("#007aff"))

@@ -95,7 +95,7 @@ func Collapsible(c *ui.Context, label string, open *bool, fn func()) ui.Element 
 	return root
 }
 
-// macDisclosure draws an NSButton of bezel style disclosure beside its label: a 13-point box holding a chevron 7 points tall and 3.5 deep along its stroke's middle, stroked 1.5 points with round ends in black at 25% (white at 43.6% in Dark Aqua), pointing right and turning down as it opens, with the label 1.5 points after the box in a row 24 points high. Measured from AppKit's button and SwiftUI's DisclosureGroup rendered at 2x on macOS 27: the closed chevron's ink sits 0.5 points right of the box's center and 0.25 above it, the open one's 0.5 left and 0.25 below, which a turn about a point 0.25 left of and above the center gives within a quarter point; the label's ink starts 5.5 points after the chevron's, and the rows are 32 points apart in a VStack spaced 8. The focus ring goes around the box, as AppKit draws it around the button.
+// macDisclosure draws an NSButton of bezel style disclosure beside its label: a 13-point box holding a chevron 7 points tall and 3.5 deep along its stroke's middle, stroked 1.5 points with round ends in black at 25% (white at 43.6% in Dark Aqua), pointing right and turning down as it opens, with the label 1.5 points after the box in a row 24 points high. Measured from AppKit's button and SwiftUI's DisclosureGroup rendered at 2x on macOS 27: the closed chevron's ink sits 0.5 points right of the box's center and 0.25 above it, the open one's 0.5 left and 0.25 below, which a turn about a point 0.25 left of and above the center gives within a quarter point; the label's ink starts 5.5 points after the chevron's, and the rows are 32 points apart in a VStack spaced 8. AppKit's focus ring (macFocusRing) goes around the box, as AppKit draws it around the button (inferred from the push button's, measured live).
 func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32) {
 	t := c.Theme()
 	ink := pick(t.Dark, t.Background.Mix(black, macDisclosureLightAlpha), t.Background.Mix(white, macDisclosureDarkAlpha))
@@ -109,7 +109,7 @@ func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32)
 		ui.Box(c).Size(13, 13).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
 			strokeDisclosureChevron(p, r.X+r.W/2-shift, r.Y+r.H/2-0.25, 90*progress, rtl, 2.5, 3.5, 3.5, 1.5, ink)
 			if tr.FocusVisible() {
-				p.FocusRing(r, radii(3))
+				macFocusRing(p, r, 3)
 			}
 		})
 		ui.Text(c, label).SingleLine()

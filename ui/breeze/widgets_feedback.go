@@ -316,10 +316,10 @@ func macMeterFill(t *ui.Theme, level int) ui.Color {
 	return t.Success
 }
 
-// macMeter draws an NSLevelIndicator of continuous capacity style, regular size, as measured from AppKit: a bar 16 points high with corners of 2.5, a track of black at 7.1% (white at 10.2% in Dark Aqua) inside a half-point edge (black at 19.2%, white at 7.1%), filled from its start with the level's color inside a half-point edge 13% darker, square where the fill ends.
+// macMeter draws an NSLevelIndicator of continuous capacity style, regular size, as measured from AppKit: a bar 16 points high with corners of 2 (AppKit's corner, rendered in a key window at 2x on macOS 27.2, reaches its full edge a pixel sooner than MyGo's corner of 2.5 does, row by row and column by column), a track of black at 7.1% (white at 10.2% in Dark Aqua) inside a half-point edge (black at 19.2%, white at 7.1%), filled from its start with the level's color inside a half-point edge 13% darker, square where the fill ends.
 func macMeter(c *ui.Context, m ui.Element, frac float32, level int) {
 	t := c.Theme()
-	const radius = 2.5
+	const radius = 2
 	edge := tint(t.Background, t.Dark, pick(t.Dark, float32(0.192), 0.071))
 	track := tint(t.Background, t.Dark, pick(t.Dark, float32(0.071), 0.102))
 	fill := macMeterFill(t, level)
