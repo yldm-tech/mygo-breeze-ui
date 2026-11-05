@@ -22,19 +22,20 @@ var textStyles = []struct {
 	{"Caption", "Applies to every window.", breeze.TextCaption},
 }
 
-// textStyleArg returns the step the style control names, with TextSecondary added when the secondary control is on, and the Go that names it.
+// textStyleArg returns the step the style control names, with TextSecondary added when the secondary control is on, and the Go that passes it after the text: nothing for the body alone, which is Text's default.
 func textStyleArg(a *args) (breeze.TextStyle, string) {
-	style, code := breeze.TextBody, "breeze.TextBody"
+	style, code := breeze.TextBody, ""
 	for _, s := range textStyles {
-		if s.name == *a.text["style"] {
-			style, code = s.style, "breeze.Text"+s.name
+		if s.name == *a.text["style"] && s.style != breeze.TextBody {
+			style, code = s.style, ", breeze.Text"+s.name
 		}
 	}
 	if *a.on["secondary"] {
 		style |= breeze.TextSecondary
-		code += "|breeze.TextSecondary"
-		if style == breeze.TextSecondary {
-			code = "breeze.TextSecondary"
+		if code == "" {
+			code = ", breeze.TextSecondary"
+		} else {
+			code += "|breeze.TextSecondary"
 		}
 	}
 	return style, code
@@ -51,11 +52,11 @@ func textStories() []*story {
 			controls: []control{choiceArg("style", "Title", names...), toggleArg("secondary", false), textArg("text", "Settings")},
 			render: func(c *ui.Context, a *args) {
 				style, _ := textStyleArg(a)
-				breeze.Text(c, style, *a.text["text"]).MaxWidth(520)
+				breeze.Text(c, *a.text["text"], style).MaxWidth(520)
 			},
 			code: func(a *args) string {
 				_, style := textStyleArg(a)
-				return "breeze.Text(c, " + style + ", " + q(*a.text["text"]) + ")"
+				return "breeze.Text(c, " + q(*a.text["text"]) + style + ")"
 			}},
 		{component: "Text", name: "Ramp", category: "Text",
 			controls: []control{toggleArg("secondary", false)},
@@ -66,7 +67,7 @@ func textStories() []*story {
 						if *a.on["secondary"] {
 							style |= breeze.TextSecondary
 						}
-						breeze.Text(c, style, s.sample)
+						breeze.Text(c, s.sample, style)
 					}
 				})
 			},
@@ -77,7 +78,7 @@ func textStories() []*story {
 				}
 				var lines []string
 				for _, s := range textStyles {
-					lines = append(lines, "breeze.Text(c, breeze.Text"+s.name+secondary+", "+q(s.sample)+")")
+					lines = append(lines, "breeze.Text(c, "+q(s.sample)+", breeze.Text"+s.name+secondary+")")
 				}
 				return strings.Join(lines, "\n")
 			}},

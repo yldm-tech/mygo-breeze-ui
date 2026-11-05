@@ -40,7 +40,7 @@ func textView(p Platform) func(c *ui.Context) {
 			Use(c)
 			ui.Box(c).Fill().Children(func() {
 				for i, s := range textSamples {
-					ui.Box(c).Absolute().Left(16).Top(textTops[i]).Children(func() { Text(c, s.style, s.text) })
+					ui.Box(c).Absolute().Left(16).Top(textTops[i]).Children(func() { Text(c, s.text, s.style) })
 				}
 			})
 		})
@@ -99,7 +99,7 @@ func TestTextFollowsTheTypeRamp(t *testing.T) {
 		var usual float32
 		for _, scale := range []float32{1, 1.5} {
 			prefs := ui.Preferences{TextScale: scale}
-			r, size := textBoxes(t, p, prefs, func(c *ui.Context, st TextStyle, s string) { Text(c, st, s).SingleLine() })
+			r, size := textBoxes(t, p, prefs, func(c *ui.Context, st TextStyle, s string) { Text(c, s, st).SingleLine() })
 			want, _ := textBoxes(t, p, prefs, func(c *ui.Context, st TextStyle, s string) {
 				e := ui.Text(c, s).SingleLine()
 				if st == TextBody {
@@ -133,15 +133,16 @@ func TestTextFollowsTheTypeRamp(t *testing.T) {
 	}
 }
 
-// TestTextBodyIsUIText checks that TextBody draws, on every platform, light and dark, exactly what ui.Text draws in the platform's theme, and that a style that is no step does too.
+// TestTextBodyIsUIText checks that Text without a style, and with TextBody, draws, on every platform, light and dark, exactly what ui.Text draws in the platform's theme, so that a view can swap ui.Text for it, and that a style that is no step does too.
 func TestTextBodyIsUIText(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dark := range []bool{false, true} {
 			var shots []*image.RGBA
 			for _, build := range []func(c *ui.Context){
 				func(c *ui.Context) { ui.Text(c, "The quick brown fox jumps over the lazy dog") },
-				func(c *ui.Context) { Text(c, TextBody, "The quick brown fox jumps over the lazy dog") },
-				func(c *ui.Context) { Text(c, TextStyle(42), "The quick brown fox jumps over the lazy dog") },
+				func(c *ui.Context) { Text(c, "The quick brown fox jumps over the lazy dog") },
+				func(c *ui.Context) { Text(c, "The quick brown fox jumps over the lazy dog", TextBody) },
+				func(c *ui.Context) { Text(c, "The quick brown fox jumps over the lazy dog", TextStyle(42)) },
 			} {
 				tester := ui.NewTester(func(c *ui.Context) {
 					Preview(c, p, func() {
@@ -162,11 +163,11 @@ func TestTextBodyIsUIText(t *testing.T) {
 	}
 }
 
-// textInk returns how far the farthest pixel of r in img is from bg, in luminance from 0 to 1: how strongly the text in r is drawn.
-func textInk(img *image.RGBA, r ui.Rect, bg ui.Color) float32 {
+// textInk returns how far the farthest pixel of r, in DIPs, in img, drawn at scale, is from bg, in luminance from 0 to 1: how strongly the text in r is drawn.
+func textInk(img *image.RGBA, r ui.Rect, scale float32, bg ui.Color) float32 {
 	far := float32(0)
-	for y := int(r.Y); y < int(r.Y+r.H); y++ {
-		for x := int(r.X); x < int(r.X+r.W); x++ {
+	for y := int(r.Y * scale); y < int((r.Y+r.H)*scale); y++ {
+		for x := int(r.X * scale); x < int((r.X+r.W)*scale); x++ {
 			o := img.PixOffset(x, y)
 			px := ui.RGB(img.Pix[o], img.Pix[o+1], img.Pix[o+2])
 			far = max(far, float32(math.Abs(float64(luminance(px)-luminance(bg)))))
@@ -175,7 +176,7 @@ func textInk(img *image.RGBA, r ui.Rect, bg ui.Color) float32 {
 	return far
 }
 
-// TestTextSecondaryDims checks TextSecondary on every platform, light and dark: the dimmed text is drawn fainter than the same step undimmed, at the platform's secondary text color on macOS and Windows (secondaryLabelColor, TextFillColorSecondary), and at libadwaita's 55% opacity on GNOME, 90% with higher contrast.
+// TestTextSecondaryDims checks TextSecondary on every platform, light and dark, at 2x so that the strokes of the host's font cover whole pixels: the dimmed text is drawn fainter than the same step undimmed, at the platform's secondary text color on macOS and Windows (secondaryLabelColor, TextFillColorSecondary), and at libadwaita's 55% opacity on GNOME, 90% with higher contrast.
 func TestTextSecondaryDims(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dark := range []bool{false, true} {
@@ -186,18 +187,19 @@ func TestTextSecondaryDims(t *testing.T) {
 						Use(c)
 						th = c.Theme()
 						ui.Column(c).Padding(16).Gap(8).AlignItems(ui.Start).Children(func() {
-							Text(c, TextHeading, "Wrote").SingleLine()
-							Text(c, TextHeading|TextSecondary, "Faint").SingleLine()
+							Text(c, "Wrote", TextHeading).SingleLine()
+							Text(c, "Faint", TextHeading|TextSecondary).SingleLine()
 						})
 					})
 				}, 200, 100)
+				tester.SetScale(2)
 				tester.SetDark(dark)
 				tester.SetPreferences(ui.Preferences{HighContrast: contrast})
 				tester.Frame()
 				img := tester.Image()
 				strong, _ := tester.Find("Wrote")
 				faint, _ := tester.Find("Faint")
-				full, dim := textInk(img, strong, th.Background), textInk(img, faint, th.Background)
+				full, dim := textInk(img, strong, 2, th.Background), textInk(img, faint, 2, th.Background)
 				want := luminance(th.TextMuted) - luminance(th.Background)
 				if p == Linux {
 					want = pick(contrast, float32(0.55), 0.9) * (luminance(th.Text) - luminance(th.Background))
@@ -219,9 +221,9 @@ func TestTextKeepsItsBehavior(t *testing.T) {
 			Preview(c, p, func() {
 				Use(c)
 				ui.Column(c).Padding(16).Gap(8).AlignItems(ui.Start).Children(func() {
-					Text(c, TextTitle, "Settings").Role(ui.RoleHeading).Level(1)
-					ui.Column(c).Selectable().Width(160).Children(func() { Text(c, TextCaption|TextSecondary, long) })
-					Text(c, TextBody, "One line").SingleLine()
+					Text(c, "Settings", TextTitle).Role(ui.RoleHeading).Level(1)
+					ui.Column(c).Selectable().Width(160).Children(func() { Text(c, long, TextCaption, TextSecondary) })
+					Text(c, "One line").SingleLine()
 					Button(c, "Done")
 				})
 			})
@@ -254,7 +256,7 @@ func TestTextKeepsItsBehavior(t *testing.T) {
 		rtl := ui.NewTester(func(c *ui.Context) {
 			Preview(c, p, func() {
 				Use(c)
-				ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { Text(c, TextSubtitle, "Start") })
+				ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { Text(c, "Start", TextSubtitle) })
 			})
 		}, 400, 100)
 		rtl.SetDirection(ui.RightToLeft)
