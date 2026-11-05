@@ -75,7 +75,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 	var top float32
 	switch p {
 	case Windows:
-		// NavigationViewItemHeaderTextStyle: 14 pixels, semibold, TextFillColorSecondary, 16 from the pane's edge in a row 40 high.
+		// NavigationViewItemHeaderTextStyle: 14 pixels, semibold, TextFillColorSecondary, 16 from the pane's edge. WinUI's header row is 40 high; MyGo's padding of the title, a third of it above and below, and 4 above the section (inferred) come to about 36.
 		head.FontSize, head.Spacing, head.Radius = 15, 6, 4
 		top = 4
 	case Linux:
@@ -84,7 +84,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 		head.TextMuted = adwInkAlpha(t, adwSidebarBg(t), 0.55)
 		top = 12
 	default:
-		// AppKit's group row: 11-point text 19 points high, 2 points inside the selection's inset and 13 points below the row above, measured, in tertiaryLabelColor (black at 26% in Aqua, white at 25% in Dark Aqua). Rendered offscreen, without the sidebar's vibrancy, AppKit draws it lighter still (20% and 12%).
+		// AppKit's group row: 11-point text in a row 19 points high (MyGo's padding of the title makes it about 17), 2 points inside the selection's inset and 13 points below the row above, measured, in tertiaryLabelColor (black at 26% in Aqua, white at 25% in Dark Aqua). Rendered offscreen, without the sidebar's vibrancy, AppKit draws it lighter still (20% and 12%).
 		head.FontSize, head.Spacing, head.Radius = 12, 2, 8
 		head.TextMuted = tint(macSidebarBg(t), t.Dark, pick(t.Dark, float32(0.259), 0.247))
 		top = 13
@@ -113,7 +113,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 	return sec
 }
 
-// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME a row 36 high, the chosen one darker. Add to it with Children, as a Badge. It is ui.SidebarItem's counterpart.
+// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME a row 36 high, the chosen one darker. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
 func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -154,7 +154,7 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 // macSidebarBg is a source list's background, measured from an NSOutlineView of style sourceList rendered by AppKit on macOS 27.
 func macSidebarBg(t *ui.Theme) ui.Color { return pick(t.Dark, ui.Hex("#f0f0f0"), ui.Hex("#282828")) }
 
-// macSidebarItem draws a row of an NSOutlineView of style sourceList at the default (medium) row size, measured on macOS 27: 32 points high, an icon or the text 6 points inside the selection, the text 43 points in after a 16-point icon, as AppKit lays out a cell's image and text; the selection has corners of 8 and fills the row, and while the outline view has the focus, the emphasized selection in the accent color with white text, otherwise unemphasizedSelectedContentBackgroundColor.
+// macSidebarItem draws a row of an NSOutlineView of style sourceList at the default (medium) row size, measured on macOS 27: 32 points high, an icon or the text 6 points inside the selection, the text 43 points in after a 16-point icon, as AppKit lays out a cell's image and text; the selection has corners of 8 and fills the row, and while the outline view has the focus it is the emphasized selection in the accent color with white text, otherwise unemphasizedSelectedContentBackgroundColor, AppKit's semantic color (offscreen, AppKit draws that selection without its material, in black).
 func macSidebarItem(c *ui.Context, item ui.Element, chosen, focused bool) {
 	t := c.Theme()
 	item.MinHeight(32).Padding(0, 6).Gap(11).Radius(8)
@@ -166,7 +166,7 @@ func macSidebarItem(c *ui.Context, item ui.Element, chosen, focused bool) {
 	}
 }
 
-// macSidebarSelection is the emphasized selection of a source list: #0070f5 in Aqua and #007aff, controlAccentColor, in Dark Aqua for the blue accent, measured (AppKit renders it in Display P3, converted here to sRGB). For another accent it is the accent, a little darker in Aqua (inferred).
+// macSidebarSelection is the emphasized selection of a source list: #0070f5 in Aqua and #007aff, controlAccentColor, in Dark Aqua for the blue accent, measured from a row view drawn emphasized (AppKit renders it in Display P3, converted here to sRGB). For another accent it is the accent, a little darker in Aqua (inferred).
 func macSidebarSelection(t *ui.Theme) ui.Color {
 	if t.Accent == macAccent {
 		return pick(t.Dark, ui.Hex("#0070f5"), ui.Hex("#007aff"))
@@ -279,7 +279,7 @@ func Breadcrumbs(c *ui.Context, items []string, chosen *int) ui.Element {
 	return row
 }
 
-// navCrumb draws an item of a path, a link or, when not link, the last item.
+// navCrumb draws an item of a path: a link, or the last item when link is false.
 func navCrumb(c *ui.Context, p Platform, e ui.Element, link bool) {
 	t := c.Theme()
 	switch p {
@@ -406,7 +406,7 @@ func navHistoryButton(c *ui.Context, b ui.Element) ui.Element {
 	return b
 }
 
-// Toolbar creates a row of the controls fn builds, as along the top of a window, spaced as the platform's toolbar: NSToolbar's items on macOS, a CommandBar on Windows and a .toolbar box on GNOME. It is one stop of Tab, and Left and Right move the focus among its controls; controls that do not fit go into a menu at its end, as in ui.Toolbar. Package ui's buttons inside it take MyGo's toolbar look; BackButton and ForwardButton the platform's. It is ui.Toolbar's counterpart.
+// Toolbar creates a row of the controls fn builds, as along the top of a window, spaced as the platform's toolbar: NSToolbar's items on macOS, a CommandBar on Windows and a .toolbar box on GNOME. It is one stop of Tab, and Left and Right move the focus among its controls; controls that do not fit go into a menu at its end, as in ui.Toolbar. Package ui's buttons inside it take MyGo's toolbar look, without a face until hovered; this package's Button and Toggle keep the platform's button look, and BackButton and ForwardButton are drawn as the platform's. It is ui.Toolbar's counterpart.
 func Toolbar(c *ui.Context, fn func()) ui.Element {
 	tb := ui.Toolbar(c, fn)
 	switch PlatformOf(c) {
