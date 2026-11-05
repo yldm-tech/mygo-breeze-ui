@@ -364,8 +364,11 @@ func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element
 	return formsMacNumberInput(c, value, lo, hi, step)
 }
 
-// RadioGroup creates the group that radio buttons built in fn choose within, which the arrows move through. It is package ui's.
-func RadioGroup(c *ui.Context, fn func()) ui.Element { return ui.RadioGroup(c, fn) }
+// RadioGroup creates the group that radio buttons built in fn choose within, a column of them, set as far apart as the platform sets its radio buttons: 6 points down the column and 8 across a row on macOS (SwiftUI's radio-group picker), RadioButtons' RowSpacing 8 and ColumnSpacing 7 on Windows, and on GNOME, which has no radio group, the padded check buttons next to each other. The group is ui.RadioGroup's own element, so Tab stops once at the chosen radio button, the arrows, Home and End choose among them, assistive technology sees a radio group named by Label, and Row lays it out across, as package ui's. It is ui.RadioGroup's counterpart.
+func RadioGroup(c *ui.Context, fn func()) ui.Element {
+	down, across := formsRadioGroupSpacing(PlatformOf(c))
+	return ui.RadioGroup(c, fn).GapY(down).GapX(across)
+}
 
 // Modal shows a dialog built by fn over the window while *open, as the platform draws its dialogs; clicking outside it or pressing Escape sets *open to false, which Dismissed reports. It is ui.Modal's counterpart.
 func Modal(c *ui.Context, open *bool, fn func()) ui.Element {

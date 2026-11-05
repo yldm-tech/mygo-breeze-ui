@@ -44,6 +44,17 @@ func formsCheckGroupSpacing(p Platform) (indent, gap float32) {
 	return 22, 8
 }
 
+// formsRadioGroupSpacing returns how far apart a RadioGroup sets its radio buttons down a column, as it builds them, and across a row, as Row lays them out. macOS: SwiftUI's Picker of style radioGroup, rendered at 2x in a key window on macOS 27.2: its radio buttons' 16-point circles are 12 and 13 pixels apart down the column, so 6 points between rows 16 points high, and with horizontalRadioGroupLayout the buttons' frames are 8 points apart. Windows 11: RadioButtons, whose ColumnMajorUniformToLargestGridLayout takes RowSpacing from RadioButtonsRowSpacing, 8, and ColumnSpacing from RadioButtonsColumnSpacing, 7 (RadioButtons.xaml and RadioButtons_themeresources.xaml at cb1b8a6), between RadioButtons 32 high (fluentRadio). GNOME has no radio group: grouped check buttons sit in a GtkBox, whose spacing is 0 unless the app sets one, and each is padded already (adwRadio's 4), so none (inferred, as formsCheckGroupSpacing's gap).
+func formsRadioGroupSpacing(p Platform) (down, across float32) {
+	switch p {
+	case Windows:
+		return 8, 7
+	case Linux:
+		return 0, 0
+	}
+	return 6, 8
+}
+
 // formsDrawCheckbox draws a check box of the platform in state, as Checkbox draws one on or off; mixed, the box is drawn as checked and its check mark replaced with the platform's dash.
 func formsDrawCheckbox(c *ui.Context, p Platform, row, box ui.Element, state formsCheckState) {
 	on := state != formsCheckOff
