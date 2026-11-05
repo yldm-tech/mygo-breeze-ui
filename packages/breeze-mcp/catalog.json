@@ -88,7 +88,7 @@
       "name": "Calendar",
       "category": "choices",
       "look": "themed",
-      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor tell assistive technology which day the keys are on, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
+      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
       "example": "breeze.Calendar(c, &app.day)"
     },
     {
