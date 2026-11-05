@@ -67,7 +67,7 @@
       "name": "CheckboxGroup",
       "category": "choices",
       "look": "themed",
-      "description": "A check box over the check boxes it groups, checked when they all are and mixed when some are: package ui's, in the platform's theme. The boxes built with breeze.Checkbox are the platform's; the one over them is MyGo's, which has no base for it.",
+      "description": "A check box over the check boxes it groups, checked when they all are and mixed when some are: package ui's, in the platform's theme. The boxes built with breeze.Checkbox are the platform's; the one over them is MyGo's 16-DIP box, which has no base for it, smaller than Windows 11's and GNOME's boxes below it.",
       "example": "breeze.CheckboxGroup(c, \"Notifications\", func() {\n\tbreeze.Checkbox(c, &app.mail, \"Mail\")\n\tbreeze.Checkbox(c, &app.calendar, \"Calendar\")\n})"
     },
     {
@@ -221,7 +221,7 @@
       "name": "Split",
       "category": "layout",
       "look": "themed",
-      "description": "Two panes side by side with a divider that a drag or the arrows move: package ui's, its 1-DIP line in the platform's separator color. MyGo's divider turns to the accent under the pointer and grabs 6 DIPs.",
+      "description": "Two panes side by side with a divider that a drag or the arrows move: package ui's, its 1-DIP line in the theme's border color, 1 wide as NSSplitView's thin divider and GtkPaned's separator are. MyGo's divider turns to the accent under the pointer, as none of the platforms' do, and grabs 6 DIPs.",
       "example": "breeze.Split(c, &app.sidebar, app.files, app.editor).Fill()"
     },
     {

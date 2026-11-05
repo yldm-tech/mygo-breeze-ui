@@ -44,7 +44,7 @@ func adwBoxedListShadow(e ui.Element) {
 	e.Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 6, 0.03)).Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
 }
 
-// strokeDisclosureChevron strokes a chevron centered on cx, cy pointing right, turned by deg degrees clockwise; right to left it points left and turns the other way, as disclosures mirror. Its arms reach back from the tip by back and out to either side by half.
+// strokeDisclosureChevron strokes a chevron pointing right with its tip tip past cx, cy, turned about cx, cy by deg degrees clockwise; right to left it points left and turns the other way, as disclosures mirror. Its arms reach back from the tip by back and out to either side by half.
 func strokeDisclosureChevron(p *ui.Painter, cx, cy, deg float32, rtl bool, tip, back, half, width float32, col ui.Color) {
 	s := float32(1)
 	if rtl {
@@ -88,22 +88,26 @@ func Collapsible(c *ui.Context, label string, open *bool, fn func()) ui.Element 
 			// GtkExpander puts its child right below the title, not indented.
 			panel.Gap(6) // inferred: GtkExpander holds one child
 		default:
-			// Under the label, past the 13-point box and the 2 after it, as SwiftUI's DisclosureGroup indents its content (inferred: SwiftUI centers a lone text), 8 apart as in its VStack.
-			panel.PaddingStart(15).Gap(8)
+			// Under the label, past the 13-point box and the 1.5 after it (inferred: SwiftUI's DisclosureGroup centers its content in the width of its stack rather than indenting it), 8 apart as in its VStack.
+			panel.PaddingStart(14.5).Gap(8)
 		}
 	})
 	return root
 }
 
-// macDisclosure draws an NSButton of bezel style disclosure beside its label: a 13-point box holding a chevron 7 points tall and 3.5 deep along its stroke's middle, stroked 1.5 points with round ends in black at 25% (white at 43.6% in Dark Aqua), pointing right and turning down as it opens, with the label 2 points after it in a row 24 points high (SwiftUI's DisclosureGroup rows, 32.5 points apart in a VStack spaced 8). The focus ring goes around the box, as AppKit draws it around the button.
+// macDisclosure draws an NSButton of bezel style disclosure beside its label: a 13-point box holding a chevron 7 points tall and 3.5 deep along its stroke's middle, stroked 1.5 points with round ends in black at 25% (white at 43.6% in Dark Aqua), pointing right and turning down as it opens, with the label 1.5 points after the box in a row 24 points high. Measured from AppKit's button and SwiftUI's DisclosureGroup rendered at 2x on macOS 27: the closed chevron's ink sits 0.5 points right of the box's center and 0.25 above it, the open one's 0.5 left and 0.25 below, which a turn about a point 0.25 left of and above the center gives within a quarter point; the label's ink starts 5.5 points after the chevron's, and the rows are 32 points apart in a VStack spaced 8. The focus ring goes around the box, as AppKit draws it around the button.
 func macDisclosure(c *ui.Context, tr ui.Element, label string, progress float32) {
 	t := c.Theme()
 	ink := pick(t.Dark, t.Background.Mix(black, macDisclosureLightAlpha), t.Background.Mix(white, macDisclosureDarkAlpha))
 	rtl := c.Direction() == ui.RightToLeft
-	tr.AlignSelf(ui.Start).AlignItems(ui.Center).Gap(2).MinHeight(24).FocusRing(false)
+	tr.AlignSelf(ui.Start).AlignItems(ui.Center).Gap(1.5).MinHeight(24).FocusRing(false)
+	shift := float32(0.25)
+	if rtl {
+		shift = -shift
+	}
 	tr.Children(func() {
 		ui.Box(c).Size(13, 13).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
-			strokeDisclosureChevron(p, r.X+r.W/2, r.Y+r.H/2, 90*progress, rtl, 1.75, 3.5, 3.5, 1.5, ink)
+			strokeDisclosureChevron(p, r.X+r.W/2-shift, r.Y+r.H/2-0.25, 90*progress, rtl, 2.5, 3.5, 3.5, 1.5, ink)
 			if tr.FocusVisible() {
 				p.FocusRing(r, radii(3))
 			}
@@ -140,7 +144,7 @@ func fluentExpanderHeader(c *ui.Context, root, tr ui.Element, label string, prog
 	})
 }
 
-// fluentExpanderContent draws an Expander's content: ExpanderContentPadding of 16, CardBackgroundFillColorSecondary, a CardStrokeColorDefault border on every side but the header's (ExpanderContentDownBorderThickness 1,0,1,1) and the bottom corners rounded by 4.
+// fluentExpanderContent draws an Expander's content: ExpanderContentPadding of 16, CardBackgroundFillColorSecondary, a CardStrokeColorDefault border on every side but the header's (ExpanderContentDownBorderThickness 1,0,1,1) and the bottom corners rounded by 4. An Expander holds one content element; 12 between several is inferred from Windows's spacing guidance for content areas.
 func fluentExpanderContent(c *ui.Context, panel ui.Element) {
 	_, secondary, stroke := fluentExpanderCard(c.Theme())
 	panel.Padding(16).Gap(12).Background(secondary).BorderWidth(0, 1, 1, 1).BorderColor(stroke).Radius(0, 0, 4, 4)
@@ -234,7 +238,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	return item
 }
 
-// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 8 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend's text is MyGo's, semibold. It is ui.Fieldset's counterpart.
+// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend's text is MyGo's, semibold, where GNOME's .heading is bold. It is ui.Fieldset's counterpart.
 func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -263,7 +267,8 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	})
 	switch p {
 	case Windows:
-		g.Gap(8) // Windows's guidance: 8 epx between a control and its header
+		// WinUI Gallery's SettingsPage.xaml: SettingsSectionHeaderTextBlockStyle (BodyStrongTextBlockStyle) has a bottom margin of 6, and SettingsCardSpacing puts 4 more before the first card.
+		g.Gap(10)
 	case Linux:
 		g.Gap(12) // preferencesgroup > box: border-spacing 6px, and 6px below the header
 	default:
@@ -298,12 +303,12 @@ func Form(c *ui.Context, fn func()) ui.Element {
 
 // ---- widgets of package ui, in the platform's theme (Use) ----
 
-// CheckboxGroup creates a check box over the check boxes fn builds, indented below it: it is checked when they all are, mixed when some are, and a click or Space checks them all, or none when they all are. Build the boxes with Checkbox to draw them as the platform does; the check box over them is MyGo's, in the platform's theme. It is package ui's.
+// CheckboxGroup creates a check box over the check boxes fn builds, indented below it: it is checked when they all are, mixed when some are, and a click or Space checks them all, or none when they all are. Build the boxes with Checkbox to draw them as the platform does; the check box over them is MyGo's, a 16-DIP box in the platform's theme, smaller than the 20-DIP boxes of Windows and GNOME below it: package ui has no base for it. It is package ui's.
 func CheckboxGroup(c *ui.Context, label string, fn func()) ui.Element {
 	return ui.CheckboxGroup(c, label, fn)
 }
 
-// Split lays out first and second side by side with a divider between them that a drag or the arrows move: *size is the width of first. The divider is MyGo's, a 1-DIP line in the theme's separator color, as NSSplitView's thin divider and GtkPaned's handle are. It is package ui's.
+// Split lays out first and second side by side with a divider between them that a drag or the arrows move: *size is the width of first. The divider is MyGo's, a 1-DIP line in the theme's Border color, as NSSplitView's thin divider and GtkPaned's handle are 1 wide: separatorColor on macOS (AppKit's thin divider measures black at 10.2% in Aqua, which it matches, and white at 12% in Dark Aqua, a little lighter than separatorColor's 9.8%), $border_color on GNOME as GtkPaned's separator, ControlStrokeColorDefault on Windows, which has no splitter of its own. It turns to the accent under the pointer, as none of the three do. It is package ui's.
 func Split(c *ui.Context, size *float32, first func(), second func()) ui.Element {
 	return ui.Split(c, size, first, second)
 }
