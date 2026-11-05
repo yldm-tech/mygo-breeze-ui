@@ -88,7 +88,7 @@
       "name": "Calendar",
       "category": "choices",
       "look": "themed",
-      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
+      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
       "example": "breeze.Calendar(c, &app.day)"
     },
     {
@@ -116,7 +116,7 @@
       "name": "ColorPicker",
       "category": "choices",
       "look": "themed",
-      "description": "A picker of a color with a saturation and brightness square, hue and opacity sliders, the hex and swatches: package ui's, laid out as AppKit's color panel, in the platform's theme. WinUI's ColorPicker and GTK's color chooser lay theirs out differently.",
+      "description": "A picker of a color with a saturation and brightness square, hue and opacity sliders, the hex and swatches: package ui's, laid out as AppKit's color panel, in the platform's theme. Its parts are built inside it, and a picker rebuilt outside MyGo could not name them, their values and the swatches' colors in MyGo's translations. WinUI's ColorPicker and GTK's color chooser lay theirs out differently.",
       "example": "breeze.ColorPicker(c, &app.tint)"
     },
     {
@@ -144,7 +144,7 @@
       "name": "DecimalInput",
       "category": "text",
       "look": "themed",
-      "description": "A field editing an exact decimal, as an amount of money, with buttons stepping it: package ui's, in the platform's theme. Its field and buttons are built inside it, out of reach of a style applied to what it returns.",
+      "description": "A field editing an exact decimal, as an amount of money, with buttons stepping it: package ui's, in the platform's theme. Its field and buttons are built inside it, out of reach of a style applied to what it returns, and a field rebuilt outside MyGo could not show its errors (Enter a number, Use at most 2 decimal places) in MyGo's translations, while NumberInput, which shows none, is rebuilt.",
       "example": "breeze.DecimalInput(c, &app.amount, \"0\", \"\", \"0.01\")"
     },
     {
@@ -179,7 +179,7 @@
       "name": "FindBar",
       "category": "text",
       "look": "themed",
-      "description": "A bar for finding text, in the platform's place for it: NSTextFinder's find bar on macOS, GtkSearchBar's bar on GNOME, a strip with a divider on Windows 11, which has none. The field, the buttons and the keys are MyGo's, in the platform's theme.",
+      "description": "A bar for finding text, in the platform's place for it: NSTextFinder's find bar on macOS, GtkSearchBar's bar on GNOME, a strip with a divider on Windows 11, which has none. The field, the buttons and the keys are MyGo's, in the platform's theme: a bar rebuilt outside MyGo could not say its names and its count (Find, No matches, 2 of 5, Previous, Next, Done) in MyGo's translations.",
       "example": "breeze.FindBar(c, &app.finding, &app.query, len(app.matches), &app.match)"
     },
     {
@@ -297,15 +297,15 @@
     {
       "name": "RadioGroup",
       "category": "choices",
-      "look": "themed",
-      "description": "The group radio buttons choose within, which the arrows move through: package ui's container around the platform's radio buttons.",
+      "look": "drawn",
+      "description": "The group radio buttons choose within, which the arrows move through, its radio buttons set as far apart as the platform sets them: 6 points down a column and 8 across a row on macOS, as SwiftUI's radio-group picker; RadioButtons' row spacing 8 and column spacing 7 on Windows 11; the padded check buttons next to each other on GNOME, which has no radio group.",
       "example": "breeze.RadioGroup(c, func() {\n\tbreeze.Radio(c, &app.size, \"S\", \"Small\")\n\tbreeze.Radio(c, &app.size, \"L\", \"Large\")\n})"
     },
     {
       "name": "RangeSlider",
       "category": "choices",
       "look": "themed",
-      "description": "A slider of two knobs setting a range: package ui's, in the platform's accent and colors. Its knobs take the focus as elements inside it, whose focus rings only MyGo's drawing can show, so it is not drawn as the platforms' sliders; macOS and GNOME have no range slider, Windows its Community Toolkit's RangeSelector.",
+      "description": "A slider of two knobs setting a range: package ui's, in the platform's accent and colors. Its knobs take the focus as elements inside it, whose focus rings only MyGo's drawing can show, and knobs rebuilt outside MyGo could not be named after the slider's Label (Price minimum), so it is not drawn as the platforms' sliders; macOS and GNOME have no range slider, Windows its Community Toolkit's RangeSelector.",
       "example": "breeze.RangeSlider(c, &app.min, &app.max, 0, 100, 0).Label(\"Price\")"
     },
     {
