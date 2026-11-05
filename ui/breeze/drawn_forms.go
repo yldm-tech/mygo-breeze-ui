@@ -324,6 +324,7 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 	t := c.Theme()
 	fill := adwInkAlpha(t, t.Background, 0.10)
 	edge, ink := adwInkAlpha(t, fill, 0.10), adwInkAlpha(t, fill, 1)
+	rtl := c.Direction() == ui.RightToLeft
 	var in ui.Element
 	row, box := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
 		in = ui.TextInputBase(c, text).Width(80).Padding(6)
@@ -338,8 +339,11 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 				b.Background(adwInkAlpha(t, fill, 0.07))
 			}
 			b.Draw(func(p *ui.Painter, r ui.Rect) {
-				// The 16-pixel icon, centered in the button past its 1-pixel border.
-				x, y := r.X+(r.W-16)/2, r.Y+(r.H-16)/2
+				// The 16-pixel icon, centered in the button past its 1-pixel border on its start side: the bar 12 pixels after the border's start, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
+				x, y := r.X+1+(r.W-1-16)/2, r.Y+(r.H-16)/2
+				if rtl {
+					x = r.X + (r.W-1-16)/2
+				}
 				p.Fill(ui.Rect{X: x + 3, Y: y + 7, W: 10, H: 2}, ink, 0)
 				if sign > 0 {
 					p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 10}, ink, 0)

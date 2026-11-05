@@ -234,6 +234,10 @@ func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	parts.Root.Row().AlignItems(ui.Center).Gap(6).Padding(6).PaddingStart(12).MinHeight(46).MaxWidth(w-24).Radius(23).
 		Background(bg).TextColor(white).
 		Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
+	if ts.Action != "" {
+		// A toast with a button is at least 426 pixels wide, its title taking the room and the button at its end, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference: "Note deleted" with Undo is 426 wide where its content needs 241, and a toast without a button is as wide as its content.
+		parts.Root.MinWidth(min(426, w-24))
+	}
 	parts.Root.Children(func() {
 		ui.Row(c).Grow(1).Shrink(1).Gap(6).MarginX(6).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, ts.Title).FontWeight(700).SingleLine()
