@@ -1,10 +1,10 @@
 # libadwaita's own controls, for comparing Breeze UI's GNOME look with them.
 #
-# It renders, with GTK 4 and libadwaita, the controls of ui/breeze/screenshot_test.go at the same places (referenceView, referenceView2, the alert and referenceView3), light and dark, at 2x, and writes them as PNGs. Run it where libadwaita 1.7 is installed (Debian 13: python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth libgl1-mesa-dri), under a display:
+# It renders, with GTK 4 and libadwaita, the controls of ui/breeze/screenshot_test.go at the same places (referenceView, referenceView2, the alert and referenceView3), light and dark, at 2x, and writes them as PNGs. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51), so run it where those are installed, under a display; a GNOME 51 runtime such as the org.gnome.Sdk//51 Flatpak SDK is expected to carry them (inferred, not tried). Where libadwaita 1.7 is installed (Debian 13: python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth libgl1-mesa-dri) the controls 1.10 left alone compare too, but not the popover's ring, the dialogs' shadows, the alert's outline and body's line height, the spinner's stroke or the check mark:
 #
 #	xvfb-run -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir>
 #
-# The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots. GNOME 48's font is Adwaita Sans, which Debian 13 does not package; Inter, on which it is based (fonts-inter, with gtk-font-name=Inter 11 in ~/.config/gtk-4.0/settings.ini), comes closest, so text differs a little while the controls' sizes and colors compare. A window at most 360 pixels high makes the alert .short, as it is here.
+# The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0), as GNOME 48's was, which Debian 13 does not package; Inter, on which it is based (fonts-inter, with gtk-font-name=Inter 11 in ~/.config/gtk-4.0/settings.ini), comes closest, so text differs a little while the controls' sizes and colors compare. A window at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi

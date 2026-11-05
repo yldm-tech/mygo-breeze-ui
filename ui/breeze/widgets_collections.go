@@ -128,7 +128,7 @@ func fluentListRow(c *ui.Context, cell ui.Element, r ui.ListRow, hovers bool) {
 
 // ---- GNOME: GtkListView of class rich-list ----
 
-// adwListViewBg is view_bg_color, the background of lists and text views: #ffffff and #1d1d20 (_defaults.scss).
+// adwListViewBg is view_bg_color, the background of lists and text views: #ffffff and #1d1d20 (_colors.scss of libadwaita 1.10.0).
 func adwListViewBg(t *ui.Theme) ui.Color { return pick(t.Dark, white, ui.Hex("#1d1d20")) }
 
 // adwListRow draws a row of a GtkListView of class rich-list (_lists.scss): padded 8px 12px with a min-height of 32px, so 48 pixels high, square, in view_fg_color over view_bg_color; while chosen $view_selected_color, the accent at 25% ($view_selected_hover_color, 32%, under the pointer), and under the pointer $view_hover_color, currentColor at 4%, as rows that can be chosen are activatable: the hover shows only when hovers. The pressed row's $view_active_color (8%) and $view_selected_active_color (39%) are not drawn, the press being MyGo's row's, as on Windows.

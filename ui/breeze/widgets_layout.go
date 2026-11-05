@@ -9,7 +9,7 @@ import (
 
 // ---- layout: disclosures, accordions, fieldsets, forms, check box groups and splits ----
 //
-// macOS: AppKit's disclosure button (NSButton of bezel style disclosure), NSBox and NSSplitView, and SwiftUI's grouped Form with DisclosureGroup rows, rendered at 2x in Aqua and Dark Aqua on macOS 27 by a scratch script modeled on tools/appkit-reference/reference.swift. Windows 11: Expander_themeresources.xaml and Expander.xaml of microsoft/microsoft-ui-xaml, the card colors of Common_themeresources_any.xaml, the spacing of Windows's "Content layout and spacing" guidance and the settings page of the WinUI Gallery. GNOME: libadwaita 1.7.6's _expanders.scss, _lists.scss, _misc.scss (.card), _preferences.scss and _defaults.scss, adwaita-icon-theme 48's pan-end-symbolic and GTK 4.18's gtkexpander.c.
+// macOS: AppKit's disclosure button (NSButton of bezel style disclosure), NSBox and NSSplitView, and SwiftUI's grouped Form with DisclosureGroup rows, rendered at 2x in Aqua and Dark Aqua on macOS 27 by a scratch script modeled on tools/appkit-reference/reference.swift. Windows 11: Expander_themeresources.xaml and Expander.xaml of microsoft/microsoft-ui-xaml, the card colors of Common_themeresources_any.xaml, the spacing of Windows's "Content layout and spacing" guidance and the settings page of the WinUI Gallery. GNOME: libadwaita 1.10.0's _expanders.scss, _lists.scss, _misc.scss (.card), _preferences.scss and _colors.scss, adwaita-icon-theme 51.0's pan-end-symbolic and GTK 4.24.0's gtkexpander.c, whose values are those of libadwaita 1.7.6, adwaita-icon-theme 48 and GTK 4.18.
 
 // Shares of black (Aqua) or white (Dark Aqua) over the window background, measured from AppKit's NSBox and SwiftUI's grouped Form.
 const (
