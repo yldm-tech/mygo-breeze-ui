@@ -3,6 +3,7 @@ package breeze
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -169,6 +170,187 @@ func TestFluentSelectFocus(t *testing.T) {
 		tester.Frame()
 		if got := pill(); !fluentNear(got, accent) {
 			t.Errorf("rtl %v: with the keyboard's focus the box's start is %v, want the accent pill %v", rtl, got, accent)
+		}
+	}
+}
+
+// fluentPixel returns the pixel of tester's 2x frame at x, y in DIPs.
+func fluentPixel(tester *ui.Tester, x, y float32) ui.Color {
+	r, g, b, a := tester.Image().At(int(x*2), int(y*2)).RGBA()
+	return ui.Color{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: uint8(a >> 8)}
+}
+
+// fluentWithin reports whether a and b differ by at most d in each color channel.
+func fluentWithin(a, b ui.Color, d int) bool {
+	ok := func(x, y uint8) bool { return int(x)-int(y) <= d && int(y)-int(x) <= d }
+	return ok(a.R, b.R) && ok(a.G, b.G) && ok(a.B, b.B)
+}
+
+// fluentShot builds view on Windows at 2x, light or dark, and returns the tester after two frames, so that bounds read while building are the laid-out ones.
+func fluentShot(dark bool, w, h int, view func(c *ui.Context)) *ui.Tester {
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Windows, func() {
+			Use(c)
+			view(c)
+		})
+	}, w, h)
+	tester.SetScale(2)
+	tester.SetDark(dark)
+	tester.Frame()
+	tester.Frame()
+	return tester
+}
+
+// TestFluentAccentAsMeasured checks the accent fills and link colors against WinUI 3's rendering with Windows's default accent (tools/winui-reference, WinUI 3 3.3 on Windows 11 26H2): the accent button #005a9e and #76b9ed, under the pointer #1869a6 and #6da9d8, pressed #3179af and #649ac4, and a hyperlink #004275 and #a6d8ff.
+func TestFluentAccentAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		th := windowsTheme(t, dark)
+		want := map[string][2]ui.Color{
+			"Accent":        {th.Accent, pick(dark, ui.Hex("#005a9e"), ui.Hex("#76b9ed"))},
+			"AccentHover":   {th.AccentHover, pick(dark, ui.Hex("#1869a6"), ui.Hex("#6da9d8"))},
+			"AccentPressed": {th.AccentPressed, pick(dark, ui.Hex("#3179af"), ui.Hex("#649ac4"))},
+		}
+		for name, c := range want {
+			if !fluentNear(c[0], c[1]) {
+				t.Errorf("dark %v: %s %v, WinUI's reads %v", dark, name, c[0], c[1])
+			}
+		}
+		var link ui.Color
+		fluentShot(dark, 100, 40, func(c *ui.Context) { link = fluentLinkColor(c, false, false) })
+		if wantLink := pick(dark, ui.Hex("#004275"), ui.Hex("#a6d8ff")); link != wantLink {
+			t.Errorf("dark %v: link %v, WinUI's reads %v", dark, link, wantLink)
+		}
+	}
+}
+
+// TestFluentChoicesAsMeasured checks a check box, a radio button and a switch against WinUI 3's rendering (tools/winui-reference, WinUI 3 3.3 on Windows 11 26H2): the label's text box 5 DIPs below the check box's top and 6 below the radio button's, the box 6 below; the unchecked box's stroke reading 134 then 131 into the box (154 and 152 dark), 191 and 173 pressed (67 and 80); the off switch's knob 90 on its track (204 dark) and 87 under the pointer (207); the chosen radio button's dot ring over the accent below the dot, #00365f in the light theme; and a disabled checked box gray, 191 (67 dark), as MyGo's half opacity lets it read.
+func TestFluentChoicesAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		off, on, sw, size := false, true, false, "M"
+		var boxRow, onRow, disRow, radioRow, swBox ui.Rect
+		view := func(c *ui.Context) {
+			ui.Box(c).Fill().Children(func() {
+				at := func(x, y float32, build func() ui.Element) ui.Rect {
+					var r ui.Rect
+					ui.Box(c).Absolute().Left(x).Top(y).Children(func() { r = build().Bounds() })
+					return r
+				}
+				boxRow = at(16, 16, func() ui.Element { return Checkbox(c, &off, "Unchecked") })
+				onRow = at(160, 16, func() ui.Element { return Checkbox(c, &on, "Checked") })
+				disRow = at(300, 16, func() ui.Element { return Checkbox(c, &on, "Disabled").Disabled(true) })
+				radioRow = at(16, 60, func() ui.Element { return Radio(c, &size, "M", "Chosen") })
+				swBox = at(160, 66, func() ui.Element { return Switch(c, &sw) })
+			})
+		}
+		tester := fluentShot(dark, 440, 120, view)
+		if r, ok := tester.Find("Unchecked"); !ok || r.Y-boxRow.Y != 5 {
+			t.Errorf("dark %v: the check box's label is %v DIPs below its top, want 5", dark, r.Y-boxRow.Y)
+		}
+		if r, ok := tester.Find("Chosen"); !ok || r.Y-radioRow.Y != 6 {
+			t.Errorf("dark %v: the radio button's label is %v DIPs below its top, want 6", dark, r.Y-radioRow.Y)
+		}
+		box := ui.Rect{X: boxRow.X, Y: boxRow.Y + 6, W: 20, H: 20}
+		outer, inner := fluentPixel(tester, box.X+10, box.Y+0.25), fluentPixel(tester, box.X+10, box.Y+0.75)
+		if want := pick(dark, [2]uint8{134, 131}, [2]uint8{154, 152}); !fluentWithin(outer, ui.RGBA(want[0], want[0], want[0], 1), 2) || !fluentWithin(inner, ui.RGBA(want[1], want[1], want[1], 1), 2) {
+			t.Errorf("dark %v: the box's stroke reads %v then %v, WinUI's %v", dark, outer, inner, want)
+		}
+		cx, cy := radioRow.X+10, radioRow.Y+6+10
+		if got := fluentPixel(tester, cx, cy+6-0.25); !dark && !fluentWithin(got, ui.Hex("#00365f"), 4) {
+			t.Errorf("the dot's ring below the dot reads %v over the accent, WinUI's #00365f", got)
+		}
+		knob := func() ui.Color { return fluentPixel(tester, swBox.X+10, swBox.Y+10) }
+		if got, want := knob(), pick(dark, uint8(90), 204); !fluentWithin(got, ui.RGBA(want, want, want, 1), 2) {
+			t.Errorf("dark %v: the off knob reads %v, WinUI's %d", dark, got, want)
+		}
+		if got, want := fluentPixel(tester, disRow.X+2.5, disRow.Y+6+3), pick(dark, uint8(191), 67); !fluentWithin(got, ui.RGBA(want, want, want, 1), 3) {
+			t.Errorf("dark %v: the disabled checked box reads %v, WinUI's %d", dark, got, want)
+		}
+		tester.Move(swBox.X+20, swBox.Y+10)
+		tester.Advance(time.Second)
+		tester.Frame()
+		if got, want := knob(), pick(dark, uint8(87), 207); !fluentWithin(got, ui.RGBA(want, want, want, 1), 2) {
+			t.Errorf("dark %v: the off knob under the pointer reads %v, WinUI's %d", dark, got, want)
+		}
+		tester.Move(box.X+10, box.Y+10)
+		tester.Press(box.X+10, box.Y+10)
+		tester.Advance(time.Second)
+		tester.Frame()
+		outer, inner = fluentPixel(tester, box.X+10, box.Y+0.25), fluentPixel(tester, box.X+10, box.Y+0.75)
+		if want := pick(dark, [2]uint8{191, 173}, [2]uint8{67, 80}); !fluentWithin(outer, ui.RGBA(want[0], want[0], want[0], 1), 2) || !fluentWithin(inner, ui.RGBA(want[1], want[1], want[1], 1), 2) {
+			t.Errorf("dark %v: the pressed box's stroke reads %v then %v, WinUI's %v", dark, outer, inner, want)
+		}
+		if onRow.W == 0 {
+			t.Fatalf("dark %v: the checked box has no size", dark)
+		}
+	}
+}
+
+// TestFluentSelectAndSliderAsMeasured checks a ComboBox and a slider against WinUI 3's rendering (tools/winui-reference, WinUI 3 3.3 on Windows 11 26H2): the ComboBox's text 12 DIPs in, its chevron's point 1.75 DIPs below the box's middle (centered on the box, not on its padded content) and 14 DIPs from its end, and the slider thumb's edge translucent over the accent track, #005595 in the light theme.
+func TestFluentSelectAndSliderAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		sel, volume := "Medium", 40.0
+		var box, slider ui.Rect
+		tester := fluentShot(dark, 300, 120, func(c *ui.Context) {
+			ui.Box(c).Fill().Children(func() {
+				ui.Box(c).Absolute().Left(16).Top(16).Children(func() { box = Select(c, &sel, []string{"Medium", "Small"}).Bounds() })
+				ui.Box(c).Absolute().Left(16).Top(64).Children(func() { slider = Slider(c, &volume, 0, 100).Width(180).Bounds() })
+			})
+		})
+		if r, ok := tester.Find("Medium"); !ok || r.X-box.X != 12 {
+			t.Errorf("dark %v: the ComboBox's text is %v DIPs in, want 12", dark, r.X-box.X)
+		}
+		// The chevron is 7 DIPs wide, its point in the middle of its 12-DIP box, which ends 14 DIPs from the end.
+		px := int((box.X + box.W - 14 - 6) * 2)
+		face := fluentPixel(tester, box.X+3, box.Y+3)
+		best, darkest := -1, 0
+		for y := int(box.Y * 2); y < int((box.Y+box.H)*2); y++ {
+			r, _, _, _ := tester.Image().At(px, y).RGBA()
+			d := int(face.R) - int(r>>8)
+			if dark {
+				d = -d
+			}
+			if d > darkest {
+				best, darkest = y, d
+			}
+		}
+		if point := float32(best)/2 + 0.25; point < box.Y+box.H/2+1.25 || point > box.Y+box.H/2+2.25 {
+			t.Errorf("dark %v: the chevron's point is at %v, want 1.75 below the box's middle, %v", dark, point, box.Y+box.H/2+1.75)
+		}
+		thumb := slider.X + 9 + 0.4*(slider.W-18)
+		if got := fluentPixel(tester, thumb-11+0.25, slider.Y+slider.H/2); !dark && !fluentWithin(got, ui.Hex("#005595"), 3) {
+			t.Errorf("the thumb's edge over the track reads %v, WinUI's #005595", got)
+		}
+	}
+}
+
+// TestFluentOverlayStrokes checks the edges of a flyout and of an alert, which WinUI draws over what is behind them, not over their fill (tools/winui-reference, WinUI 3 3.3 on Windows 11 26H2): the flyout's top edge reads 229 in the light theme and 26 in the dark one, and the alert's edge is SurfaceStrokeColorDefault over the smoke over the window.
+func TestFluentOverlayStrokes(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		third := ui.NewTester(referenceView3(Windows), 400, 240)
+		third.SetScale(2)
+		third.SetDark(dark)
+		third.Frame()
+		third.Frame()
+		d, ok := third.Find("Details")
+		if !ok {
+			t.Fatal("the popover is not open")
+		}
+		// The text is inside the 1-DIP border and the padding of 15 above it.
+		if got, want := fluentPixel(third, d.X+d.W/2, d.Y-16+0.25), pick(dark, uint8(229), 26); !fluentWithin(got, ui.RGBA(want, want, want, 1), 1) {
+			t.Errorf("dark %v: the flyout's top edge reads %v, WinUI's %d", dark, got, want)
+		}
+		open := true
+		var th *ui.Theme
+		alert := fluentShot(dark, 560, 340, func(c *ui.Context) {
+			th = c.Theme()
+			AlertDialog(c, &open, "Delete?", "You can’t undo this action.", "Cancel", "Delete")
+		})
+		panel, ok := alert.Find("Delete?")
+		if !ok {
+			t.Fatal("the alert is not open")
+		}
+		if got := fluentPixel(alert, panel.X+panel.W/2, panel.Y+0.25); !fluentWithin(got, fluentDialogStroke(th), 1) {
+			t.Errorf("dark %v: the alert's edge reads %v, want %v", dark, got, fluentDialogStroke(th))
 		}
 	}
 }
