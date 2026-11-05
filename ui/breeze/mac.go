@@ -385,7 +385,7 @@ func drawBar(c *ui.Context, p *ui.Painter, r ui.Rect, value float64, fill ui.Col
 	p.Fill(ui.Rect{X: x, Y: r.Y, W: w, H: r.H}, fill, radius)
 }
 
-// macSpinner draws a spinning NSProgressIndicator of regular size as a key window draws it: 32 points, 8 spokes 4 points wide with square ends from 6 points out to the edge, the darkest black (white in Dark Aqua) at 54.9% and each one behind it 7.06% lighter, stepping around once a second. Measured by reference.swift on macOS 27.2: 115, 133, 150, 168, 186, 204, 222 and 240 over white, 154 down to 43 over the window in Dark Aqua, and 8 pixels across a spoke at 2x; the turn's period is not measured.
+// macSpinner draws a spinning NSProgressIndicator of regular size as a key window draws it: 32 points, 8 spokes 4 points wide with round ends from 6 points out to the edge, the darkest black (white in Dark Aqua) at 54.9% and each one behind it 7.06% lighter, stepping around once a second. Measured by reference.swift on macOS 27.2: 115, 133, 150, 168, 186, 204, 222 and 240 over white, 154 down to 43 over the window in Dark Aqua, and 8 pixels across a spoke at 2x, its sides straight and its ends reaching 6 and 16 points out along its middle; the turn's period is not measured.
 func macSpinner(c *ui.Context, e ui.Element) {
 	t := c.Theme()
 	ink := pick(t.Dark, black, white)
@@ -403,7 +403,7 @@ func macSpinner(c *ui.Context, e ui.Element) {
 			// The spoke pointing up, from 6 points out to the edge, turned to its place.
 			spoke := ui.Rect{X: cx - w/2, Y: cy - rad, W: w, H: rad * 0.625}
 			p.Transform(ui.Rotation(float32(i)*360/spokes), cx, cy, func() {
-				p.Fill(spoke, t.Background.Mix(ink, alpha), 0)
+				p.Fill(spoke, t.Background.Mix(ink, alpha), w/2)
 			})
 		}
 	})
