@@ -693,7 +693,7 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 	}
 }
 
-// TestDateAndTimeInputsOnMacAndGNOME checks, left to right and right to left, the parts this group draws of the date and time fields: on macOS the time's colon reaches labelColor (the theme's Text) and Up still steps the hours in the column the field is built in, and the date field shows no calendar icon, enabled or disabled, and still opens its calendar; on GNOME the icon is the text color at 70%.
+// TestDateAndTimeInputsOnMacAndGNOME checks, left to right and right to left, the parts this group draws of the date and time fields: on macOS Up still steps the hours, and the date field shows no calendar icon, enabled or disabled, and still opens its calendar; on GNOME the icon is the text color at 70%.
 func TestDateAndTimeInputsOnMacAndGNOME(t *testing.T) {
 	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
 		rtl := dir == ui.RightToLeft
@@ -712,10 +712,6 @@ func TestDateAndTimeInputsOnMacAndGNOME(t *testing.T) {
 		})
 		mac.SetRegion(i18n.Region{Locale: "en-GB", FirstWeekday: time.Monday, HourCycle: 24})
 		mac.Frame()
-		colon := formsFind(t, mac, ":")
-		if _, darkest := formsInk(mac, formsScaled(colon, 2), face, th.Text); darkest < 0.9 {
-			t.Errorf("macOS %v: the colon reaches %v of the text's contrast, want labelColor", dir, darkest)
-		}
 		for _, name := range []string{"Due", "Locked"} {
 			r := formsFind(t, mac, name)
 			icon := formsScaled(formsIconRect(r, 4, rtl), 2)
@@ -935,6 +931,87 @@ func TestFormsEdgeCases(t *testing.T) {
 		locked.Frame()
 		if size != 120 {
 			t.Fatalf("%v: a disabled split moved to %v", p, size)
+		}
+	}
+}
+
+// TestNumberInputKeepsUIWidth checks that NumberInput's box keeps ui.NumberInput's width in a column that stretches its children, on every platform, so a view swapping one for the other keeps its layout: past the box, the row shows the window's background.
+func TestNumberInputKeepsUIWidth(t *testing.T) {
+	for _, p := range Platforms {
+		count := 4.0
+		var bg ui.Color
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				bg = c.Theme().Background
+				ui.Column(c).Fill().Background(bg).Padding(16).Children(func() {
+					NumberInput(c, &count, 0, 10, 1).Label("Copies")
+				})
+			})
+		}, 600, 200)
+		tester.Frame()
+		tester.Frame()
+		r, ok := tester.Find("Copies")
+		if !ok {
+			t.Fatalf("%v: the number input is not found", p)
+		}
+		if r.W < 400 {
+			t.Fatalf("%v: the row is %v wide; the test expects the column to stretch it", p, r.W)
+		}
+		img := tester.Image()
+		x, y := int(r.X+r.W-40), int(r.Y+r.H/2)
+		got := img.At(x, y)
+		cr, cg, cb, _ := got.RGBA()
+		if uint8(cr>>8) != bg.R || uint8(cg>>8) != bg.G || uint8(cb>>8) != bg.B {
+			t.Fatalf("%v: at %d,%d past the box the row shows %v, not the window's %v: the box stretches", p, x, y, got, bg)
+		}
+	}
+}
+
+// TestRebuiltWidgetsKeepUILayout checks that a grow given to what TimeInput, NumberInput and Autocomplete return reaches the parent's layout on every platform as it does for package ui's, so a view swapping ui's for them keeps its layout.
+func TestRebuiltWidgetsKeepUILayout(t *testing.T) {
+	tm := time.Date(2026, 11, 5, 17, 45, 0, 0, time.UTC)
+	for _, p := range Platforms {
+		for _, name := range []string{"TimeInput", "NumberInput", "Autocomplete"} {
+			var widths [2]float32
+			for i, mine := range []bool{false, true} {
+				v, q := 3.0, ""
+				tester := ui.NewTester(func(c *ui.Context) {
+					Preview(c, p, func() {
+						Use(c)
+						ui.Row(c).Width(700).Padding(10).Gap(10).Children(func() {
+							ui.Text(c, "before")
+							var e ui.Element
+							switch {
+							case name == "TimeInput" && mine:
+								e = TimeInput(c, &tm)
+							case name == "TimeInput":
+								e = ui.TimeInput(c, &tm)
+							case name == "NumberInput" && mine:
+								e = NumberInput(c, &v, 0, 9, 1)
+							case name == "NumberInput":
+								e = ui.NumberInput(c, &v, 0, 9, 1)
+							case mine:
+								e = Autocomplete(c, &q, []string{"a"})
+							default:
+								e = ui.Autocomplete(c, &q, []string{"a"})
+							}
+							e.Grow(1).Label("probe")
+							ui.Text(c, "after")
+						})
+					})
+				}, 760, 200)
+				tester.Frame()
+				tester.Frame()
+				r, ok := tester.Find("probe")
+				if !ok {
+					t.Fatalf("%v %s: not found", p, name)
+				}
+				widths[i] = r.W
+			}
+			if d := widths[1] - widths[0]; d > 1 || d < -1 {
+				t.Errorf("%v %s: grown to %v, ui's to %v", p, name, widths[1], widths[0])
+			}
 		}
 	}
 }

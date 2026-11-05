@@ -452,7 +452,7 @@
       "name": "TimeInput",
       "category": "text",
       "look": "drawn",
-      "description": "A field of a time of day whose hours, minutes and half of the day each take the focus: in macOS's NSDatePicker bezel with the colon in labelColor, Windows 11's TimePicker button, 242 wide with the segments spread across it, or a GNOME entry. The segments and their keys are MyGo's.",
+      "description": "A field of a time of day whose hours, minutes and half of the day each take the focus: in macOS's NSDatePicker bezel, Windows 11's TimePicker button, 242 wide with the segments spread across it, or a GNOME entry. The segments, their keys and the colon between the hours and the minutes are MyGo's.",
       "example": "breeze.TimeInput(c, &app.alarm).Label(\"Alarm\")"
     },
     {

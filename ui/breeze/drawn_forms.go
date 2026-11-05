@@ -140,9 +140,9 @@ func formsNumberDecimals(step float64) int {
 	return 0
 }
 
-// formsNumberInput builds NumberInput as ui.NumberInput does (number.go of MyGo v0.7.4), from package ui's exported bases: a row holding a text input and two buttons labeled "Decrease" and "Increase", which MyGo names in English in its code too; what is typed applies once it is a number in range, Up and Down step, the buttons step and are disabled at the limits, and the text shows the value rounded to step's decimals once the input loses the focus. The row's Changed reports a new value. field gives the input its look and returns it; buttons builds the two buttons in the row, Decrease first, as MyGo orders them for Tab, with step, which builds a button stepping by sign and returns it to be drawn.
-func formsNumberInput(c *ui.Context, value *float64, lo, hi, step float64, field func(text *string) ui.Element, buttons func(step func(sign float64) ui.Element)) ui.Element {
-	row := ui.Row(c).Shrink(0).AlignItems(ui.Center)
+// formsNumberInput builds NumberInput as ui.NumberInput does (number.go of MyGo v0.7.4), from package ui's exported bases: a row holding a text input and two buttons labeled "Decrease" and "Increase", which MyGo names in English in its code too; what is typed applies once it is a number in range, Up and Down step, the buttons step and are disabled at the limits, and the text shows the value rounded to step's decimals once the input loses the focus. The row's Changed reports a new value. field gives the input its look and returns it; buttons builds the two buttons in the row, Decrease first, as MyGo orders them for Tab, with step, which builds a button stepping by sign and returns it to be drawn. The input and the buttons are built in box, a row inside the returned one as wide as they are, which takes the platform's box: the returned row stretches where its parent stretches it, as ui.NumberInput's does, while box keeps ui.NumberInput's width, so a view swapping ui.NumberInput for it keeps its layout.
+func formsNumberInput(c *ui.Context, value *float64, lo, hi, step float64, field func(text *string) ui.Element, buttons func(step func(sign float64) ui.Element)) (row, box ui.Element) {
+	row = ui.Row(c).Shrink(0).AlignItems(ui.Center)
 	decimals := formsNumberDecimals(step)
 	format := func(v float64) string { return strconv.FormatFloat(v, 'f', decimals, 64) }
 	text := ui.Local(row, "breeze-number-text", func() string { return format(*value) })
@@ -156,6 +156,15 @@ func formsNumberInput(c *ui.Context, value *float64, lo, hi, step float64, field
 		}
 	}
 	row.Children(func() {
+		box = ui.Row(c).Shrink(0).AlignItems(ui.Center)
+		box.Children(func() { formsNumberParts(c, value, lo, hi, step, text, set, format, field, buttons) })
+	})
+	return row, box
+}
+
+// formsNumberParts builds the input and the buttons of formsNumberInput.
+func formsNumberParts(c *ui.Context, value *float64, lo, hi, step float64, text *string, set func(float64), format func(float64) string, field func(text *string) ui.Element, buttons func(step func(sign float64) ui.Element)) {
+	{
 		in := field(text)
 		if in.Changed() {
 			if v, err := strconv.ParseFloat(strings.TrimSpace(*text), 64); err == nil && v >= lo && v <= hi {
@@ -184,8 +193,7 @@ func formsNumberInput(c *ui.Context, value *float64, lo, hi, step float64, field
 			}
 			return b
 		})
-	})
-	return row
+	}
 }
 
 // formsMacNumberInput draws NumberInput as an NSTextField with an NSStepper beside it: the text field (macField), as wide as MyGo's (80), and 4 after it (MyGo's gap, inferred) a stepper of regular size, measured in a key window at 2x on macOS 27.2: 20 by 24 points, a push button's face (235 over white, 48 over the window in Dark Aqua) with corners of 6, a line 13 points wide across its middle (macStepper's), and in each half a chevron 9.2 points wide and 4.7 high along its stroke's middle, stroked 1.75 with round ends (its arms measure 4.5 pixels across a row at 45 degrees), centered in the half, in labelColor over the face (36 over 235, 223 over 48), pointing up in the upper half, which increases, and down in the lower one. A half darkens to a pressed push button's face while pressed (inferred), its chevron dims at its limit as MyGo's buttons are disabled there (AppKit's does not), and AppKit's focus ring goes around the whole stepper while either half has the focus from the keyboard, as around an NSStepper.
@@ -194,7 +202,7 @@ func formsMacNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 	face, down := macFace(t.Background, t.Dark), macPressed(t.Background, t.Dark)
 	ink := tint(face, t.Dark, 0.847)
 	line := tint(t.Background, t.Dark, pick(t.Dark, float32(0.204), 0.222))
-	row := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
+	row, _ := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
 		return TextInput(c, text).Width(80)
 	}, func(stepBy func(sign float64) ui.Element) {
 		var ringed [2]bool
@@ -233,15 +241,15 @@ func formsStrokeChevron(p *ui.Painter, cx, cy, half, tip, width float32, col ui.
 	p.StrokePath(&path, width, col)
 }
 
-// formsFluentNumberInput draws NumberBox with SpinButtonPlacementMode Inline: the row is the TextBox, drawn as fluentField draws one (formsFluentTextBox) while the input inside has the focus, its text padded 10,5,6,6 (TextControlThemePadding); at its end the spin buttons (NumberBox.xaml): UpSpinButton then DownSpinButton, each a RepeatButton of NumberBoxSpinButtonStyle at least 32 DIPs wide and stretched to the box less its margin, Margin 4 for Up and 0,4,4,4 for Down, corners of 4 (ControlCornerRadius), with the RepeatButton brushes NumberBox sets from TextBox's inner button: no fill (TextControlButtonBackground, which TextBox_themeresources.xaml leaves to generic.xaml, not read: inferred), SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed, a transparent border (ControlFillColorTransparent), and glyphs E70E and E70D in TextFillColorSecondary, TextFillColorTertiary pressed, at the NumberBox's FontSize (the RepeatButtons bind FontSize to the template's, ControlContentThemeFontSize 14, which wins over NumberBoxSpinButtonStyle's 12), drawn as fluentChevronDown's 7 by 3.5 chevron of a 12-DIP icon grown to 14 (formsFluentChevron; the glyphs' outline in Segoe Fluent Icons is inferred). The text is at least as wide as MyGo's field, 80, so the box is at least 152 DIPs wide, past NumberBoxMinWidth's 120; it fills the width a column gives it, as a NumberBox stretches by default (HorizontalAlignment Stretch). WinUI's spin buttons are not tab stops; MyGo's are, so the system focus visual goes 3 DIPs around one while it has the focus from the keyboard (FocusVisualMargin -3, as a button's).
+// formsFluentNumberInput draws NumberBox with SpinButtonPlacementMode Inline: the row is the TextBox, drawn as fluentField draws one (formsFluentTextBox) while the input inside has the focus, its text padded 10,5,6,6 (TextControlThemePadding); at its end the spin buttons (NumberBox.xaml): UpSpinButton then DownSpinButton, each a RepeatButton of NumberBoxSpinButtonStyle at least 32 DIPs wide and stretched to the box less its margin, Margin 4 for Up and 0,4,4,4 for Down, corners of 4 (ControlCornerRadius), with the RepeatButton brushes NumberBox sets from TextBox's inner button: no fill (TextControlButtonBackground, which TextBox_themeresources.xaml leaves to generic.xaml, not read: inferred), SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed, a transparent border (ControlFillColorTransparent), and glyphs E70E and E70D in TextFillColorSecondary, TextFillColorTertiary pressed, at the NumberBox's FontSize (the RepeatButtons bind FontSize to the template's, ControlContentThemeFontSize 14, which wins over NumberBoxSpinButtonStyle's 12), drawn as fluentChevronDown's 7 by 3.5 chevron of a 12-DIP icon grown to 14 (formsFluentChevron; the glyphs' outline in Segoe Fluent Icons is inferred). The text is as wide as MyGo's field, 80, so the box is 152 DIPs wide, past NumberBoxMinWidth's 120; it keeps that width where a NumberBox would stretch (HorizontalAlignment Stretch), as ui.NumberInput keeps its own, so swapping one for the other does not change a view's layout. WinUI's spin buttons are not tab stops; MyGo's are, so the system focus visual goes 3 DIPs around one while it has the focus from the keyboard (FocusVisualMargin -3, as a button's).
 func formsFluentNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	t := c.Theme()
 	var in ui.Element
 	hover, press := fluentSubtle(t)
 	tertiary := t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
-	row := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
+	row, box := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
 		// TextControlThemePadding 10,5,6,6 is left, top, right, bottom in XAML, which FlowDirection mirrors right to left: the start and the end.
-		in = ui.TextInputBase(c, text).Width(80).Grow(1).Padding(5, 0, 6, 0).PaddingStart(10).PaddingEnd(6)
+		in = ui.TextInputBase(c, text).Width(80).Padding(5, 0, 6, 0).PaddingStart(10).PaddingEnd(6)
 		return in
 	}, func(stepBy func(sign float64) ui.Element) {
 		// Built Decrease first, for MyGo's Tab order; reversed, Up shows first, as NumberBox's columns put it.
@@ -272,7 +280,7 @@ func formsFluentNumberInput(c *ui.Context, value *float64, lo, hi, step float64)
 			}
 		})
 	})
-	formsFluentTextBox(c, row, in.Focused())
+	formsFluentTextBox(c, box, in.Focused())
 	return row
 }
 
@@ -311,14 +319,14 @@ func formsFluentTextBox(c *ui.Context, row ui.Element, focused bool) {
 	})
 }
 
-// formsAdwNumberInput draws NumberInput as a horizontal GtkSpinButton (_spin-button.scss): an entry (%entry: 34 pixels high, corners of 9, currentColor at 10%, its 2-pixel focus ring inside its edge while the text has the focus) without padding, its text padded 6 (at least 28 wide; at least MyGo's 80 here, filling the width a column gives the entry, as a GtkSpinButton fills a vertical GtkBox), then the − and + buttons, in that order (GTK 4's spin button, inferred from GTK, not libadwaita), each a flat image button (%button_basic_flat, .image-button: min-width 22 under _spin-button.scss and 5 of padding at either side, 32 with the 16-pixel icon centered) as high as the entry, with a 1-pixel border of currentColor at 10% on its start side, $hover_color (currentColor at 7%) under the pointer and $active_color (16%) pressed, the last one's end corners of 9 ($button_radius), which the entry's clip gives. Their icons are adwaita-icon-theme 51.0's value-decrease-symbolic (a bar from 3 to 13 across, 7 to 9 down) and value-increase-symbolic (that bar crossed by one from 3 to 13 down, 7 to 9 across) in the text color. GTK's spin buttons are not focusable; MyGo's are, so a button shows libadwaita's focus ring inside its edge while it has the focus from the keyboard.
+// formsAdwNumberInput draws NumberInput as a horizontal GtkSpinButton (_spin-button.scss): an entry (%entry: 34 pixels high, corners of 9, currentColor at 10%, its 2-pixel focus ring inside its edge while the text has the focus) without padding, its text padded 6 (at least 28 wide; MyGo's 80 here, keeping that width where a GtkSpinButton would fill a vertical GtkBox, as ui.NumberInput keeps its own), then the − and + buttons, in that order (GTK 4's spin button, inferred from GTK, not libadwaita), each a flat image button (%button_basic_flat, .image-button: min-width 22 under _spin-button.scss and 5 of padding at either side, 32 with the 16-pixel icon centered) as high as the entry, with a 1-pixel border of currentColor at 10% on its start side, $hover_color (currentColor at 7%) under the pointer and $active_color (16%) pressed, the last one's end corners of 9 ($button_radius), which the entry's clip gives. Their icons are adwaita-icon-theme 51.0's value-decrease-symbolic (a bar from 3 to 13 across, 7 to 9 down) and value-increase-symbolic (that bar crossed by one from 3 to 13 down, 7 to 9 across) in the text color. GTK's spin buttons are not focusable; MyGo's are, so a button shows libadwaita's focus ring inside its edge while it has the focus from the keyboard.
 func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	t := c.Theme()
 	fill := adwInkAlpha(t, t.Background, 0.10)
 	edge, ink := adwInkAlpha(t, fill, 0.10), adwInkAlpha(t, fill, 1)
 	var in ui.Element
-	row := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
-		in = ui.TextInputBase(c, text).Width(80).Grow(1).Padding(6)
+	row, box := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
+		in = ui.TextInputBase(c, text).Width(80).Padding(6)
 		return in
 	}, func(stepBy func(sign float64) ui.Element) {
 		for _, sign := range []float64{-1, 1} {
@@ -340,9 +348,9 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 			adwFocusRing(t, b, 0, nil)
 		}
 	})
-	row.MinHeight(34).Radius(9).Background(fill).Border(0, ui.Color{}).AlignItems(ui.Center).Clip()
+	box.MinHeight(34).Radius(9).Background(fill).Border(0, ui.Color{}).AlignItems(ui.Center).Clip()
 	focused := in.Focused()
-	row.DrawOver(func(p *ui.Painter, r ui.Rect) {
+	box.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if focused {
 			p.Stroke(r, t.Focus, 9, 2)
 		}

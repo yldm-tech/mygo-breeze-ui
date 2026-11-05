@@ -68,18 +68,10 @@ func DateInput(c *ui.Context, date *time.Time) ui.Element {
 	return b
 }
 
-// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the colon between the hours and the minutes in labelColor as AppKit draws it (MyGo's is muted), the button of WinUI's TimePicker, or a GNOME entry. The segments and their keys are MyGo's. It is ui.TimeInput's counterpart. On macOS it is built in a column of its own, whose theme gives the colon the text color: Label, Disabled and Changed work on what it returns as on ui.TimeInput's, but the column takes its place in the parent's layout, so give a margin or a grow to an element around it, and its text takes the theme's size and font rather than those of the elements around it (ui.Themed sets them).
+// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the button of WinUI's TimePicker, or a GNOME entry. The segments, their keys and the colon between the hours and the minutes are MyGo's: AppKit draws the colon in labelColor, MyGo in the theme's TextMuted, which only a theme of its own around the field could change, and that would keep a grow or a margin given to the field from reaching the parent's layout. It is ui.TimeInput's counterpart.
 func TimeInput(c *ui.Context, tm *time.Time) ui.Element {
 	p := PlatformOf(c)
-	var f ui.Element
-	if p == Mac {
-		// MyGo draws the colon in TextMuted, read as the field is built; nothing else of the field takes it.
-		th := *c.Theme()
-		th.TextMuted = th.Text
-		ui.Themed(c, &th).Background(ui.Transparent).AlignItems(ui.Start).Children(func() { f = ui.TimeInput(c, tm) })
-	} else {
-		f = ui.TimeInput(c, tm)
-	}
+	f := ui.TimeInput(c, tm)
 	switch p {
 	case Windows:
 		fluentTimeInput(c, f)
