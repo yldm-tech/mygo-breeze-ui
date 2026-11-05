@@ -48,14 +48,24 @@ func textView(p Platform) func(c *ui.Context) {
 }
 
 // textScales are the sizes of the steps as multiples of the body's, as each platform's sources give them: AppKit's text styles on macOS 27.2 (largeTitle 26, title1 22, title2 17, headline 13, body 13, caption1 10), WinUI's TextBlock styles (40, 28, 20, 14, 14, 12) and libadwaita 1.10.0's classes (181%, 136%, 118%, 100%, 100%, 82%).
-var textScales = map[Platform]map[TextStyle]float64{
+var textScales = map[Platform]map[TextStyle]float32{
 	Mac:     {TextLargeTitle: 26.0 / 13, TextTitle: 22.0 / 13, TextSubtitle: 17.0 / 13, TextHeading: 1, TextBody: 1, TextCaption: 10.0 / 13},
 	Windows: {TextLargeTitle: 40.0 / 14, TextTitle: 28.0 / 14, TextSubtitle: 20.0 / 14, TextHeading: 1, TextBody: 1, TextCaption: 12.0 / 14},
 	Linux:   {TextLargeTitle: 1.81, TextTitle: 1.36, TextSubtitle: 1.18, TextHeading: 1, TextBody: 1, TextCaption: 0.82},
 }
 
-// textBounds builds one line of s in each of styles, on p, and returns their boxes, with the theme's font size.
-func textBounds(t *testing.T, p Platform, s string, styles []TextStyle, setup func(*ui.Tester)) ([]ui.Rect, float32) {
+// textWeights are the steps' weights: AppKit's headline in bold and the others regular; WinUI's SemiBold from BaseTextBlockStyle but on Body and Caption; libadwaita's 800 on .title-1 and .title-2, bold on .title-4 and .heading.
+var textWeights = map[Platform]map[TextStyle]int{
+	Mac:     {TextLargeTitle: 400, TextTitle: 400, TextSubtitle: 400, TextHeading: 700, TextBody: 400, TextCaption: 400},
+	Windows: {TextLargeTitle: 600, TextTitle: 600, TextSubtitle: 600, TextHeading: 600, TextBody: 400, TextCaption: 400},
+	Linux:   {TextLargeTitle: 800, TextTitle: 800, TextSubtitle: 700, TextHeading: 700, TextBody: 400, TextCaption: 400},
+}
+
+// textRampStyles are the steps in the order of the ramp, largest first.
+var textRampStyles = []TextStyle{TextLargeTitle, TextTitle, TextSubtitle, TextHeading, TextBody, TextCaption}
+
+// textBoxes builds one line for each of textRampStyles on p, with build, and returns their boxes and the theme's font size.
+func textBoxes(t *testing.T, p Platform, prefs ui.Preferences, build func(c *ui.Context, st TextStyle, s string)) ([]ui.Rect, float32) {
 	t.Helper()
 	var size float32
 	tester := ui.NewTester(func(c *ui.Context) {
@@ -63,19 +73,17 @@ func textBounds(t *testing.T, p Platform, s string, styles []TextStyle, setup fu
 			Use(c)
 			size = c.Theme().FontSize
 			ui.Column(c).Padding(16).Gap(8).AlignItems(ui.Start).Children(func() {
-				for i, st := range styles {
-					Text(c, st, fmt.Sprintf("%s %d", s, i)).SingleLine()
+				for i, st := range textRampStyles {
+					build(c, st, fmt.Sprintf("Sphinx %d", i))
 				}
 			})
 		})
 	}, 900, 600)
-	if setup != nil {
-		setup(tester)
-	}
+	tester.SetPreferences(prefs)
 	tester.Frame()
 	var out []ui.Rect
-	for i := range styles {
-		r, ok := tester.Find(fmt.Sprintf("%s %d", s, i))
+	for i := range textRampStyles {
+		r, ok := tester.Find(fmt.Sprintf("Sphinx %d", i))
 		if !ok {
 			t.Fatalf("%v: text %d is missing: %q", p, i, tester.Texts())
 		}
@@ -84,31 +92,43 @@ func textBounds(t *testing.T, p Platform, s string, styles []TextStyle, setup fu
 	return out, size
 }
 
-// TestTextFollowsTheTypeRamp checks every step's size on every platform against the body's, from the boxes of single lines, so that it holds in any font: a step whose line height is the font's own is as many times the body's height as its size is the body's size, and GNOME's caption, whose line height is 140% of its size, is 1.4 times its size high. The titles get smaller step by step, the heading is the body's height, and where the host's font draws a bold face apart from the regular one, the heading is wider than the body.
+// TestTextFollowsTheTypeRamp checks every step on every platform, at the usual text size and at the desktop's 150%, against a ui.Text given the platform's size (the theme's FontSize times textScales), weight (textWeights) and line height (140% on GNOME's caption, the font's own elsewhere) by hand: their boxes must be the same, whatever font the host has. Then, from the boxes, the titles get smaller step by step, the heading is the body's height, and where the host's font draws the heading's weight apart from the regular one, the heading is wider than the body.
 func TestTextFollowsTheTypeRamp(t *testing.T) {
-	styles := []TextStyle{TextLargeTitle, TextTitle, TextSubtitle, TextHeading, TextBody, TextCaption}
 	for _, p := range Platforms {
-		// The heading's weight: 700 on macOS and GNOME, WinUI's SemiBold on Windows.
-		bold := formsWeightsDiffer(400, map[Platform]int{Mac: 700, Windows: 600, Linux: 700}[p])
-		r, size := textBounds(t, p, "Sphinx", styles, nil)
-		body := float64(r[4].H)
-		for i, st := range styles {
-			want := textScales[p][st] * body
-			if p == Linux && st == TextCaption {
-				want = 1.4 * 0.82 * float64(size)
+		bold := formsWeightsDiffer(400, textWeights[p][TextHeading])
+		var usual float32
+		for _, scale := range []float32{1, 1.5} {
+			prefs := ui.Preferences{TextScale: scale}
+			r, size := textBoxes(t, p, prefs, func(c *ui.Context, st TextStyle, s string) { Text(c, st, s).SingleLine() })
+			want, _ := textBoxes(t, p, prefs, func(c *ui.Context, st TextStyle, s string) {
+				e := ui.Text(c, s).SingleLine()
+				if st == TextBody {
+					return
+				}
+				e.FontSize(c.Theme().FontSize * textScales[p][st]).FontWeight(textWeights[p][st])
+				if p == Linux && st == TextCaption {
+					e.LineHeight(1.4)
+				}
+			})
+			if scale == 1 {
+				usual = size
+			} else if size != usual*scale {
+				t.Errorf("%v: the theme's font size is %v at a text scale of %v, %v usually", p, size, scale, usual)
 			}
-			if got := float64(r[i].H); math.Abs(got-want) > max(1, want*0.04) {
-				t.Errorf("%v: %s is %.2f high, want %.2f (body %.2f, font size %v)", p, textSamples[i].text, got, want, body, size)
+			for i := range textRampStyles {
+				if r[i] != want[i] {
+					t.Errorf("%v at %v: %s is %v, want %v (font size %v)", p, scale, textSamples[i].text, r[i], want[i], size)
+				}
 			}
-		}
-		if !(r[0].H > r[1].H && r[1].H > r[2].H && r[2].H > r[4].H) {
-			t.Errorf("%v: the titles do not get smaller step by step: %v", p, r)
-		}
-		if r[3].H != r[4].H {
-			t.Errorf("%v: the heading is %v high, the body %v", p, r[3].H, r[4].H)
-		}
-		if bold && r[3].W <= r[4].W {
-			t.Errorf("%v: the heading (%v wide) is not bolder than the body (%v)", p, r[3].W, r[4].W)
+			if !(r[0].H > r[1].H && r[1].H > r[2].H && r[2].H > r[4].H) {
+				t.Errorf("%v at %v: the titles do not get smaller step by step: %v", p, scale, r)
+			}
+			if math.Abs(float64(r[3].H-r[4].H)) > 0.01 {
+				t.Errorf("%v at %v: the heading is %v high, the body %v", p, scale, r[3].H, r[4].H)
+			}
+			if bold && r[3].W <= r[4].W {
+				t.Errorf("%v at %v: the heading (%v wide) is not bolder than the body (%v)", p, scale, r[3].W, r[4].W)
+			}
 		}
 	}
 }
