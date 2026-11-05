@@ -259,10 +259,9 @@ func valuesView(p Platform, s *valuesState) func(c *ui.Context) {
 					StepSlider(c, &s.quality, 0, 100, 25).Label("Quality")
 					StepSlider(c, &s.off, 0, 10, 1).Label("Disabled").Disabled(true)
 					RangeSlider(c, &s.low, &s.high, 0, 100, 0).Label("Price")
-					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-						DateInput(c, &s.due).Label("Due")
-						TimeInput(c, &s.alarm).Label("Alarm")
-					})
+					// Each on a row of its own: WinUI's TimePicker is 242 DIPs wide at least.
+					ui.Row(c).AlignItems(ui.Center).Children(func() { DateInput(c, &s.due).Label("Due") })
+					ui.Row(c).AlignItems(ui.Center).Children(func() { TimeInput(c, &s.alarm).Label("Alarm") })
 					DecimalInput(c, &s.amount, "0", "", "0.01").Label("Amount")
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 						ColorWell(c, &s.tint).Label("Tint")
