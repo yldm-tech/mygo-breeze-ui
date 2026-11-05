@@ -204,6 +204,13 @@
       "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
     },
     {
+      "name": "IconButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A button showing only an icon, the caller's SVG tinted with the button's text color, its label naming it and showing as its tooltip: macOS's bordered push button with an image, Windows 11's Button with a 16-DIP icon, or GNOME's 34-pixel image button; in a Toolbar, the platform's image item (an NSToolbar image item, an icon-only AppBarButton, a flat image button).",
+      "example": "breeze.IconButton(c, shareIcon, \"Share\")"
+    },
+    {
       "name": "Link",
       "category": "actions",
       "look": "drawn",
@@ -258,6 +265,13 @@
       "look": "drawn",
       "description": "An outline whose rows are a table's, its chevrons in the first column: its rows drawn as Table draws them and its chevrons as Outline does. The header is MyGo's, in the platform's theme.",
       "example": "breeze.OutlineTable(c, &app.files, columns, roots, children, func(path string, col int) {\n\tui.Text(c, path)\n})"
+    },
+    {
+      "name": "PasswordField",
+      "category": "text",
+      "look": "drawn",
+      "description": "A single-line field hiding its text in the platform's text field: macOS's NSSecureTextField, Windows 11's PasswordBox with its RevealButton (shown while text typed since the focus came, revealing while pressed or Alt+F8 is held), or GNOME's GtkPasswordEntry with Show Text in its context menu.",
+      "example": "breeze.PasswordField(c, &app.password).Placeholder(\"Password\")"
     },
     {
       "name": "Popover",
@@ -398,6 +412,13 @@
       "look": "drawn",
       "description": "Two panes side by side with a divider that a drag or the arrows move: MyGo's 1-DIP line in the theme's border color, 1 wide as NSSplitView's thin divider and GtkPaned's separator are, which stays that color under the pointer and while dragged, as on every platform, where MyGo's turns to the accent. It grabs 6 DIPs.",
       "example": "breeze.Split(c, &app.sidebar, app.files, app.editor).Fill()"
+    },
+    {
+      "name": "SplitButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A button of two parts, the main action, which Clicked reports, and an arrow opening the system's own menu: macOS's NSComboButton of style split, Windows 11's SplitButton, or GNOME's AdwSplitButton; in a Toolbar, the platform's toolbar split button.",
+      "example": "breeze.SplitButton(c, \"Save\", func(m *ui.Menu) {\n\tm.Item(\"Save As…\")\n})"
     },
     {
       "name": "SplitPercent",
