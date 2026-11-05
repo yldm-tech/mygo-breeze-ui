@@ -36,6 +36,13 @@
       "example": "breeze.AccordionItem(c, \"Privacy\", &app.privacy, func() {\n\tbreeze.Checkbox(c, &app.share, \"Share usage data\")\n})"
     },
     {
+      "name": "ActionRow",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A settings row: a title, an optional subtitle below it and controls at its end, drawn as a row of a grouped form in System Settings on macOS, CommunityToolkit's SettingsCard on Windows 11, or AdwActionRow on GNOME. Rows one after another in a Card, a Fieldset or an AccordionItem join as the platform joins them: a section with inset separators, SettingsCards 4 DIPs apart or a SettingsExpander's items, a boxed list.",
+      "example": "breeze.ActionRow(c, \"Wallpaper\", \"Choose a picture\", func() {\n\tbreeze.Button(c, \"Open\")\n})"
+    },
+    {
       "name": "AlertDialog",
       "category": "overlays",
       "look": "drawn",
@@ -90,6 +97,13 @@
       "look": "themed",
       "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
       "example": "breeze.Calendar(c, &app.day)"
+    },
+    {
+      "name": "Card",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A card around content that belongs together: SwiftUI's GroupBox on macOS, the card of WinUI's Expander and SettingsCard on Windows 11, or a .card on GNOME. Rows built in it join into the platform's list.",
+      "example": "breeze.Card(c, func() {\n\tbreeze.SwitchRow(c, \"Dark mode\", \"\", &app.dark)\n\tbreeze.SwitchRow(c, \"Notifications\", \"\", &app.notify)\n})"
     },
     {
       "name": "Checkbox",
@@ -440,6 +454,13 @@
       "look": "drawn",
       "description": "A switch with the platform's track, knob and motion: a capsule knob on macOS, a growing knob on Windows, a round slider on GNOME.",
       "example": "breeze.Switch(c, &app.sync).Label(\"Sync\")"
+    },
+    {
+      "name": "SwitchRow",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A settings row with a switch at its end that a click anywhere on the row toggles, one switch for assistive technology named by its title: a grouped form's Toggle with its mini switch on macOS, a SettingsCard with a ToggleSwitch and its On or Off text on Windows 11, or AdwSwitchRow on GNOME.",
+      "example": "breeze.SwitchRow(c, \"Dark mode\", \"Use a dark appearance\", &app.dark)"
     },
     {
       "name": "Table",
