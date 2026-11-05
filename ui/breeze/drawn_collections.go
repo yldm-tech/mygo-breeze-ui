@@ -571,7 +571,8 @@ func collEditFrame(p Platform, t *ui.Theme, b ui.Element) {
 	my, mx, radius := t.Space(0.5)+1, t.Space(1)+1, t.Space(1)
 	b.DrawOver(func(pt *ui.Painter, r ui.Rect) {
 		in := ui.Rect{X: r.X - mx, Y: r.Y - my, W: r.W + 2*mx, H: r.H + 2*my}
-		pt.Stroke(in, t.Background, radius, 1)
+		// From half a DIP outside the border to half a DIP inside it, so that none of its smoothed edge shows: the input's box grows by that half DIP of its own fill.
+		pt.Stroke(ui.Rect{X: in.X - 0.5, Y: in.Y - 0.5, W: in.W + 1, H: in.H + 1}, t.Background, radius+0.5, 2)
 		switch p {
 		case Windows:
 			pt.Stroke(in, t.Border, radius, 1)
