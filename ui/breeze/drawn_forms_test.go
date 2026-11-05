@@ -1079,7 +1079,7 @@ func TestScreenshotsRadioGroup(t *testing.T) {
 	}
 }
 
-// formsRadioGroupTrace builds a radio group of Small, Medium and Large named Size, RadioGroup's if mine, else ui.RadioGroup around the same radio buttons, on platform p in direction dir, across if row, disabled if off, and returns what keys and clicks do to it: the size chosen and the group's changes after each, and which radio button has the focus.
+// formsRadioGroupTrace builds a radio group of Small, Medium and Large named Size, RadioGroup's if mine, else ui.RadioGroup around the same radio buttons, on platform p in direction dir, across if row, disabled if off, and returns what keys and clicks do to it: the size chosen and how many choices its radio buttons' Changed has reported after each, and which radio button has the focus.
 func formsRadioGroupTrace(t *testing.T, p Platform, dir ui.Direction, mine, row, off bool) []string {
 	t.Helper()
 	size, changes := "Medium", 0
@@ -1088,7 +1088,9 @@ func formsRadioGroupTrace(t *testing.T, p Platform, dir ui.Direction, mine, row,
 			Button(c, "Before")
 			build := func() {
 				for _, s := range []string{"Small", "Medium", "Large"} {
-					Radio(c, &size, s, s)
+					if Radio(c, &size, s, s).Changed() {
+						changes++
+					}
 				}
 			}
 			var g ui.Element
@@ -1100,9 +1102,6 @@ func formsRadioGroupTrace(t *testing.T, p Platform, dir ui.Direction, mine, row,
 			g.Label("Size").Disabled(off)
 			if row {
 				g.Row()
-			}
-			if g.Changed() {
-				changes++
 			}
 			Button(c, "After")
 		})
@@ -1145,7 +1144,7 @@ func formsRadioGroupTrace(t *testing.T, p Platform, dir ui.Direction, mine, row,
 	return trace
 }
 
-// TestRadioGroupKeepsItsBehavior checks on every platform, left to right and right to left, down a column and across a row, enabled and disabled, that Tab, the arrows, Home, End, Space and clicks choose and move the focus in RadioGroup as they do in ui.RadioGroup, and that Changed reports the same choices.
+// TestRadioGroupKeepsItsBehavior checks on every platform, left to right and right to left, down a column and across a row, enabled and disabled, that Tab, the arrows, Home, End, Space and clicks choose and move the focus in RadioGroup as they do in ui.RadioGroup, and that the radio buttons' Changed reports the same choices.
 func TestRadioGroupKeepsItsBehavior(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
