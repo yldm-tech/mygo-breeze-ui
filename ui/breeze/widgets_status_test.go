@@ -30,6 +30,8 @@ func infoBarCloseName(p Platform) string {
 // TestInfoBarKeepsItsBehavior checks the bar on every platform, left to right and right to left: it shows its title and message, its close button, at the end of the reading direction, closes it with a click and with the keyboard, a disabled bar does not close, and a bar without open has no close button.
 func TestInfoBarKeepsItsBehavior(t *testing.T) {
 	for _, p := range Platforms {
+		// The close button's distance from the bar's end, left to right, which right to left must be its distance from the bar's start: the bar is 16 from the window's edges.
+		var endGap float32
 		for _, rtl := range []bool{false, true} {
 			open, fixed := true, false
 			tester := ui.NewTester(func(c *ui.Context) {
@@ -61,9 +63,14 @@ func TestInfoBarKeepsItsBehavior(t *testing.T) {
 			if b.Y > 16+60 {
 				t.Errorf("%v rtl %v: the close button at %v belongs to the second bar, which has none", p, rtl, b)
 			}
-			// The close button is at the end of the reading direction.
+			// The close button is at the end of the reading direction, as far from it in either.
 			if atEnd := b.X+b.W/2 > 300; atEnd == rtl {
 				t.Errorf("%v rtl %v: the close button is at %v", p, rtl, b)
+			}
+			if !rtl {
+				endGap = 600 - 16 - (b.X + b.W)
+			} else if gap := b.X - 16; math.Abs(float64(gap-endGap)) > 0.01 {
+				t.Errorf("%v: the close button is %v from the bar's start right to left, %v from its end left to right", p, gap, endGap)
 			}
 			if err := tester.Click(name); err != nil {
 				t.Fatal(err)
@@ -105,7 +112,9 @@ func TestInfoBarKeepsItsBehavior(t *testing.T) {
 			})
 		}, 600, 200)
 		tester.Frame()
-		_ = tester.Click(infoBarCloseName(p))
+		if err := tester.Click(infoBarCloseName(p)); err != nil {
+			t.Fatalf("%v: a disabled bar has no close button: %v", p, err)
+		}
 		tester.Frame()
 		if !open || !tester.HasText("Offline") {
 			t.Errorf("%v: a disabled bar closed", p)
@@ -388,41 +397,75 @@ func TestScreenshotsStatus(t *testing.T) {
 	}
 }
 
-// TestInfoBarArrangements checks the arrangements Windows and GNOME switch between by the bar's width: in a wide bar WinUI's message follows the title on its line and AdwBanner's button sits beside its text; in a narrow one the message goes below the title, and the banner's button below its text. The bar is narrower than the window, so the first frame, which knows only the window's width, must be laid out again at the bar's.
+// TestFluentInfoBarTitleOnly checks that a WinUI InfoBar without a message lays its title out as InfoBarPanel lays a single child, vertically, the panel padded 14 above and 18 below, where a bar whose title and message share a line is the 48 DIPs of InfoBarMinHeight inside its 1-DIP border.
+func TestFluentInfoBarTitleOnly(t *testing.T) {
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Windows, func() {
+			Use(c)
+			ui.Column(c).Padding(16).Gap(16).Children(func() {
+				InfoBar(c, "info", "Alone", "", nil)
+				InfoBar(c, "info", "Paired", "Message", nil)
+			})
+		})
+	}, 600, 300)
+	tester.Frame()
+	tester.Frame()
+	// Find gives the bars, which their titles name, and the message's line.
+	alone, _ := tester.Find("Alone")
+	paired, _ := tester.Find("Paired")
+	line, ok := tester.Find("Message")
+	if !ok {
+		t.Fatalf("no message: %q", tester.Texts())
+	}
+	if paired.H != 50 {
+		t.Errorf("a bar with a title and a message on one line is %v high, want 50", paired.H)
+	}
+	if want := max(1+14+line.H+18+1, 50); alone.H != want {
+		t.Errorf("a bar without a message is %v high, want %v", alone.H, want)
+	}
+}
+
+// TestInfoBarArrangements checks the arrangements Windows and GNOME switch between by the bar's width: in a wide bar WinUI's message follows the title on its line and AdwBanner's button sits beside its text; in a narrow one the message goes below the title, and the banner's button below its text. The bar is narrower than the window, so the first frame, which knows only the window's width, must be laid out again at the bar's. Scaled by a transform, the bar keeps the arrangement of its width in the layout, though it is drawn twice as wide.
 func TestInfoBarArrangements(t *testing.T) {
 	const message = "Restart to finish installing."
 	for _, p := range []Platform{Windows, Linux} {
-		for _, width := range []float32{560, 220} {
-			open := true
-			tester := ui.NewTester(func(c *ui.Context) {
-				Preview(c, p, func() {
-					Use(c)
-					ui.Column(c).Padding(16).Width(width + 32).Children(func() {
-						InfoBar(c, "info", "Update available", message, &open)
+		for _, scale := range []float32{1, 2} {
+			for _, width := range []float32{560, 260} {
+				open := true
+				tester := ui.NewTester(func(c *ui.Context) {
+					Preview(c, p, func() {
+						Use(c)
+						// The scale is about the column's middle: the space before it keeps it in the window.
+						ui.Column(c).Padding(150, 0, 0, 300).Children(func() {
+							ui.Column(c).Padding(16).Width(width+32).Scale(scale, scale).Children(func() {
+								InfoBar(c, "info", "Update available", message, &open)
+							})
+						})
 					})
-				})
-			}, 800, 400)
-			tester.Frame()
-			tester.Frame()
-			narrow := width < 300
-			if p == Windows {
-				m, ok := tester.Find(message)
+				}, 1300, 500)
+				tester.Frame()
+				tester.Frame()
+				narrow := width < 300
+				if p == Windows {
+					m, ok := tester.Find(message)
+					if !ok {
+						t.Fatalf("Windows: no message: %q", tester.Texts())
+					}
+					// Across, the message is 1+14 below the bar's top, which Find gives as the bar is named by its title; below the title, further down. Both are scaled.
+					bar, _ := tester.Find("Update available")
+					if below := m.Y-bar.Y > 25*scale; below != narrow {
+						t.Errorf("Windows scale %v width %v: the message is at %v in the bar %v", scale, width, m, bar)
+					}
+					continue
+				}
+				text, ok := tester.Find("Update available " + message)
 				if !ok {
-					t.Fatalf("Windows: no message: %q", tester.Texts())
+					t.Fatalf("GNOME: no banner text: %q", tester.Texts())
 				}
-				// Across, the message is 14 from the bar's top, at 16; below the title, further down.
-				if below := m.Y > 16+24; below != narrow {
-					t.Errorf("Windows width %v: the message is at %v", width, m)
+				b, _ := tester.Find(infoBarCloseName(p))
+				if below := b.Y >= text.Y+text.H; below != narrow {
+					t.Errorf("GNOME scale %v width %v: the button %v, the text %v", scale, width, b, text)
 				}
-				continue
-			}
-			text, ok := tester.Find("Update available " + message)
-			if !ok {
-				t.Fatalf("GNOME: no banner text: %q", tester.Texts())
-			}
-			b, _ := tester.Find(infoBarCloseName(p))
-			if below := b.Y >= text.Y+text.H; below != narrow {
-				t.Errorf("GNOME width %v: the button %v, the text %v", width, b, text)
 			}
 		}
 	}

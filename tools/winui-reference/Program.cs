@@ -192,7 +192,7 @@ public sealed class App : Application, IXamlMetadataProvider
             <Slider x:Name="slider-pressed" Tag="Pressed" Canvas.Left="220" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
             """), ["button-hover", "button-pressed", "accent-hover", "accent-pressed", "checkbox-off-hover", "checkbox-off-pressed", "checkbox-on-hover", "checkbox-on-pressed", "switch-off-hover", "switch-off-pressed", "switch-on-hover", "switch-on-pressed", "radio-off-pressed", "radio-on-hover", "radio-on-pressed", "slider-hover", "slider-pressed"], HoldStates);
 
-        // widgets_status_test.go's statusView: four InfoBars, one of each severity, the first and the last closable, 16 DIPs from the window's edges and 68 apart, and determinate ProgressRings of 25, 60, 100 and 0 percent below them, the last at 16 DIPs. Breeze UI's StatusPage has no WinUI counterpart.
+        // widgets_status_test.go's statusView: four InfoBars, one of each severity, the first and the last closable, 16 DIPs from the window's edges and 68 apart, and determinate ProgressRings of 25, 60, 100 and 0 percent below them and one of 60 percent at 16 DIPs. Breeze UI's StatusPage has no WinUI counterpart.
         yield return new Scene("winui-status", 560, 360, Canvas(560, 360, """
             <InfoBar x:Name="bar-informational" Canvas.Left="16" Canvas.Top="16" Width="528" IsOpen="True" Severity="Informational" Title="Informational" Message="Some message about it."/>
             <InfoBar x:Name="bar-success" Canvas.Left="16" Canvas.Top="84" Width="528" IsOpen="True" IsClosable="False" Severity="Success" Title="Success" Message="Some message about it."/>

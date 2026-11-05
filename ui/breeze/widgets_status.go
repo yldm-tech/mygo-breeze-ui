@@ -68,7 +68,7 @@ func macInfoBar(c *ui.Context, bar ui.Element, severity int, title, message stri
 	fill := macFormSectionFill(t)
 	secondary := tint(fill, t.Dark, pick(t.Dark, float32(0.498), 0.549))
 	line := lineHeight(c, t.FontSize, 700)
-	bar.AlignItems(ui.Start).Gap(11.5).Padding(10, 9.25, 10, 11.5).Radius(12).Background(fill).TextColor(tint(fill, t.Dark, 0.847))
+	bar.AlignItems(ui.Start).Gap(11.5).PaddingY(10).PaddingStart(11.5).PaddingEnd(9.25).Radius(12).Background(fill).TextColor(tint(fill, t.Dark, 0.847))
 	bar.Children(func() {
 		color := macInfoBarColor(t, severity)
 		ui.Box(c).Size(13, line).Shrink(0).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
@@ -134,7 +134,7 @@ func macInfoBarSymbol(p *ui.Painter, r ui.Rect, severity int, col, cut ui.Color)
 	p.Fill(ui.Rect{X: cx - 0.7*s, Y: cy - 1*s, W: 1.4 * s, H: 4.4 * s}, cut, 0.7*s)
 }
 
-// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high (InfoBarMinHeight), ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness), InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon (fluentToastIcon) with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), while the two fit on one line, and otherwise the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
+// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high inside its border (InfoBarMinHeight on the template's Grid, inside the ContentRoot Border), so 50 here, where MinHeight includes the border, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness), InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon (fluentToastIcon) with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), the panel as high as its tallest child and the bar's MinHeight making the rest, while the two fit on one line, and otherwise, or when there is no message (InfoBarPanel::MeasureOverride lays a single child out vertically), the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
 func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element) {
 	t := c.Theme()
 	bg, iconFill := fluentToastColors(t, fluentSystemAccent(c), severity)
@@ -148,15 +148,16 @@ func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message s
 	}
 	tw, _ := c.MeasureText(0, ui.Span{Text: title, Size: 14, Weight: 600})
 	mw, _ := c.MeasureText(0, ui.Span{Text: message, Size: 14})
-	across := message == "" || tw+12+mw <= panel
-	bar.AlignItems(ui.Start).MinHeight(48).PaddingStart(16).Radius(4).Background(bg).
+	// InfoBarPanel::MeasureOverride lays a single item, a title without a message, out vertically too.
+	across := message != "" && tw+12+mw <= panel
+	bar.AlignItems(ui.Start).MinHeight(50).PaddingStart(16).Radius(4).Background(bg).
 		Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.098))).TextColor(t.Text).FontSize(14)
 	bar.Children(func() {
 		ui.Box(c).Size(16, 16).Shrink(0).MarginY(16).MarginEnd(14).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
 			fluentToastIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
 		})
 		if across {
-			ui.Row(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Padding(0, 0, 14, 0).Children(func() {
+			ui.Row(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Children(func() {
 				ui.Text(c, title).FontWeight(600).Margin(14, 0, 0, 0)
 				if message != "" {
 					ui.Text(c, message).Shrink(1).Margin(14, 0, 0, 0).MarginStart(12)
@@ -165,7 +166,9 @@ func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message s
 		} else {
 			ui.Column(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Padding(14, 0, 18, 0).Children(func() {
 				ui.Text(c, title).FontWeight(600)
-				ui.Text(c, message).Margin(4, 0, 0, 0)
+				if message != "" {
+					ui.Text(c, message).Margin(4, 0, 0, 0)
+				}
 			})
 		}
 		if closer != nil {
@@ -176,18 +179,25 @@ func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message s
 
 // prevWidth returns e's width in the previous frame, as a platform's layout that switches between arrangements by the width it is given knows it; for an element that frame lacked it returns the window's width and asks for another frame, which lays it out at its own.
 func prevWidth(c *ui.Context, e ui.Element) float32 {
-	if w := e.Bounds().W; w > 0 {
-		return w
+	// LayoutBounds is the box before transforms and zoom, in the DIPs the layout works in. A bar the previous frame had is never empty, as its padding and MinHeight make it high, so an empty box means a new bar and the frame is asked for once, not on every frame for a bar laid out zero wide.
+	if b := e.LayoutBounds(); b.W > 0 || b.H > 0 {
+		return b.W
 	}
 	c.Invalidate()
 	w, _ := c.Size()
 	return w
 }
 
-// fluentInfoBarClose draws an InfoBar's close button (InfoBarCloseButtonStyle): 38 DIPs square (InfoBarCloseButtonSize) with a margin of 5, at the top, ControlCornerRadius, drawn with AppBarButton's brushes as InfoBar.xaml sets them: transparent, SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed; its 16-DIP Cancel symbol (InfoBarCloseButtonGlyphSize) in the text color.
+// fluentInfoBarClose draws an InfoBar's close button (InfoBarCloseButtonStyle): 38 DIPs square (InfoBarCloseButtonSize) with a margin of 5, at the top, ControlCornerRadius, drawn with AppBarButton's brushes as InfoBar.xaml sets them: transparent, SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed; its 16-DIP Cancel symbol (InfoBarCloseButtonGlyphSize) in the text color; and, as InfoBarCloseButtonStyle is based on DefaultButtonStyle, the system focus visual 3 DIPs around it (FocusVisualMargin -3, fluentFocusRing).
 func fluentInfoBarClose(c *ui.Context, b ui.Element) {
 	t := c.Theme()
-	b.Size(38, 38).Margin(5).Shrink(0).Radius(4).Center()
+	b.Size(38, 38).Margin(5).Shrink(0).Radius(4).Center().FocusRing(false)
+	focused := b.FocusVisible()
+	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if focused {
+			fluentFocusRing(p, t, r, 3, 3, 3, 3, 4)
+		}
+	})
 	hover, pressed := fluentSubtle(t)
 	switch {
 	case b.Pressed():
@@ -233,7 +243,7 @@ func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func
 	button := func() ui.Element {
 		b := closer(dismiss)
 		adwButton(c, b, false)
-		shares := adwBannerShares[map[bool]int{false: 0, true: 1}[t.Dark]]
+		shares := pick(t.Dark, adwBannerShares[0], adwBannerShares[1])
 		share := shares[0]
 		switch {
 		case b.Pressed():
@@ -283,14 +293,17 @@ func ProgressRing(c *ui.Context, value float64) ui.Element {
 	return e
 }
 
-// macRingArc and macRingFull are the arc of a determinate spinning NSProgressIndicator in Dark Aqua for the default accent, measured: #1769e6, and #177be5 once the ring is full, where Aqua draws the accent itself in both (#0a82ff measured over white for #007aff).
-var macRingArc, macRingFull = ui.Hex("#1769e6"), ui.Hex("#177be5")
+// macRingLight, macRingArc and macRingFull are the arc of a determinate spinning NSProgressIndicator for the default accent (#007aff), measured over the window: #0a82ff in Aqua, full or not, and in Dark Aqua #1769e6, and #177be5 once the ring is full.
+var macRingLight, macRingArc, macRingFull = ui.Hex("#0a82ff"), ui.Hex("#1769e6"), ui.Hex("#177be5")
 
-// macProgressRing draws an NSProgressIndicator of style spinning with isIndeterminate false, as measured by reference.swift on macOS 27.2: a track 5 points wide inside the edge, at both the regular size (32 points) and the small one (16, whose ring is then 3 points from its center), black at 5.1% in Aqua (242 over white, 235 along its edges) and white at 10.2% in Dark Aqua (53 over 30); and over it the arc of the value from 12 o'clock clockwise, as wide, with round ends, in the accent (in Dark Aqua #1769e6 for the default blue, #177be5 once full, measured, and the accent 10% darker for another, inferred). The track's darker edges and the arc's, a quarter pixel at 2x, are not drawn.
+// macProgressRing draws an NSProgressIndicator of style spinning with isIndeterminate false, as measured by reference.swift on macOS 27.2: a track 5 points wide inside the edge, at both the regular size (32 points) and the small one (16, whose ring is then 3 points from its center), black at 5.1% in Aqua (242 over white, 235 along its edges) and white at 10.2% in Dark Aqua (53 over 30); and over it the arc of the value from 12 o'clock clockwise, as wide, with round ends, in the accent: for the default blue #0a82ff in Aqua and in Dark Aqua #1769e6, #177be5 once full, measured (macRingLight, macRingArc, macRingFull); for another accent the accent itself in Aqua and 10% darker in Dark Aqua, inferred. The track's darker edges and the arc's, a quarter pixel at 2x, are not drawn.
 func macProgressRing(c *ui.Context, e ui.Element, value float64) {
 	t := c.Theme()
 	track := tint(t.Background, t.Dark, pick(t.Dark, float32(0.051), 0.102))
 	arc := t.Accent
+	if !t.Dark && t.Accent == macAccent {
+		arc = macRingLight
+	}
 	if t.Dark {
 		arc = t.Accent.Mix(black, 0.1)
 		if t.Accent == macAccent {
