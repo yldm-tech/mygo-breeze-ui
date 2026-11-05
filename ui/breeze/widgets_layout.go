@@ -210,7 +210,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 		first, in = g.built == 1, true
 	}
 	p := PlatformOf(c)
-	item := ui.AccordionItem(c, title, open, fn)
+	item := ui.AccordionItem(c, title, open, func() { rowsCollect(c, rowsInAccordion, fn) })
 	if !in {
 		return item
 	}
@@ -265,7 +265,7 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 			// The labels of a form are as wide as the widest, so its fields line up only where they start and end alike.
 			box.MarginStart(-pad).MarginEnd(-pad)
 		}
-		box.Children(fn)
+		rowsFinish(c, box, rowsCollect(c, rowsInFieldset, func() { box.Children(fn) }))
 	})
 	switch p {
 	case Windows:
