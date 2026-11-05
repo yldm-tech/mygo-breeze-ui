@@ -360,3 +360,31 @@ func TestSwitchRowShowsPointerAndFocus(t *testing.T) {
 		}
 	}
 }
+
+// TestRowSubtitleFollowsTheTextSize checks on every platform that a row's subtitle grows with the text size the user chose, as its title does.
+func TestRowSubtitleFollowsTheTextSize(t *testing.T) {
+	for _, p := range Platforms {
+		var heights [2]float32
+		for i, scale := range []float32{1, 2} {
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Padding(16).Children(func() {
+						ActionRow(c, "Wallpaper", "Choose a picture", nil)
+					})
+				})
+			}, 600, 300)
+			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: scale})
+			tester.Frame()
+			tester.Frame()
+			sub, ok := tester.Find("Choose a picture")
+			if !ok {
+				t.Fatalf("%v: no subtitle", p)
+			}
+			heights[i] = sub.H
+		}
+		if heights[1] < 1.8*heights[0] {
+			t.Errorf("%v: the subtitle is %v high at twice the text size, %v at the usual size", p, heights[1], heights[0])
+		}
+	}
+}
