@@ -54,7 +54,7 @@ func DecimalInput(c *ui.Context, value *string, lo, hi, step string) ui.Element 
 	return ui.DecimalInput(c, value, lo, hi, step)
 }
 
-// DateInput creates a field showing *date in the user's regional formats, which opens a calendar below it, as the platform draws a date field: AppKit's NSDatePicker of style textField, which shows no calendar icon (measured on macOS 27.2), so MyGo's is covered there; WinUI's CalendarDatePicker; or a GNOME entry, as GTK has no date field of its own, its icon at 70% of the text color as an entry's icons are. The text, the calendar and the keys are MyGo's. It is ui.DateInput's counterpart.
+// DateInput creates a field showing *date in the user's regional formats, which opens a calendar below it, as the platform draws a date field: AppKit's NSDatePicker of style textField, which shows no calendar icon (measured on macOS 27.2), so MyGo's is covered there, its room left after the text; WinUI's CalendarDatePicker; or a GNOME entry, as GTK has no date field of its own, its icon at 70% of the text color as an entry's icons are. The text, the calendar and the keys are MyGo's. It is ui.DateInput's counterpart.
 func DateInput(c *ui.Context, date *time.Time) ui.Element {
 	b := ui.DateInput(c, date)
 	switch PlatformOf(c) {
@@ -68,7 +68,7 @@ func DateInput(c *ui.Context, date *time.Time) ui.Element {
 	return b
 }
 
-// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the colon between the hours and the minutes in labelColor as AppKit draws it (MyGo's is muted), the button of WinUI's TimePicker, or a GNOME entry. The segments and their keys are MyGo's. It is ui.TimeInput's counterpart. On macOS it is built in a column of its own, whose theme gives the colon the text color: Label, Disabled and Changed work on what it returns as on ui.TimeInput's, but the column takes its place in the parent's layout, so give a margin or a grow to an element around it.
+// TimeInput creates a field of the time of day of *tm whose hours, minutes and half of the day each take the focus, in the box the platform draws around a time: AppKit's NSDatePicker of style textField, the colon between the hours and the minutes in labelColor as AppKit draws it (MyGo's is muted), the button of WinUI's TimePicker, or a GNOME entry. The segments and their keys are MyGo's. It is ui.TimeInput's counterpart. On macOS it is built in a column of its own, whose theme gives the colon the text color: Label, Disabled and Changed work on what it returns as on ui.TimeInput's, but the column takes its place in the parent's layout, so give a margin or a grow to an element around it, and its text takes the theme's size and font rather than those of the elements around it (ui.Themed sets them).
 func TimeInput(c *ui.Context, tm *time.Time) ui.Element {
 	p := PlatformOf(c)
 	var f ui.Element
@@ -212,7 +212,7 @@ func macDatePicker(c *ui.Context, e ui.Element, ringed bool, under func(p *ui.Pa
 	})
 }
 
-// macDateInput draws a date field as an NSDatePicker of style textField (macDatePicker), as wide as its text, which shows no calendar icon: rendered on macOS 27.2 in a key window, "1/5/2026" ends 4.5 points before the bezel. MyGo's 14-DIP icon is covered with the field's fill, its box left as room at the end, 4 in from it, with no gap before it.
+// macDateInput draws a date field as an NSDatePicker of style textField (macDatePicker), sized by its text, which shows no calendar icon: rendered on macOS 27.2 in a key window, "1/ 5/2026" ends 4.25 points before the bezel. MyGo's 14-DIP icon is covered with the field's fill, with no gap before it; its box, which only package ui can take out, stays as room after the text, so the field is 14 points wider than AppKit's.
 func macDateInput(c *ui.Context, b ui.Element) {
 	t := c.Theme()
 	const pad = 4

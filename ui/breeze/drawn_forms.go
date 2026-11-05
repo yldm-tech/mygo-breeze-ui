@@ -68,7 +68,7 @@ func formsDrawCheckbox(c *ui.Context, p Platform, row, box ui.Element, state for
 	}
 }
 
-// formsMacDash draws the mark of an NSButton check box in the mixed state over the box macCheckbox fills as checked: the accent (pressed, AccentPressed; disabled, macDisabledOn's gray) and a white capsule 2 points high and 6.6 wide centered in the 16-point box, with round ends. Measured in a key window at 2x on macOS 27.2: the dash covers rows 14 to 17 of the 32 pixels, the two middle ones over 12 full pixels and two at 62% (13.2 pixels), the outer two over the middle 8 only.
+// formsMacDash draws the mark of an NSButton check box in the mixed state over the box macCheckbox fills as checked: the accent (pressed, AccentPressed; disabled, macDisabledOn's gray) and a white capsule 2 points high and 6.45 wide centered in the 16-point box, with ends of radius 1. Measured in a key window at 2x on macOS 27.2 (NSButton checkboxWithTitle, allowsMixedState, state mixed): the dash covers rows 14 to 17 of the 32 pixels; rows 15 and 16 are white over 12 pixels with a pixel at 38% on either side (97 red over the accent's 0, 171 green over its 120), rows 14 and 17 cover 5.66 pixels on either side of the middle, which a capsule 12.9 pixels long with ends of radius 2 gives (6.38 and 5.70).
 func formsMacDash(c *ui.Context, row, box ui.Element) {
 	t := c.Theme()
 	fill := t.Accent
@@ -82,7 +82,7 @@ func formsMacDash(c *ui.Context, row, box ui.Element) {
 			face, mark = macDisabledOn(t)
 		}
 		p.Fill(r, face, macCheckboxRadius)
-		w, h := 6.6*r.W/16, 2*r.H/16
+		w, h := 6.45*r.W/16, 2*r.H/16
 		p.Fill(ui.Rect{X: r.X + (r.W-w)/2, Y: r.Y + (r.H-h)/2, W: w, H: h}, mark, h/2)
 		if ring {
 			macFocusRing(p, r, macCheckboxRadius)
@@ -233,14 +233,15 @@ func formsStrokeChevron(p *ui.Painter, cx, cy, half, tip, width float32, col ui.
 	p.StrokePath(&path, width, col)
 }
 
-// formsFluentNumberInput draws NumberBox with SpinButtonPlacementMode Inline: the row is the TextBox, drawn as fluentField draws one (formsFluentTextBox) while the input inside has the focus, its text padded 10,5,6,6 (TextControlThemePadding); at its end the spin buttons (NumberBox.xaml): UpSpinButton then DownSpinButton, each a RepeatButton of NumberBoxSpinButtonStyle at least 32 DIPs wide and stretched to the box less its margin, Margin 4 for Up and 0,4,4,4 for Down, corners of 4 (ControlCornerRadius), with the RepeatButton brushes NumberBox sets from TextBox's inner button: no fill (TextControlButtonBackground, from generic.xaml, not read: inferred), SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed, a transparent border, and glyphs E70E and E70D of FontSize 12 in TextFillColorSecondary, TextFillColorTertiary pressed, drawn as fluentChevronDown's 7 by 3.5 chevron (the glyphs' outline in Segoe Fluent Icons is inferred). The text is at least as wide as MyGo's field, 80, so the box is at least 152 DIPs wide, past NumberBoxMinWidth's 120; it fills the width a column gives it, as a NumberBox stretches by default (HorizontalAlignment Stretch). WinUI's spin buttons are not tab stops; MyGo's are, so the system focus visual goes 3 DIPs around one while it has the focus from the keyboard (FocusVisualMargin -3, as a button's).
+// formsFluentNumberInput draws NumberBox with SpinButtonPlacementMode Inline: the row is the TextBox, drawn as fluentField draws one (formsFluentTextBox) while the input inside has the focus, its text padded 10,5,6,6 (TextControlThemePadding); at its end the spin buttons (NumberBox.xaml): UpSpinButton then DownSpinButton, each a RepeatButton of NumberBoxSpinButtonStyle at least 32 DIPs wide and stretched to the box less its margin, Margin 4 for Up and 0,4,4,4 for Down, corners of 4 (ControlCornerRadius), with the RepeatButton brushes NumberBox sets from TextBox's inner button: no fill (TextControlButtonBackground, which TextBox_themeresources.xaml leaves to generic.xaml, not read: inferred), SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed, a transparent border (ControlFillColorTransparent), and glyphs E70E and E70D in TextFillColorSecondary, TextFillColorTertiary pressed, at the NumberBox's FontSize (the RepeatButtons bind FontSize to the template's, ControlContentThemeFontSize 14, which wins over NumberBoxSpinButtonStyle's 12), drawn as fluentChevronDown's 7 by 3.5 chevron of a 12-DIP icon grown to 14 (formsFluentChevron; the glyphs' outline in Segoe Fluent Icons is inferred). The text is at least as wide as MyGo's field, 80, so the box is at least 152 DIPs wide, past NumberBoxMinWidth's 120; it fills the width a column gives it, as a NumberBox stretches by default (HorizontalAlignment Stretch). WinUI's spin buttons are not tab stops; MyGo's are, so the system focus visual goes 3 DIPs around one while it has the focus from the keyboard (FocusVisualMargin -3, as a button's).
 func formsFluentNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	t := c.Theme()
 	var in ui.Element
 	hover, press := fluentSubtle(t)
 	tertiary := t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
 	row := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
-		in = ui.TextInputBase(c, text).Width(80).Grow(1).Padding(5, 6, 6, 10)
+		// TextControlThemePadding 10,5,6,6 is left, top, right, bottom in XAML, which FlowDirection mirrors right to left: the start and the end.
+		in = ui.TextInputBase(c, text).Width(80).Grow(1).Padding(5, 0, 6, 0).PaddingStart(10).PaddingEnd(6)
 		return in
 	}, func(stepBy func(sign float64) ui.Element) {
 		// Built Decrease first, for MyGo's Tab order; reversed, Up shows first, as NumberBox's columns put it.
@@ -261,11 +262,7 @@ func formsFluentNumberInput(c *ui.Context, value *float64, lo, hi, step float64)
 				focused := b.FocusVisible()
 				b.Draw(func(p *ui.Painter, r ui.Rect) {
 					cx, cy := r.X+r.W/2, r.Y+r.H/2
-					if sign > 0 {
-						p.Transform(ui.Rotation(180), cx, cy, func() { fluentChevronDown(p, cx, cy, fg) })
-					} else {
-						fluentChevronDown(p, cx, cy, fg)
-					}
+					formsFluentChevron(p, cx, cy, 14.0/12, sign > 0, fg)
 				})
 				b.DrawOver(func(p *ui.Painter, r ui.Rect) {
 					if focused {
@@ -277,6 +274,17 @@ func formsFluentNumberInput(c *ui.Context, value *float64, lo, hi, step float64)
 	})
 	formsFluentTextBox(c, row, in.Focused())
 	return row
+}
+
+// formsFluentChevron strokes fluentChevronDown's chevron, of a 12-DIP icon, centered on cx, cy and grown by scale, its stroke too, pointing up if up.
+func formsFluentChevron(p *ui.Painter, cx, cy, scale float32, up bool, col ui.Color) {
+	w, h := 3.5*scale, 1.75*scale
+	if up {
+		h = -h
+	}
+	var path ui.Path
+	path.MoveTo(cx-w, cy-h).LineTo(cx, cy+h).LineTo(cx+w, cy-h)
+	p.StrokePath(&path, scale, col)
 }
 
 // formsFluentTextBox draws the box of a TextBox around a row holding its input and its buttons, as fluentField draws a text field's, with the focus look while focused: the input inside has the focus, which fluentField reads from the field itself.

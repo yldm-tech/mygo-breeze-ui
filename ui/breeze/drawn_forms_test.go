@@ -2,6 +2,7 @@ package breeze
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"os"
 	"strings"
@@ -758,6 +759,182 @@ func TestDateAndTimeInputsOnMacAndGNOME(t *testing.T) {
 		_, darkest := formsInk(gnome, formsIconRect(r, 9, rtl), fill, adwInkAlpha(th, fill, 1))
 		if darkest < 0.6 || darkest > 0.8 {
 			t.Errorf("GNOME %v: the calendar icon reaches %v of the text color, want 0.7", dir, darkest)
+		}
+	}
+}
+
+// formsRegionDiffers counts the pixels of r, grown by grow DIPs on every side, in DIPs at scale 1, that differ between two frames.
+func formsRegionDiffers(a, b *image.RGBA, r ui.Rect, grow float32) int {
+	n := 0
+	for y := int(r.Y - grow); y < int(r.Y+r.H+grow); y++ {
+		for x := int(r.X - grow); x < int(r.X+r.W+grow); x++ {
+			if a.RGBAAt(x, y) != b.RGBAAt(x, y) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// formsCopy returns a copy of the tester's last frame, which the next frame overwrites.
+func formsCopy(tester *ui.Tester) *image.RGBA {
+	img := tester.Image()
+	out := image.NewRGBA(img.Rect)
+	copy(out.Pix, img.Pix)
+	return out
+}
+
+// TestFormsFocusRingFollowsTheKeyboard checks on every platform, left to right and right to left, that the box over a check box group and a number input's Increase show no focus ring once a click focuses them, and show the platform's ring once Tab does: their frame after the click is the frame with the focus elsewhere, and the frame after Tab is not.
+func TestFormsFocusRingFollowsTheKeyboard(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			mail, calendar, value := true, false, 5.0
+			tester := formsTester(p, dir, 500, 400, func(c *ui.Context) {
+				ui.Column(c).Padding(24).Gap(16).AlignItems(ui.Start).Children(func() {
+					CheckboxGroup(c, "Notifications", func() {
+						Checkbox(c, &mail, "Mail")
+						Checkbox(c, &calendar, "Calendar")
+					})
+					NumberInput(c, &value, 0, 100, 1)
+					Button(c, "Other")
+				})
+			})
+			for _, target := range []string{"Notifications", "Increase"} {
+				r := formsFind(t, tester, target)
+				if err := tester.Click(target); err != nil {
+					t.Fatal(err)
+				}
+				tester.Move(490, 390)
+				tester.Frame()
+				if !tester.Focused(target) {
+					t.Fatalf("%v %v: a click did not focus %q", p, dir, target)
+				}
+				clicked := formsCopy(tester)
+				if err := tester.Click("Other"); err != nil {
+					t.Fatal(err)
+				}
+				tester.Move(490, 390)
+				tester.Frame()
+				elsewhere := formsCopy(tester)
+				if n := formsRegionDiffers(clicked, elsewhere, r, 8); n != 0 {
+					t.Errorf("%v %v: %q focused by a click differs in %d pixels from %q unfocused, as with a ring", p, dir, target, n, target)
+				}
+				for range 12 {
+					if tester.Focused(target) {
+						break
+					}
+					tester.Key(0, ui.KeyTab)
+					tester.Frame()
+				}
+				if !tester.Focused(target) {
+					t.Fatalf("%v %v: Tab did not reach %q", p, dir, target)
+				}
+				if n := formsRegionDiffers(tester.Image(), elsewhere, r, 8); n < 10 {
+					t.Errorf("%v %v: %q focused by Tab differs in only %d pixels from %q unfocused: no ring", p, dir, target, n, target)
+				}
+			}
+		}
+	}
+}
+
+// TestFormsEdgeCases checks on every platform what the rebuilt widgets do at their edges as package ui's do: a check box group without boxes reports a click and stays unchecked; a number input emptied, through a number out of its range, keeps its value and shows it again once it loses the focus; a number input whose limits meet disables both buttons; a split shows the texts and names ui.Split shows, divider included, and a disabled split neither moves with the arrows nor with a drag.
+func TestFormsEdgeCases(t *testing.T) {
+	for _, p := range Platforms {
+		changes, value, fixed := 0, 42.0, 3.0
+		tester := formsTester(p, ui.LeftToRight, 500, 300, func(c *ui.Context) {
+			ui.Column(c).Padding(16).Gap(16).AlignItems(ui.Start).Children(func() {
+				if CheckboxGroup(c, "Nothing", func() {}).Changed() {
+					changes++
+				}
+				NumberInput(c, &value, 10, 100, 1).Label("Count")
+				NumberInput(c, &fixed, 3, 3, 1).Label("Fixed")
+				Button(c, "Other")
+			})
+		})
+		if err := tester.Click("Nothing"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if changes != 1 {
+			t.Fatalf("%v: a click on an empty group reported %d changes", p, changes)
+		}
+		row := formsFind(t, tester, "Count")
+		tester.ClickAt(row.X+2, row.Y+row.H/2)
+		tester.Frame()
+		tester.Key(0, ui.KeyEnd)
+		tester.Key(0, ui.KeyBackspace)
+		tester.Key(0, ui.KeyBackspace)
+		tester.Frame()
+		if value != 42 {
+			t.Fatalf("%v: emptying the text gave %v", p, value)
+		}
+		if err := tester.Click("Other"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		// The text shows 42 again: Backspace at its end and 3 make 43, where an empty text would make 3, out of range.
+		tester.ClickAt(row.X+2, row.Y+row.H/2)
+		tester.Frame()
+		tester.Key(0, ui.KeyEnd)
+		tester.Key(0, ui.KeyBackspace)
+		tester.Type("3")
+		tester.Frame()
+		if value != 43 {
+			t.Fatalf("%v: after the blur, Backspace and 3 gave %v", p, value)
+		}
+		// Clicks across the end of the input whose limits meet, where its buttons are, do nothing, and Tab from its text passes them by.
+		fixedRow := formsFind(t, tester, "Fixed")
+		for dx := float32(2); dx < 72; dx += 5 {
+			for _, dy := range []float32{-5, 5} {
+				tester.ClickAt(fixedRow.X+fixedRow.W-dx, fixedRow.Y+fixedRow.H/2+dy)
+				tester.Frame()
+			}
+		}
+		if fixed != 3 {
+			t.Fatalf("%v: a click on the buttons of an input whose limits meet gave %v", p, fixed)
+		}
+		tester.ClickAt(fixedRow.X+2, fixedRow.Y+fixedRow.H/2)
+		tester.Frame()
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if !tester.Focused("Other") {
+			t.Fatalf("%v: Tab from the text of an input whose limits meet stopped before the next button", p)
+		}
+
+		var texts [2][]string
+		for i, ours := range []bool{true, false} {
+			size := float32(120)
+			split := formsTester(p, ui.LeftToRight, 600, 200, func(c *ui.Context) {
+				first, second := func() { ui.Text(c, "Files") }, func() { ui.Text(c, "Editor") }
+				if ours {
+					Split(c, &size, first, second).Fill()
+				} else {
+					ui.Split(c, &size, first, second).Fill()
+				}
+			})
+			texts[i] = split.Texts()
+		}
+		if strings.Join(texts[0], "|") != strings.Join(texts[1], "|") {
+			t.Errorf("%v: the split shows %q, ui.Split %q", p, texts[0], texts[1])
+		}
+		size := float32(120)
+		locked := formsTester(p, ui.LeftToRight, 600, 200, func(c *ui.Context) {
+			Split(c, &size, func() { ui.Text(c, "Files") }, func() { ui.Text(c, "Editor") }).Fill().Disabled(true)
+		})
+		files := formsFind(t, locked, "Files")
+		x := files.X + size + 0.5
+		locked.Key(0, ui.KeyTab)
+		locked.Frame()
+		locked.Key(0, ui.KeyRight)
+		locked.Frame()
+		locked.Press(x, 100)
+		locked.Frame()
+		locked.Move(x+40, 100)
+		locked.Frame()
+		locked.Release(x+40, 100)
+		locked.Frame()
+		if size != 120 {
+			t.Fatalf("%v: a disabled split moved to %v", p, size)
 		}
 	}
 }
