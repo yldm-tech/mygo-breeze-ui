@@ -29,6 +29,13 @@
       "example": "if breeze.AlertDialog(c, &app.confirm, \"Delete?\", \"This cannot be undone.\", \"Delete\", \"Cancel\") == 0 {\n\tapp.delete()\n}"
     },
     {
+      "name": "Avatar",
+      "category": "data",
+      "look": "drawn",
+      "description": "A picture of a person or a thing: the image in a circle, or initials as the platform draws a contact without one: macOS's gray monogram, Windows 11's PersonPicture, or GNOME's AdwAvatar on a gradient picked from the name.",
+      "example": "breeze.Avatar(c, \"Ada Lovelace\", nil)"
+    },
+    {
       "name": "Badge",
       "category": "feedback",
       "look": "drawn",
@@ -71,6 +78,13 @@
       "example": "breeze.Field(c, \"Name\", func() {\n\tbreeze.TextInput(c, &app.name)\n})"
     },
     {
+      "name": "FindBar",
+      "category": "text",
+      "look": "themed",
+      "description": "A bar for finding text, in the platform's place for it: NSTextFinder's find bar on macOS, GtkSearchBar's bar on GNOME, a strip with a divider on Windows 11, which has none. The field, the buttons and the keys are MyGo's, in the platform's theme.",
+      "example": "breeze.FindBar(c, &app.finding, &app.query, len(app.matches), &app.match)"
+    },
+    {
       "name": "Link",
       "category": "actions",
       "look": "drawn",
@@ -83,6 +97,13 @@
       "look": "drawn",
       "description": "A button drawn as the platform's pull-down button, opening the system's own native menu.",
       "example": "breeze.MenuButton(c, \"Sort\", func(m *ui.Menu) {\n\tm.Item(\"Name\")\n})"
+    },
+    {
+      "name": "Meter",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "A bar showing a level, with warning and critical levels: macOS's NSLevelIndicator in green, yellow or red, Windows 11's ProgressBar in its normal, paused or error color, or GNOME's GtkLevelBar.",
+      "example": "breeze.Meter(c, app.used, 0, app.size, &ui.MeterLevels{Warning: 0.8 * app.size, Critical: 0.95 * app.size}).Label(\"Disk\")"
     },
     {
       "name": "Modal",
@@ -139,6 +160,13 @@
       "look": "themed",
       "description": "The group radio buttons choose within, which the arrows move through: package ui's container around the platform's radio buttons.",
       "example": "breeze.RadioGroup(c, func() {\n\tbreeze.Radio(c, &app.size, \"S\", \"Small\")\n\tbreeze.Radio(c, &app.size, \"L\", \"Large\")\n})"
+    },
+    {
+      "name": "Rating",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A row of stars setting a rating: macOS's NSLevelIndicator of rating style, Windows 11's RatingControl with its accent stars, or GNOME Software's stars, as GNOME has no rating control. The clicks and keys are MyGo's.",
+      "example": "breeze.Rating(c, &app.stars, 5).Label(\"Rating\")"
     },
     {
       "name": "SearchField",
@@ -218,6 +246,13 @@
       "example": "breeze.TextInput(c, &app.name).Placeholder(\"Name\")"
     },
     {
+      "name": "Toasts",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "The window's toasts in the platform's look: GNOME's AdwToast pill, Windows 11's InfoBar colored by the toast's type, or on macOS, which has no toast, a panel like a notification banner.",
+      "example": "breeze.Toasts(c)"
+    },
+    {
       "name": "Toggle",
       "category": "actions",
       "look": "drawn",
@@ -230,6 +265,13 @@
       "look": "drawn",
       "description": "Toggles joined as the platform joins them: an NSSegmentedControl selecting any segments on macOS, a box.linked on GNOME, ToggleButtons side by side on Windows 11, which has no joined toggles.",
       "example": "breeze.ToggleGroup(c, func() {\n\tbreeze.Toggle(c, &app.bold, \"B\")\n\tbreeze.Toggle(c, &app.italic, \"I\")\n})"
+    },
+    {
+      "name": "Tooltip",
+      "category": "overlays",
+      "look": "drawn",
+      "description": "A tip shown while the pointer rests on an element: a small panel below it on macOS, Windows 11's ToolTip above it, or GTK's dark tooltip below it on GNOME.",
+      "example": "breeze.Tooltip(c, breeze.Button(c, \"Share\"), \"Share the document\")"
     },
     {
       "name": "Tree",
