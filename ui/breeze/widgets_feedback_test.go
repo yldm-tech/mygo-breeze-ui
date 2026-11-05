@@ -214,6 +214,12 @@ func TestAvatarInitialsAndColors(t *testing.T) {
 			t.Errorf("adwAvatarInitials(%q) = %q, want %q", name, got, want)
 		}
 	}
+	// InitialsGenerator.cpp: a final bracketed part left out, ASCII punctuation skipped, combining marks kept, and none for a name in a script it does not take initials from.
+	for name, want := range map[string]string{"Ada Lovelace": "AL", "John Smith (Work)": "JS", "\"Bob\" O'Neil": "BO", "émile  zola": "ÉZ", "Jose\u0301 Marti\u0301": "JM", "Ada 山田": "A山", "山田太郎": "", "Ελένη": "", "": "", "   ": ""} {
+		if got := fluentAvatarInitials(name); got != want {
+			t.Errorf("fluentAvatarInitials(%q) = %q, want %q", name, got, want)
+		}
+	}
 	// libadwaita picks a random color for an empty name; Breeze UI the first, as its doc says.
 	if got := adwAvatarColor(""); got != 0 {
 		t.Errorf("adwAvatarColor(\"\") = %d, want 0", got)
@@ -294,6 +300,8 @@ func feedbackView(p Platform, s *feedbackState) func(c *ui.Context) {
 					at(16, 110, func() ui.Element { return Avatar(c, "Ada Lovelace", nil) })
 					at(64, 110, func() ui.Element { return Avatar(c, "Grace Hopper", nil) })
 					at(112, 110, func() ui.Element { return Avatar(c, "Linus", nil) })
+					at(160, 110, func() ui.Element { return Avatar(c, "山田太郎", nil) })
+					at(208, 110, func() ui.Element { return Avatar(c, "", nil) })
 					at(300, 110, func() ui.Element { return Rating(c, &s.stars, 5).Label("Stars") })
 				})
 			})

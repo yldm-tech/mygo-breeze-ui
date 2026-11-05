@@ -4,13 +4,14 @@ import (
 	"math"
 	"strings"
 	"unicode"
+	"unicode/utf16"
 
 	"github.com/egoist/mygo/ui"
 )
 
 // ---- feedback: tooltips, toasts, meters, avatars, ratings and the find bar ----
 //
-// macOS values are measured from AppKit's NSLevelIndicator and NSTextFinder's find bar rendered at 2x, as tools/appkit-reference/reference.swift renders the other controls, or read from AppKit (NSFont.toolTipsFont); AppKit draws tooltips, notifications and contact monograms out of a view's reach, so those are inferred. Windows values are WinUI 3's theme resources (ToolTip_themeresources.xaml, InfoBar_themeresources.xaml and InfoBar.xaml, ProgressBar_themeresources.xaml, RatingControl_themeresources.xaml and RatingControl.cpp, PersonPicture_themeresources.xaml and PersonPicture.cpp, Common_themeresources_any.xaml). GNOME values are libadwaita 1.7.6's stylesheet (_tooltip.scss, _misc.scss for toasts, _level-bar.scss, _avatar.scss, _toolbars.scss for the search bar, _colors.scss, _defaults.scss), adw-toast-widget.ui and .c, adw-avatar.c, and GTK 4.18's gtktooltip.c, gtktooltipwindow.ui and gtklevelbar.c; GNOME has no rating control, so its stars are GNOME Software's (gs-star-widget.c and style.css of 48.0).
+// macOS values are measured from AppKit's NSLevelIndicator and NSTextFinder's find bar rendered at 2x, as tools/appkit-reference/reference.swift renders the other controls, the colored ones drawn into an sRGB bitmap (the display's profile, which that script reads, gives the same grays but paler colors), or read from AppKit (NSFont.toolTipsFont, NSColor.systemYellow); AppKit draws tooltips, notifications and contact monograms out of a view's reach, so those are inferred. Windows values are WinUI 3's theme resources (ToolTip_themeresources.xaml, InfoBar_themeresources.xaml and InfoBar.xaml, ProgressBar_themeresources.xaml, RatingControl_themeresources.xaml and RatingControl.cpp, PersonPicture_themeresources.xaml, PersonPicture.xaml, PersonPicture.cpp and InitialsGenerator.cpp, Common_themeresources_any.xaml, AcrylicBrush_themeresources.xaml). GNOME values are libadwaita 1.7.6's stylesheet (_tooltip.scss, _misc.scss for toasts, _level-bar.scss, _avatar.scss, _toolbars.scss for the search bar, _colors.scss, _defaults.scss), adw-toast-widget.ui and .c, adw-avatar.c, and GTK 4.18's gtktooltip.c, gtktooltipwindow.ui and gtklevelbar.c; GNOME has no rating control, so its stars are GNOME Software's (gs-star-widget.c, gs-star-image.c, gs-review-dialog.ui and style.css of 48.0).
 
 // Tooltip shows text by anchor while the pointer rests on it or the keyboard focus comes to it, in the platform's tooltip: a small panel below the element on macOS, WinUI's ToolTip above it on Windows, and GTK's tooltip below it on GNOME. It is built on ui.TooltipBase, so the timing, Escape, a disabled anchor showing none and the one-at-a-time rule are MyGo's. Assistive technology does not read the tip, so text becomes anchor's Description, as Element.Tooltip makes it; unlike Element.Tooltip, which keeps a Description given before it, Tooltip replaces one, as package ui offers no way to read it: give a Description of your own after Tooltip. It returns anchor, as Element.Tooltip does, whose counterpart it is.
 func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
@@ -304,15 +305,15 @@ func Meter(c *ui.Context, value, lo, hi float64, levels *ui.MeterLevels) ui.Elem
 	return m
 }
 
-// macMeterFill returns an NSLevelIndicator's fill for a level, measured from AppKit: green, yellow and red, a little lighter in Dark Aqua.
-func macMeterFill(dark bool, level int) ui.Color {
+// macMeterFill returns an NSLevelIndicator's fill for a level, measured from AppKit drawn into an sRGB bitmap: systemGreen (the theme's Success), systemYellow (#ffcc00, #ffd600 in Dark Aqua) and systemRed (the theme's Danger).
+func macMeterFill(t *ui.Theme, level int) ui.Color {
 	switch level {
 	case 2:
-		return pick(dark, ui.Hex("#eb4c46"), ui.Hex("#eb534e"))
+		return t.Danger
 	case 1:
-		return pick(dark, ui.Hex("#f7ce46"), ui.Hex("#f8d849"))
+		return pick(t.Dark, ui.Hex("#ffcc00"), ui.Hex("#ffd600"))
 	}
-	return pick(dark, ui.Hex("#65c466"), ui.Hex("#68ce67"))
+	return t.Success
 }
 
 // macMeter draws an NSLevelIndicator of continuous capacity style, regular size, as measured from AppKit: a bar 16 points high with corners of 2.5, a track of black at 7.1% (white at 10.2% in Dark Aqua) inside a half-point edge (black at 19.2%, white at 7.1%), filled from its start with the level's color inside a half-point edge 13% darker, square where the fill ends.
@@ -321,7 +322,7 @@ func macMeter(c *ui.Context, m ui.Element, frac float32, level int) {
 	const radius = 2.5
 	edge := tint(t.Background, t.Dark, pick(t.Dark, float32(0.192), 0.071))
 	track := tint(t.Background, t.Dark, pick(t.Dark, float32(0.071), 0.102))
-	fill := macMeterFill(t.Dark, level)
+	fill := macMeterFill(t, level)
 	rtl := c.Direction() == ui.RightToLeft
 	m.Height(16).MinWidth(40).Radius(radius).Background(ui.Transparent).Border(0, ui.Color{})
 	m.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -401,7 +402,7 @@ func adwMeter(c *ui.Context, m ui.Element, frac float32, level int, full bool) {
 	})
 }
 
-// Avatar creates a picture of a person or a thing named name: the image, cropped to a circle, or initials, as the platform draws a contact without a picture: macOS's gray monogram, WinUI's PersonPicture, or libadwaita's AdwAvatar on a gradient it picks from the name. It is ui.Avatar restyled, as large as MyGo's; MyGo's initials stay, transparent, under the platform's, which follow its size. It is ui.Avatar's counterpart: assistive technology sees an image named name.
+// Avatar creates a picture of a person or a thing named name: the image, cropped to a circle, or initials, as the platform draws a contact without a picture: macOS's gray monogram, WinUI's PersonPicture, or libadwaita's AdwAvatar on a gradient it picks from the name; where the platform takes no initials from the name (an empty one, or on Windows one in a script PersonPicture takes none from, as Chinese), its contact glyph. It is ui.Avatar restyled, as large as MyGo's; MyGo's initials stay, transparent, under the platform's, which follow its size. It is ui.Avatar's counterpart: assistive technology sees an image named name.
 func Avatar(c *ui.Context, name string, image *ui.Bitmap) ui.Element {
 	t := c.Theme()
 	p := PlatformOf(c)
@@ -424,7 +425,7 @@ func Avatar(c *ui.Context, name string, image *ui.Bitmap) ui.Element {
 	return e
 }
 
-// avatarInitials returns the first letters of the first and last words of name, uppercased, as ui.Avatar and WinUI's PersonPicture take them.
+// avatarInitials returns the first letters of the first and last words of name, uppercased, as ui.Avatar takes them.
 func avatarInitials(name string) string {
 	var first, last rune
 	inWord := false
@@ -448,6 +449,16 @@ func avatarInitials(name string) string {
 	return string([]rune{first, last})
 }
 
+// avatarPerson returns a person's head and shoulders in the square of side s at x, y, the shape of a contact glyph: WinUI's Contact (U+E77B), libadwaita's avatar-default-symbolic, and the silhouette macOS shows for a contact without a name. The proportions are inferred from those glyphs.
+func avatarPerson(x, y, s float32) *ui.Path {
+	var path ui.Path
+	path.Circle(x+s/2, y+s*0.28, s*0.22)
+	path.MoveTo(x+s*0.08, y+s*0.96).
+		CubeTo(x+s*0.08, y+s*0.7, x+s*0.28, y+s*0.58, x+s/2, y+s*0.58).
+		CubeTo(x+s*0.72, y+s*0.58, x+s*0.92, y+s*0.7, x+s*0.92, y+s*0.96).Close()
+	return &path
+}
+
 // drawAvatarText draws s centered in r at size, in weight and col.
 func drawAvatarText(p *ui.Painter, r ui.Rect, s string, size float32, weight int, col ui.Color) {
 	if s == "" {
@@ -458,12 +469,19 @@ func drawAvatarText(p *ui.Painter, r ui.Rect, s string, size float32, weight int
 	p.RichText(r.X+(r.W-w)/2, r.Y+(r.H-h)/2, 0, span)
 }
 
-// macAvatar draws a contact's monogram as macOS's Contacts shows one: white initials on a circle of systemGray, lighter at the top. AppKit has no avatar view, so the gradient and the initials' size and weight are inferred.
+// macAvatar draws a contact's monogram as macOS's Contacts shows one: white initials on a circle of systemGray, lighter at the top, or a white silhouette for a name without initials. AppKit has no avatar view, so the gradient, the initials' size and weight and the silhouette's size are inferred.
 func macAvatar(t *ui.Theme, e ui.Element, name string) {
 	gray := pick(t.Dark, ui.Hex("#8e8e93"), ui.Hex("#98989d")) // systemGray
 	e.LinearGradient(ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: gray.Mix(white, 0.28), At: 0}, {Color: gray.Mix(black, 0.06), At: 1}}})
 	in := avatarInitials(name)
-	e.Draw(func(p *ui.Painter, r ui.Rect) { drawAvatarText(p, r, in, r.W*0.42, 500, white) })
+	e.Draw(func(p *ui.Painter, r ui.Rect) {
+		if in == "" {
+			s := r.W * 0.6
+			p.FillPath(avatarPerson(r.X+(r.W-s)/2, r.Y+(r.H-s)/2, s), white)
+			return
+		}
+		drawAvatarText(p, r, in, r.W*0.42, 500, white)
+	})
 }
 
 // fluentAvatarStroke draws PersonPicture's 1-DIP ellipse stroke, CardStrokeColorDefault, inside its edge.
@@ -472,12 +490,92 @@ func fluentAvatarStroke(t *ui.Theme, e ui.Element) {
 	e.DrawOver(func(p *ui.Painter, r ui.Rect) { p.Stroke(r, stroke, r.W/2, 1) })
 }
 
-// fluentAvatar draws a PersonPicture with initials: the ellipse in ControlAltFillColorQuarternary (black at 9.4%, white at 7.1% in the dark theme) with its stroke, the initials semibold in TextFillColorPrimary at 42% of its width (PersonPicture.cpp).
+// fluentAvatar draws a PersonPicture without a picture: the ellipse in PersonPictureEllipseFillThemeBrush, ControlAltFillColorQuarternary (black at 9.4%, white at 7.1% in the dark theme), with its stroke, and in TextFillColorPrimary at 42% of its width (PersonPicture.cpp) the initials semibold, or, for a name without them, the Contact glyph (U+E77B) of the NoPhotoOrInitials state, drawn here as a path.
 func fluentAvatar(t *ui.Theme, e ui.Element, name string) {
 	e.Background(pick(t.Dark, ui.RGBA(0, 0, 0, 0.094), ui.RGBA(255, 255, 255, 0.071)))
 	fluentAvatarStroke(t, e)
-	in := avatarInitials(name)
-	e.Draw(func(p *ui.Painter, r ui.Rect) { drawAvatarText(p, r, in, r.W*0.42, 600, t.Text) })
+	in := fluentAvatarInitials(name)
+	e.Draw(func(p *ui.Painter, r ui.Rect) {
+		if in == "" {
+			s := r.W * 0.42
+			p.StrokePath(avatarPerson(r.X+(r.W-s)/2, r.Y+(r.H-s)/2, s), 1, t.Text)
+			return
+		}
+		drawAvatarText(p, r, in, r.W*0.42, 600, t.Text)
+	})
+}
+
+// fluentAvatarInitials returns the initials WinUI's PersonPicture takes from a display name (InitialsGenerator.cpp's InitialsFromDisplayName): none unless the name's first three UTF-16 units include a Latin or Cyrillic character and none of the scripts it lists as glyphs or symbols (Arabic, the Indic scripts, Thai, Lao, CJK, Greek, Hebrew, Armenian, IPA); a final bracketed part, as in "John Smith (Work)", left out; then of the first and the last of the words between spaces, at most 25, the first character past ASCII punctuation with the combining marks after it, uppercased.
+func fluentAvatarInitials(name string) string {
+	units := utf16.Encode([]rune(name))
+	latin := false
+	for _, u := range units[:min(len(units), 3)] {
+		switch fluentAvatarCharKind(rune(u)) {
+		case 2:
+			return ""
+		case 1:
+			latin = true
+		}
+	}
+	if !latin {
+		return ""
+	}
+	for _, d := range []string{"{}", "()", "[]"} {
+		if strings.HasSuffix(name, d[1:]) {
+			if i := strings.LastIndex(name, d[:1]); i >= 0 {
+				name = name[:i]
+				break
+			}
+		}
+	}
+	parts := strings.Split(name, " ")
+	var words []string
+	for _, w := range parts[:min(len(parts), 25)] {
+		if w != "" {
+			words = append(words, w)
+		}
+	}
+	first := func(w string) string {
+		rs := []rune(w)
+		start := 0
+		for start < len(rs) && (rs[start] >= 0x21 && rs[start] <= 0x2f || rs[start] >= 0x3a && rs[start] <= 0x40 || rs[start] >= 0x7b && rs[start] <= 0x7e) {
+			start++
+		}
+		if start == len(rs) {
+			start = 0
+		}
+		end := start + 1
+		for end < len(rs) && rs[end] >= 0x300 && rs[end] <= 0x36f {
+			end++
+		}
+		return string(rs[start:end])
+	}
+	switch len(words) {
+	case 0:
+		return ""
+	case 1:
+		return strings.ToUpper(first(words[0]))
+	}
+	return strings.ToUpper(first(words[0]) + first(words[len(words)-1]))
+}
+
+// fluentAvatarCharKind returns 1 for a UTF-16 unit InitialsGenerator.cpp counts as Latin (Basic Latin, Latin-1, the Latin Extended blocks, Cyrillic and its supplement, combining diacritical marks), 2 for one of the blocks it counts as glyphs or symbols, and 0 for any other.
+func fluentAvatarCharKind(u rune) int {
+	for _, b := range [][2]rune{
+		{0x0250, 0x02af}, {0x0600, 0x06ff}, {0x0750, 0x077f}, {0x08a0, 0x08ff}, {0xfb50, 0xfdff}, {0xfe70, 0xfeff}, {0x0900, 0x097f}, {0xa8e0, 0xa8ff},
+		{0x0980, 0x0dff}, {0x0e00, 0x0eff}, {0x4e00, 0x9fff}, {0x3400, 0x4dbf}, {0x2e80, 0x2eff}, {0x3000, 0x303f}, {0x31c0, 0x31ef}, {0x3200, 0x33ff},
+		{0xf900, 0xfaff}, {0xfe30, 0xfe4f}, {0x0370, 0x03ff}, {0x0590, 0x05ff}, {0x0530, 0x058f},
+	} {
+		if u >= b[0] && u <= b[1] {
+			return 2
+		}
+	}
+	for _, b := range [][2]rune{{0x0001, 0x024f}, {0x2c60, 0x2c7f}, {0xa720, 0xa7ff}, {0xab30, 0xab6f}, {0x1e00, 0x1eff}, {0x0400, 0x052f}, {0x0300, 0x036f}} {
+		if u >= b[0] && u <= b[1] {
+			return 1
+		}
+	}
+	return 0
 }
 
 // adwAvatarColors are _avatar.scss's $avatarcolorlist: the initials' color and the gradient's top and bottom, in the order of the color1 to color14 classes.
@@ -528,12 +626,21 @@ func adwAvatarInitials(text string) string {
 	return string(out)
 }
 
-// adwAvatar draws an AdwAvatar without an image: the gradient of the color its name hashes to, from top to bottom, and the initials bold in the color's light tint, as large as fits the biggest square inside the circle less a padding of 0.4 times the size minus 5 pixels (adw-avatar.c's update_font_size).
+// adwAvatar draws an AdwAvatar without an image: the gradient of the color its name hashes to, from top to bottom, and the initials bold in the color's light tint, as large as fits the biggest square inside the circle less a padding of 0.4 times the size minus 5 pixels (adw-avatar.c's update_font_size); white below 25 pixels, the .contrasted class adw_avatar_set_size adds. Without a name it shows avatar-default-symbolic at half its size instead (update_visibility and adw_avatar_set_size).
 func adwAvatar(e ui.Element, name string) {
 	col := adwAvatarColors[adwAvatarColor(name)]
 	e.LinearGradient(ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: col[1], At: 0}, {Color: col[2], At: 1}}})
 	in := adwAvatarInitials(name)
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
+		fg := col[0]
+		if r.W < 25 {
+			fg = white
+		}
+		if name == "" {
+			s := float32(int(r.W) / 2)
+			p.FillPath(avatarPerson(r.X+(r.W-s)/2, r.Y+(r.H-s)/2, s), fg)
+			return
+		}
 		if in == "" {
 			return
 		}
@@ -543,7 +650,7 @@ func adwAvatar(e ui.Element, name string) {
 		if w > 0 {
 			size = min(max(h*(maxSize/w), 0), maxSize)
 		}
-		drawAvatarText(p, r, in, size, 700, col[0])
+		drawAvatarText(p, r, in, size, 700, fg)
 	})
 }
 
@@ -596,7 +703,7 @@ func Rating(c *ui.Context, value *int, max int) ui.Element {
 			b := at(rect, i)
 			switch p {
 			case Windows:
-				fluentRatingStar(pt, t, b, i < v, hover, i, over, rect.X+px)
+				fluentRatingStar(pt, t, b, i < v, v == 0, hover, i, over, rect.X+px)
 			case Linux:
 				adwRatingStar(pt, t, b, look.inner, i < v)
 			default:
@@ -636,8 +743,8 @@ func macRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, inner float32, set boo
 	p.FillPath(ratingStarPath(b.X+b.W/2, b.Y+b.H/2+0.4, 6.2, inner), fill)
 }
 
-// fluentRatingStar draws a star of a RatingControl: the filled star glyph (U+E735) in RatingControlSelectedForeground, the accent fill, while set or under the pointer up to it (RatingControlPointerOverSelectedForeground), and the outlined one (U+E734) in RatingControlUnselectedForeground, TextFillColorSecondary, while not. Under the pointer the stars grow toward it as RatingControl.cpp's scale animation does: max(0.8 − 0.0004·dx², 0.5) of the 32-DIP glyph, dx the distance from the star's center to the pointer.
-func fluentRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, set bool, hover, i int, over bool, px float32) {
+// fluentRatingStar draws a star of a RatingControl, whose outlined glyph (U+E734) in RatingControlUnselectedForeground, TextFillColorSecondary, lies under every star, and over it the filled glyph (U+E735) of the stars set in RatingControlSelectedForeground, the accent fill. Under the pointer the filled glyph runs up to the star it is on: in the accent while a rating is set (the PointerOverSet state), in RatingControlPointerOverPlaceholderForeground, ControlAltFillColorTertiary (black at 5.9%, white at 4.3% in the dark theme), while none is (PointerOverPlaceholder, as unset reads 0 here). The stars grow toward the pointer as RatingControl.cpp's scale animation does: max(0.8 − 0.0004·dx², 0.5) of the 32-DIP glyph, dx the distance from the star's center to the pointer.
+func fluentRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, set, unset bool, hover, i int, over bool, px float32) {
 	scale := float32(0.5)
 	cx := b.X + b.W/2
 	if over {
@@ -649,11 +756,15 @@ func fluentRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, set bool, hover, i 
 	if hover >= 0 {
 		set = i <= hover
 	}
-	if set {
+	if set && !unset {
 		p.FillPath(star, t.Accent)
 		return
 	}
 	p.StrokePath(star, 1, t.TextMuted)
+	if set {
+		// Only under the pointer: an unset rating has no star set otherwise.
+		p.FillPath(star, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(255, 255, 255, 0.043)))
+	}
 }
 
 // adwRatingStar draws a star of GNOME Software's GsStarWidget: starred-symbolic, in @yellow_5 (#e5a50a) while set and in the text color at 20% opacity while not (style.css).
