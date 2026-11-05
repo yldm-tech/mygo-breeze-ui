@@ -74,7 +74,7 @@ func Toasts(c *ui.Context) ui.Element {
 		for _, ts := range toasts {
 			parts := ui.ToastBase(c, ts)
 			// Toasts fade in and out, as MyGo's own do; the platforms' motion is not measured.
-			parts.Root.Transition(ui.ElementTransition{Colors: true, Enter: &ui.Motion{Opacity: 0, Y: 8}, Exit: &ui.Motion{Opacity: 0}})
+			parts.Root.Transition(ui.ElementTransition{Position: true, Enter: &ui.Motion{Opacity: 0, Y: 8}, Exit: &ui.Motion{Opacity: 0}})
 			switch p {
 			case Windows:
 				fluentToast(c, parts, ts)
@@ -178,15 +178,15 @@ func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 				b.Margin(8, 0, 0, 0).MarginStart(16).Children(func() { ui.Text(c, ts.Action).SingleLine() })
 			}
 		})
-		close := parts.CloseButton().Label("Close").Size(38, 38).Margin(5).Shrink(0).Radius(4).Center()
+		dismiss := parts.CloseButton().Label("Close").Size(38, 38).Margin(5).Shrink(0).Radius(4).Center()
 		hover, pressed := fluentSubtle(t)
 		switch {
-		case close.Pressed():
-			close.Background(pressed)
-		case close.Hovered():
-			close.Background(hover)
+		case dismiss.Pressed():
+			dismiss.Background(pressed)
+		case dismiss.Hovered():
+			dismiss.Background(hover)
 		}
-		close.Children(func() {
+		dismiss.Children(func() {
 			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { drawCross(p, r, 0.22, 1, t.Text) })
 		})
 	})
@@ -251,14 +251,14 @@ func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 			b.MinHeight(34).Padding(5, 17).Radius(9).FontWeight(700).Justify(ui.Center).AlignItems(ui.Center).Shrink(0).
 				Background(bg.Mix(white, share)).TextColor(white).Children(func() { ui.Text(c, ts.Action).SingleLine() })
 		}
-		close := parts.CloseButton().Label("Dismiss").Size(34, 34).Radius(17).Shrink(0).Center()
+		dismiss := parts.CloseButton().Label("Dismiss").Size(34, 34).Radius(17).Shrink(0).Center()
 		switch {
-		case close.Pressed():
-			close.Background(bg.Mix(white, 0.16))
-		case close.Hovered():
-			close.Background(bg.Mix(white, 0.07))
+		case dismiss.Pressed():
+			dismiss.Background(bg.Mix(white, 0.16))
+		case dismiss.Hovered():
+			dismiss.Background(bg.Mix(white, 0.07))
 		}
-		close.Children(func() {
+		dismiss.Children(func() {
 			// window-close-symbolic, a 16-pixel icon.
 			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { drawCross(p, r, 0.25, 1.5, white) })
 		})
