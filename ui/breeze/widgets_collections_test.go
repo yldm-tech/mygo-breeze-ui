@@ -111,6 +111,142 @@ func TestListDrawsThePlatformsRows(t *testing.T) {
 	}
 }
 
+// TestListKeepsItsChoices checks the drawn list's other ways of choosing on every platform: rows chosen together with Shift-click, which make one block on macOS as NSTableView's do; a header of a section, which neither the pointer nor a click lights up; Enter, which is the list's Submitted; and a disabled list, which a click does not choose in.
+func TestListKeepsItsChoices(t *testing.T) {
+	names := []string{"Recent", "Notes.md", "Budget.xlsx", "Photo.heic", "Talk.key"}
+	for _, p := range Platforms {
+		lead := -1
+		var chosen ui.Selection[int]
+		state := &ui.ListState{Selected: &lead, Selection: &chosen, Header: func(i int) bool { return i == 0 }}
+		off := 0
+		offState := &ui.ListState{Selected: &off}
+		submitted := 0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				ui.Row(c).Fill().Gap(8).Children(func() {
+					if List(c, state, len(names), func(i int) { ui.Text(c, names[i]).SingleLine() }).Size(220, 280).Label("Files").Submitted() {
+						submitted++
+					}
+					List(c, offState, 2, func(i int) { ui.Text(c, []string{"One", "Two"}[i]) }).Size(160, 120).Label("Off").Disabled(true)
+				})
+			})
+		}, 420, 300)
+		tester.Frame()
+		at := func(x, y float32) [3]uint8 {
+			c := tester.Image().RGBAAt(int(x), int(y))
+			return [3]uint8{c.R, c.G, c.B}
+		}
+		header, _ := tester.Find("Recent")
+		rest := at(header.X-6, header.Y+header.H/2)
+		tester.Move(header.X+4, header.Y+header.H/2)
+		tester.Frame()
+		if got := at(header.X-6, header.Y+header.H/2); got != rest {
+			t.Fatalf("%v: the header lights up under the pointer: %v, at rest %v", p, got, rest)
+		}
+		if err := tester.Click("Recent"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if chosen.Len() != 0 {
+			t.Fatalf("%v: a click chose the header", p)
+		}
+		row, _ := tester.Find("Photo.heic")
+		rowRest := at(row.X-6, row.Y+row.H/2)
+		tester.Move(row.X+4, row.Y+row.H/2)
+		tester.Frame()
+		if hovered := at(row.X-6, row.Y+row.H/2); (p != Mac) == (hovered == rowRest) {
+			t.Fatalf("%v: a row under the pointer is %v, at rest %v; only AppKit's rows do not light up", p, hovered, rowRest)
+		}
+		if err := tester.Click("Notes.md"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if err := tester.ClickWith(ui.Shift, "Photo.heic"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if chosen.Len() != 3 || !chosen.Has(1) || !chosen.Has(2) || !chosen.Has(3) || lead != 3 {
+			t.Fatalf("%v: Shift-click chose %d rows, led by %d; want rows 1 to 3", p, chosen.Len(), lead)
+		}
+		tester.Move(0, 0)
+		tester.Frame()
+		first, _ := tester.Find("Notes.md")
+		middle, _ := tester.Find("Budget.xlsx")
+		last, _ := tester.Find("Talk.key")
+		if at(middle.X-6, middle.Y+middle.H/2) == at(last.X-6, last.Y+last.H/2) {
+			t.Fatalf("%v: the middle row of the choice looks as a row not chosen", p)
+		}
+		if p == Mac {
+			// Where the first and the second row meet, just inside the selection's start: the block's fill, not a rounded corner.
+			list, _ := tester.Find("Files")
+			x, y := list.X+10+1, (first.Y+first.H/2+middle.Y+middle.H/2)/2
+			if got, fill := at(x, y), at(x+20, y); got != fill {
+				t.Fatalf("%v: the chosen rows do not make one block: %v at their seam, %v inside", p, got, fill)
+			}
+		}
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if submitted != 1 {
+			t.Fatalf("%v: Enter was Submitted %d times, want 1", p, submitted)
+		}
+		if err := tester.Click("Two"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if off != 0 {
+			t.Fatalf("%v: a click chose row %d of a disabled list", p, off)
+		}
+	}
+}
+
+// TestListRowsKeepTheirParts checks on every platform that what a row builds inside the platform's row still belongs to the list's row: an editable text in the chosen row is edited with F2, as package ui's rows let it be, and on Windows the chosen row's accent pill moves to the right in a right-to-left layout.
+func TestListRowsKeepTheirParts(t *testing.T) {
+	for _, p := range Platforms {
+		names := []string{"Notes.md", "Budget.xlsx"}
+		sel := 0
+		state := &ui.ListState{Selected: &sel}
+		var theme *ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				theme = c.Theme()
+				List(c, state, len(names), func(i int) { EditableText(c, &names[i]) }).Size(240, 120).Label("Files")
+			})
+		}, 300, 160)
+		tester.SetDirection(ui.RightToLeft)
+		tester.Frame()
+		if err := tester.Click("Budget.xlsx"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if p == Windows {
+			list, _ := tester.Find("Files")
+			row, _ := tester.Find("Budget.xlsx")
+			y := int(row.Y + row.H/2)
+			accent := theme.Accent
+			// The pill is 3 DIPs wide, 4 from the item's start: the right edge in a right-to-left layout.
+			end := tester.Image().RGBAAt(int(list.X+list.W-4-2), y)
+			start := tester.Image().RGBAAt(int(list.X+4+1), y)
+			if end.R != accent.R || end.G != accent.G || end.B != accent.B || (start.R == accent.R && start.G == accent.G && start.B == accent.B) {
+				t.Fatalf("%v: the pill is not at the right of a right-to-left list: end %v, start %v, accent %v", p, end, start, accent)
+			}
+		}
+		tester.Key(0, ui.KeyF2)
+		tester.Frame()
+		tester.Type("Plan")
+		tester.Frame()
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if names[1] != "Plan.xlsx" || names[0] != "Notes.md" {
+			t.Fatalf("%v: F2 in the list renamed the rows %v, want Plan.xlsx for the second", p, names)
+		}
+		if !tester.Focused("Files") {
+			t.Fatalf("%v: the list did not get the focus back after the rename", p)
+		}
+	}
+}
+
 // TestCollectionsKeepTheirBehavior checks the collections of package ui on every platform: a grid item is chosen by a click, an outline opens with Right, an outline table shows its columns, and an editable text is edited with Enter.
 func TestCollectionsKeepTheirBehavior(t *testing.T) {
 	children := func(k string) []string {

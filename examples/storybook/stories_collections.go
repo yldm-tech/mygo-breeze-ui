@@ -37,7 +37,7 @@ func collectionsStories() []*story {
 				disabled(a, breeze.Autocomplete(c, a.text["city"], cities).Placeholder("City").Width(260).Label("City"))
 			},
 			code: func(*args) string {
-				return "breeze.Autocomplete(c, &app.city, []string{\"Amsterdam\", \"Berlin\", \"Bern\", \"Boston\"}).Label(\"City\")"
+				return "cities := []string{\"Amsterdam\", \"Berlin\", \"Bern\", \"Boston\", \"Brussels\", \"Lisbon\"}\nbreeze.Autocomplete(c, &app.city, cities).Placeholder(\"City\").Label(\"City\")"
 			}},
 		{component: "TokenField", name: "Tags", category: "Text",
 			controls: []control{textArg("tags", "Design, Go")},
@@ -48,7 +48,7 @@ func collectionsStories() []*story {
 				}
 			},
 			code: func(*args) string {
-				return "breeze.TokenField(c, &app.tags, []string{\"Design\", \"Go\", \"Swift\"}).Label(\"Tags\")"
+				return "breeze.TokenField(c, &app.tags, []string{\"Design\", \"Go\", \"Swift\", \"Rust\", \"Linux\"}).Label(\"Tags\")"
 			}},
 		{component: "EditableText", name: "Rename", category: "Text",
 			controls: []control{textArg("name", "Notes.md")},
@@ -104,7 +104,7 @@ func collectionsStories() []*story {
 				})
 			},
 			code: func(*args) string {
-				return "app.files.List.Selected = &app.file\nbreeze.Outline(c, &app.files, []string{\"src\", \"docs\"}, app.children, func(path string) {\n\tui.Text(c, filepath.Base(path))\n})"
+				return "app.files.List.Selected = &app.file\nbreeze.Outline(c, &app.files, []string{\"src\", \"docs\", \"go.mod\"}, app.children, func(path string) {\n\tui.Text(c, filepath.Base(path))\n})"
 			}},
 		{component: "OutlineTable", name: "Files", category: "Data",
 			controls: []control{toggleArg("src open", true)},
@@ -126,7 +126,7 @@ func collectionsStories() []*story {
 				})
 			},
 			code: func(*args) string {
-				return "cols := []ui.TableColumn{{Title: \"Name\"}, {Title: \"Kind\", Width: 90}}\nbreeze.OutlineTable(c, &app.files, cols, roots, app.children, func(path string, col int) {\n\tui.Text(c, app.cell(path, col))\n})"
+				return "cols := []ui.TableColumn{{Title: \"Name\"}, {Title: \"Kind\", Width: 80}}\nbreeze.OutlineTable(c, &app.files, cols, roots, app.children, func(path string, col int) {\n\tui.Text(c, app.cell(path, col))\n})"
 			}},
 	}
 }
