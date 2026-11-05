@@ -1,10 +1,10 @@
 # libadwaita's own controls, for comparing Breeze UI's GNOME look with them.
 #
-# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections and TestScreenshotsWave2Forms, Wave2Idioms and Wave2Collections, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
+# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections and TestScreenshotsInputs, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open) and table; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table and inputs; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -525,11 +525,38 @@ def table_set():
     return Scene(520, 500, root, named={"table": table, "outlinetable": outline_table, "outline": outline, "grid": grid, "tree": tree})
 
 
+def inputs_set():
+    """TestScreenshotsInputs's inputsView: GtkPasswordEntrys, empty with a placeholder and holding a password with the focus, an AdwSplitButton, image buttons, the second insensitive, and below them a .toolbar of 520 pixels holding an AdwSplitButton and two image buttons, flat there."""
+    model = Gio.Menu()
+    for item in ["Save As…", "Save All"]:
+        model.append(item, "menu.item")
+    actions = Gio.SimpleActionGroup()
+    actions.add_action(Gio.SimpleAction(name="item"))
+    empty = Gtk.PasswordEntry(placeholder_text="Password")
+    empty.set_size_request(180, -1)
+    secret = Gtk.PasswordEntry(text="hunter2")
+    secret.set_size_request(180, -1)
+    trash = Gtk.Button(icon_name="user-trash-symbolic", sensitive=False)
+    toolbar = Gtk.Box()
+    toolbar.add_css_class("toolbar")
+    toolbar.set_size_request(520, -1)
+    for w in [Adw.SplitButton(label="New", menu_model=model), Gtk.Button(icon_name="send-to-symbolic"), Gtk.Button(icon_name="user-trash-symbolic")]:
+        toolbar.append(w)
+    split = Adw.SplitButton(label="Save", menu_model=model)
+    share = Gtk.Button(icon_name="send-to-symbolic")
+    items = [(empty, 16, 16), (secret, 220, 16), (split, 16, 64), (share, 160, 64), (trash, 220, 64), (toolbar, 0, 110)]
+    scene = fixed(520, 180, items, named={"password": secret, "split": split, "share": share, "toolbar": toolbar})
+    scene.root.insert_action_group("menu", actions)
+    scene.shown = lambda window: secret.grab_focus()
+    return scene
+
+
 SETS = [
     ("first", "adwaita", first_set), ("second", "adwaita2", second_set), ("alert", "adwaita-alert", alert_set), ("third", "adwaita3", third_set),
     ("feedback", "adwaita-feedback", feedback_set), ("layout", "adwaita-layout", layout_set), ("nav", "adwaita-nav", nav_set),
     ("values", "adwaita-values", values_set), ("collections", "adwaita-collections", collections_set), ("forms", "adwaita-forms", forms_set),
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
+    ("inputs", "adwaita-inputs", inputs_set),
 ]
 
 

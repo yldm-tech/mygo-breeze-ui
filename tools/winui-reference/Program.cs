@@ -1,6 +1,6 @@
 // WinUI 3's own controls, for comparing Breeze UI's Windows look with them.
 //
-// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert), and a fifth set of the same controls held in their PointerOver and Pressed visual states, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
+// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert), a fifth set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
 //
 // Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and the flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene. ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
 //
@@ -191,6 +191,33 @@ public sealed class App : Application, IXamlMetadataProvider
             <Slider x:Name="slider-hover" Tag="PointerOver" Canvas.Left="16" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
             <Slider x:Name="slider-pressed" Tag="Pressed" Canvas.Left="220" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
             """), ["button-hover", "button-pressed", "accent-hover", "accent-pressed", "checkbox-off-hover", "checkbox-off-pressed", "checkbox-on-hover", "checkbox-on-pressed", "switch-off-hover", "switch-off-pressed", "switch-on-hover", "switch-on-pressed", "radio-off-pressed", "radio-on-hover", "radio-on-pressed", "slider-hover", "slider-pressed"], HoldStates);
+
+        // inputsView of ui/breeze/widgets_inputs_test.go (TestScreenshotsInputs): two PasswordBoxes, empty with a placeholder and holding a password with its RevealButton showing (ShowRevealButton, as the window never takes the focus that shows it), a SplitButton, Buttons holding a 16-DIP FontIcon, the second disabled, and below them a CommandBar holding a SplitButton of SplitButtonCommandBarStyle and two icon-only AppBarButtons.
+        yield return new Scene("winui-inputs", 520, 180, Canvas(520, 180, """
+            <PasswordBox x:Name="password-empty" Canvas.Left="16" Canvas.Top="16" Width="180" PlaceholderText="Password"/>
+            <PasswordBox x:Name="password" Canvas.Left="220" Canvas.Top="16" Width="180" Password="hunter2"/>
+            <SplitButton x:Name="split-button" Canvas.Left="16" Canvas.Top="64" Content="Save">
+              <SplitButton.Flyout><MenuFlyout><MenuFlyoutItem Text="Save As…"/><MenuFlyoutItem Text="Save All"/></MenuFlyout></SplitButton.Flyout>
+            </SplitButton>
+            <Button x:Name="icon-button" Canvas.Left="160" Canvas.Top="64" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
+            <Button x:Name="icon-button-disabled" Canvas.Left="220" Canvas.Top="64" AutomationProperties.Name="Delete" IsEnabled="False"><FontIcon Glyph="&#xE74D;" FontSize="16"/></Button>
+            <CommandBar x:Name="toolbar" Canvas.Left="0" Canvas.Top="110" Width="520" HorizontalContentAlignment="Left" DefaultLabelPosition="Collapsed" OverflowButtonVisibility="Collapsed" IsDynamicOverflowEnabled="False">
+              <AppBarElementContainer>
+                <SplitButton x:Name="toolbar-split-button" Content="New" Style="{StaticResource SplitButtonCommandBarStyle}">
+                  <SplitButton.Flyout><MenuFlyout><MenuFlyoutItem Text="Save As…"/></MenuFlyout></SplitButton.Flyout>
+                </SplitButton>
+              </AppBarElementContainer>
+              <AppBarButton x:Name="toolbar-share" Label="Share" Icon="Share"/>
+              <AppBarButton x:Name="toolbar-delete" Label="Delete" Icon="Delete"/>
+            </CommandBar>
+            """), ["password-empty", "password", "split-button", "icon-button", "icon-button-disabled", "toolbar", "toolbar-split-button", "toolbar-share", "toolbar-delete"], ShowRevealButton);
+    }
+
+    // ShowRevealButton puts the PasswordBox named password into its ButtonVisible state, which shows its RevealButton: WinUI shows it once text is typed into the focused box, and the scene's window never takes the focus.
+    static async Task ShowRevealButton(FrameworkElement root, ElementTheme theme)
+    {
+        VisualStateManager.GoToState((Control)root.FindName("password"), "ButtonVisible", false);
+        await Task.Delay(500);
     }
 
     // OpenFlyout opens the button's Flyout below it, aligned to its start, as Breeze UI's popover is, to read where WinUI places the FlyoutPresenter, then closes it and puts a FlyoutPresenter with the same content there in the scene, as RenderTargetBitmap does not draw popups and the scene's scale does not reach them.
