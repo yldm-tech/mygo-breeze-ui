@@ -152,7 +152,22 @@ func Popover(c *ui.Context, anchor ui.Element, open *bool, fn func()) ui.Element
 // toggleGroups holds the windows building a ToggleGroup's toggles, which Toggle draws as segments of it, with how many it has built.
 var toggleGroups sync.Map // *ui.Context -> *toggleGroup
 
-type toggleGroup struct{ depth, built int }
+type toggleGroup struct {
+	depth, built int
+	// face is the fill of the toggle built last, over which GNOME's next linked toggle lays its own where the two overlap.
+	face ui.Color
+}
+
+// adwToggleGroupFace returns the fill of the toggle c's ToggleGroup built before the one being built, and records face as the fill of the one being built.
+func adwToggleGroupFace(c *ui.Context, face ui.Color) (prev ui.Color) {
+	v, ok := toggleGroups.Load(c)
+	if !ok {
+		return face
+	}
+	g := v.(*toggleGroup)
+	prev, g.face = g.face, face
+	return prev
+}
 
 // nextInToggleGroup reports whether a toggle being built is in a ToggleGroup, and whether it is the group's first.
 func nextInToggleGroup(c *ui.Context) (grouped, first bool) {

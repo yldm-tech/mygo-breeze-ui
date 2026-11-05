@@ -385,15 +385,15 @@ func fluentWellBorder(p *ui.Painter, r ui.Rect, t *ui.Theme, pressed bool) {
 
 // ---- GNOME ----
 
-// adwStepSlider draws a GtkScale with marks after it (.marks-after): as Slider, a 4-pixel trough of $trough_color filled with the accent, padded 12 but below, where the marks are; the slider a 20-pixel circle whose bottom-right corner is square, turned 45 degrees so it points down at the marks; and the marks, 1-pixel indicators 6 high, 6 below the 20-pixel range, in currentColor at --dim-opacity. The scale stays 44 pixels high: 12 above, 20 of range and 12 of marks.
+// adwStepSlider draws a GtkScale with marks after it (.marks-after): as Slider, a 4-pixel trough of $trough_color filled with the accent, padded 12 but below (padding-bottom 0), where the marks are; the slider a 20-pixel circle whose bottom-right corner is square, turned 45 degrees so it points down at the marks; and the marks, 1-pixel indicators 6 high, 6 below the trough (marks.bottom's margin-top), in currentColor at --dim-opacity, the first and last 2 pixels in from the trough's ends, where the slider's center stops (adwScaleTravel). The scale is 28 pixels high: 12 above, the 4-pixel trough and 12 of marks, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference, where the slider's tip reaches a pixel past its bottom. Disabled, the slider casts no shadow.
 func adwStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 	t := c.Theme()
 	const d = 20
 	hovered, pressed := s.Hovered(), s.Pressed()
-	s.Height(12 + d + 12).PaddingX(12).MinWidth(60).FocusRing(false)
+	s.Height(12 + 4 + 12).PaddingX(12 + adwScaleTravel).MinWidth(60).FocusRing(false)
 	trough := adwTrough(t, false, false)
 	fill := t.Accent
-	knobFill := pick(t.Dark, white, t.Background.Mix(white, 0.8))
+	knobFill := adwSliderFill(t)
 	if hovered || pressed {
 		trough, fill, knobFill = adwTrough(t, true, false), t.AccentHover, white
 	}
@@ -401,25 +401,28 @@ func adwStepSlider(c *ui.Context, s ui.Element, frac float32, ticks []float32) {
 	at := along(c, frac)
 	focused := s.FocusVisible()
 	s.Draw(func(p *ui.Painter, r ui.Rect) {
-		cy := r.Y + 12 + d/2
+		cy := r.Y + 12 + 2
 		left, width := r.X+12, r.W-24
 		for _, f := range ticks {
 			if rtl {
 				f = 1 - f
 			}
-			x := left + f*width
-			p.Fill(ui.Rect{X: x - 0.5, Y: cy + d/2 + 6, W: 1, H: 6}, t.TextMuted, 0)
+			// A mark is drawn from the slider's center at its value to a pixel after it.
+			x := adwScaleSlider(left, width, f)
+			p.Fill(ui.Rect{X: x, Y: cy + 2 + 6, W: 1, H: 6}, t.TextMuted, 0)
 		}
 		p.Fill(ui.Rect{X: left, Y: cy - 2, W: width, H: 4}, trough, 2)
-		x := left + at*width
+		x := adwScaleSlider(left, width, at)
 		bar := ui.Rect{X: left, Y: cy - 2, W: x - left, H: 4}
 		if rtl {
 			bar = ui.Rect{X: x, Y: cy - 2, W: left + width - x, H: 4}
 		}
 		p.Fill(bar, fill, 2)
-		// The shadow 1px 1px 4px, turned with the slider, falls straight down; it is cast by the circle alone.
-		p.Shadow(ui.Rect{X: x - d/2, Y: cy - d/2, W: d, H: d}, d/2, 0, 1.4, 4, 0, ui.RGBA(0, 0, 6, 0.2))
-		p.FillPath(adwMarkedSlider(x, cy, d/2+1), t.Background.Mix(adwInk, 0.1))
+		// The shadow 1px 1px 4px, turned with the slider, falls straight down; it is cast by the circle alone, and not while disabled.
+		if !s.IsDisabled() {
+			p.Shadow(ui.Rect{X: x - d/2, Y: cy - d/2, W: d, H: d}, d/2, 0, 1.4, 4, 0, ui.RGBA(0, 0, 6, 0.2))
+		}
+		p.FillPath(adwMarkedSlider(x, cy, d/2+1), ui.RGBA(0, 0, 6, 0.1))
 		p.FillPath(adwMarkedSlider(x, cy, d/2), knobFill)
 		// _scale.scss: focus-ring("> trough > slider", $offset: 0), a 2-pixel outline right outside the slider's edge, over its hairline, following the square corner as Slider's follows the circle.
 		if focused {
@@ -491,7 +494,7 @@ func adwTimeInput(c *ui.Context, f ui.Element) {
 	f.Padding(0, 7)
 }
 
-// adwColorWell draws a GtkColorDialogButton: a button (button.color) padded 5 around its swatch, 34 pixels high as a button is at least, the swatch as wide as "Black" in the text (about MyGo's 36, inferred) and as high as the button's content, corners of 4.5, with a 1-pixel inner edge of view_fg_color at 10% on a light color (a color whose intensity is above a half, as gtkcolorswatch.c decides). A color that is not opaque is drawn over GTK's checkerboard, as the button's swatch keeps its alpha.
+// adwColorWell draws a GtkColorDialogButton: a button (button.color) padded 5 around its swatch, 34 pixels high as a button is at least, the swatch as wide as "Black" in the text and as high as the button's content, corners of 4.5 (measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference: "Black" is 39 pixels wide in Adwaita Sans 11 and the button 49 by 34), with a 1-pixel inner edge of view_fg_color at 10% on a light color (a color whose intensity is above a half, as gtkcolorswatch.c decides). A color that is not opaque is drawn over GTK's checkerboard, as the button's swatch keeps its alpha.
 func adwColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	t := c.Theme()
 	face := t.Surface
@@ -504,7 +507,8 @@ func adwColorWell(c *ui.Context, b ui.Element, color ui.Color) {
 	light := (0.30*float32(color.R)+0.59*float32(color.G)+0.11*float32(color.B))/255 > 0.5
 	// _color-chooser.scss: an inset 1px of view_fg_color at 10%, which is rgb(0 0 6 / 80%) in light (8% in all) and white in dark.
 	edge := pick(t.Dark, adwInk, white).Alpha(pick(t.Dark, float32(0.08), 0.10))
-	hideWellSwatch(b, 36+10, 34, 9)
+	black, _ := c.MeasureText(0, ui.Span{Text: "Black"})
+	hideWellSwatch(b, float32(math.Ceil(float64(black)))+10, 34, 9)
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		// The face fills the button under the swatch, as GTK paints the button's background behind its child, so no sliver of the window shows between the two corners.
 		p.Fill(r, face, 9)

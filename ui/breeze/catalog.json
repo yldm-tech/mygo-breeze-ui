@@ -15,7 +15,7 @@
     },
     {
       "name": "Linux",
-      "description": "GNOME's libadwaita controls, from the libadwaita 1.10 stylesheet (GTK 4.24, adwaita-icon-theme 51).",
+      "description": "GNOME's libadwaita controls, from the libadwaita 1.10 stylesheet (GTK 4.24, adwaita-icon-theme 51), compared pixel by pixel with libadwaita 1.10.0's own rendering.",
       "value": "GNOME 51",
       "example": "breeze.SetPlatform(breeze.Linux)"
     }
