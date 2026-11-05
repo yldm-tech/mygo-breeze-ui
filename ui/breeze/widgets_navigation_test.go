@@ -77,7 +77,7 @@ func navView(p Platform, s *navState) func(c *ui.Context) {
 	}
 }
 
-// TestNavigationWidgetsKeepTheirBehavior checks on every platform, left to right and right to left, that the restyled sidebar chooses with clicks, the arrows and typing, that its sections open and close, that a path's links choose with a click and Enter while its last item does not, that the history buttons go back and forward and stop at the history's start, and that a toolbar's controls click and take the focus with the arrows.
+// TestNavigationWidgetsKeepTheirBehavior checks on every platform, left to right and right to left, that the restyled sidebar chooses with clicks, the arrows and typing and is one stop of Tab, that its sections open and close, that a path's links choose with a click, Enter and Space while its last item does not, that the history buttons go back and forward, stop at the history's ends and list the pages before on a right click, and that a toolbar's controls click and take the focus with the arrows.
 func TestNavigationWidgetsKeepTheirBehavior(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
@@ -118,6 +118,18 @@ func TestNavigationWidgetsKeepTheirBehavior(t *testing.T) {
 			if s.selected != "inbox" {
 				t.Fatalf("%s: Home chose %q, want inbox", name, s.selected)
 			}
+			tester.Key(0, ui.KeyF)
+			tester.Frame()
+			if s.selected != "flagged" {
+				t.Fatalf("%s: typing F chose %q, want flagged", name, s.selected)
+			}
+			tester.Key(0, ui.KeyHome)
+			tester.Frame()
+			tester.Key(0, ui.KeyTab)
+			tester.Frame()
+			if tester.Focused("Folders") || !tester.Focused("Back") {
+				t.Fatalf("%s: Tab from the sidebar did not go to the toolbar's first control", name)
+			}
 			if err := tester.Click("Mailboxes"); err != nil {
 				t.Fatalf("%s: click the section's title: %v", name, err)
 			}
@@ -150,11 +162,17 @@ func TestNavigationWidgetsKeepTheirBehavior(t *testing.T) {
 			if s.crumb != 1 || s.crumbChanged != 2 {
 				t.Fatalf("%s: Enter on Users chose %d, changed %d", name, s.crumb, s.crumbChanged)
 			}
+			s.crumb = -1
+			tester.Key(0, ui.KeySpace)
+			tester.Frame()
+			if s.crumb != 1 || s.crumbChanged != 3 {
+				t.Fatalf("%s: Space on Users chose %d, changed %d", name, s.crumb, s.crumbChanged)
+			}
 			if err := tester.Click("Ada"); err != nil {
 				t.Fatalf("%s: click Ada: %v", name, err)
 			}
 			tester.Frame()
-			if s.crumb != 1 || s.crumbChanged != 2 {
+			if s.crumb != 1 || s.crumbChanged != 3 {
 				t.Fatalf("%s: a click on the last item chose %d, changed %d", name, s.crumb, s.crumbChanged)
 			}
 
@@ -179,6 +197,27 @@ func TestNavigationWidgetsKeepTheirBehavior(t *testing.T) {
 			tester.Frame()
 			if got := s.router.Path(); got != "/notes/42" {
 				t.Fatalf("%s: Forward went to %q", name, got)
+			}
+			if err := tester.Click("Forward"); err != nil {
+				t.Fatalf("%s: click Forward again: %v", name, err)
+			}
+			tester.Frame()
+			if got := s.router.Path(); got != "/notes/42" {
+				t.Fatalf("%s: Forward at the history's end went to %q", name, got)
+			}
+			if err := tester.RightClick("Back"); err != nil {
+				t.Fatalf("%s: right click Back: %v", name, err)
+			}
+			tester.Frame()
+			if got := tester.Menu(); len(got) != 1 || got[0] != "/notes" {
+				t.Fatalf("%s: Back's menu lists %v, want the page before", name, got)
+			}
+			if err := tester.ChooseMenuItem("/notes"); err != nil {
+				t.Fatalf("%s: choose the page before: %v", name, err)
+			}
+			tester.Frame()
+			if got := s.router.Path(); got != "/notes" {
+				t.Fatalf("%s: Back's menu went to %q", name, got)
 			}
 
 			// The toolbar.
@@ -258,6 +297,246 @@ func TestMacSidebarSelectionFollowsTheFocus(t *testing.T) {
 		tester.Frame()
 		if got := at(); got != gray {
 			t.Fatalf("dark %v: selection in an inactive window %v, want %v", dark, got, gray)
+		}
+	}
+}
+
+// TestNavigationToolbarOverflow checks on every platform that the controls of a toolbar too narrow for them go into its menu, from the last, and that choosing one there clicks it, as in ui.Toolbar.
+func TestNavigationToolbarOverflow(t *testing.T) {
+	for _, p := range Platforms {
+		s := newNavState()
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				ui.Column(c).Width(160).Children(func() {
+					Toolbar(c, func() {
+						BackButton(c, s.router)
+						ForwardButton(c, s.router)
+						Toggle(c, &s.bold, "Bold")
+						if Button(c, "Share").Clicked() {
+							s.shares++
+						}
+					}).Label("Format")
+				})
+			})
+		}, 400, 200)
+		tester.Frame()
+		if !tester.HasText("Back") || !tester.HasText("More") {
+			t.Fatalf("%v: a narrow toolbar shows %v, want Back and its menu", p, tester.Texts())
+		}
+		if err := tester.Click("More"); err != nil {
+			t.Fatalf("%v: click the toolbar's menu: %v", p, err)
+		}
+		tester.Frame()
+		menu := strings.Join(tester.Menu(), ",")
+		if !strings.Contains(menu, "Bold") || !strings.Contains(menu, "Share") || strings.Contains(menu, "Back") {
+			t.Fatalf("%v: the toolbar's menu lists %q, want Bold and Share", p, menu)
+		}
+		if err := tester.ChooseMenuItem("Share"); err != nil {
+			t.Fatalf("%v: choose Share: %v", p, err)
+		}
+		tester.Frame()
+		if s.shares != 1 {
+			t.Fatalf("%v: choosing Share in the menu clicked it %d times", p, s.shares)
+		}
+	}
+}
+
+// TestHistoryButtonsLookTheSameInAToolbar checks on every platform that a back button under the pointer is drawn the same inside a Toolbar as outside one, where package ui's toolbar would give it MyGo's hover fill: on macOS none, as an NSButton does not track the pointer.
+func TestHistoryButtonsLookTheSameInAToolbar(t *testing.T) {
+	for _, p := range Platforms {
+		var seen [2][2]ui.Color
+		for i, inBar := range []bool{false, true} {
+			s := newNavState()
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Fill().Children(func() {
+						if inBar {
+							Toolbar(c, func() { BackButton(c, s.router) })
+						} else {
+							ui.Row(c).Children(func() { BackButton(c, s.router) })
+						}
+					})
+				})
+			}, 200, 100)
+			tester.Frame()
+			r, ok := tester.Find("Back")
+			if !ok {
+				t.Fatalf("%v: Back is missing", p)
+			}
+			at := func() ui.Color {
+				px := tester.Image().RGBAAt(int(r.X+4), int(r.Y+r.H/2))
+				return ui.RGB(px.R, px.G, px.B)
+			}
+			seen[i][0] = at()
+			tester.Move(r.X+r.W/2, r.Y+r.H/2)
+			tester.Frame()
+			seen[i][1] = at()
+		}
+		if seen[0] != seen[1] {
+			t.Fatalf("%v: a back button outside a toolbar is %v and %v under the pointer, inside one %v and %v", p, seen[0][0], seen[0][1], seen[1][0], seen[1][1])
+		}
+		if p == Mac && seen[1][0] != seen[1][1] {
+			t.Fatalf("macOS: a back button changes under the pointer, from %v to %v", seen[1][0], seen[1][1])
+		}
+		if p != Mac && seen[1][0] == seen[1][1] {
+			t.Fatalf("%v: a back button does not change under the pointer", p)
+		}
+	}
+}
+
+// TestFluentSidebarSelectionIndicator checks that on Windows the chosen item of a sidebar has its accent pill at its start, at the left left to right and at the right right to left, and that the items not chosen have none.
+func TestFluentSidebarSelectionIndicator(t *testing.T) {
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		for _, dark := range []bool{false, true} {
+			s := newNavState()
+			var accent ui.Color
+			view := navView(Windows, s)
+			tester := ui.NewTester(func(c *ui.Context) {
+				view(c)
+				Preview(c, Windows, func() { accent = Theme(c, Windows).Accent })
+			}, 800, 420)
+			tester.SetDark(dark)
+			tester.SetDirection(dir)
+			tester.Frame()
+			sidebar, _ := tester.Find("Folders")
+			// pill reports whether the row of an item's text has the accent between the text and the sidebar's edge on its start side.
+			pill := func(text string) bool {
+				r, ok := tester.Find(text)
+				if !ok {
+					t.Fatalf("%q is missing", text)
+				}
+				img, y := tester.Image(), int(r.Y+r.H/2)
+				from, to := int(sidebar.X), int(r.X)
+				if dir == ui.RightToLeft {
+					from, to = int(r.X+r.W), int(sidebar.X+sidebar.W)
+				}
+				for x := from; x < to; x++ {
+					px := img.RGBAAt(x, y)
+					if ui.RGB(px.R, px.G, px.B) == accent {
+						return true
+					}
+				}
+				return false
+			}
+			if !pill("Inbox") {
+				t.Fatalf("dir %v, dark %v: the chosen item has no accent pill at its start", dir, dark)
+			}
+			if pill("Sent") {
+				t.Fatalf("dir %v, dark %v: an item not chosen has an accent pill", dir, dark)
+			}
+		}
+	}
+}
+
+// TestSidebarItemColors checks the fill of the chosen item on Windows (SubtleFillColorSecondary) and GNOME (currentColor at 10% over sidebar_bg_color), and that on Windows an item not chosen takes SubtleFillColorTertiary while pressed, as NavigationViewItemBackgroundPressed.
+func TestSidebarItemColors(t *testing.T) {
+	for _, p := range []Platform{Windows, Linux} {
+		for _, dark := range []bool{false, true} {
+			s := newNavState()
+			var th *ui.Theme
+			view := navView(p, s)
+			tester := ui.NewTester(func(c *ui.Context) {
+				view(c)
+				Preview(c, p, func() { th = Theme(c, p) })
+			}, 800, 420)
+			tester.SetDark(dark)
+			tester.Frame()
+			// fill is the color just after an item's text, inside the item, away from the badge.
+			fill := func(text string) ui.Color {
+				r, ok := tester.Find(text)
+				if !ok {
+					t.Fatalf("%q is missing", text)
+				}
+				px := tester.Image().RGBAAt(int(r.X-2), int(r.Y+r.H/2))
+				return ui.RGB(px.R, px.G, px.B)
+			}
+			want := adwInkAlpha(th, adwSidebarBg(th), 0.10)
+			if p == Windows {
+				want, _ = fluentSubtle(th)
+			}
+			if got := fill("Inbox"); got != want {
+				t.Fatalf("%v dark %v: the chosen item is %v, want %v", p, dark, got, want)
+			}
+			if p != Windows {
+				continue
+			}
+			r, _ := tester.Find("Sent")
+			tester.Press(r.X+r.W/2, r.Y+r.H/2)
+			tester.Frame()
+			_, pressed := fluentSubtle(th)
+			if got := fill("Sent"); got != pressed {
+				t.Fatalf("Windows dark %v: a pressed item is %v, want %v", dark, got, pressed)
+			}
+			tester.Release(r.X+r.W/2, r.Y+r.H/2)
+			tester.Frame()
+		}
+	}
+}
+
+// TestSidebarsSideBySideKeepTheirOwnFocus checks that of two sidebars in one window, as the platforms side by side in a gallery, only the one with the focus draws its chosen item in the accent color on macOS.
+func TestSidebarsSideBySideKeepTheirOwnFocus(t *testing.T) {
+	left, right := "a", "b"
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Mac, func() {
+			Use(c)
+			ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
+				Sidebar(c, &left, func() {
+					SidebarItem(c, "a", nil, "Left A")
+					SidebarItem(c, "b", nil, "Left B")
+				}).Width(200).Label("Left")
+				Sidebar(c, &right, func() {
+					SidebarItem(c, "a", nil, "Right A")
+					SidebarItem(c, "b", nil, "Right B")
+				}).Width(200).Label("Right")
+			})
+		})
+	}, 400, 200)
+	tester.Frame()
+	if err := tester.Click("Left A"); err != nil {
+		t.Fatal(err)
+	}
+	tester.Move(390, 190)
+	tester.Frame()
+	at := func(text string) ui.Color {
+		r, _ := tester.Find(text)
+		px := tester.Image().RGBAAt(int(r.X-3), int(r.Y+r.H/2))
+		return ui.RGB(px.R, px.G, px.B)
+	}
+	if got := at("Left A"); got != ui.Hex("#0070f5") {
+		t.Fatalf("the focused sidebar's chosen item is %v, want the accent", got)
+	}
+	if got := at("Right B"); got != ui.Hex("#dcdcdc") {
+		t.Fatalf("the other sidebar's chosen item is %v, want gray", got)
+	}
+}
+
+// TestNavigationWidgetsTakeEmptyInput checks on every platform that a path of no items or of an empty one, items and sections outside a Sidebar, an empty title and an empty sidebar build without panicking.
+func TestNavigationWidgetsTakeEmptyInput(t *testing.T) {
+	for _, p := range Platforms {
+		chosen, selected := -1, ""
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				Use(c)
+				Breadcrumbs(c, nil, &chosen)
+				Breadcrumbs(c, []string{""}, &chosen)
+				Breadcrumbs(c, []string{"Only"}, &chosen)
+				SidebarItem(c, "loose", nil, "Loose")
+				SidebarSection(c, "", nil, func() { SidebarItem(c, "in", nil, "In") })
+				Sidebar(c, &selected, func() {}).Width(100)
+			})
+		}, 400, 300)
+		tester.Frame()
+		if !tester.HasText("Only") || !tester.HasText("Loose") || !tester.HasText("In") {
+			t.Fatalf("%v: shows %v", p, tester.Texts())
+		}
+		if err := tester.Click("Only"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if chosen != -1 {
+			t.Fatalf("%v: a click on a path's only item chose %d", p, chosen)
 		}
 	}
 }

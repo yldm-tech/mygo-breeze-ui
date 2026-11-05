@@ -68,8 +68,12 @@ func navigationStories() []*story {
 					})
 				}).Size(240, 300).Label("Mailboxes")
 			},
-			code: func(*args) string {
-				return "breeze.Sidebar(c, &app.mailbox, func() {\n\tbreeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\t\tbreeze.SidebarItem(c, \"Inbox\", trayIcon, \"Inbox\").Children(func() {\n\t\t\tbreeze.Badge(c, \"12\")\n\t\t})\n\t\tbreeze.SidebarItem(c, \"Sent\", folderIcon, \"Sent\")\n\t\tbreeze.SidebarItem(c, \"Drafts\", folderIcon, \"Drafts\")\n\t})\n\tbreeze.SidebarSection(c, \"Smart Mailboxes\", nil, func() {\n\t\tbreeze.SidebarItem(c, \"Flagged\", folderIcon, \"Flagged\")\n\t})\n}).Width(240).Label(\"Mailboxes\")"
+			code: func(a *args) string {
+				tray, folder := "trayIcon", "folderIcon"
+				if !*a.on["icons"] {
+					tray, folder = "nil", "nil"
+				}
+				return "breeze.Sidebar(c, &app.mailbox, func() {\n\tbreeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\t\tbreeze.SidebarItem(c, \"Inbox\", " + tray + ", \"Inbox\").Children(func() {\n\t\t\tbreeze.Badge(c, \"12\")\n\t\t})\n\t\tbreeze.SidebarItem(c, \"Sent\", " + folder + ", \"Sent\")\n\t\tbreeze.SidebarItem(c, \"Drafts\", " + folder + ", \"Drafts\")\n\t})\n\tbreeze.SidebarSection(c, \"Smart Mailboxes\", nil, func() {\n\t\tbreeze.SidebarItem(c, \"Flagged\", " + folder + ", \"Flagged\")\n\t})\n}).Width(240).Label(\"Mailboxes\")"
 			}},
 		{component: "SidebarSection", name: "Collapsible", category: "Navigation",
 			controls: []control{textArg("title", "Favorites"), toggleArg("open", true), choiceArg("selected", "Desktop", "Desktop", "Documents")},
@@ -85,24 +89,23 @@ func navigationStories() []*story {
 				return "breeze.SidebarSection(c, " + q(*a.text["title"]) + ", &app.favorites, func() {\n\tbreeze.SidebarItem(c, \"Desktop\", folderIcon, \"Desktop\")\n\tbreeze.SidebarItem(c, \"Documents\", folderIcon, \"Documents\")\n})"
 			}},
 		{component: "SidebarItem", name: "With badge", category: "Navigation",
-			controls: []control{textArg("label", "Inbox"), textArg("badge", "12"), toggleArg("chosen", true)},
+			controls: []control{textArg("label", "Inbox"), textArg("badge", "12"), choiceArg("selected", "inbox", "inbox", "archive")},
 			render: func(c *ui.Context, a *args) {
-				selected := ""
-				if *a.on["chosen"] {
-					selected = "item"
-				}
-				breeze.Sidebar(c, &selected, func() {
-					breeze.SidebarItem(c, "item", navigationTrayIcon, *a.text["label"]).Children(func() {
+				breeze.Sidebar(c, a.text["selected"], func() {
+					breeze.SidebarItem(c, "inbox", navigationTrayIcon, *a.text["label"]).Children(func() {
 						if b := *a.text["badge"]; b != "" {
 							breeze.Badge(c, b)
 						}
 					})
-					breeze.SidebarItem(c, "other", navigationFolderIcon, "Archive")
+					breeze.SidebarItem(c, "archive", navigationFolderIcon, "Archive")
 				}).Size(240, 120).Label("Mailboxes")
-				*a.on["chosen"] = selected == "item"
 			},
 			code: func(a *args) string {
-				return "breeze.SidebarItem(c, \"inbox\", trayIcon, " + q(*a.text["label"]) + ").Children(func() {\n\tbreeze.Badge(c, " + q(*a.text["badge"]) + ")\n})"
+				code := "breeze.SidebarItem(c, \"inbox\", trayIcon, " + q(*a.text["label"]) + ")"
+				if b := *a.text["badge"]; b != "" {
+					code += ".Children(func() {\n\tbreeze.Badge(c, " + q(b) + ")\n})"
+				}
+				return code
 			}},
 		{component: "Breadcrumbs", name: "Path", category: "Navigation",
 			controls: []control{textArg("path", "Macintosh HD/Users/ada/Documents"), textArg("opened", "")},
@@ -118,8 +121,12 @@ func navigationStories() []*story {
 					}
 				})
 			},
-			code: func(*args) string {
-				return "path := []string{\"Macintosh HD\", \"Users\", \"ada\", \"Documents\"}\nif breeze.Breadcrumbs(c, path, &app.chosen).Label(\"Path\").Changed() {\n\tapp.open(path[:app.chosen+1])\n}"
+			code: func(a *args) string {
+				items := strings.Split(*a.text["path"], "/")
+				for i, it := range items {
+					items[i] = q(it)
+				}
+				return "path := []string{" + strings.Join(items, ", ") + "}\nif breeze.Breadcrumbs(c, path, &app.chosen).Label(\"Path\").Changed() {\n\tapp.open(path[:app.chosen+1])\n}"
 			}},
 		{component: "BackButton", name: "History", category: "Navigation",
 			controls: []control{textArg("page", "/notes/7")},

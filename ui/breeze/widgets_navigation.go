@@ -18,8 +18,8 @@ type navSidebar struct {
 	built    int
 }
 
-// currentSidebar returns the Sidebar being built in c's window, or nil outside one.
-func currentSidebar(c *ui.Context) *navSidebar {
+// navCurrentSidebar returns the Sidebar being built in c's window, or nil outside one.
+func navCurrentSidebar(c *ui.Context) *navSidebar {
 	if v, ok := navSidebars.Load(c); ok {
 		return v.(*navSidebar)
 	}
@@ -89,7 +89,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 		head.TextMuted = tint(macSidebarBg(t), t.Dark, pick(t.Dark, float32(0.259), 0.247))
 		top = 13
 	}
-	st := currentSidebar(c)
+	st := navCurrentSidebar(c)
 	wrap := ui.Themed(c, &head).Background(ui.Transparent)
 	if st != nil {
 		if st.built > 0 {
@@ -117,7 +117,7 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
-	st := currentSidebar(c)
+	st := navCurrentSidebar(c)
 	chosen, focused := false, false
 	if st != nil {
 		chosen, focused = *st.selected == id, st.focused
@@ -142,6 +142,10 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 	ui.Themed(c, &row).Background(ui.Transparent).Children(func() { item = ui.SidebarItem(c, id, icon, label) })
 	switch p {
 	case Windows:
+		if !chosen && item.Pressed() {
+			// NavigationViewItemBackgroundPressed is SubtleFillColorTertiary. MyGo paints an item that is not chosen in the SurfaceHover of the theme around it as it paints, so the theme takes that color now.
+			_, row.SurfaceHover = fluentSubtle(t)
+		}
 		fluentSidebarItem(c, item, chosen, icon != nil)
 	case Linux:
 		adwSidebarItem(c, item, chosen)
@@ -332,7 +336,7 @@ func navCrumbSeparator(c *ui.Context, p Platform) {
 	sep := ui.Box(c).Shrink(0).Role(ui.RoleNone)
 	color, width := t.TextMuted, float32(1.2)
 	if p == Windows {
-		// The chevron (U+E76C) of Segoe Fluent Icons, BreadcrumbBarChevronFontSize 12 with BreadcrumbBarChevronPadding 2,0, in TextFillColorPrimary.
+		// The chevron of Segoe Fluent Icons, BreadcrumbBarChevronLeftToRight U+E974 (U+E973 right to left, mirrored here), BreadcrumbBarChevronFontSize 12 with BreadcrumbBarChevronPadding 2,0, in TextFillColorPrimary.
 		sep.Size(12, 12).MarginX(2)
 		color, width = t.Text, 1
 	} else {
@@ -396,7 +400,8 @@ func navHistoryButton(c *ui.Context, b ui.Element) ui.Element {
 		b.Size(34, 34).Padding(0).Radius(9).Border(0, ui.Color{}).Background(face)
 	default:
 		// An NSButton of bezel style toolbar with an image, as AppKit renders it on macOS 27 outside a window's toolbar: 22 by 23 points, the bezel a point inside, corners of 4 and a 1-point line of black (Aqua) or white (Dark Aqua) at 5%, filled at 10% while pressed, measured.
-		face, edge := ui.Transparent, tint(t.Background, t.Dark, 0.051)
+		// The clear face is white at 0% rather than ui.Transparent, which MyGo's Toolbar takes for a face of its own and fills under the pointer: an NSButton does not track the pointer, so the bezel stays as it is until pressed (inferred).
+		face, edge := white.Alpha(0), tint(t.Background, t.Dark, 0.051)
 		if b.Pressed() {
 			face = tint(t.Background, t.Dark, 0.102)
 			edge = face
