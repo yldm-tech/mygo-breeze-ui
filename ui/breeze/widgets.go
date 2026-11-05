@@ -406,15 +406,46 @@ func AlertDialog(c *ui.Context, open *bool, title, message string, buttons ...st
 	return chosen
 }
 
-// Table creates a table of n rows in columns, whose cells cell builds. It is package ui's.
+// Table creates a table of n rows in columns, whose cells cell builds, as package ui's Table does, its rows drawn as the platform draws them: an inset NSTableView's rounded selection, accent while the table has the focus and gray otherwise (macOS); ListView's items, with their backplate and the accent pill on the chosen one, as WinUI 3 has no table (Windows); a GtkColumnView's rows with the accent-tinted row (GNOME). The choice, the sort, the columns' widths and order, the keys, the focus and accessibility are MyGo's, as are the header, in the platform's theme, the cells' padding and the rows' least height of Space(8). A table choosing cells (ListState.CellSelect) keeps MyGo's cells in the platform's theme, and so does the room a row leaves after its last column when every column is narrower than the table. It is ui.Table's counterpart.
 func Table(c *ui.Context, s *ui.ListState, columns []ui.TableColumn, n int, cell func(row, col int)) ui.Element {
-	return ui.Table(c, s, columns, n, cell)
+	p := PlatformOf(c)
+	if s != nil && s.CellSelect {
+		tb := ui.Table(c, s, columns, n, cell)
+		collStyleTable(p, tb, collBg(p, c.Theme()))
+		return tb
+	}
+	rows := collNewRows(c, p, s)
+	tb := ui.Table(c, s, columns, n, func(row, col int) {
+		rows.cell(c, row, col, columns[col].Align, 0, false, false, func() { cell(row, col) })
+	})
+	collStyleTable(p, tb, rows.bg)
+	return tb
 }
 
-// Tree creates a tree of the items fn builds with TreeItem. It is package ui's.
-func Tree(c *ui.Context, fn func()) ui.Element { return ui.Tree(c, fn) }
+// Tree creates a tree of the items fn builds with TreeItem, as package ui's Tree does, drawn as the platform draws a tree's rows: an inset NSOutlineView's, its selection accent while the tree has the focus and gray otherwise (macOS), TreeView's items with their backplate (Windows), or a GtkListView's rows in a view's background (GNOME). The items are built in a theme of the platform's row colors, which MyGo's TreeItem takes as its caller marks it Selected; the keys, the focus and accessibility are MyGo's. It is ui.Tree's counterpart.
+func Tree(c *ui.Context, fn func()) ui.Element {
+	p := PlatformOf(c)
+	t := c.Theme()
+	th := *t
+	tree := ui.Tree(c, func() {
+		items := ui.Themed(c, &th).Background(ui.Transparent).Role(ui.RoleNone)
+		// The focus of the frame before, as the column holding the items has it before they build.
+		collTreeTheme(p, t, &th, items.FocusWithin())
+		// Themed took the text's color from th before collTreeTheme set it.
+		items.TextColor(th.Text)
+		items.Children(fn)
+	})
+	if p == Linux {
+		tree.Background(adwListViewBg(t))
+	}
+	return tree
+}
 
-// TreeItem creates an item of a Tree, open while *open, with the items children builds. It is package ui's.
+// TreeItem creates an item of a Tree, open while *open, with the items children builds, as package ui's TreeItem does, at the platform's height, insets, corners and indentation of its rows (collTreeItem): Selected shows it chosen in the platform's colors inside this package's Tree. MyGo's disclosure arrow stays, and WinUI's accent pill on the chosen item is not drawn. It is ui.TreeItem's counterpart.
 func TreeItem(c *ui.Context, label string, open *bool, children func()) ui.Element {
-	return ui.TreeItem(c, label, open, children)
+	p := PlatformOf(c)
+	depth := collTreeDepth(c)
+	item := ui.TreeItem(c, label, open, collTreeChildren(c, children))
+	collTreeItem(c, p, item, depth, label)
+	return item
 }

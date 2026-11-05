@@ -4,7 +4,7 @@ import "github.com/egoist/mygo/ui"
 
 // Collections: lists, grids, outlines and the fields that hold several values or edit a value in place.
 //
-// MyGo builds a List's row inside an element of its own, which it fills with the theme's accent while the row is chosen; the row builder runs inside it. Breeze UI's List covers that element with a cell of its own, in the list's background, and draws the platform's chosen and hovered row in it: AppKit's inset table view, WinUI's ListViewItem and libadwaita's GtkListView row. The choice, the keys, the focus and accessibility stay MyGo's. MyGo's other collections (GridView, Outline, OutlineTable) build their rows' and cells' frames around the content, out of reach of a cover, so they are package ui's in the platform's theme.
+// MyGo builds a List's row inside an element of its own, which it fills with the theme's accent while the row is chosen; the row builder runs inside it. Breeze UI's List covers that element with a cell of its own, in the list's background, and draws the platform's chosen and hovered row in it: AppKit's inset table view, WinUI's ListViewItem and libadwaita's GtkListView row. The choice, the keys, the focus and accessibility stay MyGo's. MyGo's other collections (GridView, Outline, Table, OutlineTable) build their cells' and rows' frames around the content, but MyGo does not clip what an element draws to its box, so a cover built inside a cell or a row paints over the frame, the fill and the arrow before it, and draws the platform's there too (drawn_collections.go); only MyGo's layout, the paddings, gaps, arrow boxes and least row heights, stays as it is.
 
 // List creates a scrolling list of n rows, as the platform's table view (macOS), list view (Windows) or list view (GNOME) looks: row builds row i inside the platform's row, which shows the platform's chosen and hovered row while ListState's Selected or Selection lets the user choose rows. It builds only the rows in view, as ui.List does, and keeps its keys, its choice and its accessibility. Without row, configure ItemKey and Selection and build the rows with Rows, as with ui.List: those rows are MyGo's, in the platform's theme, inside the platform's list. It is ui.List's counterpart.
 func List(c *ui.Context, s *ui.ListState, n int, row ...func(int)) ui.Element {
@@ -151,26 +151,81 @@ func adwListRow(c *ui.Context, cell ui.Element, r ui.ListRow, hovers bool) {
 	}
 }
 
-// ---- package ui's collections, in the platform's theme (Use) ----
+// ---- package ui's collections, drawn over MyGo's cells and rows ----
 
-// GridView creates a scrolling grid of n items at least minWidth wide and height high, built with item(i) only as they show, as package ui's GridView does: the items chosen, their frames and the keys are MyGo's, in the platform's theme. MyGo builds each item's frame around what item builds, so Breeze UI cannot draw NSCollectionView's, GridView's or GtkGridView's cells there. It is ui.GridView's counterpart.
+// GridView creates a scrolling grid of n items at least minWidth wide and height high, built with item(i) only as they show, as package ui's GridView does, each inside the platform's item: Windows 11's GridViewItem with its accent border, GNOME's GtkGridView child with its accent-tinted fill, and on macOS, where NSCollectionView draws no selection of its own, an inset table's rounded selection (inferred). The choice, the keys, the keyboard cursor, the focus and accessibility are MyGo's, as are the gap between items and their size. A grid choosing several items (GridState.Selection) shows them all chosen when its keys are ints (the items' indexes without a Key) or strings, and otherwise only the item last chosen. It is ui.GridView's counterpart.
 func GridView(c *ui.Context, s *ui.GridState, n int, minWidth, height float32, item func(i int)) ui.Element {
-	return ui.GridView(c, s, n, minWidth, height, item)
+	p := PlatformOf(c)
+	t := c.Theme()
+	bg := collBg(p, t)
+	focused := s != nil && s.FocusWithin(c)
+	g := ui.GridView(c, s, n, minWidth, height, func(i int) {
+		// MyGo's cell has a 2-DIP border inside its edge, which the cover reaches over.
+		cover := ui.Column(c).Grow(1).Margin(-2).Role(ui.RoleNone)
+		chosen := collGridChosen(s, i)
+		hovered := s != nil && s.Selected != nil && cover.Hovered()
+		collGridCell(p, t, cover, bg, chosen, hovered, focused)
+		cover.Children(func() { item(i) })
+	})
+	return g.Background(bg)
 }
 
-// Outline creates a list of items in a tree, roots at the top and below each item open its children, which children returns, nil for an item without any; row builds an item's content after its arrow. The arrows, the indentation and the chosen row are MyGo's, in the platform's theme: MyGo builds them around what row builds, out of reach of NSOutlineView's, TreeView's or GtkTreeExpander's look. It is ui.Outline's counterpart.
+// Outline creates a list of items in a tree, roots at the top and below each item open its children, which children returns, nil for an item without any; row builds an item's content after its disclosure chevron. Its rows are drawn as the platform draws a tree's: an inset NSOutlineView's rows with their rounded selection, accent while the outline has the focus and gray otherwise, and its turning chevron (macOS), TreeView's items with their backplate and the accent pill on the chosen one (Windows), or a GtkListView's rows with a GtkTreeExpander's pan icons and the accent-tinted row (GNOME). The chevron is drawn in MyGo's arrow box, which a click opens and closes; the choice, the keys, the focus and accessibility are MyGo's, as are the rows' padding and gaps. An Indent of zero in s becomes the platform's: 13 points on macOS, 16 DIPs on Windows and 20 pixels on GNOME. It is ui.Outline's counterpart.
 func Outline[K comparable](c *ui.Context, s *ui.OutlineState[K], roots []K, children func(K) []K, row func(item K)) ui.Element {
-	return ui.Outline(c, s, roots, children, row)
+	p := PlatformOf(c)
+	if s.Indent == 0 {
+		s.Indent = collIndent(p)
+	}
+	at := collOutlineIndex(s)
+	rows := collNewRows(c, p, &s.List)
+	o := ui.Outline(c, s, roots, children, func(item K) {
+		i := at(item)
+		rows.outlineRow(c, i, s.Depth(i), s.Indent, children(item) != nil, s.Open.Has(item), func() { row(item) })
+	})
+	collStyleOutline(p, o, rows.bg)
+	return o
 }
 
-// OutlineTable creates an outline whose rows are a Table's: the first of columns shows the items' arrows, indented as they are deep, before what cell builds. It is package ui's, in the platform's theme, as Table and Outline are. It is ui.OutlineTable's counterpart.
+// OutlineTable creates an outline whose rows are a Table's: the first of columns shows the items' disclosure chevrons, indented as they are deep, before what cell builds. Its rows are drawn as Table draws them, its chevrons as Outline does, and an Indent of zero in s becomes the platform's, as in Outline; the header is MyGo's, in the platform's theme. It is ui.OutlineTable's counterpart.
 func OutlineTable[K comparable](c *ui.Context, s *ui.OutlineState[K], columns []ui.TableColumn, roots []K, children func(K) []K, cell func(item K, col int)) ui.Element {
-	return ui.OutlineTable(c, s, columns, roots, children, cell)
+	p := PlatformOf(c)
+	if s.Indent == 0 {
+		s.Indent = collIndent(p)
+	}
+	t := c.Theme()
+	if s.List.CellSelect {
+		tb := ui.OutlineTable(c, s, columns, roots, children, cell)
+		collStyleTable(p, tb, collBg(p, t))
+		return tb
+	}
+	at := collOutlineIndex(s)
+	rows := collNewRows(c, p, &s.List)
+	tb := ui.OutlineTable(c, s, columns, roots, children, func(item K, col int) {
+		i := at(item)
+		build := func() { cell(item, col) }
+		if col != 0 {
+			rows.cell(c, i, col, columns[col].Align, 0, false, false, build)
+			return
+		}
+		// MyGo's first cell holds the indentation (only below the top) and the Space(4) arrow box before the content.
+		lead := t.Space(4)
+		if d := s.Depth(i); d > 0 {
+			lead += float32(d) * s.Indent
+		}
+		rows.cell(c, i, 0, columns[0].Align, lead, children(item) != nil, s.Open.Has(item), build)
+	})
+	collStyleTable(p, tb, rows.bg)
+	return tb
 }
 
-// EditableText shows *value as text that a double click, or Enter while it has the focus, turns into a text input editing it, as a file's name in Finder; Enter keeps what was typed and Escape goes back. It is package ui's, in the platform's theme: the input appears inside it as it is edited, out of reach of a style applied to what it returns. It is ui.EditableText's counterpart.
+// EditableText shows *value as text that a double click, or Enter while it has the focus, turns into a text input editing it, as a file's name in Finder; Enter keeps what was typed and Escape goes back. While it is edited, the accent border MyGo draws around the input is covered, and the platform's frame drawn there: AppKit's focus ring, a focused WinUI TextBox's edge and accent line, and nothing around GTK's editable label. The input itself, its fill, caret and keys, are MyGo's. It is ui.EditableText's counterpart.
 func EditableText(c *ui.Context, value *string) ui.Element {
-	return ui.EditableText(c, value)
+	b := ui.EditableText(c, value)
+	// Outside a list's row the text takes the focus itself; while it is edited the input inside it has it.
+	if b.FocusWithin() && !b.Focused() {
+		collEditFrame(PlatformOf(c), c.Theme(), b)
+	}
+	return b
 }
 
 // ---- fields of package ui, in the platform's text field box ----

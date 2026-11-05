@@ -157,8 +157,8 @@
     {
       "name": "EditableText",
       "category": "text",
-      "look": "themed",
-      "description": "A text edited in place, as a file's name in Finder: package ui's, in the platform's theme. The input it shows while editing is built inside it, out of reach of a style applied to what it returns.",
+      "look": "drawn",
+      "description": "A text edited in place, as a file's name in Finder: package ui's, with MyGo's accent border around the input covered while it is edited and the platform's frame drawn there: AppKit's focus ring, a focused WinUI TextBox's edge and accent line, nothing around GTK's editable label. The input's fill and caret are MyGo's.",
       "example": "if breeze.EditableText(c, &app.name).Changed() {\n\tapp.rename()\n}"
     },
     {
@@ -199,8 +199,8 @@
     {
       "name": "GridView",
       "category": "data",
-      "look": "themed",
-      "description": "A scrolling grid of items built as they show: package ui's, in the platform's theme. MyGo builds each item's frame around its content, so the cells of NSCollectionView, GridView and GtkGridView are not drawn.",
+      "look": "drawn",
+      "description": "A scrolling grid of items built as they show, each drawn as the platform draws its own: Windows 11's GridViewItem with its 2-DIP accent border, GNOME's GtkGridView child with its accent-tinted fill, and on macOS, where NSCollectionView draws no selection, an inset table's rounded selection (inferred). The choice, the keys and accessibility are MyGo's, as are the items' gap and size.",
       "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
     },
     {
@@ -248,15 +248,15 @@
     {
       "name": "Outline",
       "category": "data",
-      "look": "themed",
-      "description": "A list of items in a tree, built as they show: package ui's, in the platform's theme. MyGo builds the arrows and the chosen row around the content, out of reach of NSOutlineView's, TreeView's or GtkTreeExpander's look.",
+      "look": "drawn",
+      "description": "A list of items in a tree, built as they show: macOS's inset NSOutlineView with its rounded selection and turning chevron, Windows 11's TreeView with its backplate and accent pill, or GNOME's GtkListView rows with a GtkTreeExpander's pan icons. The chevron is drawn in MyGo's arrow box; the choice, the keys and accessibility are MyGo's, as are the rows' padding and gaps.",
       "example": "breeze.Outline(c, &app.files, roots, children, func(path string) {\n\tui.Text(c, path)\n})"
     },
     {
       "name": "OutlineTable",
       "category": "data",
-      "look": "themed",
-      "description": "An outline whose rows are a table's, the arrows in its first column: package ui's, in the platform's theme, as Table and Outline are.",
+      "look": "drawn",
+      "description": "An outline whose rows are a table's, its chevrons in the first column: its rows drawn as Table draws them and its chevrons as Outline does. The header is MyGo's, in the platform's theme.",
       "example": "breeze.OutlineTable(c, &app.files, columns, roots, children, func(path string, col int) {\n\tui.Text(c, path)\n})"
     },
     {
@@ -423,8 +423,8 @@
     {
       "name": "Table",
       "category": "data",
-      "look": "themed",
-      "description": "A table of rows and columns: package ui's, in the platform's theme. MyGo has no table base to draw the platform's rows on.",
+      "look": "drawn",
+      "description": "A table of rows and columns whose rows are drawn as the platform draws them: macOS's inset NSTableView with its rounded selection, Windows 11's ListView items with their backplate and accent pill, or GNOME's GtkColumnView with the accent-tinted row. The choice, the sort, the columns and accessibility are MyGo's, as are the header, the cells' padding and the rows' least height.",
       "example": "breeze.Table(c, &app.list, columns, len(app.rows), func(row, col int) {\n\tui.Text(c, app.rows[row][col])\n})"
     },
     {
@@ -500,15 +500,15 @@
     {
       "name": "Tree",
       "category": "data",
-      "look": "themed",
-      "description": "A tree of items that open and close: package ui's, in the platform's theme. MyGo has no tree base to draw the platform's rows on.",
+      "look": "drawn",
+      "description": "A tree of items that open and close, its rows drawn as the platform draws a tree's: an inset NSOutlineView's rounded selection, Windows 11's TreeView backplate, or GNOME's GtkListView rows. MyGo's TreeItem takes the platform's row colors from a theme the tree builds its items in; the keys and accessibility are MyGo's.",
       "example": "breeze.Tree(c, func() {\n\tbreeze.TreeItem(c, \"Folder\", &app.open, func() {})\n})"
     },
     {
       "name": "TreeItem",
       "category": "data",
-      "look": "themed",
-      "description": "An item of a Tree: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "An item of a Tree, at the platform's row height, insets, corners and indentation. MyGo's disclosure arrow stays, and WinUI's accent pill on the chosen item is not drawn.",
       "example": "breeze.TreeItem(c, \"Folder\", &app.open, func() {\n\tbreeze.TreeItem(c, \"File\", nil, nil)\n})"
     }
   ]
