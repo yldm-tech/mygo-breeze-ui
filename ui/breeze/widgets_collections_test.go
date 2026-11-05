@@ -64,7 +64,7 @@ func TestListKeepsItsBehavior(t *testing.T) {
 	}
 }
 
-// TestListDrawsThePlatformsRows checks that the row MyGo fills with the accent is covered by the platform's row: on Windows and GNOME the chosen row's text keeps the text color rather than the accent's, and every platform paints the chosen row unlike the others.
+// TestListDrawsThePlatformsRows checks that the row MyGo fills with the accent is covered by the platform's row: the chosen row is painted unlike the others, not in MyGo's accent fill on Windows and GNOME, and its text keeps the text's dark color in a light theme while the list has no focus, as on every platform.
 func TestListDrawsThePlatformsRows(t *testing.T) {
 	for _, p := range Platforms {
 		sel := 1
@@ -97,6 +97,16 @@ func TestListDrawsThePlatformsRows(t *testing.T) {
 		accent := [3]uint8{theme.Accent.R, theme.Accent.G, theme.Accent.B}
 		if p != Mac && got == accent {
 			t.Fatalf("%v: the chosen row is MyGo's accent fill %v", p, got)
+		}
+		darkest := float32(1)
+		for y := int(chosen.Y); y < int(chosen.Y+chosen.H); y++ {
+			for x := int(chosen.X); x < int(chosen.X+chosen.W); x++ {
+				c := img.RGBAAt(x, y)
+				darkest = min(darkest, luminance(ui.RGB(c.R, c.G, c.B)))
+			}
+		}
+		if darkest > 0.4 {
+			t.Fatalf("%v: the chosen row's text is light (%.2f), as MyGo's accent text", p, darkest)
 		}
 	}
 }

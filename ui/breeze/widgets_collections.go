@@ -53,7 +53,8 @@ func styleList(c *ui.Context, p Platform, l ui.Element) ui.Element {
 // macListRow draws a row of an inset NSTableView: 24 points high (the rows of rowSizeStyle default on macOS 26, measured), the content 8 points in (the cell view starts 6 points into the row's selection, its text field 2 more, as Interface Builder's cell template places it; inferred), and while chosen a rectangle with corners of 8 (measured from NSTableRowView's drawSelection at 2x) in selectedContentBackgroundColor with white text while the list has the focus, or unemphasizedSelectedContentBackgroundColor with the text's own color while it has not. AppKit's rows do not change under the pointer.
 func macListRow(c *ui.Context, cell ui.Element, r ui.ListRow) {
 	t := c.Theme()
-	cell.MinHeight(24).PaddingX(8).Justify(ui.Center).Background(t.Background)
+	// The text's own color, rather than the accent's text MyGo gives the chosen row.
+	cell.MinHeight(24).PaddingX(8).Justify(ui.Center).Background(t.Background).TextColor(t.Text)
 	if !r.Selected() {
 		return
 	}
