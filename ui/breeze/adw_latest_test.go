@@ -1,6 +1,7 @@
 package breeze
 
 import (
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -267,5 +268,260 @@ func TestAdwAlertResponsesFit(t *testing.T) {
 	right := float32(600+372)/2 - 24
 	if r, ok := tester.Find("Save"); !ok || r.X+r.W > right {
 		t.Fatalf("the last response's label ends at %v, past the alert's response area at %v", r.X+r.W, right)
+	}
+}
+
+// adwRun returns where, along the row or column through x, y, the pixels of tester's frame stay color: the first and last of them, scanning from start to end (horizontally when across).
+func adwRun(tester *ui.Tester, x, y float32, across bool, start, end float32, color ui.Color) (first, last float32, ok bool) {
+	first, last = -1, -1
+	for v := start; v <= end; v++ {
+		px, py := x, y
+		if across {
+			px = v
+		} else {
+			py = v
+		}
+		if adwPixel(tester, px, py) == color {
+			if first < 0 {
+				first = v
+			}
+			last = v
+		}
+	}
+	return first, last, first >= 0
+}
+
+// TestAdwScaleGeometry pins GtkScale as libadwaita 1.10.0 (GTK 4.24.1) renders it, measured by tools/adwaita-reference: 34 pixels high without marks, the trough 15 pixels from its top, and the slider's center 2 pixels in from the trough's start plus the rest of the trough times the value, rounded down; with marks after it 28 high, the trough 12 from its top and the marks 6 below the trough.
+func TestAdwScaleGeometry(t *testing.T) {
+	volume, quality := 40.0, 50.0
+	var th *ui.Theme
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			th = c.Theme()
+			ui.Box(c).Fill().Children(func() {
+				ui.Box(c).Absolute().Left(16).Top(20).Children(func() { Slider(c, &volume, 0, 100).Width(180) })
+				ui.Box(c).Absolute().Left(16).Top(80).Children(func() { StepSlider(c, &quality, 0, 100, 25).Width(260) })
+			})
+		})
+	}, 320, 140)
+	tester.Frame()
+	// The trough's filled part, at the trough's start: 12 in from the scale's edge.
+	top, bottom, ok := adwRun(tester, 16+12+3, 20, false, 20, 60, th.Accent)
+	if !ok || top != 20+15 || bottom != 20+18 {
+		t.Fatalf("the scale's trough spans rows %v to %v, want 35 to 38", top, bottom)
+	}
+	// The slider is white, 20 across; at 40% of the 152 pixels it travels its center is 28+2+60 = 90.
+	left, right, ok := adwRun(tester, 0, 20+17, true, 16, 200, white)
+	if !ok || left+right+1 != 2*90 {
+		t.Fatalf("the slider spans %v to %v, want it centered at 90", left, right)
+	}
+	top, bottom, ok = adwRun(tester, 16+12+3, 80, false, 80, 120, th.Accent)
+	if !ok || top != 80+12 || bottom != 80+15 {
+		t.Fatalf("the marked scale's trough spans rows %v to %v, want 92 to 95", top, bottom)
+	}
+	// The first mark: a pixel wide at the slider's place at 0, 28+2, from 6 below the trough for 6 pixels.
+	top, bottom, ok = adwRun(tester, 16+12+2, 80, false, 80, 120, th.TextMuted)
+	if !ok || top != 80+22 || bottom != 80+27 {
+		t.Fatalf("the first mark spans rows %v to %v, want 102 to 107", top, bottom)
+	}
+}
+
+// TestAdwSwitchSlider pins a GtkSwitch's slider as libadwaita 1.10.0 (GTK 4.24.1) renders it, measured by tools/adwaita-reference: off in the dark theme it is white at 80% over view_bg_color, #d2d2d2, and a disabled switch's slider casts no shadow.
+func TestAdwSwitchSlider(t *testing.T) {
+	off, disabled := false, false
+	var th *ui.Theme
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			th = c.Theme()
+			ui.Row(c).Fill().Padding(20).Gap(20).AlignItems(ui.Start).Children(func() {
+				Switch(c, &off)
+				Switch(c, &disabled).Disabled(true)
+			})
+		})
+	}, 200, 80)
+	tester.SetDark(true)
+	tester.Frame()
+	if got := adwPixel(tester, 20+13, 20+13); got != ui.Hex("#d2d2d2") {
+		t.Fatalf("the dark slider is %v, want #d2d2d2", got)
+	}
+	// Below the slider, 2 pixels inside the track's bottom, the track shows as it does beside the slider: no shadow falls on it.
+	x := float32(20 + 46 + 20)
+	beside := adwPixel(tester, x+40, 20+13)
+	if below := adwPixel(tester, x+13, 20+24); below != beside {
+		t.Fatalf("below the disabled slider the track is %v, beside it %v: a shadow falls", below, beside)
+	}
+	_ = th
+}
+
+// TestAdwSelectWidth checks that on GNOME a drop-down is as wide as its choice and arrow need, as GtkDropDown sets no least width (a "Medium" drop-down is 101 pixels wide in Adwaita Sans, measured from libadwaita 1.10.0 by tools/adwaita-reference): padding of 10, the text, 6 and the 16-pixel arrow.
+func TestAdwSelectWidth(t *testing.T) {
+	choice := "S"
+	var th *ui.Theme
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			th = c.Theme()
+			ui.Column(c).Fill().Padding(20).AlignItems(ui.Start).Children(func() { Select(c, &choice, []string{"S", "M"}) })
+		})
+	}, 300, 100)
+	tester.Frame()
+	r, ok := tester.Find("S")
+	if !ok {
+		t.Fatal("the choice is missing")
+	}
+	left, right, _ := adwRun(tester, 0, r.Y+r.H/2, true, 0, 299, th.Surface)
+	want := 10 + r.W + 6 + 16 + 10
+	if w := right - left + 1; w < want-1.5 || w > want+1.5 {
+		t.Fatalf("the drop-down is %v wide, want %v", w, want)
+	}
+}
+
+// TestAdwToastWithButtonWidth checks that on GNOME a toast with a button is 426 pixels wide however short its title, as libadwaita 1.10.0 (GTK 4.24.1) draws it (measured by tools/adwaita-reference), and one without a button only as wide as its content.
+func TestAdwToastWithButtonWidth(t *testing.T) {
+	for _, action := range []string{"Undo", ""} {
+		added := false
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				if !added {
+					added = true
+					c.AddToast(ui.Toast{Title: "Saved", Action: action, OnAction: func() {}, Timeout: -1})
+				}
+				Toasts(c)
+			})
+		}, 700, 300)
+		tester.Frame()
+		tester.Frame()
+		r, ok := tester.Find("Saved")
+		if !ok {
+			t.Fatalf("action %q: the toast is missing", action)
+		}
+		left, right, _ := adwRun(tester, 0, r.Y+r.H/2, true, 0, 699, ui.Hex("#505053"))
+		w := right - left + 1
+		// The run of the toast's color leaves out the anti-aliased pixel at either round end.
+		if action != "" && (w < 424 || w > 426) {
+			t.Fatalf("the toast with a button is %v wide, want 426", w)
+		}
+		if action == "" && w > 200 {
+			t.Fatalf("the toast without a button is %v wide, want its content's width", w)
+		}
+	}
+}
+
+// TestAdwSidebarRowSpan checks that on GNOME a sidebar's chosen row reaches 6 pixels from both its edges, as the line at the sidebar's end takes no room (an inset box-shadow): in a 200-pixel sidebar from 6 to 194, as libadwaita 1.10.0 (GTK 4.24.1) renders it (measured by tools/adwaita-reference), left to right and right to left.
+func TestAdwSidebarRowSpan(t *testing.T) {
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		s := newNavState()
+		var th *ui.Theme
+		view := navView(Linux, s)
+		tester := ui.NewTester(func(c *ui.Context) {
+			view(c)
+			Preview(c, Linux, func() { th = Theme(c, Linux) })
+		}, 800, 420)
+		tester.SetDirection(dir)
+		tester.Frame()
+		r, _ := tester.Find("Inbox")
+		fill := adwInkAlpha(th, adwSidebarBg(th), 0.10)
+		left, right, ok := adwRun(tester, 0, r.Y+r.H/2, true, 0, 799, fill)
+		want := float32(6)
+		if dir == ui.RightToLeft {
+			want = 800 - 200 + 6
+		}
+		if !ok || left != want || right != want+187 {
+			t.Fatalf("dir %v: the chosen row spans %v to %v, want %v to %v", dir, left, right, want, want+187)
+		}
+	}
+}
+
+// TestAdwLinkedToggleSeam pins the line where two linked toggles meet: the second's fill laid over the first's, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference as #afafb1 after a checked toggle in the light theme and #747476 in the dark one.
+func TestAdwLinkedToggleSeam(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		bold, italic := true, false
+		var th *ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				th = c.Theme()
+				ui.Column(c).Fill().Padding(20).AlignItems(ui.Start).Children(func() {
+					ToggleGroup(c, func() {
+						Toggle(c, &bold, "Bold")
+						Toggle(c, &italic, "Italic")
+					})
+				})
+			})
+		}, 300, 100)
+		tester.SetDark(dark)
+		tester.Frame()
+		r, _ := tester.Find("Bold")
+		checked := adwInkAlpha(th, th.Background, 0.30)
+		_, end, _ := adwRun(tester, 0, r.Y+r.H/2, true, 0, 299, checked)
+		want := pick(dark, ui.Hex("#afafb1"), ui.Hex("#747476"))
+		if got := adwPixel(tester, end+1, r.Y+r.H/2); adwColorDiff(got, want) > 2.0/255 {
+			t.Fatalf("dark %v: the seam is %v, want %v", dark, got, want)
+		}
+	}
+}
+
+// TestAdwSpinButtonIcons checks that on GNOME a NumberInput's − and + icons are centered in their buttons past the 1-pixel border on the start side: the bar 12 pixels after the border, as libadwaita 1.10.0 (GTK 4.24.1) renders a GtkSpinButton (measured by tools/adwaita-reference).
+func TestAdwSpinButtonIcons(t *testing.T) {
+	value := 5.0
+	var th *ui.Theme
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			th = c.Theme()
+			ui.Column(c).Fill().Padding(20).AlignItems(ui.Start).Children(func() { NumberInput(c, &value, 0, 10, 1) })
+		})
+	}, 300, 100)
+	// At 2x, where half a pixel shows.
+	tester.SetScale(2)
+	tester.Frame()
+	fill := adwInkAlpha(th, th.Background, 0.10)
+	edge := adwInkAlpha(th, fill, 0.10)
+	ink := adwInkAlpha(th, fill, 1)
+	// The input is 34 high at the column's padding of 20; the text field before the buttons is MyGo's 80 wide. Positions here are the image's pixels.
+	y := float32(2 * (20 + 17))
+	border, _, ok := adwRun(tester, 0, y, true, 2*(20+40), 599, edge)
+	if !ok {
+		t.Fatal("the − button's border is missing")
+	}
+	bar, _, ok := adwRun(tester, 0, y, true, border, border+64, ink)
+	if !ok || bar-border != 24 {
+		t.Fatalf("the − bar starts %v pixels after the border at 2x, want 24", bar-border)
+	}
+}
+
+// TestAdwColorWellWidth checks that on GNOME a color well is a GtkColorDialogButton's size: its swatch as wide as "Black" in the text, padded 5, and 34 high (49 by 34 in Adwaita Sans 11, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference).
+func TestAdwColorWellWidth(t *testing.T) {
+	tint := ui.Hex("#3584e4")
+	var th *ui.Theme
+	var black float32
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			th = c.Theme()
+			black, _ = c.MeasureText(0, ui.Span{Text: "Black"})
+			ui.Column(c).Fill().Padding(20).AlignItems(ui.Start).Children(func() { ColorWell(c, &tint).Label("Tint") })
+		})
+	}, 300, 100)
+	tester.Frame()
+	left, right, _ := adwRun(tester, 0, 20+17, true, 0, 299, tint)
+	if w, want := right-left+1, float32(math.Ceil(float64(black))); w < want-1 || w > want+1 {
+		t.Fatalf("the swatch is %v wide, want %v", w, want)
+	}
+	// Down the middle: the button's face above and below the swatch, the window around it.
+	top, bottom := float32(-1), float32(-1)
+	for y := float32(0); y < 100; y++ {
+		if adwPixel(tester, (left+right)/2, y) != th.Background {
+			if top < 0 {
+				top = y
+			}
+			bottom = y
+		}
+	}
+	if h := bottom - top + 1; h < 33 || h > 35 {
+		t.Fatalf("the button is %v high, want 34", h)
 	}
 }
