@@ -44,12 +44,12 @@ func stepSliderTicks(lo, hi, step float64) []float32 {
 	return ticks
 }
 
-// RangeSlider creates a slider of two knobs setting *low and *high between lo and hi, with tick marks at the steps when step is above 0. It is package ui's: its knobs are elements inside it, which take the focus, and only MyGo's drawing knows which of them has it, so Breeze UI cannot draw their focus rings itself. Its track and knobs take the platform's accent and colors from Use.
+// RangeSlider creates a slider of two knobs setting *low and *high between lo and hi, with tick marks at the steps when step is above 0. It is package ui's: its knobs are elements inside it, which take the focus, and only MyGo's drawing knows which of them has it, so Breeze UI cannot draw their focus rings itself; knobs of its own could not be named after the slider's Label ("Price minimum") as MyGo names them. Its track and knobs take the platform's accent and colors from Use.
 func RangeSlider(c *ui.Context, low, high *float64, lo, hi, step float64) ui.Element {
 	return ui.RangeSlider(c, low, high, lo, hi, step)
 }
 
-// DecimalInput creates a field editing *value as an exact decimal between lo and hi in steps of step, with buttons stepping it beside it. It is package ui's: its field and buttons are built inside it, out of reach of a style applied to what it returns.
+// DecimalInput creates a field editing *value as an exact decimal between lo and hi in steps of step, with buttons stepping it beside it. It is package ui's: its field and buttons are built inside it, out of reach of a style applied to what it returns, and a field rebuilt as NumberInput is could not show its errors in MyGo's translations, which only package ui reads.
 func DecimalInput(c *ui.Context, value *string, lo, hi, step string) ui.Element {
 	return ui.DecimalInput(c, value, lo, hi, step)
 }

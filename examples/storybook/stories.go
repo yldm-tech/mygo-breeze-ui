@@ -181,6 +181,26 @@ func baseStories() []*story {
 			code: func(*args) string {
 				return "breeze.RadioGroup(c, func() {\n\tfor _, s := range []string{\"Small\", \"Medium\", \"Large\"} {\n\t\tbreeze.Radio(c, &app.size, s, s)\n\t}\n}).Label(\"Size\")"
 			}},
+		{component: "RadioGroup", name: "Spacing", category: "Choices",
+			controls: []control{choiceArg("size", "Medium", sizes...), toggleArg("row", false), toggleArg("disabled", false)},
+			render: func(c *ui.Context, a *args) {
+				g := breeze.RadioGroup(c, func() {
+					for _, s := range sizes {
+						breeze.Radio(c, a.text["size"], s, s)
+					}
+				}).Label("Size")
+				if *a.on["row"] {
+					g.Row()
+				}
+				disabled(a, g)
+			},
+			code: func(a *args) string {
+				row := ""
+				if *a.on["row"] {
+					row = ".Row()"
+				}
+				return "breeze.RadioGroup(c, func() {\n\tfor _, s := range []string{\"Small\", \"Medium\", \"Large\"} {\n\t\tbreeze.Radio(c, &app.size, s, s)\n\t}\n}).Label(\"Size\")" + row
+			}},
 		{component: "Switch", name: "Default", category: "Choices",
 			controls: []control{toggleArg("on", true), toggleArg("disabled", false)},
 			render: func(c *ui.Context, a *args) {
