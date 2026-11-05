@@ -49,9 +49,9 @@ func fluentPeekKeys(st *fluentPeek) func(ev ui.InputEvent) bool {
 	}
 }
 
-// fluentPasswordBox draws in as a PasswordBox (PasswordBox_themeresources.xaml of microsoft-ui-xaml main at ace5f33): the TextBox look (fluentField), and in its template's second column the RevealButton, a ToggleButton 30 DIPs wide stretched to the box's height whose ButtonLayoutGrid sits inside TextBoxInnerButtonMargin 0,4,4,4 (26 by 24 in a 32-DIP box) with ControlCornerRadius, transparent at rest (TextControlButtonBackground, which TextBox_themeresources.xaml leaves to generic.xaml: inferred, as for NumberBox), SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed, its glyph U+F78D of Segoe Fluent Icons at PasswordBoxIconFontSize 12 in TextFillColorSecondary, TextFillColorTertiary pressed (TextControlButtonForeground*). The text stops before that column while the button shows: ContentElement is in the first column with TextControlThemePadding 10,5,6,6 inside the 1-DIP border.
+// fluentPasswordBox draws in as a PasswordBox (PasswordBox_themeresources.xaml of microsoft-ui-xaml main at ace5f33): the TextBox look (fluentField), and in its template's second column the RevealButton, a ToggleButton 30 DIPs wide stretched to the box's height whose ButtonLayoutGrid sits inside TextBoxInnerButtonMargin 0,4,4,4 (26 by 24 in a 32-DIP box) with ControlCornerRadius, transparent at rest (TextControlButtonBackground, which TextBox_themeresources.xaml leaves to generic.xaml: inferred, as for NumberBox), SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed, its glyph U+F78D of Segoe Fluent Icons at PasswordBoxIconFontSize 12 in TextFillColorSecondary, TextFillColorTertiary pressed (TextControlButtonForeground*), all of them translucent over the focused box's fill, as the button shows only while the box has the focus. The text stops before that column while the button shows: ContentElement is in the first column with TextControlThemePadding 10,5,6,6 inside the 1-DIP border.
 //
-// When it shows is PasswordBox.cpp's CanInvokeRevealButton: the box has the focus, it is wider than 5 em of its FontSize 14 (ArrangeOverride), and its text went from empty to not since it got the focus (OnGotFocus clears m_fCanShowRevealButton, and emptying the box clears it again), so that a password filled in before cannot be peeked at. The text shows while the button is pressed or Alt+F8 is held, and the button's IsChecked follows (RevealPassword), which assistive technology sees.
+// When it shows is PasswordBox.cpp's CanInvokeRevealButton: the box has the focus, it is wider than 5 em of its FontSize, 14 at the default text size (ArrangeOverride), and its text went from empty to not since it got the focus (OnGotFocus clears m_fCanShowRevealButton, and emptying the box clears it again), so that a password filled in before cannot be peeked at. The text shows while the button is pressed or Alt+F8 is held, and the button's IsChecked follows (RevealPassword), which assistive technology sees. RevealPassword reveals nothing while the button cannot show, so Alt+F8 does nothing then, and a change to the text hides it again unless the button is pressed (OnContentChanged).
 func fluentPasswordBox(c *ui.Context, in ui.Element, value *string) {
 	t := c.Theme()
 	fluentField(c, in, singleLine)
@@ -72,10 +72,14 @@ func fluentPasswordBox(c *ui.Context, in ui.Element, value *string) {
 			st.canShow = false
 		}
 		st.last = *value
+		st.key = false
 	}
 	st.focused = focused
 	in.HandleInput(fluentPeekKeys(st))
-	show := st.canShow && focused && in.Bounds().W > 5*14
+	show := st.canShow && focused && in.Bounds().W > 5*t.FontSize
+	if !show {
+		st.key = false
+	}
 	// The button is built whether it shows or not, Hidden while not, so that the elements built after the field keep their places, by which MyGo knows them (the focus, moved to the next of them by Tab as the button hides, would otherwise land on the one after).
 	b := ui.Box(c).Role(ui.RoleToggleButton).Label("Show Password").KeepFocus().AttachTo(in, ui.AnchorEnd, ui.AnchorEnd).MarginEnd(4).Size(26, 24).Radius(4).Hidden(!show)
 	pressed := false
@@ -83,14 +87,21 @@ func fluentPasswordBox(c *ui.Context, in ui.Element, value *string) {
 		// The text stops 6 DIPs before the button's 30-DIP column, past the 1-DIP border's room the column takes.
 		in.PaddingEnd(37)
 		pressed = b.Pressed()
-		hover, down := fluentSubtle(t)
-		glyph := t.TextMuted
+		// SubtleFillColorSecondary and SubtleFillColorTertiary, #09000000 and #06000000 in the light theme, #0FFFFFFF and #0AFFFFFF in the dark one (Common_themeresources_any.xaml).
+		under := fluentFieldFocusedFill(t)
+		ink := pick(t.Dark, black, white)
+		face := under
 		switch {
 		case pressed:
-			b.Background(down)
-			glyph = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
+			face = under.Mix(ink, pick(t.Dark, float32(0x06)/255, 0x0a/255.0))
+			b.Background(face)
 		case b.Hovered():
-			b.Background(hover)
+			face = under.Mix(ink, pick(t.Dark, float32(0x09)/255, 0x0f/255.0))
+			b.Background(face)
+		}
+		glyph := fluentSecondaryOver(t, face)
+		if pressed {
+			glyph = fluentTertiaryOver(t, face)
 		}
 		b.Checked(pressed || st.key)
 		b.Draw(func(p *ui.Painter, r ui.Rect) { fluentRevealGlyph(p, r.X+r.W/2, r.Y+r.H/2, glyph) })
@@ -140,18 +151,19 @@ func SplitButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.Element
 	group := ui.Row(c).Shrink(0).AlignItems(ui.Stretch).Role(ui.RoleGroup)
 	tb, _ := idiomToolbarItem(c, group, idiomOther)
 	bar := tb != nil
+	// The other part follows the main part's Disabled, which the caller gives after SplitButton returns: it is read as the group paints and given to the other part, and to what the group draws besides the parts, in the frame it asks for.
+	var off *bool
 	group.Children(func() {
 		primary = ui.ButtonBase(c).FocusRing(false).Justify(ui.Center).AlignItems(ui.Center)
 		primary.Children(func() { ui.Text(c, label).SingleLine() })
+		off = ui.Local(primary, "breeze-split-disabled", func() bool { return false })
 		if p == Windows && !bar {
-			// DividerBackgroundGrid, built between the two so that it lays out there; drawn over the main part's background, which spans its column.
+			// DividerBackgroundGrid, built between the two so that it lays out there; drawn over the main part's background, which spans its column, and faded with the parts while they are disabled.
 			face := fluentFace(t, primary.Pressed(), primary.Hovered())
-			ui.Box(c).Width(1).Shrink(0).Role(ui.RoleNone).Background(face.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.059), 0.071)))
+			ui.Box(c).Width(1).Shrink(0).Role(ui.RoleNone).Disabled(*off).Background(face.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.059), 0.071)))
 		}
 		arrow = ui.ButtonBase(c).Label(inputsMoreOptions).FocusRing(false).Shrink(0).AlignItems(ui.Center)
 	})
-	// The other part follows the main part's Disabled, which the caller gives after SplitButton returns: it is read as the group paints and given to the other part in the frame it asks for.
-	off := ui.Local(primary, "breeze-split-disabled", func() bool { return false })
 	arrow.Disabled(*off)
 	disabled := disabledOnce(primary)
 	group.DrawOver(func(pt *ui.Painter, _ ui.Rect) {
@@ -173,7 +185,7 @@ func SplitButton(c *ui.Context, label string, build func(m *ui.Menu)) ui.Element
 	case bar:
 		macSplitToolbarItem(c, group, primary, arrow, disabled)
 	default:
-		macComboButton(c, group, primary, arrow, start, end)
+		macComboButton(c, group, primary, arrow, start, end, *off)
 	}
 	arrow.Menu(build)
 	return primary
@@ -192,19 +204,23 @@ func inputsCorners(rtl bool) (start, end func(r float32) [4]float32) {
 // inputsRadius gives e the corners k: top-left, top-right, bottom-right and bottom-left.
 func inputsRadius(e ui.Element, k [4]float32) ui.Element { return e.Radius(k[0], k[1], k[2], k[3]) }
 
-// macComboButton draws an NSComboButton of style split (macOS 13 and later), measured from AppKit's rendering on macOS 27.2 at 2x by tools/appkit-reference (appkit-inputs-*.png): a push button's 24-point face (macFace) with corners of 6, its title in labelColor over the face (36 over 235, 223 over 48, as macButton's) centered in the main part, which is the title's advance and 12.5 points either side ("Save", 29.1 points, in a 54-point part), then a divider a point wide and 14 high, centered, black at 23.4% over the face in Aqua (180 over 235) and white at 25.1% in Dark Aqua (100 over 48), and a 16-point part holding the chevron.down of its arrow, 9 by 5 points of ink in the title's color, its stroke about a point (macComboChevron). A part pressed takes a pressed push button's face (macPressed, inferred: AppKit does not render a press offscreen), and AppKit's focus ring goes around the part with the keyboard's focus (inferred: AppKit's focus on an NSComboButton was not captured).
-func macComboButton(c *ui.Context, group, primary, arrow ui.Element, start, end func(float32) [4]float32) {
+// macComboButton draws an NSComboButton of style split (macOS 13 and later), measured from AppKit's rendering on macOS 27.2 at 2x by tools/appkit-reference (appkit-inputs-*.png): a push button's 24-point face (macFace) with corners of 6, its title in labelColor over the face (36 over 235, 223 over 48, as macButton's) centered in the main part, which is the title's advance and 12.5 points either side ("Save", 29.1 points, in a 54-point part), then a divider a point wide and 14 high, centered, black at 23.4% over the face in Aqua (180 over 235) and white at 25.1% in Dark Aqua (100 over 48), and a 16-point part holding the chevron.down of its arrow, 9 by 5 points of ink in the title's color, its stroke about a point (macComboChevron), centered on the divider and that part together (its ink spans 148 to 165 of the pixels 140 to 173 they take at 2x). A part pressed takes a pressed push button's face (macPressed, inferred: AppKit does not render a press offscreen), and AppKit's focus ring goes around the part with the keyboard's focus (inferred: AppKit's focus on an NSComboButton was not captured). Disabled (off), the face fades with the parts, as a disabled push button's does (245 over the window's 255 in Aqua, measured; the NSComboButton's is inferred from it).
+func macComboButton(c *ui.Context, group, primary, arrow ui.Element, start, end func(float32) [4]float32, off bool) {
 	t := c.Theme()
 	face := macFace(t.Background, t.Dark)
 	ink := tint(face, t.Dark, 0.847)
 	group.Height(24).Radius(6).Background(face)
+	if off {
+		// MyGo halves a disabled element's opacity; the face is the group's, which is not disabled itself.
+		group.Background(tint(t.Background, t.Dark, macFaceAlpha/2))
+	}
 	primary.PaddingX(12.5).TextColor(ink)
 	if primary.Pressed() {
 		inputsRadius(primary.Background(macPressed(t.Background, t.Dark)), start(6))
 	}
 	macRing(primary, 6)
 	line := tint(face, t.Dark, pick(t.Dark, float32(0.234), 0.251))
-	arrow.Width(17).Justify(ui.Center).PaddingStart(1)
+	arrow.Width(17).Justify(ui.Center)
 	if arrow.Pressed() {
 		inputsRadius(arrow.Background(macPressed(t.Background, t.Dark)), end(6))
 	}
@@ -230,7 +246,7 @@ func macComboChevron(c *ui.Context, w, h, width float32, color ui.Color) {
 	})
 }
 
-// macSplitToolbarItem draws an NSComboButton as the view of an NSToolbarItem, as AppKit renders a window's unified toolbar on macOS 27.2 at 2x (tools/appkit-reference): the item's 36-point platter (idiomMacPlatter) holding the main part as a pill 4 points in from the platter's start, its title padded 7.5 points either side ("New", 26.9 points, in a 42-point pill), filled with black at 9.2% over the platter in Aqua and white at 9.3% in Dark Aqua (228 over 251, 49 over 28 in the render, which draws the platter lighter than a live window does), and after it a 40-point part holding the arrow, a chevron 9 by 5 points stroked about 1.2 points in the toolbar's ink (idiomMacInk). The pill is 28 points high, 4 inside the platter as the pressed slice of a joined platter is (inferred: the offscreen render draws the platter 32 points high). A pill pressed takes a pressed push button's share (16.9%), and the arrow part pressed a pill of its own (both inferred).
+// macSplitToolbarItem draws an NSComboButton as the view of an NSToolbarItem, as AppKit renders a window's unified toolbar on macOS 27.2 at 2x (tools/appkit-reference): the item's 36-point platter (idiomMacPlatter) holding the main part as a pill 4 points in from the platter's start, its title padded 7.5 points either side ("New", 26.9 points, in a 42-point pill), filled with black at 9.2% over the platter in Aqua and white at 9.3% in Dark Aqua (228 over 251, 49 over 28 in the render, which draws the platter lighter than a live window does), and after it a 40-point part holding the arrow, a chevron 9 by 5.5 points stroked about 1.3 points in the toolbar's ink (idiomMacInk). The pill is 25 points high, centered on the 36-point platter (its fill spans the pixels 27 to 76 of the platter's 16 to 87 at 2x), with corners of 11, short of a capsule's: of MyGo's corners, 11 covers the pill's ends as AppKit's do, column by column over its first 13 pixels at 2x (12.5 leaves up to 6 pixels of each column uncovered). A pill pressed takes a pressed push button's share (16.9%), and the arrow part pressed a pill of its own as high (both inferred: AppKit does not render a press offscreen).
 func macSplitToolbarItem(c *ui.Context, group, primary, arrow ui.Element, disabled func() bool) {
 	t := c.Theme()
 	rtl := c.Direction() == ui.RightToLeft
@@ -245,17 +261,17 @@ func macSplitToolbarItem(c *ui.Context, group, primary, arrow ui.Element, disabl
 	if primary.Pressed() {
 		share = macPressedAlpha
 	}
-	primary.Height(28).AlignSelf(ui.Center).PaddingX(7.5).Radius(14).Background(tint(platter, t.Dark, share)).TextColor(ink)
-	macRing(primary, 14)
-	arrow.Width(40).Height(28).AlignSelf(ui.Center).Justify(ui.Center).Radius(14)
+	primary.Height(25).AlignSelf(ui.Center).PaddingX(7.5).Radius(11).Background(tint(platter, t.Dark, share)).TextColor(ink)
+	macRing(primary, 11)
+	arrow.Width(40).Height(25).AlignSelf(ui.Center).Justify(ui.Center).Radius(11)
 	if arrow.Pressed() {
 		arrow.Background(tint(platter, t.Dark, macPressedAlpha))
 	}
-	macRing(arrow, 14)
-	arrow.Children(func() { macComboChevron(c, 9, 5, 1.2, ink) })
+	macRing(arrow, 11)
+	arrow.Children(func() { macComboChevron(c, 9, 5.5, 1.3, ink) })
 }
 
-// fluentSplitButton draws a SplitButton (SplitButton.xaml and SplitButton_themeresources.xaml of microsoft-ui-xaml main at ace5f33): its columns are the main part, at least SplitButtonPrimaryButtonSize (35) wide, padded by SplitButtonPadding 11,6,11,7, a 1-DIP DividerBackgroundGrid in SplitButtonBorderBrushDivider (ControlStrokeColorDefault over the main part's background, which spans that column), and the secondary part, SplitButtonSecondaryButtonSize (35) wide, its 12-DIP AnimatedChevronDownSmall at its end padded 12 (Padding 0,0,12,0), in SplitButtonForegroundSecondary (TextFillColorSecondary over the face), TextFillColorTertiary pressed. Each part is a button's face, ControlFillColorDefault, Secondary under the pointer and Tertiary pressed, each state its own part's (PrimaryPointerOver, SecondaryPressed); the border is drawn by PrimaryButtonBorder (1,1,0,1, corners 4,0,0,4) and SecondaryButtonBorder (0,1,1,1, corners 0,4,4,0), ControlElevationBorderBrush, a part's ControlStrokeColorDefault while pressed, leaving the divider's column without a top or bottom edge. The label is TextFillColorPrimary, Secondary pressed. The system focus visual goes 1 DIP around (FocusVisualMargin -1) the part with the keyboard's focus, where WinUI's control takes the focus once.
+// fluentSplitButton draws a SplitButton (SplitButton.xaml and SplitButton_themeresources.xaml of microsoft-ui-xaml main at ace5f33): its columns are the main part, at least SplitButtonPrimaryButtonSize (35) wide, padded by SplitButtonPadding 11,6,11,7, a 1-DIP DividerBackgroundGrid in SplitButtonBorderBrushDivider (ControlStrokeColorDefault over the main part's background, which spans that column), and the secondary part, SplitButtonSecondaryButtonSize (35) wide, its 12-DIP AnimatedChevronDownSmall at its end padded 12 (Padding 0,0,12,0), in SplitButtonForegroundSecondary (TextFillColorSecondary over the face), TextFillColorPrimary under the pointer (SecondaryPointerOver sets SplitButtonForegroundPointerOver) and TextFillColorTertiary over the face pressed (SplitButtonForegroundSecondaryPressed). Each part is a button's face, ControlFillColorDefault, Secondary under the pointer and Tertiary pressed, each state its own part's (PrimaryPointerOver, SecondaryPressed); the border is drawn by PrimaryButtonBorder (1,1,0,1, corners 4,0,0,4) and SecondaryButtonBorder (0,1,1,1, corners 0,4,4,0), ControlElevationBorderBrush, a part's ControlStrokeColorDefault while pressed, leaving the divider's column without a top or bottom edge. The label is TextFillColorPrimary, Secondary pressed. The system focus visual goes 1 DIP around (FocusVisualMargin -1) the part with the keyboard's focus, where WinUI's control takes the focus once.
 func fluentSplitButton(c *ui.Context, primary, arrow ui.Element, start, end func(float32) [4]float32) {
 	t := c.Theme()
 	part := func(b ui.Element, k [4]float32) (face ui.Color, pressed bool) {
@@ -287,8 +303,11 @@ func fluentSplitButton(c *ui.Context, primary, arrow ui.Element, start, end func
 	face, pressed := part(arrow, end(4))
 	arrow.BorderStartWidth(0).Width(35).Justify(ui.End).PaddingEnd(11)
 	chevron := fluentSecondaryOver(t, face)
-	if pressed {
-		chevron = t.Background.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0.447), 0.529))
+	switch {
+	case pressed:
+		chevron = fluentTertiaryOver(t, face)
+	case arrow.Hovered():
+		chevron = t.Text
 	}
 	nudge := fluentChevronNudge(arrow, pressed)
 	arrow.Children(func() {
@@ -298,19 +317,19 @@ func fluentSplitButton(c *ui.Context, primary, arrow ui.Element, start, end func
 	})
 }
 
-// fluentSplitAppBar draws a SplitButton of SplitButtonCommandBarStyle, as a CommandBar holds one (SplitButton_themeresources.xaml): its face 36 DIPs high inside AppBarButtonInnerBorderMargin 2,6,2,6, which Toolbar's padding and gap give; the main part padded 12,8,4,8 around its label at FontSize 12, and the secondary part 23 DIPs wide, padded 2,0,8,0, holding U+E972 of Segoe Fluent Icons at FontSize 8, right-aligned with its TextBlock's padding 2,1,2,0; no divider. Both are transparent (AppBarButtonBackground), the part under the pointer SubtleFillColorSecondary (AppBarButtonBackgroundPointerOver) with the other at SplitButtonInAppBarUnfocusedPointerOver (SubtleFillColorTertiary), a part pressed SubtleFillColorTertiary, corners of 4 at the control's ends; the label and glyph TextFillColorPrimary, Secondary pressed (AppBarButtonForegroundPressed). The system focus visual goes 3 DIPs around (FocusVisualMargin -3) the part with the keyboard's focus.
+// fluentSplitAppBar draws a SplitButton of SplitButtonCommandBarStyle, as a CommandBar holds one (SplitButton_themeresources.xaml): its face 36 DIPs high inside AppBarButtonInnerBorderMargin 2,6,2,6, which Toolbar's padding and gap give; the main part padded 12,8,4,8 around its label at FontSize 12, and the secondary part 23 DIPs wide, padded 2,0,8,0, holding U+E972 of Segoe Fluent Icons at FontSize 8, right-aligned with its TextBlock's padding 2,1,2,0; no divider. Both are transparent (AppBarButtonBackground), the part under the pointer SubtleFillColorSecondary (AppBarButtonBackgroundPointerOver) and a part pressed SubtleFillColorTertiary (AppBarButtonBackgroundPressed), the other part at SplitButtonInAppBarUnfocusedPointerOver (SubtleFillColorTertiary) in both states (PrimaryPointerOver, PrimaryPressed, SecondaryPointerOver, SecondaryPressed), corners of 4 at the control's ends; the label and glyph TextFillColorPrimary, Secondary pressed (AppBarButtonForegroundPressed). The system focus visual goes 3 DIPs around (FocusVisualMargin -3) the part with the keyboard's focus.
 func fluentSplitAppBar(c *ui.Context, primary, arrow ui.Element, start, end func(float32) [4]float32) {
 	t := c.Theme()
 	hover, down := fluentSubtle(t)
 	ph, pp, ah, ap := primary.Hovered(), primary.Pressed(), arrow.Hovered(), arrow.Pressed()
-	part := func(b ui.Element, k [4]float32, hovered, pressed, otherHovered bool) ui.Color {
+	part := func(b ui.Element, k [4]float32, hovered, pressed, otherHot bool) ui.Color {
 		face, fg := ui.Transparent, t.Text
 		switch {
 		case pressed:
 			face, fg = down, t.TextMuted
 		case hovered:
 			face = hover
-		case otherHovered:
+		case otherHot:
 			face = down
 		}
 		inputsRadius(b.Height(36).Background(face).TextColor(fg), k)
@@ -322,9 +341,9 @@ func fluentSplitAppBar(c *ui.Context, primary, arrow ui.Element, start, end func
 		})
 		return fg
 	}
-	part(primary, start(4), ph, pp, ah)
+	part(primary, start(4), ph, pp, ah || ap)
 	primary.FontSize(12).PaddingY(0).PaddingStart(12).PaddingEnd(4)
-	fg := part(arrow, end(4), ah, ap, ph)
+	fg := part(arrow, end(4), ah, ap, ph || pp)
 	arrow.Width(23).PaddingStart(2).PaddingEnd(8).Justify(ui.End)
 	arrow.Children(func() {
 		// The TextBlock: the 8-DIP glyph inside its padding of 2 at the sides and 1 above.
@@ -332,6 +351,11 @@ func fluentSplitAppBar(c *ui.Context, primary, arrow ui.Element, start, end func
 			fluentChevronDown8(p, r.X+r.W/2, r.Y+1+4, fg)
 		})
 	})
+}
+
+// fluentTertiaryOver returns TextFillColorTertiary, #72000000 in the light theme and #87FFFFFF in the dark one (Common_themeresources_any.xaml), laid over under, as fluentSecondaryOver lays TextFillColorSecondary.
+func fluentTertiaryOver(t *ui.Theme, under ui.Color) ui.Color {
+	return under.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0x72)/255, 0x87/255.0))
 }
 
 // fluentChevronDown8 strokes U+E972 of Segoe Fluent Icons, ChevronDown, at FontSize 8 centered on cx, cy: idiomFluentSubItemChevron's chevron (U+E974 at 8) turned to point down, 4.6 DIPs wide and 2.3 high in a 1-DIP stroke (the shape is inferred: the font is not open).
@@ -407,25 +431,8 @@ func IconButton(c *ui.Context, icon *ui.SVG, label string) ui.Element {
 		b.MinWidth(34).Padding(5)
 	}
 	b.Children(func() { ui.Icon(c, icon).Size(16, 16).Shrink(0) })
-	inputsTooltip(c, b, label)
-	return b
-}
-
-// inputsTooltip shows text as anchor's tooltip, the platform's (Tooltip's look), without making it anchor's Description: an icon button's tooltip is its name.
-func inputsTooltip(c *ui.Context, anchor ui.Element, text string) {
-	if text == "" {
-		return
+	if label != "" {
+		platformTooltip(c, b, label)
 	}
-	p := PlatformOf(c)
-	ui.TooltipBase(c, anchor, func(tip ui.Element) {
-		switch p {
-		case Windows:
-			fluentTooltip(c, anchor, tip)
-		case Linux:
-			adwTooltip(c, anchor, tip)
-		default:
-			macTooltip(c, anchor, tip)
-		}
-		tip.Children(func() { ui.Text(c, text) })
-	})
+	return b
 }

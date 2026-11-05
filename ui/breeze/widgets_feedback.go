@@ -20,6 +20,12 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		return anchor
 	}
 	anchor.Description(text)
+	platformTooltip(c, anchor, text)
+	return anchor
+}
+
+// platformTooltip shows text as anchor's tooltip in the platform's look, on ui.TooltipBase, without touching anchor's Description: Tooltip gives it one, IconButton does not, as its tooltip is its name.
+func platformTooltip(c *ui.Context, anchor ui.Element, text string) {
 	p := PlatformOf(c)
 	ui.TooltipBase(c, anchor, func(tip ui.Element) {
 		switch p {
@@ -32,7 +38,6 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		}
 		tip.Children(func() { ui.Text(c, text) })
 	})
-	return anchor
 }
 
 // macTooltip draws an AppKit tooltip: text in NSFont.toolTipsFont (11 points, read from AppKit), in a light or dark panel with a hairline edge, below the element. AppKit draws tooltips in a window of its own, which does not render offscreen: the panel's colors, padding, corners and shadow are inferred, following the menus of mac.go.

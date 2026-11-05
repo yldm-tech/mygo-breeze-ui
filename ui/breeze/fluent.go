@@ -442,7 +442,7 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	fill := t.Surface
 	switch {
 	case focused:
-		fill = pick(t.Dark, white, t.Background.Mix(ui.Hex("#1e1e1e"), 0.7))
+		fill = fluentFieldFocusedFill(t)
 	case f.Hovered():
 		fill = t.SurfaceHover
 	}
@@ -462,6 +462,11 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 			}
 		})
 	})
+}
+
+// fluentFieldFocusedFill is the fill of a TextBox while it has the focus: white, darker in the dark theme.
+func fluentFieldFocusedFill(t *ui.Theme) ui.Color {
+	return pick(t.Dark, white, t.Background.Mix(ui.Hex("#1e1e1e"), 0.7))
 }
 
 // fluentSelect draws a closed ComboBox: a button's face and elevation border, 32 DIPs high and at least ComboBoxThemeMinWidth (64) wide with padding 12,5,0,7, a 12-DIP chevron 14 DIPs from its end in TextFillColorSecondary. Its keyboard focus is drawn by its template, not by the system focus visual, which DefaultComboBoxStyle turns off (UseSystemFocusVisuals is IsApplicationFocusVisualKindReveal, False): in the Focused and FocusedPressed states, which ComboBox_Partial.cpp picks for focus other than the pointer's, HighlightBackground shows 4 DIPs around the box (Margin -4) with a 2-DIP ComboBoxBackgroundBorderBrushFocused edge (FocusStrokeColorOuter, the theme's Focus), ComboBoxHiglightBorderCornerRadius 7 and ComboBoxBackgroundFocused (ControlFillColorDefault) behind the box, and the 3 by 16 accent Pill (ComboBoxItemPill, AccentFillColorDefault, corners of 1.5) shows 1 DIP in from the box's start (ComboBox_themeresources.xaml).

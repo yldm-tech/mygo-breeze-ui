@@ -143,6 +143,15 @@ func TestPasswordBoxRevealButton(t *testing.T) {
 		if pw != "x" || !tester.HasText("Show Password") {
 			t.Errorf("rtl %v: emptying the field and typing again did not show the button (%q)", rtl, pw)
 		}
+		if !rtl {
+			// A password longer than the field scrolls, its end stopping 6 DIPs before the button's 30-DIP column (TextControlThemePadding's end inside the border).
+			tester.Type(strings.Repeat("x", 40))
+			tester.Frame()
+			b, _ = tester.Find("Show Password")
+			if caret, ok := tester.TextCaret(); !ok || caret.X+caret.W > b.X+b.W+4-30-6+0.5 {
+				t.Errorf("the caret at the end of a long password is at %v, past the reveal button's column at %v", caret, b.X+b.W+4-30)
+			}
+		}
 		if err := tester.Click("PIN"); err != nil {
 			t.Fatal(err)
 		}
@@ -317,6 +326,127 @@ func TestSplitButtonParts(t *testing.T) {
 				tester.CloseMenu()
 			}
 		}
+	}
+}
+
+// TestSplitButtonSizes checks the parts' sizes on every platform, alone and in a Toolbar: macOS's 24-point NSComboButton with its 17-point arrow part (the divider and 16 points) and, in a toolbar, the 25-point pill and the 40-point arrow part measured from AppKit's render; WinUI's 32-DIP SplitButton with its 35-DIP secondary part and the 36-DIP SplitButtonCommandBarStyle with its 23-DIP one; libadwaita's 34-pixel buttons with the 24-pixel arrow, raised and flat.
+func TestSplitButtonSizes(t *testing.T) {
+	type size struct{ h, arrowW float32 }
+	want := map[Platform][2]size{
+		Mac:     {{24, 17}, {25, 40}},
+		Windows: {{32, 35}, {36, 23}},
+		Linux:   {{34, 24}, {34, 24}},
+	}
+	for _, p := range Platforms {
+		for i, bar := range []bool{false, true} {
+			name := fmt.Sprintf("%v toolbar %v", p, bar)
+			var main ui.Rect
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() {
+						build := func() { main = SplitButton(c, "Save", inputsSaveMenu(new(string))).Bounds() }
+						if bar {
+							Toolbar(c, build)
+						} else {
+							build()
+						}
+					})
+				})
+			}, 400, 200)
+			tester.Frame()
+			tester.Frame()
+			a, ok := tester.Find(inputsMoreOptions)
+			w := want[p][i]
+			if !ok || main.H != w.h || a.H != w.h || a.W != w.arrowW {
+				t.Errorf("%s: the main part is %v and the arrow part %v, want both %v high and the arrow %v wide", name, main, a, w.h, w.arrowW)
+			}
+		}
+	}
+}
+
+// TestMacComboButtonPixels checks macOS's NSComboButton against AppKit's render (appkit-inputs-light.png of tools/appkit-reference): the chevron's ink is centered on the divider and the arrow part together, as AppKit's spans the pixels 148 to 165 of 140 to 173 at 2x; disabled, the face fades to 245 as a disabled push button's does.
+func TestMacComboButtonPixels(t *testing.T) {
+	for _, off := range []bool{false, true} {
+		var main ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Mac, func() {
+				Use(c)
+				ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() {
+					main = SplitButton(c, "Save", inputsSaveMenu(new(string))).Disabled(off).Bounds()
+				})
+			})
+		}, 400, 200)
+		tester.SetScale(2)
+		tester.Frame()
+		tester.Frame()
+		tester.Frame()
+		img := tester.Image()
+		a, _ := tester.Find(inputsMoreOptions)
+		y := int(2 * (a.Y + a.H/2))
+		face := img.RGBAAt(int(2*main.X)+6, y)
+		if wantFace := map[bool]uint8{false: 235, true: 245}[off]; absDiff(face.R, wantFace) > 1 {
+			t.Errorf("disabled %v: the face reads %v, want %d", off, face, wantFace)
+		}
+		if off {
+			continue
+		}
+		// The chevron's ink across the arrow part, past the divider's two pixels.
+		first, last := -1, -1
+		for x := int(2*a.X) + 2; x < int(2*(a.X+a.W)); x++ {
+			for dy := -6; dy <= 6; dy++ {
+				if img.RGBAAt(x, y+dy).R < face.R-40 {
+					if first < 0 {
+						first = x
+					}
+					last = x
+				}
+			}
+		}
+		mid := float32(first+last+1) / 2
+		if center := 2 * (a.X + a.W/2); first < 0 || mid < center-0.5 || mid > center+0.5 {
+			t.Errorf("the chevron's ink spans the pixels %d to %d, centered on %v, want %v", first, last, mid, center)
+		}
+	}
+}
+
+// TestFluentSplitButtonChevron checks the ink of WinUI's SplitButton's chevron, light and dark: TextFillColorSecondary over the face at rest, and TextFillColorPrimary with the pointer over the secondary part (SecondaryPointerOver), read at the chevron's darkest pixel in the light theme and its brightest in the dark one.
+func TestFluentSplitButtonChevron(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		var th *ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Windows, func() {
+				Use(c)
+				th = c.Theme()
+				ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { SplitButton(c, "Save", inputsSaveMenu(new(string))) })
+			})
+		}, 400, 200)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		a, _ := tester.Find(inputsMoreOptions)
+		ink := func() ui.Color {
+			img := tester.Image()
+			best := img.RGBAAt(int(2*a.X)+4, int(2*(a.Y+a.H/2)))
+			for y := int(2*a.Y) + 4; y < int(2*(a.Y+a.H))-4; y++ {
+				for x := int(2*a.X) + 4; x < int(2*(a.X+a.W))-4; x++ {
+					if px := img.RGBAAt(x, y); (px.R < best.R) != dark && px.R != best.R {
+						best = px
+					}
+				}
+			}
+			return ui.RGB(best.R, best.G, best.B)
+		}
+		check := func(state string, want ui.Color) {
+			if got := ink(); max(absDiff(got.R, want.R), absDiff(got.G, want.G), absDiff(got.B, want.B)) > 3 {
+				t.Errorf("dark %v, %s: the chevron reads %v, want %v", dark, state, got, want)
+			}
+		}
+		check("at rest", fluentSecondaryOver(th, fluentFace(th, false, false)))
+		tester.Move(a.X+a.W/2, a.Y+a.H/2)
+		tester.Frame()
+		check("under the pointer", th.Text)
 	}
 }
 
