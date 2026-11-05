@@ -497,17 +497,10 @@ func fluentProgress(c *ui.Context, e ui.Element, value float64) {
 // fluentIndeterminateBars draws the Indeterminate state of a ProgressBar in r, clipped to it, repeating every 2 seconds (ProgressBar.xaml's storyboard, ProgressBar.cpp's UpdateWidthBasedTemplateSettings): a bar 40% of the width moving from -100% to 300% of its width over 1.5 s along KeySpline 0.4,0,0.6,1 and held there, and a bar 60% of the width held at -150% of its width until 0.75 s, then moving to 166% of it by 2 s along the same spline. Right to left they move the other way.
 func fluentIndeterminateBars(c *ui.Context, p *ui.Painter, r ui.Rect, fill ui.Color) {
 	p.AnimationFrame()
-	ease := ui.CubicBezier(0.4, 0, 0.6, 1)
-	s := float32(p.Now().UnixMilli()%2000) / 1000
-	w1, w2 := r.W*0.4, r.W*0.6
-	x1 := -w1 + 4*w1*ease(min(s/1.5, 1))
-	x2 := -1.5 * w2
-	if s > 0.75 {
-		x2 += (1.5 + 1.66) * w2 * ease((s-0.75)/1.25)
-	}
+	bars := fluentIndeterminateAt(float32(p.Now().UnixMilli()%2000)/1000, r.W)
 	rtl := c.Direction() == ui.RightToLeft
 	p.Clip(r, 0, func() {
-		for _, b := range [2][2]float32{{x1, w1}, {x2, w2}} {
+		for _, b := range bars {
 			x := r.X + b[0]
 			if rtl {
 				x = r.X + r.W - b[0] - b[1]
@@ -517,25 +510,41 @@ func fluentIndeterminateBars(c *ui.Context, p *ui.Painter, r ui.Rect, fill ui.Co
 	})
 }
 
+// fluentIndeterminateAt returns where the two bars of an indeterminate ProgressBar w DIPs wide are s seconds into the 2-second loop: each one's start from the bar's start and its width.
+func fluentIndeterminateAt(s, w float32) [2][2]float32 {
+	ease := ui.CubicBezier(0.4, 0, 0.6, 1)
+	w1, w2 := w*0.4, w*0.6
+	x1 := -w1 + 4*w1*ease(min(s/1.5, 1))
+	x2 := -1.5 * w2
+	if s > 0.75 {
+		x2 += (1.5 + 1.66) * w2 * ease(min((s-0.75)/1.25, 1))
+	}
+	return [2][2]float32{{x1, w1}, {x2, w2}}
+}
+
 // fluentSpinner draws an indeterminate ProgressRing as its Lottie, ProgressRingIndeterminate.cpp, does: an ellipse of radius 7 scaled 5 on an 80-unit canvas, stretched to the ring's 32 DIPs, so radius 14 with a 1.5·5·0.4 = 3-DIP accent stroke and round ends. Over each 2 s it turns from 0 to 450 degrees in the first second and on to 900 in the next, along cubic-bezier(0.167,0.167,0.833,0.833); in the first second its end grows from its start to half the circle (TrimEnd 0 to 0.5), in the next its start catches up (TrimStart 0 to 0.5), on the same curve. Where on the ellipse the trim starts is not in the source: 12 o'clock here (inferred).
 func fluentSpinner(c *ui.Context, e ui.Element) {
 	t := c.Theme()
 	e.Size(32, 32)
-	ease := ui.CubicBezier(0.167, 0.167, 0.833, 0.833)
 	e.Draw(func(p *ui.Painter, r ui.Rect) {
 		p.AnimationFrame()
-		s := float32(p.Now().UnixMilli()%2000) / 1000
-		var turn, from, to float32
-		if s < 1 {
-			u := ease(s)
-			turn, from, to = 450*u, 0, 0.5*u
-		} else {
-			u := ease(s - 1)
-			turn, from, to = 450+450*u, 0.5*u, 0.5
-		}
-		start := float64(turn)*math.Pi/180 + float64(from)*2*math.Pi
-		strokeArc(p, r.X+r.W/2, r.Y+r.H/2, 14, start, float64(to-from)*2*math.Pi, 3, t.Accent)
+		start, sweep := fluentRingArcAt(float32(p.Now().UnixMilli()%2000) / 1000)
+		strokeArc(p, r.X+r.W/2, r.Y+r.H/2, 14, start, sweep, 3, t.Accent)
 	})
+}
+
+// fluentRingArcAt returns where the arc of an indeterminate ProgressRing starts and how far it sweeps, in radians clockwise, s seconds into its 2-second loop.
+func fluentRingArcAt(s float32) (start, sweep float64) {
+	ease := ui.CubicBezier(0.167, 0.167, 0.833, 0.833)
+	var turn, from, to float32
+	if s < 1 {
+		u := ease(s)
+		turn, from, to = 450*u, 0, 0.5*u
+	} else {
+		u := ease(min(s-1, 1))
+		turn, from, to = 450+450*u, 0.5*u, 0.5
+	}
+	return float64(turn)*math.Pi/180 + float64(from)*2*math.Pi, float64(to-from) * 2 * math.Pi
 }
 
 // strokeArc strokes the arc of radius rad around cx, cy from angle start, in radians clockwise from 12 o'clock, sweeping sweep, with round ends.
