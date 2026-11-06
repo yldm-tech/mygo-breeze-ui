@@ -71,7 +71,7 @@ jobs:
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "refs/tags/$VERSION"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: steps.commit.outputs.sha != ''
         with:
           go-version-file: go.mod

@@ -281,6 +281,13 @@
       "example": "breeze.InfoBar(c, \"warning\", \"Update available\", \"Restart to finish installing.\", &app.showUpdate)"
     },
     {
+      "name": "InfoBarActions",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An InfoBar with action buttons where the platform puts a message bar's action: Windows 11's InfoBar ActionButton, after the message or below it in a narrow bar; on macOS buttons at the end of the bar before the close button, centered on the title's line; GNOME's AdwBanner button, which takes the place of its Dismiss button. The buttons are drawn over the bar's fill.",
+      "example": "breeze.InfoBarActions(c, \"warning\", \"Speech model missing\", \"Download a model to transcribe.\", &app.showNotice, func() {\n\tif breeze.Button(c, \"Open Settings\").Clicked() {\n\t\tapp.openSettings()\n\t}\n})"
+    },
+    {
       "name": "Link",
       "category": "actions",
       "look": "drawn",

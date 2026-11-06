@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, statusactions, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -573,6 +573,21 @@ def status_set():
     return fixed(560, 360, items, named=named)
 
 
+def status_actions_set():
+    """TestScreenshotsStatus's statusActionsView: banners whose button is the bar's action (button-label), 16 from the window's edges and 68 apart: Open Settings, Restart as a suggested action (button-style, libadwaita 1.7), Undo on a banner without a message, and Retry on a banner 280 wide, which puts its button below the title. Breeze UI's message follows the title in the same label at regular weight, as in status_set."""
+    items, named = [], {}
+    bars = [("Warning", "Some message about it.", "Open Settings", False, 528), ("Informational", "Some message about it.", "Restart", True, 528), ("Success", "", "Undo", False, 528), ("Error", "Some message about it.", "Retry", False, 280)]
+    for i, (title, message, action, suggested, width) in enumerate(bars):
+        markup = title + (' <span weight="normal">' + message + "</span>" if message else "")
+        banner = Adw.Banner(title=markup, use_markup=True, revealed=True, button_label=action)
+        if suggested:
+            banner.set_button_style(Adw.BannerButtonStyle.SUGGESTED)
+        banner.set_size_request(width, -1)
+        items.append((banner, 16, 16 + 68 * i))
+        named["actions-" + title.lower()] = banner
+    return fixed(560, 380, items, named=named)
+
+
 def status_page_set():
     """TestScreenshotsStatus's statusPageView: an AdwStatusPage filling the window with system-search-symbolic, a title, a description and a button."""
     button = Gtk.Button(label="Clear Search", halign=Gtk.Align.CENTER)
@@ -863,7 +878,7 @@ SETS = [
     ("values", "adwaita-values", values_set), ("collections", "adwaita-collections", collections_set), ("forms", "adwaita-forms", forms_set),
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
     ("inputs", "adwaita-inputs", inputs_set),
-    ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
+    ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set), ("statusactions", "adwaita-statusactions", status_actions_set),
     ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set), ("spinlimit", "adwaita-spinlimit", spin_limit_set),
     ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
     ("switcher", "adwaita-switcher", switcher_set),
