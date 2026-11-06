@@ -1,0 +1,108 @@
+name: Release
+
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into the npm packages and the MCP server (.github/scripts/set-version.sh) and commits that to main as chore(release), tags the commit, and publishes a GitHub release with generated notes and the breeze-ui command built for Linux, macOS and Windows. The Go module's users take versions from these tags. Run it by hand to force a bump.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Bump to make, whatever the commits call for
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Next version
+        id: version
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(.github/scripts/next-version.sh "$SHA" "$BUMP")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ -n "$version" ]; then
+            echo "Releasing $version from $SHA" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Nothing to release at $SHA" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # The version goes to main in a commit of its own, which the tag points at, so that the packages in the tagged tree carry it. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
+      - name: Commit the version
+        id: commit
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          .github/scripts/set-version.sh "$VERSION"
+          if ! git diff --quiet; then
+            git commit -am "chore(release): $VERSION"
+          fi
+          if git push origin HEAD:refs/heads/main; then
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            echo "main moved on; its next release takes these commits" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Tag
+        if: steps.commit.outputs.sha != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          git tag -a "$VERSION" -m "$VERSION" "$SHA"
+          git push origin "refs/tags/$VERSION"
+      - uses: actions/setup-go@v5
+        if: steps.commit.outputs.sha != ''
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build the breeze-ui command
+        if: steps.commit.outputs.sha != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            goos=${target%/*}
+            goarch=${target#*/}
+            name=breeze-ui_${VERSION#v}_${goos}_${goarch}
+            exe=breeze-ui
+            if [ "$goos" = windows ]; then
+              exe=breeze-ui.exe
+            fi
+            mkdir -p "build/$name"
+            CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "build/$name/$exe" ./cmd/breeze-ui
+            cp LICENSE README.md "build/$name/"
+            if [ "$goos" = windows ]; then
+              (cd build && zip -qr "../dist/$name.zip" "$name")
+            else
+              tar -C build -czf "dist/$name.tar.gz" "$name"
+            fi
+          done
+          (cd dist && sha256sum -- * > checksums.txt)
+      - name: Release
+        if: steps.commit.outputs.sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create "$VERSION" dist/* --verify-tag --title "$VERSION" --generate-notes

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -21,7 +22,22 @@ Usage:
   breeze-ui add <component> [-o path]
   breeze-ui init [dir] [--force]
   breeze-ui example
+  breeze-ui version
 `
+
+// version is the release's tag, which the Release workflow sets with -ldflags "-X main.version=v0.4.0" when it builds the binaries it attaches to the GitHub release.
+var version string
+
+// currentVersion is the version this command was built as: the release's tag for a release binary, the module's version for one built by go install ...@v0.4.0, or "devel" for one built from a checkout.
+func currentVersion() string {
+	if version != "" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "devel"
+}
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout); err != nil {
@@ -45,6 +61,9 @@ func run(args []string, out io.Writer) error {
 	case "example":
 		_, _ = io.WriteString(out, example)
 		return nil
+	case "version", "-version", "--version":
+		_, err := fmt.Fprintln(out, "breeze-ui", currentVersion())
+		return err
 	default:
 		return fmt.Errorf("unknown command %q; run breeze-ui --help", args[0])
 	}

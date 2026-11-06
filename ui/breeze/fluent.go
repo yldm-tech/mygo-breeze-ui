@@ -396,7 +396,17 @@ func fluentRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
 	// The circle is centered in a grid 32 high at the top and the label at the top inside the style's Padding 8,6,0,0, so both 6 DIPs down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
 	row.Gap(8).MinHeight(32).MinWidth(120).AlignItems(ui.Start).Padding(6, 0, 0, 0)
-	hovered, pressed := row.Hovered(), row.Pressed()
+	fluentRadioDot(c, dot, on, row.Hovered(), row.Pressed())
+	row.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if row.FocusVisible() {
+			fluentFocusRing(p, t, r, 7, 3, 7, 3, 4)
+		}
+	})
+}
+
+// fluentRadioDot draws a RadioButton's circle on dot, as fluentRadio describes, under the pointer while hovered and pressed while pressed.
+func fluentRadioDot(c *ui.Context, dot ui.Element, on, hovered, pressed bool) {
+	t := c.Theme()
 	fill, stroke, inner := fluentUnchecked(t, hovered, pressed)
 	if pressed && !on {
 		stroke, inner = fluentPressedStroke(t, fill)
@@ -450,11 +460,6 @@ func fluentRadio(c *ui.Context, row, dot ui.Element, on bool) {
 			}
 		case down:
 			p.Fill(ui.Rect{X: cx - press/2, Y: cy - press/2, W: press, H: press}, t.AccentText, press/2)
-		}
-	})
-	row.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if row.FocusVisible() {
-			fluentFocusRing(p, t, r, 7, 3, 7, 3, 4)
 		}
 	})
 }
