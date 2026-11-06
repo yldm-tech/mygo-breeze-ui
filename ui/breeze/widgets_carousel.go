@@ -328,7 +328,7 @@ func dotsAdw(c *ui.Context, root ui.Element, n int, position float32, pip func(i
 			radius := dotsAdwRadius + (dotsAdwRadiusSelected-dotsAdwRadius)*share
 			opacity := dotsAdwOpacity + (dotsAdwOpacitySelected-dotsAdwOpacity)*share
 			cx, cy := r.X+dotsAdwCenter(r.W, n, slot(i)), r.Y+float32(int(r.H)/2)
-			p.Fill(ui.Rect{X: cx - radius, Y: cy - radius, W: 2 * radius, H: 2 * radius}, adwInkLayer(t, opacity), radius)
+			dotsAdwDot(p, cx, cy, radius, adwInkLayer(t, opacity))
 		}
 	})
 	root.DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -336,6 +336,19 @@ func dotsAdw(c *ui.Context, root ui.Element, n int, position float32, pip func(i
 			p.Stroke(r, t.Focus, r.H/2, 2)
 		}
 	})
+}
+
+// dotsAdwDot draws a dot of radius around cx, cy, as snapshot_dots scales its circle to any radius: as a rounded rectangle when its edges fall on whole device pixels, which MyGo then draws as GTK does to the level (a dot at rest, of radius 3 or 4 at a whole or half pixel), else as a path, as Fill rounds a rectangle's edges to whole pixels, which drew dots of radius 3.72 and 3.28, between two pages, both as 3.5 (measured against tools/adwaita-reference's carouseldrag set).
+func dotsAdwDot(p *ui.Painter, cx, cy, radius float32, ink ui.Color) {
+	r := ui.Rect{X: cx - radius, Y: cy - radius, W: 2 * radius, H: 2 * radius}
+	s := p.Scale()
+	whole := func(v float32) bool { return v*s == float32(math.Round(float64(v*s))) }
+	if whole(r.X) && whole(r.Y) && whole(r.X+r.W) && whole(r.Y+r.H) {
+		p.Fill(r, ink, radius)
+		return
+	}
+	var dot ui.Path
+	p.FillPath(dot.Circle(cx, cy, radius), ink)
 }
 
 // ---- the carousel ----
