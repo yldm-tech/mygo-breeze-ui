@@ -17,8 +17,8 @@ jobs:
     name: Go
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -26,16 +26,72 @@ jobs:
       - run: go vet ./...
       - run: GOOS=js GOARCH=wasm go build -o /dev/null ./examples/storybook
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+      # A merge or rebase resolved by hand can leave its markers behind in a file that still builds, such as a Markdown or JSON file.
+      - name: Conflict markers
+        run: |
+          if git grep -nE '^(<<<<<<<|>>>>>>>)( |$)|^\|\|\|\|\|\|\| ' -- . ':!bun.lock'; then
+            echo "::error::Conflict markers are left in the files above."
+            exit 1
+          fi
+      - name: Reference tools compile
+        run: python3 -m py_compile tools/adwaita-reference/reference.py
+
+  cross:
+    name: Build (${{ matrix.goos }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [windows, darwin]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build ./...
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: amd64
+      - run: go vet ./...
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: amd64
+
   bun:
     name: Bun
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run test
       - run: bun run typecheck
       - run: bun run build
+      # packages/breeze-mcp/catalog.json is built from ui/breeze/catalog.json and committed; it must match what the build writes.
+      - name: Built files are committed
+        run: git diff --exit-code
       - run: bun run site:typecheck
       - run: bun run site:test
       - run: bun run site:build

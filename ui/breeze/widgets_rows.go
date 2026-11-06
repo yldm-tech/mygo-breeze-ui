@@ -31,6 +31,8 @@ type rowsItem struct {
 type rowsGroup struct {
 	in   rowsIn
 	rows []*rowsItem
+	// radios holds the RadioRows of the group by the value they choose into: a *T, keyed as any, to its *radioRun[T].
+	radios map[any]any
 }
 
 // rowGroups holds the group each window is building rows in.
@@ -201,11 +203,13 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 	rowsStyle(c, row, item, in, first, title, subtitle, look, trailing)
 }
 
-// rowsLook is how a row reacts: lit says it lights up under the pointer and pressed and shows a focus ring, as a row the user activates does, in the states hovered, pressed and focused; content, when set, builds the row's children in place of the title, the subtitle and the trailing controls, given the colors rowsStyle picks.
+// rowsLook is how a row reacts: lit says it lights up under the pointer and pressed and shows a focus ring, as a row the user activates does, in the states hovered, pressed and focused; content, when set, builds the row's children in place of the title, the subtitle and the trailing controls, given the colors rowsStyle picks; prefix, when set, builds what goes before the title and the subtitle in the platform's leading slot (AdwActionRow's prefixes, SettingsCard's HeaderIcon, the image of a grouped form's row), given the same colors, and collapse lets the platform drop it where the row is narrow, as SettingsCard collapses its HeaderIcon.
 type rowsLook struct {
 	lit                       bool
 	hovered, pressed, focused bool
 	content                   func(ink rowsInk)
+	prefix                    func(ink rowsInk)
+	collapse                  bool
 }
 
 // rowsInk holds the colors and the subtitle's size of a row as rowsStyle picks them: the color under the row, the title's and the subtitle's.
@@ -219,7 +223,8 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 	t := c.Theme()
 	p := PlatformOf(c)
 	toggle, hovered, pressed, focused := look.lit, look.hovered, look.pressed, look.focused
-	if p == Mac {
+	prefixed := look.prefix != nil
+	if p == Mac && !prefixed {
 		row.AlignItems(ui.Start)
 	} else {
 		// GTK's suffixes and SettingsCard's content are centered on the row (valign center, VerticalAlignment Center).
@@ -244,7 +249,9 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 	// over is the theme the trailing controls build in, where the platform lays their translucent colors over the row (Windows); nil keeps the window's.
 	var over *ui.Theme
 	var subSize, lineGap, endGap, suffixGap float32
-	wrapped := false
+	// prefixGap is the room between the prefix and the title, and narrow says the platform drops the prefix in a row this narrow.
+	var prefixGap float32
+	wrapped, narrow := false, false
 	switch p {
 	case Windows:
 		fill, _, stroke := fluentExpanderCard(t)
@@ -252,6 +259,8 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 		joined := in == rowsInCard || in == rowsInAccordion
 		// SettingsCard's ContentAlignmentStates put the content below the header and description, at the start, 8 below them (RightWrapped and RightWrappedNoIcon, ContentSpacing's RowSpacing), while the card is narrower than SettingsCardWrapThreshold, 476 DIPs, its own width deciding (measured from WinUI 3 3.3 with CommunityToolkit's SettingsControls 8.2.251219 on Windows 11 26H2 by tools/winui-reference: SettingsCards and SettingsExpander items 298 and 300 wide wrap, 528 wide do not). Breeze UI decides it from the row's width in the previous frame, as InfoBar does.
 		wrapped = trailing != nil && prevWidth(c, row) < 476
+		// Narrower than SettingsCardWrapNoIconThreshold, 286 DIPs, the card collapses its HeaderIcon too (RightWrappedNoIcon).
+		narrow = prefixed && look.collapse && prevWidth(c, row) < 286
 		switch in {
 		case rowsInAccordion:
 			// A SettingsExpander's item (DefaultSettingsExpanderItemStyle): MinHeight 52, BorderThickness 0,1,0,0, CornerRadius 0, and Padding 58,8,44,8, which puts its header past the expander's icon column and its content before the chevron's even when the expander has no icon (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: an item's header 58 DIPs in from its edge in a SettingsExpander without a HeaderIcon).
@@ -292,6 +301,8 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 		}
 		// SettingsCardDescriptionFontSize, 12 where ControlContentThemeFontSize is 14, following the text size the user chose as the header does.
 		subSize, lineGap, endGap, suffixGap = t.FontSize*12/14, 0, 24, 8
+		// SettingsCardHeaderIconMargin 2,0,20,0: the HeaderIcon 2 DIPs in from the padding and 20 before the header.
+		prefixGap = 20
 		if wrapped {
 			endGap = 8
 		}
@@ -346,6 +357,8 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 		subColor = pick(t.Dark, fill.Mix(adwInk, 0.8*0.55), fill.Mix(white, 0.55))
 		// label.subtitle: font-size smaller, which GTK takes as the parent's size divided by 1.2.
 		subSize, lineGap, endGap, suffixGap = t.FontSize/1.2, 3, 6, 6
+		// box.header > .prefixes: a margin of 6 at its end, and the header's border-spacing of 6 after it.
+		prefixGap = 12
 		if toggle {
 			row.DrawOver(func(p *ui.Painter, r ui.Rect) {
 				if focused {
@@ -385,31 +398,95 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 		subColor = pick(t.Dark, fill.Mix(black, 0.498), fill.Mix(white, 0.549))
 		// The subtitle is 11 points where the title is 13, following the text size the user chose as the title does. The spacing of the controls is inferred.
 		subSize, lineGap, endGap, suffixGap = t.FontSize*11/13, 2.5, 8, 8
+		if prefixed {
+			// A grouped form's row with an image before its labels (a Label with an icon, or an HStack of an image and the labels) centers the image and the labels on each other, 10 points below the row's top and above its bottom, the separator's point taken above them, and starts the title 10 points after the image (measured on macOS 27.2 by reference.swift: a row of a 30-point image and one line 50 points high, the image 10 in from the section's edge). Its separators keep their inset of 10, under the image too. In a DisclosureGroup the padding is 6 less, as rowsStyle takes it there (inferred).
+			top, bottom := float32(10), float32(10)
+			switch {
+			case in == rowsInAccordion:
+				top, bottom = 4, 4
+			case in != rowsAlone && !first:
+				top = 11
+			}
+			row.Padding(top, 10, bottom, 10)
+			prefixGap = 10
+		}
 	}
+	ink := rowsInk{under: under, title: titleColor, sub: subColor, subSize: subSize}
 	row.Gap(endGap)
 	if look.content != nil {
-		row.Children(func() { look.content(rowsInk{under: under, title: titleColor, sub: subColor, subSize: subSize}) })
+		row.Children(func() { look.content(ink) })
 		return
 	}
+	// lead builds the prefix in the platform's leading slot, unless the row is too narrow for it, and returns the slot.
+	var lead func() ui.Element
+	if prefixed {
+		lead = func() ui.Element {
+			if narrow {
+				return ui.Element{}
+			}
+			var slot ui.Element
+			if over != nil {
+				slot = ui.Themed(c, over).Background(ui.Transparent).Row()
+			} else {
+				slot = ui.Row(c)
+			}
+			slot.Shrink(0).AlignItems(ui.Center).Justify(ui.Center)
+			if p == Windows {
+				// HeaderIcon's Viewbox, at most SettingsCardHeaderIconMaxSize, 20 DIPs, on either side.
+				slot.MarginStart(2).MinWidth(20).MinHeight(20)
+			}
+			slot.Children(func() { rowsIsolate(c, func() { look.prefix(ink) }) })
+			return slot
+		}
+	}
+	if prefixed && !wrapped {
+		// The prefix, then the labels and the trailing controls in the room after it.
+		row.Gap(prefixGap)
+		row.Children(func() {
+			lead()
+			body := ui.Row(c).Grow(1).Shrink(1).MinWidth(0).Gap(endGap).AlignItems(pick(p == Mac, ui.Center, ui.Start))
+			rowsBody(c, p, body, title, subtitle, ink, over, wrapped, lineGap, suffixGap, hovered, pressed, trailing, nil, 0)
+		})
+		return
+	}
+	rowsBody(c, p, row, title, subtitle, ink, over, wrapped, lineGap, suffixGap, hovered, pressed, trailing, lead, prefixGap)
+}
+
+// rowsBody builds in body, a row's own element or the room after its prefix, the title and the subtitle in a column that takes the room left, and after them what trailing builds, as rowsStyle picks their look. In a wrapped row lead, when set, builds the prefix before the labels, leadGap before them, and the trailing controls start below the labels, as SettingsCard's RightWrapped state keeps its HeaderIcon beside the header in its first grid row and puts the content in the header's column.
+func rowsBody(c *ui.Context, p Platform, body ui.Element, title, subtitle string, ink rowsInk, over *ui.Theme, wrapped bool, lineGap, suffixGap float32, hovered, pressed bool, trailing func(under ui.Color, hovered, pressed bool), lead func() ui.Element, leadGap float32) {
+	t := c.Theme()
+	under, titleColor, subColor, subSize := ink.under, ink.title, ink.sub, ink.subSize
 	if wrapped {
 		// The header row takes the room MinHeight leaves, the header centered in it, and the content its own height below.
-		row.Column().AlignItems(ui.Stretch)
+		body.Column().AlignItems(ui.Stretch)
 	}
-	row.Children(func() {
-		labels := ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(lineGap)
-		if wrapped {
-			labels.Justify(ui.Center)
-		}
-		if p == Linux {
-			// row > box.header > box.title: margin-top and margin-bottom 6px.
-			labels.Padding(6, 0)
-		}
-		labels.Children(func() {
-			ui.Text(c, title).TextColor(titleColor)
-			if subtitle != "" {
-				ui.Text(c, subtitle).FontSize(subSize).TextColor(subColor)
+	body.Children(func() {
+		var slot ui.Element
+		buildLabels := func() {
+			labels := ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(lineGap)
+			if wrapped {
+				labels.Justify(ui.Center)
 			}
-		})
+			if p == Linux {
+				// row > box.header > box.title: margin-top and margin-bottom 6px.
+				labels.Padding(6, 0)
+			}
+			labels.Children(func() {
+				ui.Text(c, title).TextColor(titleColor)
+				if subtitle != "" {
+					ui.Text(c, subtitle).FontSize(subSize).TextColor(subColor)
+				}
+			})
+		}
+		if lead != nil {
+			// The prefix and the header share the room MinHeight leaves, the prefix centered on the header.
+			ui.Row(c).Grow(1).AlignItems(ui.Center).Gap(leadGap).Children(func() {
+				slot = lead()
+				buildLabels()
+			})
+		} else {
+			buildLabels()
+		}
 		if trailing != nil {
 			var end ui.Element
 			if over != nil {
@@ -420,6 +497,14 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 			end.Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
 			if wrapped {
 				end.AlignSelf(ui.Start)
+				if slot.Valid() {
+					// Below the labels, past the prefix: its width in the previous frame (20 DIPs before the first), its margin of 2 and the gap after it.
+					w := slot.LayoutBounds().W
+					if w == 0 {
+						w = 20
+					}
+					end.MarginStart(w + 2 + leadGap)
+				}
 			}
 			if p == Mac {
 				// A grouped form centers its controls on the title's line, not on the row: a 16-point switch's top and a 24-point button's middle line up with the title's (measured on macOS 27.2), the button reaching into the row's padding.

@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), and the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -234,6 +234,120 @@ func settingsSet() -> [Item] {
     ]
 }
 
+// switcherIcons are the icons of TestScreenshotsViewSwitcher (switcherTestIcons in ui/breeze/widgets_switcher_test.go), the same SVGs, which NSImage reads, as template images 16 points square.
+let switcherIcons: [NSImage] = [
+    ##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2.5 2.5h3v11h-3zM6.5 2.5h3v11h-3zM10.4 3.4l2.4-.6 2.4 10.2-2.4.6z" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>"##,
+    ##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>"##,
+    ##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6"/><path d="M5.3 5.3a3.8 3.8 0 0 0 0 5.4M10.7 5.3a3.8 3.8 0 0 1 0 5.4M3.2 3.2a6.8 6.8 0 0 0 0 9.6M12.8 3.2a6.8 6.8 0 0 1 0 9.6" fill="none" stroke="#000" stroke-width="1.3" stroke-linecap="round"/></svg>"##,
+].map { s in
+    let image = NSImage(data: Data(s.utf8))!
+    image.size = NSSize(width: 16, height: 16); image.isTemplate = true
+    return image
+}
+let switcherLabels = ["Library", "Browse", "Radio"]
+
+// SwitcherItems fills the toolbar of renderSwitcher as breeze.HeaderBar's end holds a ViewSwitcher in TestScreenshotsViewSwitcher: after a flexible space, an NSToolbarItemGroup of selectionMode selectOne holding the three icons, labeled Library, Browse and Radio, Browse chosen, as an app switches its views from its toolbar (Music, Finder's view switcher). The toolbar shows icons only, so the labels name the segments.
+class SwitcherItems: NSObject, NSToolbarDelegate {
+    func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.flexibleSpace, .init("views")] }
+    func toolbarAllowedItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(t) }
+    func toolbar(_ t: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar f: Bool) -> NSToolbarItem? {
+        let group = NSToolbarItemGroup(itemIdentifier: id, images: switcherIcons, selectionMode: .selectOne, labels: switcherLabels, target: noop, action: #selector(Noop.act(_:)))
+        group.selectedIndex = 1
+        return group
+    }
+}
+
+let switcherItems = SwitcherItems()
+
+// renderSwitcher renders TestScreenshotsViewSwitcher's switcherView on macOS: a titled window with a unified toolbar titled Music holding SwitcherItems' group at its end, and in the window's content 16 points in from its side and 16 below the 52-point bar an NSSegmentedControl of the same three segments, each an icon before its label, Browse chosen, where a ViewSwitcher alone draws Breeze UI's segmented control. It renders the window's frame view at 2x into an sRGB bitmap and prints the frames of the group's platter and segmented view and of the segmented control, and the values across the group's middle row and down the chosen segment's middle. The toolbar renders offscreen at its live sizes but its chosen segment's pill 26 points high where a live window draws it 28 high, 4 in from the platter's top and bottom: with -live the window is also put on the screen, ordered front without activating the app, and captured with screencapture -l, which needs the Screen Recording permission; the app is not active then, so the title shows dimmed, while the pill reads as in the key window (the offscreen render draws it alike with or without -inactive).
+func renderSwitcher(appearance: NSAppearance.Name, file: String) {
+    let live = args.contains("-live")
+    let win = KeyWindow(contentRect: NSRect(x: live ? 200 : -4000, y: live ? 300 : -4000, width: 560, height: 140), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    win.appearance = NSAppearance(named: appearance)
+    win.title = "Music"
+    let bar = NSToolbar(identifier: "switcher"); bar.delegate = switcherItems; bar.displayMode = .iconOnly
+    win.toolbar = bar; win.toolbarStyle = .unified
+    let alone = NSSegmentedControl(labels: switcherLabels, trackingMode: .selectOne, target: noop, action: #selector(Noop.act(_:)))
+    for (i, image) in switcherIcons.enumerated() { alone.setImage(image, forSegment: i) }
+    alone.selectedSegment = 1
+    let size = alone.fittingSize
+    alone.frame = NSRect(x: 16, y: 140 - 68 - size.height, width: size.width, height: size.height)
+    win.contentView!.addSubview(alone)
+    win.orderFront(nil)
+    RunLoop.current.run(until: Date().addingTimeInterval(live ? 1 : 0.3))
+    let frame = win.contentView!.superview!
+    frame.layoutSubtreeIfNeeded(); frame.display()
+    let W = frame.bounds.width, H = frame.bounds.height
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = frame.bounds.size
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    print("== \(file)")
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
+    func walk(_ v: NSView) {
+        let name = String(describing: type(of: v))
+        if name == "NSToolbarPlatterView" || name == "NSToolbarItemGroupPickerExpandedView" || v === alone {
+            let f = v.convert(v.bounds, to: frame)
+            print("\(name) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+            let x0 = Int(f.minX * 2), y0 = Int((H - f.maxY) * 2), w = Int(f.width * 2), h = Int(f.height * 2)
+            print("  row: " + runs((max(0, x0 - 4)..<min(Int(W * 2), x0 + w + 4)).map { gray($0, y0 + h / 2) }))
+            print("  col at the second segment: " + runs((max(0, y0 - 4)..<min(Int(H * 2), y0 + h + 4)).map { gray(x0 + w / 2, $0) }))
+        }
+        v.subviews.forEach(walk)
+    }
+    walk(frame)
+    if live {
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-o", "-l\(win.windowNumber)", out + "/" + file.replacingOccurrences(of: ".png", with: "-live.png")]
+        try! capture.run(); capture.waitUntilExit()
+    }
+    win.orderOut(nil)
+}
+
+for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+    renderSwitcher(appearance: appearance, file: "appkit-switcher-\(mode).png")
+}
+
+// A tile as the preferences scene's PrefixRows hold one: a 30-point rounded square of systemBlue.
+struct Tile: View {
+    var body: some View { RoundedRectangle(cornerRadius: 7).fill(Color.blue).frame(width: 30, height: 30) }
+}
+
+// preferencesSet places SwiftUI's grouped Forms where ui/breeze/widgets_preferences_test.go's prefsView places Breeze UI's preferences widgets on macOS: at 16, 16 a section whose header holds a title and a Detect button and whose footer is a description, holding a row whose label is a Label with a tile, a title and a subtitle and holds a Remove button, a row with a value and a row whose label is a Label with a tile and a title; below it a Picker of the radio-group style of three options, two with a subtitle; on the right a section under a header holding a row with a value and a VStack row of a title over a TextEditor 60 points high. The Forms are shifted by their padding of 20, so that their sections land where Breeze UI's do.
+func preferencesSet() -> [Item] {
+    let speech = RowsForm {
+        Section {
+            LabeledContent { Button("Remove") {} } label: { Label { Text("Whisper"); Text("Base · 142 MB") } icon: { Tile() } }
+            LabeledContent("Language", value: "Auto")
+            LabeledContent { EmptyView() } label: { Label { Text("Tiny") } icon: { Tile() } }
+        } header: {
+            HStack { Text("Speech"); Spacer(); Button("Detect") {} }
+        } footer: { Text("Models are stored on this Mac.") }
+    }
+    let engine = RowsForm {
+        Picker("Engine", selection: .constant("whisper")) {
+            TitleSubtitle(title: "Whisper", subtitle: "On this Mac").tag("whisper")
+            TitleSubtitle(title: "Cloud", subtitle: "Sent to a service").tag("cloud")
+            TitleSubtitle(title: "Off", subtitle: "").tag("off")
+        }.pickerStyle(.radioGroup).labelsHidden()
+    }
+    let translation = RowsForm {
+        Section("Translation") {
+            LabeledContent("Model", value: "GPT")
+            VStack(alignment: .leading) { Text("Prompt"); TextEditor(text: .constant("Translate the subtitles.")).frame(height: 60) }
+        }
+    }
+    return [
+        hosted("form-preferences-group", speech, x: -4, y: -4, w: 340, h: 260),
+        hosted("form-radio-rows", engine, x: -4, y: 217, w: 340, h: 200),
+        hosted("form-content-row", translation, x: 320, y: -4.5, w: 340, h: 240),
+    ]
+}
+
 // textSet: AppKit's text styles (NSFont.preferredFont(forTextStyle:)) in labels, two in secondaryLabelColor, where TestScreenshotsText's textView places Breeze UI's Text (textTops).
 func textSet() -> [Item] {
     func label(_ s: String, _ style: NSFont.TextStyle, secondary: Bool = false) -> NSTextField {
@@ -394,6 +508,37 @@ func renderTabs(appearance: NSAppearance.Name, file: String) {
     app.delegate = nil
 }
 
+// FirstResponderDatePicker takes the window's focus as it joins the window, so that the offscreen render draws its chosen day as a focused NSDatePicker does.
+class FirstResponderDatePicker: NSDatePicker {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.makeFirstResponder(self)
+    }
+}
+
+// renderDatePicker places the date pickers where ui/breeze/widgets_datepicker_test.go's datePickerView places Breeze UI's CalendarView and DatePicker: an NSDatePicker of style clockAndCalendar (SwiftUI's graphical DatePicker on macOS) at 16, 16 showing November 2026 with the 18th chosen, the window's focus when focused, and an NSDatePicker of style textField with presentsCalendarOverlay (the field of SwiftUI's compact style) whose 21-point frame is at 361, 17, so that its bezel, drawn a point outside it, starts at 360, 16; both in American English with weeks starting on Sunday, in UTC. AppKit marks the real today, which TestScreenshotsDatePicker fixes as the 6th of November 2026. It renders them with render and prints the accessibility of the calendar's buttons, which AppKit leaves unnamed.
+func renderDatePicker(appearance: NSAppearance.Name, focused: Bool, file: String) {
+    var cal = Calendar(identifier: .gregorian)
+    cal.locale = Locale(identifier: "en_US"); cal.firstWeekday = 1; cal.timeZone = TimeZone(identifier: "UTC")!
+    let day = cal.date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 10))!
+    let calendar = focused ? FirstResponderDatePicker() : NSDatePicker()
+    let field = NSDatePicker()
+    for (p, style) in [(calendar, NSDatePicker.Style.clockAndCalendar), (field, .textField)] {
+        p.datePickerStyle = style; p.datePickerElements = .yearMonthDay
+        p.locale = cal.locale; p.calendar = cal; p.timeZone = cal.timeZone; p.dateValue = day
+    }
+    field.presentsCalendarOverlay = true
+    render([Item(name: "calendar", view: calendar, x: 16, y: 16), Item(name: "date-field", view: field, x: 361, y: 17)], width: 560, height: 400, appearance: appearance, file: file)
+    for child in calendar.accessibilityChildren() ?? [] {
+        for button in (child as AnyObject).accessibilityChildren?() ?? [] {
+            if let b = button as? NSAccessibilityElementProtocol {
+                let o = button as AnyObject
+                print("  button label=\"\(o.accessibilityLabel?() ?? "")\" title=\"\(o.accessibilityTitle?() ?? "")\" screen frame=\(b.accessibilityFrame())")
+            }
+        }
+    }
+}
+
 // HeaderItems fills the toolbar of renderHeaderBar as an app's window title bar: a navigational back item before the title, then after a flexible space a bordered text item and a bordered image item, as breeze.HeaderBar's start and end hold them in TestScreenshotsHeaderBar.
 class HeaderItems: NSObject, NSToolbarDelegate {
     var back = true
@@ -463,6 +608,67 @@ func renderHeaderBar(appearance: NSAppearance.Name, subtitle: String, back: Bool
     win.orderOut(nil)
 }
 
+// SplitHeaderItems fills the toolbar of renderHeaderBarSplit: a tracking separator over the split view's divider, then the items of HeaderItems after it, so that they and the title sit over the content pane, as breeze.HeaderBar's start and end hold them in TestScreenshotsHeaderBarInPane.
+class SplitHeaderItems: HeaderItems {
+    override func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.sidebarTrackingSeparator] + super.toolbarDefaultItemIdentifiers(t) }
+}
+
+let splitHeaderItems = SplitHeaderItems()
+let splitHeaderItemsNoBack: SplitHeaderItems = { let h = SplitHeaderItems(); h.back = false; return h }()
+
+// renderHeaderBarSplit renders a titled window with a unified toolbar over an NSSplitViewController, a 236-point sidebar beside the content, the toolbar's items and the title after a tracking separator over the divider, with or without the back item and the subtitle, the window's frame view at 2x into an sRGB bitmap, as breeze.HeaderBar draws a bar over a window's content pane on macOS, and prints the frames of the traffic lights, the divider, the title's text fields, the toolbar's view and the items' platters.
+func renderHeaderBarSplit(appearance: NSAppearance.Name, subtitle: String, back: Bool = true, file: String) {
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: 720, height: 120), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    win.appearance = NSAppearance(named: appearance)
+    win.title = "Documents"; win.subtitle = subtitle
+    let split = NSSplitViewController()
+    let side = NSSplitViewItem(sidebarWithViewController: NSViewController()); side.viewController.view = NSView()
+    side.minimumThickness = 236; side.maximumThickness = 236
+    let content = NSSplitViewItem(viewController: NSViewController()); content.viewController.view = NSView()
+    split.addSplitViewItem(side); split.addSplitViewItem(content)
+    win.contentViewController = split
+    win.setContentSize(NSSize(width: 720, height: 120))
+    let bar = NSToolbar(identifier: back ? "split-header" : "split-header-noback"); bar.delegate = back ? splitHeaderItems : splitHeaderItemsNoBack; bar.displayMode = .iconOnly
+    win.toolbar = bar; win.toolbarStyle = .unified
+    win.orderFront(nil)
+    split.splitView.setPosition(236, ofDividerAt: 0)
+    let frame = win.contentView!.superview!
+    frame.layoutSubtreeIfNeeded(); frame.display()
+    let W = frame.bounds.width, H = frame.bounds.height
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = frame.bounds.size
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    let sideFrame = side.viewController.view.convert(side.viewController.view.bounds, to: frame)
+    print("== \(file) window \(W)x\(H) sidebar x=\(sideFrame.minX) w=\(sideFrame.width)")
+    for b in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+        if let v = win.standardWindowButton(b) {
+            let f = v.convert(v.bounds, to: frame)
+            print("button \(b.rawValue) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+    }
+    func walk(_ v: NSView) {
+        let name = String(describing: type(of: v))
+        let f = v.convert(v.bounds, to: frame)
+        if let t = v as? NSTextField, !t.stringValue.isEmpty {
+            let size = t.attributedStringValue.size()
+            print("text \(name) \"\(t.stringValue)\" x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height) advance=\(size.width) font=\(t.font!.fontName) \(t.font!.pointSize)")
+        } else if name.contains("Platter") || name == "NSToolbarButton" || name == "NSToolbarView" || name.contains("TitlebarView") || name.contains("ToolbarTitle") || name.contains("Separator") {
+            print("\(name) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+        v.subviews.forEach(walk)
+    }
+    walk(frame)
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
+    // The content pane's bar down a column clear of the items, and across the window under the title's middle.
+    print("  col x=400: " + runs((0..<Int(H * 2)).map { gray(800, $0) }))
+    print("  row y=26: " + runs((0..<Int(W * 2)).map { gray($0, 52) }))
+    win.orderOut(nil)
+}
+
 for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
     render(firstSet(), width: 360, height: 200, appearance: appearance, file: "appkit-\(mode).png")
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
@@ -472,9 +678,14 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
     render(rowsSet(), width: 672, height: 520, appearance: appearance, file: "appkit-rows-\(mode).png")
     render(settingsSet(), width: 672, height: 480, appearance: appearance, file: "appkit-settings-\(mode).png")
+    render(preferencesSet(), width: 672, height: 480, appearance: appearance, file: "appkit-preferences-\(mode).png")
     render(textSet(), width: 360, height: 300, appearance: appearance, file: "appkit-text-\(mode).png")
     renderTabs(appearance: appearance, file: "appkit-tabs-\(mode).png")
+    renderDatePicker(appearance: appearance, focused: false, file: "appkit-datepicker-\(mode).png"); renderDatePicker(appearance: appearance, focused: true, file: "appkit-datepicker-focused-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", file: "appkit-headerbar-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-subtitle-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-noback-\(mode).png")
+    renderHeaderBarSplit(appearance: appearance, subtitle: "", file: "appkit-headerbar-split-\(mode).png")
+    renderHeaderBarSplit(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-split-subtitle-\(mode).png")
+    renderHeaderBarSplit(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-split-noback-\(mode).png")
 }

@@ -198,7 +198,12 @@ func adwRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
 	row.Gap(4).Padding(4).Radius(999)
 	adwFocusRing(t, row, 999, nil)
-	hovered, pressed := row.Hovered(), row.Pressed()
+	adwRadioDot(c, dot, on, row.Hovered(), row.Pressed())
+}
+
+// adwRadioDot draws a grouped GtkCheckButton's circle on dot, as adwRadio describes, under the pointer while hovered and pressed while pressed.
+func adwRadioDot(c *ui.Context, dot ui.Element, on, hovered, pressed bool) {
+	t := c.Theme()
 	dot.Size(20, 20).Radius(10)
 	switch {
 	case on:
@@ -561,10 +566,10 @@ func adwLinkColor(t *ui.Theme) ui.Color {
 	return pick(t.Dark, t.Accent.Mix(black, 0.2), t.Accent.Mix(white, 0.45))
 }
 
-// adwPopover draws a popover's contents: popover_bg_color, corners of 15, padding 8 and adwMenu's ring and two soft shadows.
+// adwPopover draws a popover's contents: popover_bg_color, corners of 15, padding 8 and adwMenu's ring and two soft shadows, its contents right at the anchor's edge, as GtkPopover places them without its arrow (has-arrow false, as MyGo draws popovers): in libadwaita 1.10.0's render (tools/adwaita-reference's third set) the contents of the Details popover start at 104, where the Info button above it ends, in the light and the dark theme. adwMenu's margin of 6 is a dropdown's.
 func adwPopover(c *ui.Context, panel ui.Element) {
 	adwMenu(c, panel)
-	panel.Padding(8).Gap(6)
+	panel.Margin(0).Padding(8).Gap(6)
 }
 
 // adwSeparator is a separator's color, $border_color: currentColor at 15%.

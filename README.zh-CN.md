@@ -13,7 +13,7 @@ Breeze UI 让 [MyGo](https://github.com/egoist/mygo) 的原生 UI 控件按应�
 
 ## 包含内容
 
-- `ui/breeze`：按钮、切换按钮与切换组、复选框、单选按钮与单选按钮组、开关、文本框与搜索框（以及编辑 `ui.TextBuffer` 的文本框）、组合框、下拉选择、滑块、步进器、进度条、加载指示器、分段控件、标签页、可关闭标签并带新建按钮的文档标签栏、按平台字号层级排版的文字（标题、小标题、正文、说明文字和弱化的次要文字）、链接、分隔线、徽标、菜单按钮、弹出层、对话框和提示框、工具提示和 Toast 通知、折叠面板与手风琴、字段组与表单、卡片、设置行与开关行、下拉选择行、输入行、数值行与展开行、侧边栏、面包屑、后退与前进按钮、工具栏、隐藏标题栏窗口的标题栏（HeaderBar）、电平表、头像、评分、内联消息栏、环形进度、空状态页、带刻度的滑块、数字输入框、日期与时间输入框、颜色井、复选框组、分栏视图、列表、表格、树、大纲、网格、可编辑文本、自动补全与标记输入框、密码框、拆分按钮和图标按钮按各平台的样子绘制，对照 macOS 27、WinUI 3 和 libadwaita 1.10（GNOME 51），尺寸和颜色量自 AppKit 与 libadwaita 的实际渲染，或取自 WinUI 3 的主题资源；小数输入框、范围滑块、日历、颜色选择器、查找栏和滚动容器以同样的名字使用 `ui` 包的控件，配上平台主题。
+- `ui/breeze`：按钮、切换按钮与切换组、复选框、单选按钮与单选按钮组、开关、文本框与搜索框（以及编辑 `ui.TextBuffer` 的文本框）、组合框、下拉选择、滑块、步进器、进度条、加载指示器、分段控件、标签页、可关闭标签并带新建按钮的文档标签栏、按平台字号层级排版的文字（标题、小标题、正文、说明文字和弱化的次要文字）、链接、分隔线、徽标、菜单按钮、弹出层、对话框和提示框、工具提示和 Toast 通知、折叠面板与手风琴、字段组与表单、卡片、设置行与开关行、下拉选择行、输入行、数值行与展开行、侧边栏、面包屑、后退与前进按钮、工具栏、隐藏标题栏窗口的标题栏（HeaderBar）、切换应用顶层视图的视图切换器（ViewSwitcher）、电平表、头像、评分、内联消息栏、环形进度、空状态页、带刻度的滑块、数字输入框、日期与时间输入框、按平台绘制月历（NSDatePicker、WinUI 的 CalendarView、GtkCalendar）并跟随用户语言与地区格式的日期选择器、颜色井、复选框组、分栏视图、列表、表格、树、大纲、网格、可编辑文本、自动补全与标记输入框、密码框、拆分按钮和图标按钮按各平台的样子绘制，对照 macOS 27、WinUI 3 和 libadwaita 1.10（GNOME 51），尺寸和颜色量自 AppKit 与 libadwaita 的实际渲染，或取自 WinUI 3 的主题资源；小数输入框、范围滑块、日历、颜色选择器、查找栏和滚动容器以同样的名字使用 `ui` 包的控件，配上平台主题。
 - 三个平台的浅色和深色主题，跟随用户选择的强调色、对比度和文字大小。
 - `breeze-ui` CLI：列出控件和平台，生成代码片段。
 - `breeze-ui-mcp`：基于同一份目录的只读 MCP 服务。
@@ -74,6 +74,8 @@ npx breeze-ui add Switch -o ui/switch_snippet.go
 go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest
 ```
 
+或者从 [Releases](https://github.com/yldm-tech/mygo-breeze-ui/releases) 下载 Linux、macOS 和 Windows 版。`breeze-ui version` 会打印它的版本号。
+
 ## MCP 服务
 
 ```sh
@@ -94,6 +96,8 @@ bun run test
 bun run typecheck
 bun run build
 ```
+
+Pull request 标题和提交信息使用 [Conventional Commits](https://www.conventionalcommits.org/)（`feat(breeze): ...`、`fix: ...`）。Labels 工作流会检查标题，并按类型、大小、区域和平台给每个 pull request 打标签；Conflicts 工作流会给与目标分支冲突的 pull request 打标签。`main` 上的 CI 通过后，如果上一个 tag 之后的提交需要新版本，Release 工作流就会自动发版：把版本号写进 npm 包和 MCP 服务，以 `chore(release)` 提交到 `main`，给这个提交打 tag，再发布附带 Linux、macOS 和 Windows 版 `breeze-ui` 命令的 GitHub Release。版本号的规则是：`feat` 升次版本号，`fix`、`perf` 和 `revert` 升修订号，破坏性改动（`feat!:` 或 `BREAKING CHANGE:` 脚注）升主版本号，版本仍是 0.x 时只升次版本号。需要强制发版时可以手动运行 Release 工作流。
 
 ## Star History
 
