@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "platforms": [
+    {
+      "name": "macOS",
+      "description": "AppKit's controls of macOS 26 and 27, measured from AppKit's own rendering on macOS 27.2 in a key window.",
+      "value": "macOS 26+",
+      "example": "breeze.SetPlatform(breeze.Mac)"
+    },
+    {
+      "name": "Windows",
+      "description": "WinUI 3's Fluent 2 controls of Windows 11, from the theme resources of microsoft-ui-xaml, the core controls compared with WinUI 3's own rendering.",
+      "value": "Windows 11",
+      "example": "breeze.SetPlatform(breeze.Windows)"
+    },
+    {
+      "name": "Linux",
+      "description": "GNOME's libadwaita controls, from the libadwaita 1.10 stylesheet (GTK 4.24, adwaita-icon-theme 51), compared pixel by pixel with libadwaita 1.10.0's own rendering.",
+      "value": "GNOME 51",
+      "example": "breeze.SetPlatform(breeze.Linux)"
+    }
+  ]
+}

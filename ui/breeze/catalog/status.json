@@ -1,0 +1,32 @@
+{
+  "components": [
+    {
+      "name": "InfoBar",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An inline message bar with a severity, a title and a message, optionally closable: Windows 11's InfoBar colored by its severity, GNOME's AdwBanner (banners have no severity), or on macOS, which has no message bar, a grouped form section with a colored SF Symbol (inferred). The severity is a toast's Type: \"success\", \"warning\", \"error\" or informational.",
+      "example": "breeze.InfoBar(c, \"warning\", \"Update available\", \"Restart to finish installing.\", &app.showUpdate)"
+    },
+    {
+      "name": "InfoBarActions",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An InfoBar with action buttons where the platform puts a message bar's action: Windows 11's InfoBar ActionButton, after the message or below it in a narrow bar; on macOS buttons at the end of the bar before the close button, centered on the title's line; GNOME's AdwBanner button, which takes the place of its Dismiss button. The buttons are drawn over the bar's fill.",
+      "example": "breeze.InfoBarActions(c, \"warning\", \"Speech model missing\", \"Download a model to transcribe.\", &app.showNotice, func() {\n\tif breeze.Button(c, \"Open Settings\").Clicked() {\n\t\tapp.openSettings()\n\t}\n})"
+    },
+    {
+      "name": "ProgressRing",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "A circular progress indicator filled to a value from 0 to 1: macOS's determinate spinning NSProgressIndicator, Windows 11's ProgressRing with IsIndeterminate false, or on GNOME, which has none, a ring after AdwSpinner in the accent (inferred). A negative value shows the Spinner.",
+      "example": "breeze.ProgressRing(c, app.uploaded).Label(\"Upload\")"
+    },
+    {
+      "name": "StatusPage",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An empty-state page with an icon, a title, a description and actions below them: GNOME's AdwStatusPage, SwiftUI's ContentUnavailableView on macOS, or on Windows 11, which has no such control, a page after WinUI's type ramp (inferred).",
+      "example": "breeze.StatusPage(c, searchIcon, \"No Results\", \"Check the spelling or try a new search.\", func() {\n\tbreeze.Button(c, \"Clear Search\")\n})"
+    }
+  ]
+}
