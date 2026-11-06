@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs and rows sets, against TestScreenshotsInputs and TestScreenshotsRows.
+// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows and overcard sets, against TestScreenshotsInputs, TestScreenshotsRows and TestAdwControlsOverCard.
 
 // TestAdwPasswordFocusRingDark checks the focus ring of a GtkPasswordEntry in the dark theme, which libadwaita 1.10.0 renders (92, 132, 185) over the entry's fill: GTK mixes the dark theme's accent_color, outside sRGB, at 50% without clamping it, bluer than the clamped #81d0ff at 50% (93, 132, 158).
 func TestAdwPasswordFocusRingDark(t *testing.T) {
@@ -144,5 +144,72 @@ func TestAdwButtonOverCard(t *testing.T) {
 				t.Errorf("dark %v: %q's face is %v, want libadwaita's %v", dark, k.name, got, k.want)
 			}
 		}
+	}
+}
+
+// TestAdwControlsOverCard checks that on GNOME an entry and a split button show what is behind them, as libadwaita's translucent fills do, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference's overcard set: in AdwActionRows over a boxed list's card a GtkPasswordEntry's fill is 235 in the light theme and 72 in the dark one and its placeholder, .dimmed, 132 and 172; an AdwSplitButton's face is 235 and 72 and its seam 217 and 91. Over the window, in the inputs set, the placeholder is 129 and 166, where MyGo's TextMuted read 140 and 156.
+func TestAdwControlsOverCard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		empty, alone := "", ""
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Fill().Padding(16).Gap(16).Children(func() {
+					ui.Column(c).Width(300).Children(func() {
+						Card(c, func() {
+							ActionRow(c, "Share", "", func() { SplitButton(c, "Send", func(m *ui.Menu) { m.Item("Send Later") }) })
+							ActionRow(c, "Secret", "", func() { PasswordField(c, &empty).Placeholder("Password").Label("Over the card").Width(160) })
+						})
+					})
+					ui.Row(c).Children(func() { PasswordField(c, &alone).Placeholder("Password").Label("Over the window").Width(160) })
+				})
+			})
+		}, 400, 220)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		img := tester.Image()
+		find := func(name string) ui.Rect {
+			r, ok := tester.Find(name)
+			if !ok {
+				t.Fatalf("dark %v: %q is missing", dark, name)
+			}
+			return r
+		}
+		at := func(x, y float32) ui.Color {
+			px := img.RGBAAt(int(x*2), int(y*2))
+			return ui.RGB(px.R, px.G, px.B)
+		}
+		// The color farthest from the fill in a box, the ink where it covers whole device pixels: the placeholder's glyphs, or the seam.
+		ink := func(x0, y0, x1, y1 float32) ui.Color {
+			best, bestLum := ui.Color{}, float32(-1)
+			for y := int(y0 * 2); y < int(y1*2); y++ {
+				for x := int(x0 * 2); x < int(x1*2); x++ {
+					px := img.RGBAAt(x, y)
+					c := ui.RGB(px.R, px.G, px.B)
+					l := luminance(c)
+					if !dark {
+						l = 1 - l
+					}
+					if l > bestLum {
+						best, bestLum = c, l
+					}
+				}
+			}
+			return best
+		}
+		check := func(what string, got, want ui.Color) {
+			if adwColorDiff(got, want) > 2.0/255 {
+				t.Errorf("dark %v: %s is %v, want libadwaita's %v", dark, what, got, want)
+			}
+		}
+		card, window := find("Over the card"), find("Over the window")
+		check("the entry's fill over the card", at(card.X+4, card.Y+card.H/2), pick(dark, ui.RGB(235, 235, 235), ui.RGB(72, 72, 75)))
+		check("the placeholder over the card", ink(card.X+9, card.Y+8, card.X+card.W-9, card.Y+card.H-8), pick(dark, ui.RGB(132, 132, 135), ui.RGB(172, 172, 174)))
+		check("the placeholder over the window", ink(window.X+9, window.Y+8, window.X+window.W-9, window.Y+window.H-8), pick(dark, ui.RGB(129, 129, 133), ui.RGB(166, 166, 167)))
+		// "Send" is the label, inside the button's padding of 10.
+		send, arrow := find("Send"), find(inputsMoreOptions)
+		check("the split button's face over the card", at(send.X-4, send.Y+send.H/2), pick(dark, ui.RGB(235, 235, 235), ui.RGB(72, 72, 75)))
+		check("the split button's seam over the card", ink(arrow.X-1, arrow.Y+arrow.H/2, arrow.X+2, arrow.Y+arrow.H/2+0.5), pick(dark, ui.RGB(217, 217, 217), ui.RGB(91, 91, 93)))
 	}
 }

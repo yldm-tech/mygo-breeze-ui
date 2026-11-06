@@ -378,28 +378,28 @@ func adwSplitButton(c *ui.Context, group, primary, arrow ui.Element, start, end 
 		}
 		return pick(flat, float32(0.10), 0)
 	}
+	// The faces are translucent layers, as libadwaita's are, so that the split button shows what is behind it, a boxed list's card in an AdwActionRow (its face 235 in the light theme and 72 in the dark one, the seam 217 and 91, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference's overcard set); the text takes its color over the faces as they are over the window.
 	under := t.Background
 	hot := primary.Hovered() || arrow.Hovered() || primary.Pressed() || arrow.Pressed()
 	if flat && hot {
 		under = adwInkAlpha(t, t.Background, 0.07)
-		group.Radius(9).Background(under)
+		group.Radius(9).Background(adwInkLayer(t, 0.07))
 	}
-	face := func(share float32, base ui.Color) ui.Color {
+	face := func(share float32) ui.Color {
 		if share == 0 {
 			return ui.Transparent
 		}
-		return adwInkAlpha(t, base, share)
+		return adwInkLayer(t, share)
 	}
 	ps, as := shares(primary), shares(arrow)
-	pf := face(ps, under)
 	for _, b := range []ui.Element{primary, arrow} {
 		b.MinHeight(34).FontWeight(700).Border(0, ui.Color{})
 	}
-	inputsRadius(primary.Padding(5, 10).Background(pf), start(9)).TextColor(adwTextOn(t, pick(ps == 0, pf, under)))
+	inputsRadius(primary.Padding(5, 10).Background(face(ps)), start(9)).TextColor(adwTextOn(t, adwInkAlpha(t, under, ps)))
 	adwFocusRing(t, primary, 9, nil)
-	af := face(as, under)
-	inputsRadius(arrow.MinWidth(24).Padding(5, 4).MarginStart(-1).Background(af), end(9))
-	ink := adwTextOn(t, pick(as == 0, af, under))
+	// The arrow's button overlaps the button by a pixel, its face laid over the button's there: the seam.
+	inputsRadius(arrow.MinWidth(24).Padding(5, 4).MarginStart(-1).Background(face(as)), end(9))
+	ink := adwTextOn(t, adwInkAlpha(t, under, as))
 	focus := primary.FocusVisible() || arrow.FocusVisible()
 	edge := func(r ui.Rect) float32 {
 		if rtl {
@@ -408,12 +408,8 @@ func adwSplitButton(c *ui.Context, group, primary, arrow ui.Element, start, end 
 		return r.X
 	}
 	adwFocusRing(t, arrow, 9, func(p *ui.Painter, r ui.Rect) {
-		switch {
-		case !flat:
-			// The arrow's face over the button's, a pixel wide.
-			p.Fill(ui.Rect{X: edge(r), Y: r.Y, W: 1, H: r.H}, adwInkAlpha(t, pf, as), 0)
-		case !hot && !focus:
-			p.Fill(ui.Rect{X: edge(r), Y: r.Y + 6, W: 1, H: r.H - 12}, adwInkAlpha(t, under, 0.30), 0)
+		if flat && !hot && !focus {
+			p.Fill(ui.Rect{X: edge(r), Y: r.Y + 6, W: 1, H: r.H - 12}, adwInkLayer(t, 0.30), 0)
 		}
 	})
 	arrow.Children(func() { idiomAdwArrow(c, ink) })

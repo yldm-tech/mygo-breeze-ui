@@ -244,7 +244,7 @@ func adwToggleShare(b ui.Element, on bool) float32 {
 	return 0.10
 }
 
-// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12.
+// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12. The fill is translucent, as libadwaita's is, so an entry shows what is behind it: over the window 230 in the light theme and 57 in the dark one, in an AdwActionRow over a boxed list's card 235 and 72 (measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference, its inputs and overcard sets). An entry's placeholder is .dimmed, window_fg_color at 55% over the fill: 129 and 166 over the window, 132 and 172 over the card, where MyGo's TextMuted, opaque over the window, read 140 and 156.
 func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 	t := c.Theme()
 	f.Border(0, ui.Color{})
@@ -253,7 +253,7 @@ func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 		radius = 12
 		f.Padding(8, 9).Background(pick(t.Dark, white, ui.Hex("#1d1d20")))
 	} else {
-		f.MinHeight(34).Padding(0, 9).Background(adwInkAlpha(t, t.Background, 0.10))
+		f.MinHeight(34).Padding(0, 9).Background(adwInkLayer(t, 0.10)).PlaceholderColor(adwInkLayer(t, 0.55))
 	}
 	f.Radius(radius)
 	focused := f.Focused()

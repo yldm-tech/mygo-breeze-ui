@@ -297,7 +297,9 @@ def layout_set():
     paned = Gtk.Paned(start_child=pad(Gtk.Label(label="Sidebar", xalign=0, yalign=0), 8), end_child=pad(Gtk.Label(label="Content", xalign=0, yalign=0), 8), position=120)
     paned.add_css_class("frame")
     paned.set_size_request(-1, 60)
-    right = vbox(16, name_row, shipping, group, paned, width=270)
+    # The test's Form puts its Fieldset 24 below the field above it (ui.Form's gap of 12 and the 12 a Fieldset keeps from what is above it), as an AdwPreferencesPage spaces its groups 24 apart.
+    form = vbox(24, name_row, shipping)
+    right = vbox(16, form, group, paned, width=270)
     root = hbox(24, left, right, padding=16)
     return Scene(600, 470, root, named={"expander": closed, "accordion": accordion, "expanderrow": privacy, "name": name, "shipping": shipping, "group": group, "paned": paned})
 
@@ -638,6 +640,24 @@ def rows_set():
     return Scene(672, 520, root, named={"card": card, "rows": settings, "storage": storage, "privacy": privacy, "network": network})
 
 
+def over_card_set():
+    """TestAdwControlsOverCard's view: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
+    box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+    box.add_css_class("boxed-list")
+    share = Adw.ActionRow(title="Share")
+    split = Adw.SplitButton(label="Send", valign=Gtk.Align.CENTER, menu_model=Gio.Menu())
+    share.add_suffix(split)
+    secret = Adw.ActionRow(title="Secret")
+    entry = Gtk.PasswordEntry(placeholder_text="Password", valign=Gtk.Align.CENTER)
+    entry.set_size_request(160, -1)
+    secret.add_suffix(entry)
+    box.append(share)
+    box.append(secret)
+    root = vbox(0, box, padding=16, width=300)
+    root.set_hexpand(False)
+    return Scene(332, 160, start(root), named={"split": split, "password": entry})
+
+
 def text_set():
     """TestScreenshotsText's textView: labels in the style classes of Breeze UI's Text steps (.title-1, .title-2, .title-4, .heading, a plain label, .caption), the last two .dimmed, where textTops places them."""
     rows = [("Large Title", ["title-1"], 16), ("Title", ["title-2"], 76), ("Subtitle", ["title-4"], 122), ("Heading", ["heading"], 160), ("Body", [], 188), ("Caption", ["caption"], 214), ("Secondary body", ["dimmed"], 240), ("Secondary caption", ["caption", "dimmed"], 266)]
@@ -656,7 +676,7 @@ SETS = [
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
     ("inputs", "adwaita-inputs", inputs_set),
     ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
-    ("rows", "adwaita-rows", rows_set),
+    ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set),
     ("text", "adwaita-text", text_set),
 ]
 
