@@ -680,9 +680,11 @@ func TestInfoBarActionsWithoutActions(t *testing.T) {
 func TestMacInfoBarActionsAsMeasured(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		open := true
+		var line float32
 		tester := ui.NewTester(func(c *ui.Context) {
 			Preview(c, Mac, func() {
 				Use(c)
+				line = lineHeight(c, c.Theme().FontSize, 700)
 				ui.Column(c).Padding(16).Gap(16).Children(func() {
 					InfoBar(c, "warning", "Plain", "Some message about it.", nil)
 					// Labels other than the buttons' text let Find give the buttons rather than their text.
@@ -701,9 +703,9 @@ func TestMacInfoBarActionsAsMeasured(t *testing.T) {
 		if b.H != 24 || b.Y-bar.Y != 10 {
 			t.Errorf("dark %v: the button %v in the bar %v, want 24 high and 10 below its top", dark, b, bar)
 		}
-		// Half of what the button is taller than the title's line: 4 points with SF's line of 16, a little more with MyGo's shorter one.
-		if d := bar.H - plain.H; d < 4 || d > 5 {
-			t.Errorf("dark %v: the bar with a button is %v taller than without, want about 4", dark, d)
+		// Half of what the button is taller than the title's line: 4 points with SF's line of 16, and as much with the host font's line here, which differs from host to host (17 on the Linux CI runner, where the bar grows 3.5).
+		if d, want := bar.H-plain.H, (24-line)/2; math.Abs(float64(d-want)) > 0.01 {
+			t.Errorf("dark %v: the bar with a button is %v taller than without, want %v, half of 24 less the title's line of %v", dark, d, want, line)
 		}
 		if mid, xmid := b.Y+b.H/2, x.Y+x.H/2; math.Abs(float64(mid-xmid)) > 0.01 {
 			t.Errorf("dark %v: the close button's middle %v, the button's %v", dark, xmid, mid)
