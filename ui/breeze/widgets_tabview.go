@@ -67,7 +67,7 @@ func TabView(c *ui.Context, selected *int, labels []string, close func(i int), a
 		list := parts.List.Grow(1).Shrink(1).MinWidth(0)
 		switch p {
 		case Windows:
-			fluentTabViewStrip(c, strip, list, n)
+			fluentTabViewStrip(c, strip, list, n, add != nil)
 		case Linux:
 			adwTabViewStrip(c, strip, list)
 		default:
@@ -270,15 +270,18 @@ func macTabViewAdd(c *ui.Context, b ui.Element) {
 
 // ---- Windows: WinUI's TabView ----
 
-// fluentTabViewStrip lays out a TabView's strip: TabViewHeaderPadding 0,8,0,0 above the 32-DIP tabs; the tabs 9 DIPs from the start (LeftContentColumn's MinWidth 2, the ScrollViewer's first column's MinWidth 2, its ScrollContentPresenter's Padding 1,0,0,0 and the ItemsPresenter's 4-DIP header; inferred from the templates, as no render was compared) and 4 before the add button's container (the footer), the tab column as wide as TabWidthMode Equal makes the tabs, at most TabViewItemMaxWidth 240 each; and TabViewBorderBrush, CardStrokeColorDefault, 1 DIP along the strip's bottom, which the chosen tab covers. TabViewItemMinWidth (100) is not kept: where n tabs do not fit, they shrink rather than scroll.
-func fluentTabViewStrip(c *ui.Context, strip, list ui.Element, n int) {
+// fluentTabViewStrip lays out a TabView's strip: TabViewHeaderPadding 0,8,0,0 above the 32-DIP tabs; the tabs 8 DIPs from the start (LeftContentColumn's MinWidth 2, the ScrollViewer's first column's MinWidth 2 and the ItemsPresenter's 4-DIP header) and 4 before the add button's container (the footer), the tab column as wide as TabWidthMode Equal makes the tabs, at most TabViewItemMaxWidth 240 each (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference's winui-tabview: a TabView 528 wide at 16 puts its tabs at 24, 185 and 346, 161 wide, and the add button at 514; with two tabs that do not close and no add button, 240 wide at 24 and 264). TabView.cpp's UpdateTabWidths shares out the TabView's width less the LeftContentColumn, the add button's column, the header and the footer, leaving out the ScrollViewer's own 2-DIP column, so tabs that fill the strip run 2 DIPs past its end: the add button's container then ends 2 past the TabView's end, or without it the tab column does. And TabViewBorderBrush, CardStrokeColorDefault, 1 DIP along the strip's bottom, which the chosen tab covers. TabViewItemMinWidth (100) is not kept: where n tabs do not fit, they shrink rather than scroll.
+func fluentTabViewStrip(c *ui.Context, strip, list ui.Element, n int, add bool) {
 	t := c.Theme()
 	strip.AlignItems(ui.End)
 	_, _, line := fluentExpanderCard(t)
 	strip.Draw(func(p *ui.Painter, r ui.Rect) {
 		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, line, 0)
 	})
-	list.Padding(8, 0, 0, 0).PaddingStart(9).PaddingEnd(4).MaxWidth(13 + 240*float32(max(n, 1))).AlignItems(ui.Stretch)
+	list.Padding(8, 0, 0, 0).PaddingStart(8).PaddingEnd(4).MaxWidth(12 + 240*float32(max(n, 1))).AlignItems(ui.Stretch)
+	if !add {
+		list.MarginEnd(-2)
+	}
 }
 
 // fluentTabViewTab draws TabViewItem i and builds its children, returning its close button. A tab is at least 32 DIPs high (TabViewItemMinHeight), its TabContainer padded 8,3,4,3 with the close button and 8,3,8,3 without (TabViewItemHeaderPaddingWithCloseButton and WithoutCloseButton) inside a transparent 1-DIP border (TabViewItemBorderThickness, TabViewItemBorderBrush), which the chosen tab's TabContainer, 1 DIP wider on either side, replaces with its outline, corners of OverlayCornerRadius (8) at the top, its 12-DIP header (TabViewItemHeaderFontSize, following the text size) at the start in TextFillColorSecondary, TextFillColorTertiary pressed; under the pointer LayerOnMicaBaseAltFillColorSecondary (black at 3.9%, white at 5.9% in the dark theme) and pressed LayerOnMicaBaseAltFillColorDefault (white at 70.2%, #3a3a3a at 45.1%). The chosen tab draws TabGeometry, SolidBackgroundFillColorTertiary (#f9f9f9, #282828) from 4 DIPs before its start to 4 after its end along the bottom, with 4-DIP concave curves there and corners of 8 at the top, and around it TabViewSelectedItemBorderBrush, CardStrokeColorDefault 1 DIP outside its sides and along its top (TabViewSelectedItemHeaderMargin -1,0,-1,1), which LeftRadiusRenderArc and RightRadiusRenderArc carry down into the strip's line; its header semibold in TextFillColorPrimary. TabSeparator, DividerStrokeColorDefault 1 DIP at the tab's end, 8 from its top and bottom (TabViewItemSeparatorMargin), shows unless the tab is chosen, before the chosen one, or it or the next is under the pointer (SetTabSeparatorOpacity, HideLeftAdjacentTabSeparator). The focus visual goes around the TabContainer (IsTemplateFocusTarget).
@@ -310,13 +313,15 @@ func fluentTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closa
 		under = pick(t.Dark, t.Background.Mix(black, 0.039), t.Background.Mix(white, 0.059))
 		tab.Background(under)
 	}
-	_, _, stroke := fluentExpanderCard(t)
+	// TabViewSelectedItemBorderBrush, CardStrokeColorDefault, translucent: along the top it lies over the tab's own fill and at the sides, a DIP outside the fill, over what is behind the tab, reading 234 and 229 in the light theme, 36 and 29 in the dark one (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview).
+	stroke := black.Alpha(pick(t.Dark, float32(0.059), 0.098))
 	divider := fluentDivider(t)
 	tab.Draw(func(p *ui.Painter, r ui.Rect) {
 		if chosen {
 			fill, outline := fluentTabGeometry(r)
 			p.FillPath(fill, under)
-			p.StrokePath(outline, 1, stroke)
+			// The radius arcs end on the strip's line without darkening it (measured: the line reads 229 up to the fill's edge), so the translucent outline stops above the line.
+			p.Clip(ui.Rect{X: r.X - 8, Y: r.Y, W: r.W + 16, H: r.H - 1}, 0, func() { p.StrokePath(outline, 1, stroke) })
 			return
 		}
 		next := i+1 < len(hovered) && hovered[i+1]
@@ -344,8 +349,8 @@ func fluentTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closa
 			ink = fluentSecondaryOver(t, under)
 		}
 		x.Draw(func(p *ui.Painter, r ui.Rect) {
-			// The Cancel glyph at TabViewItemHeaderCloseFontSize 12: InfoBar's at 16 is an × 11 DIPs square in 1-DIP strokes (measured from WinUI 3 3.3), here scaled by 12/16 (inferred).
-			toastCross(p, ui.Rect{X: r.X + r.W/2 - 4.125, Y: r.Y + r.H/2 - 4.125, W: 8.25, H: 8.25}, 0, 1, ink)
+			// The Cancel glyph at TabViewItemHeaderCloseFontSize 12: InfoBar's at 16 scaled by 12/16, an × whose ink is 8 DIPs square in strokes of three quarters of a DIP, centered half a DIP above and before the button's middle (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview: the ink 16 pixels square at 2x, 62 pixels of it).
+			toastCross(p, ui.Rect{X: r.X + r.W/2 - 0.5 - 3.75, Y: r.Y + r.H/2 - 0.5 - 3.75, W: 7.5, H: 7.5}, 0, 0.75, ink)
 		})
 	})
 	return x
@@ -389,10 +394,10 @@ func fluentTabGeometry(r ui.Rect) (fill, outline *ui.Path) {
 	return fill, outline
 }
 
-// fluentTabViewAdd draws the TabView's AddButton (TabViewButtonStyle): 32 by 24 (TabViewItemAddButtonWidth and Height) in a container padded 3,0,0,3 at the strip's bottom (TabViewItemAddButtonContainerPadding), corners of ControlCornerRadius, the Add glyph at 12 (TabViewItemAddButtonFontSize) in TextFillColorPrimary, TextFillColorSecondary pressed, its face as the close button's, and the system focus visual 3 DIPs around it (FocusVisualMargin -3). The glyph's ink, a plus 9 DIPs across in 1-DIP strokes, is inferred from the Cancel glyph's.
+// fluentTabViewAdd draws the TabView's AddButton (TabViewButtonStyle): 32 by 24 (TabViewItemAddButtonWidth and Height) in a container padded 3,0,0,3 at the strip's bottom (TabViewItemAddButtonContainerPadding), ending 2 DIPs past the strip's end (fluentTabViewStrip), where the strip's line stops at the strip's end rather than running on under it (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview: the line reads 229 and 29 up to 544, the TabView's end, and the window's 243 and 32 under the last 2 DIPs of the button, which ends at 546), corners of ControlCornerRadius, the Add glyph at 12 (TabViewItemAddButtonFontSize) in TextFillColorPrimary, TextFillColorSecondary pressed, its face as the close button's, and the system focus visual 3 DIPs around it (FocusVisualMargin -3). The glyph's ink is a plus 10 DIPs across in strokes of three quarters of a DIP, its bars from 0.75 before the button's middle to the middle, its ink centered half a DIP above and before it (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview: the bars a pixel of full ink and one at half at 2x, 20 pixels long).
 func fluentTabViewAdd(c *ui.Context, b ui.Element) {
 	t := c.Theme()
-	b.Size(32, 24).Margin(0, 0, 3, 0).MarginStart(3).Radius(4)
+	b.Size(32, 24).Margin(0, 0, 3, 0).MarginStart(3).MarginEnd(-2).Radius(4)
 	fluentTabViewButtonFace(t, b, t.Background)
 	ink := t.Text
 	if b.Pressed() {
@@ -401,8 +406,11 @@ func fluentTabViewAdd(c *ui.Context, b ui.Element) {
 	focused := b.FocusVisible()
 	b.Draw(func(p *ui.Painter, r ui.Rect) {
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
-		p.Fill(ui.Rect{X: cx - 4.5, Y: cy - 0.5, W: 9, H: 1}, ink, 0)
-		p.Fill(ui.Rect{X: cx - 0.5, Y: cy - 4.5, W: 1, H: 9}, ink, 0)
+		// As paths, which are antialiased where Fill keeps to whole pixels.
+		var plus ui.Path
+		plus.MoveTo(cx-5.5, cy-0.75).LineTo(cx+4.5, cy-0.75).LineTo(cx+4.5, cy).LineTo(cx-5.5, cy).Close()
+		plus.MoveTo(cx-0.75, cy-5.5).LineTo(cx, cy-5.5).LineTo(cx, cy+4.5).LineTo(cx-0.75, cy+4.5).Close()
+		p.FillPath(&plus, ink)
 	})
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if focused {

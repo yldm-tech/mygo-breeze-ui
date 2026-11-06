@@ -322,9 +322,11 @@ func formsFluentTextBox(c *ui.Context, row ui.Element, focused bool) {
 	row.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		p.Stroke(r, t.Border, 4, 1)
 		p.Clip(r, 4, func() {
-			if focused {
+			switch {
+			case focused:
 				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, t.Accent, 0)
-			} else {
+			case !row.IsDisabled():
+				// Disabled, the bottom edge is the border's ControlStrokeColorDefault like the rest of it, without the ControlStrongStrokeColorDefault line (measured from WinUI 3 3.3 by tools/winui-reference's winui-settings: a disabled NumberBox's border reads 236 all round over the card's 251, 58 over 43 in the dark theme).
 				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, strong, 0)
 			}
 		})
