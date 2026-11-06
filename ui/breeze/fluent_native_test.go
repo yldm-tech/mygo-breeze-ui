@@ -3,6 +3,7 @@ package breeze
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -171,11 +172,14 @@ func TestFluentInfoBarAsMeasured(t *testing.T) {
 			ui.Column(c).Padding(16).Gap(16).Children(func() {
 				InfoBar(c, "info", "Informational", "Some message about it.", &open)
 				InfoBar(c, "success", "Success", "Some message about it.", nil)
+				InfoBar(c, "warning", "Warning", "Some message about it.", nil)
 			})
 		})
 		img := tester.Image()
 		edge := map[bool]int{false: 229, true: 29}[dark]
-		for _, title := range []string{"Informational", "Success"} {
+		// The marks' ink boxes in DIPs from the circle's middle: start, top, end, bottom.
+		marks := map[string][4]float32{"Informational": {-0.5, -3.5, 0.5, 3}, "Success": {-3.5, -2.5, 3.5, 2.5}, "Warning": {-0.5, -3, 0.5, 3.5}}
+		for _, title := range []string{"Informational", "Success", "Warning"} {
 			bar, _ := tester.Find(title)
 			x := int(2 * (bar.X + bar.W/2))
 			if got := img.RGBAAt(x, int(2*bar.Y)); absDiff(got.R, uint8(edge)) > 1 || absDiff(got.G, uint8(edge)) > 1 || absDiff(got.B, uint8(edge)) > 1 {
@@ -187,8 +191,20 @@ func TestFluentInfoBarAsMeasured(t *testing.T) {
 				p := img.RGBAAt(x, y)
 				return max(p.R, p.G, p.B)-min(p.R, p.G, p.B) > 40
 			})
-			if want := image.Rect(int(2*(bar.X+17)), int(2*(bar.Y+18)), int(2*(bar.X+32)), int(2*(bar.Y+33))); !ok || box != want {
+			// The warning bar's own background is colored too much for this.
+			if want := image.Rect(int(2*(bar.X+17)), int(2*(bar.Y+18)), int(2*(bar.X+32)), int(2*(bar.Y+33))); title != "Warning" && (!ok || box != want) {
 				t.Errorf("dark %v, %s: the icon's circle covers %v at 2x, want %v", dark, title, box, want)
+			}
+			// The mark: white in the light theme, black at 89.4% over the circle in the dark one.
+			cx, cy := bar.X+17+7.5, bar.Y+18+7.5
+			fill := img.RGBAAt(int(2*(bar.X+17))+4, int(2*cy))
+			mark := func(v uint8) int { return int(pick(dark, 255, float32(v)*0.106)) }
+			far := func(p color.RGBA) int { return absDiff(p.R, fill.R) + absDiff(p.G, fill.G) + absDiff(p.B, fill.B) }
+			half := (absDiff(uint8(mark(fill.R)), fill.R) + absDiff(uint8(mark(fill.G)), fill.G) + absDiff(uint8(mark(fill.B)), fill.B)) / 2
+			got, ok := fluentInkBox(img, ui.Rect{X: cx - 5, Y: cy - 5, W: 10, H: 10}, func(x, y int) bool { return far(img.RGBAAt(x, y)) > half })
+			m := marks[title]
+			if want := image.Rect(int(2*(cx+m[0])), int(2*(cy+m[1])), int(2*(cx+m[2])), int(2*(cy+m[3]))); !ok || got != want {
+				t.Errorf("dark %v, %s: the icon's mark covers %v at 2x, want %v", dark, title, got, want)
 			}
 		}
 		b, _ := tester.Find("Close")
