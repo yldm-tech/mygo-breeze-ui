@@ -245,7 +245,7 @@ func TestIconLabelButtonBehavior(t *testing.T) {
 	}
 }
 
-// iconLabelView lays out the icon-label buttons on platform p as tools/appkit-reference/reference.swift places AppKit's (iconLabelSet): a push button showing an image and a title, the default one and a disabled one; below them, a toolbar holding an item with an image and a title, an image item and a prominent item with an image and a title.
+// iconLabelView lays out the icon-label buttons on platform p as tools/appkit-reference/Sources/appkit-reference/Scenes/iconlabel.swift places AppKit's (iconLabelSet): a push button showing an image and a title, the default one and a disabled one; below them, a toolbar holding an item with an image and a title, an image item and a prominent item with an image and a title.
 func iconLabelView(p Platform) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {

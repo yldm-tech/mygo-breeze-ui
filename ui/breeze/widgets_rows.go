@@ -9,7 +9,7 @@ import (
 
 // ---- rows: content cards, settings rows and switch rows ----
 //
-// macOS: SwiftUI's GroupBox and a grouped Form with a Section of rows (LabeledContent with a button, Toggles of style switch with and without a second Text, LabeledContent with a value), rendered at 2x in Aqua and Dark Aqua on macOS 27.2 by tools/appkit-reference/reference.swift (its rows scene). Windows 11: CommunityToolkit/Windows's SettingsCard.xaml and SettingsExpander.xaml (main at a784bad), the card colors of Common_themeresources_any.xaml, ToggleSwitch_Partial.cpp of microsoft/microsoft-ui-xaml for the On and Off content, and the WinUI Gallery's settings page for the space between cards. GNOME: libadwaita 1.10.0's _lists.scss (AdwActionRow, %boxed_list_row, list.boxed-list, row.expander's nested list), _misc.scss (.card), _labels.scss, _preferences.scss and _colors.scss, adw-action-row.ui and adw-switch-row.c.
+// macOS: SwiftUI's GroupBox and a grouped Form with a Section of rows (LabeledContent with a button, Toggles of style switch with and without a second Text, LabeledContent with a value), rendered at 2x in Aqua and Dark Aqua on macOS 27.2 by tools/appkit-reference/Sources/appkit-reference/Scenes/rows.swift (rowsSet). Windows 11: CommunityToolkit/Windows's SettingsCard.xaml and SettingsExpander.xaml (main at a784bad), the card colors of Common_themeresources_any.xaml, ToggleSwitch_Partial.cpp of microsoft/microsoft-ui-xaml for the On and Off content, and the WinUI Gallery's settings page for the space between cards. GNOME: libadwaita 1.10.0's _lists.scss (AdwActionRow, %boxed_list_row, list.boxed-list, row.expander's nested list), _misc.scss (.card), _labels.scss, _preferences.scss and _colors.scss, adw-action-row.ui and adw-switch-row.c.
 
 // rowsIn tells where a row is built: alone, or in a Card, a Fieldset or an AccordionItem, whose rows join as the platform joins rows in a group.
 type rowsIn uint8
@@ -233,7 +233,7 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 	if in == rowsInAccordion {
 		// Under an AccordionItem's header, reaching across MyGo's panel (padded Space(3) at the sides and the bottom, its children Space(2) apart): every row gives back the panel's bottom padding, and the next takes the panel's gap back from it, so the rows touch one another and the item's edges.
 		side, gap := t.Space(3), t.Space(2)
-		// On macOS a DisclosureGroup in a grouped form leaves room below its last row: the top of its title's ink is 23 points above the section's end (measured on macOS 27.2 by reference.swift), which, with the row's padding of 5 below and the title's ink 3 points into its 15.3-point line of the system font, leaves about 5.5 below the row.
+		// On macOS a DisclosureGroup in a grouped form leaves room below its last row: the top of its title's ink is 23 points above the section's end (measured on macOS 27.2 by tools/appkit-reference), which, with the row's padding of 5 below and the title's ink 3 points into its 15.3-point line of the system font, leaves about 5.5 below the row.
 		keep := float32(0)
 		if p == Mac {
 			keep = 5.5
@@ -381,11 +381,11 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 			// A grouped section of one row.
 			row.Radius(12).Background(fill)
 		case rowsInAccordion:
-			// The rows of a DisclosureGroup in a grouped form are closer and have no separators: a row of a title and a subtitle 40 points from the next, 12 less than in a section (measured on macOS 27.2 by reference.swift).
+			// The rows of a DisclosureGroup in a grouped form are closer and have no separators: a row of a title and a subtitle 40 points from the next, 12 less than in a section (measured on macOS 27.2 by tools/appkit-reference).
 			row.Padding(4.5, 10, 5, 10)
 		default:
 			if !first {
-				// The separator takes a point of its own between two rows: the next row's title is 13.5 points below the separator's end as the first row's is below the section's top (measured on macOS 27.2 by reference.swift), so the row is a point taller with the separator in its top point.
+				// The separator takes a point of its own between two rows: the next row's title is 13.5 points below the separator's end as the first row's is below the section's top (measured on macOS 27.2 by tools/appkit-reference), so the row is a point taller with the separator in its top point.
 				row.Padding(11.5, 10, 11, 10)
 				line := tint(t.Background, t.Dark, macSectionSeparatorAlpha)
 				row.DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -399,7 +399,7 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 		// The subtitle is 11 points where the title is 13, following the text size the user chose as the title does. The spacing of the controls is inferred.
 		subSize, lineGap, endGap, suffixGap = t.FontSize*11/13, 2.5, 8, 8
 		if prefixed {
-			// A grouped form's row with an image before its labels (a Label with an icon, or an HStack of an image and the labels) centers the image and the labels on each other, 10 points below the row's top and above its bottom, the separator's point taken above them, and starts the title 10 points after the image (measured on macOS 27.2 by reference.swift: a row of a 30-point image and one line 50 points high, the image 10 in from the section's edge). Its separators keep their inset of 10, under the image too. In a DisclosureGroup the padding is 6 less, as rowsStyle takes it there (inferred).
+			// A grouped form's row with an image before its labels (a Label with an icon, or an HStack of an image and the labels) centers the image and the labels on each other, 10 points below the row's top and above its bottom, the separator's point taken above them, and starts the title 10 points after the image (measured on macOS 27.2 by tools/appkit-reference: a row of a 30-point image and one line 50 points high, the image 10 in from the section's edge). Its separators keep their inset of 10, under the image too. In a DisclosureGroup the padding is 6 less, as rowsStyle takes it there (inferred).
 			top, bottom := float32(10), float32(10)
 			switch {
 			case in == rowsInAccordion:

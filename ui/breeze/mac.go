@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// macOS 26 and later, measured on macOS 27.2. Colors are AppKit's semantic colors (NSColor) resolved in sRGB in the Aqua and Dark Aqua appearances; control fills and sizes are measured from AppKit's own controls rendered at 2x into an sRGB bitmap by tools/appkit-reference/reference.swift, in a window drawn as the key window: MyGo cannot tell a view whether its window is active, so Breeze UI draws the active look, the accent controls in the accent. A push button's face is secondarySystemFill and an unchecked box's or an off switch's systemFill, the same share of black or white over the window in both appearances. What AppKit does not draw offscreen, its focus rings and the selected tab, was measured from a live capture of a key window on macOS 27.2, converted from the display's profile to sRGB.
+// macOS 26 and later, measured on macOS 27.2. Colors are AppKit's semantic colors (NSColor) resolved in sRGB in the Aqua and Dark Aqua appearances; control fills and sizes are measured from AppKit's own controls rendered at 2x into an sRGB bitmap by tools/appkit-reference, in a window drawn as the key window: MyGo cannot tell a view whether its window is active, so Breeze UI draws the active look, the accent controls in the accent. A push button's face is secondarySystemFill and an unchecked box's or an off switch's systemFill, the same share of black or white over the window in both appearances. What AppKit does not draw offscreen, its focus rings and the selected tab, was measured from a live capture of a key window on macOS 27.2, converted from the display's profile to sRGB.
 
 // macAccent is controlAccentColor, the blue accent.
 var macAccent = ui.Hex("#007aff")
@@ -159,7 +159,7 @@ func macCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	})
 }
 
-// macDisabledOn returns the box and the mark of a checked check box or a chosen radio button that is disabled: AppKit draws them gray, not in the accent, reading 236 and 175 in Aqua and 46 and 98 in Dark Aqua on screen (measured by reference.swift in a key window on macOS 27.2, the radio button's dot as the check box's mark). MyGo draws a disabled element at half opacity, each fill on its own, so the box is the color that reads so at half opacity over the window, black at 14.9% in Aqua and white at 14.2% in Dark Aqua, and the mark the one that reads so at half opacity over the box as shown, black at 55.3% and white at 53.3% (computed from the measurements; rendered, they read 236 and 175, 46 and 98).
+// macDisabledOn returns the box and the mark of a checked check box or a chosen radio button that is disabled: AppKit draws them gray, not in the accent, reading 236 and 175 in Aqua and 46 and 98 in Dark Aqua on screen (measured by tools/appkit-reference in a key window on macOS 27.2, the radio button's dot as the check box's mark). MyGo draws a disabled element at half opacity, each fill on its own, so the box is the color that reads so at half opacity over the window, black at 14.9% in Aqua and white at 14.2% in Dark Aqua, and the mark the one that reads so at half opacity over the box as shown, black at 55.3% and white at 53.3% (computed from the measurements; rendered, they read 236 and 175, 46 and 98).
 func macDisabledOn(t *ui.Theme) (box, mark ui.Color) {
 	return tint(t.Background, t.Dark, pick(t.Dark, float32(0.149), 0.142)), tint(t.Background, t.Dark, pick(t.Dark, float32(0.553), 0.533))
 }
@@ -170,7 +170,7 @@ func macSwitch(c *ui.Context, sw ui.Element, on bool) {
 	pos := knob(sw, on, 200*time.Millisecond)
 	at := along(c, pos)
 	off := tint(t.Background, t.Dark, macTroughAlpha)
-	// The knob is white in Dark Aqua too: AppKit's reads 255 across it, off and on (reference.swift, macOS 27.2).
+	// The knob is white in Dark Aqua too: AppKit's reads 255 across it, off and on (tools/appkit-reference, macOS 27.2).
 	knobFill := white
 	sw.Size(54, 24).Radius(12).Background(off.Mix(t.Accent, pos))
 	macRing(sw, 12)
@@ -186,7 +186,7 @@ func macSwitch(c *ui.Context, sw ui.Element, on bool) {
 
 const (
 	macSeparatorAlpha  = 0.294 // the line between two segments that are not chosen, in Aqua: 180 over white
-	macSeparatorDark   = 0.311 // and in Dark Aqua: it reads 100 (reference.swift on macOS 27.2)
+	macSeparatorDark   = 0.311 // and in Dark Aqua: it reads 100 (tools/appkit-reference on macOS 27.2)
 	macFieldBorder     = 0.149 // an NSTextField's bezel in Aqua, black
 	macFieldBorderDark = 0.093 // and in Dark Aqua, white
 	macFieldDarkFill   = 0.267 // a text field's fill in Dark Aqua: black over the window
@@ -233,7 +233,7 @@ func macRadioDot(c *ui.Context, dot ui.Element, under ui.Color, on, pressed, rin
 	})
 }
 
-// macToggle draws an NSButton of type push-on-push-off: a push button that is the accent with a white label while it is on, as AppKit draws it in a key window (#0078f9 with a 255 label in Aqua, #067eff in Dark Aqua, measured by reference.swift on macOS 27.2; t.Accent here). Pressed while on, it is the accent pressed (inferred).
+// macToggle draws an NSButton of type push-on-push-off: a push button that is the accent with a white label while it is on, as AppKit draws it in a key window (#0078f9 with a 255 label in Aqua, #067eff in Dark Aqua, measured by tools/appkit-reference on macOS 27.2; t.Accent here). Pressed while on, it is the accent pressed (inferred).
 func macToggle(c *ui.Context, b ui.Element, on bool) {
 	macButton(c, b, false)
 	t := c.Theme()
@@ -263,7 +263,7 @@ func macField(c *ui.Context, f ui.Element, kind fieldKind) {
 		f.Padding(5, 6)
 	case searchLine:
 		radius = 13
-		// AppKit's magnifier ink starts 8 points into the bezel and the placeholder 26.5, measured from reference.swift's render; MyGo's padding of 8 and gap of 6 put them at 10 and 30.5. MyGo's glyph stays its own, 8 points wide where AppKit's is 9.5.
+		// AppKit's magnifier ink starts 8 points into the bezel and the placeholder 26.5, measured from tools/appkit-reference's render; MyGo's padding of 8 and gap of 6 put them at 10 and 30.5. MyGo's glyph stays its own, 8 points wide where AppKit's is 9.5.
 		f.MinHeight(26).Padding(3, 10, 3, 6).Gap(4)
 	default:
 		f.MinHeight(26).Padding(3, 7)
@@ -325,7 +325,7 @@ func macMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 	})
 }
 
-// macKnobShadow casts the shadow of a slider's knob. AppKit's, measured by reference.swift on macOS 27.2 over white, is soft and reaches further above the knob than below it: 238, 241, 244, 246, 249 and on over the 4.5 points above, 249, 251, 252, 253, 254 below, and 221 beside it over the 230 track. A shadow of black at 9%, 4 points of blur, a point and a quarter up gives that profile within 2 (inferred from it).
+// macKnobShadow casts the shadow of a slider's knob. AppKit's, measured by tools/appkit-reference on macOS 27.2 over white, is soft and reaches further above the knob than below it: 238, 241, 244, 246, 249 and on over the 4.5 points above, 249, 251, 252, 253, 254 below, and 221 beside it over the 230 track. A shadow of black at 9%, 4 points of blur, a point and a quarter up gives that profile within 2 (inferred from it).
 func macKnobShadow(p *ui.Painter, k ui.Rect) {
 	p.Shadow(k, k.H/2, 0, -1.25, 4, 0, ui.RGBA(0, 0, 0, 0.09))
 }
@@ -337,7 +337,7 @@ func macSlider(c *ui.Context, s ui.Element, frac float32) {
 	// The knob's center travels the content box, inside the padding.
 	s.Height(kh).PaddingX(kw / 2).MinWidth(60)
 	trough := tint(t.Background, t.Dark, macTroughAlpha)
-	// The knob is white in Dark Aqua too: tools/appkit-reference/reference.swift reads 255 across it in both appearances.
+	// The knob is white in Dark Aqua too: tools/appkit-reference reads 255 across it in both appearances.
 	knobFill := white
 	at := along(c, frac)
 	s.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -360,7 +360,7 @@ func macSlider(c *ui.Context, s ui.Element, frac float32) {
 	s.FocusRing(false)
 }
 
-// macProgress draws an NSProgressIndicator bar: 8 points high, a pale track with a hairline edge, filled with the accent. The track is black at 5.9% in Aqua and white at 7.8% in Dark Aqua, the edge black at 12.5% and white at 11.6% (240 and 223 over white, 48 and 56 over the window, reference.swift on macOS 27.2).
+// macProgress draws an NSProgressIndicator bar: 8 points high, a pale track with a hairline edge, filled with the accent. The track is black at 5.9% in Aqua and white at 7.8% in Dark Aqua, the edge black at 12.5% and white at 11.6% (240 and 223 over white, 48 and 56 over the window, tools/appkit-reference on macOS 27.2).
 func macProgress(c *ui.Context, e ui.Element, value float64) {
 	t := c.Theme()
 	track, edge := tint(t.Background, t.Dark, pick(t.Dark, float32(0.059), 0.078)), tint(t.Background, t.Dark, pick(t.Dark, float32(0.125), 0.116))
@@ -390,7 +390,7 @@ func drawBar(c *ui.Context, p *ui.Painter, r ui.Rect, value float64, fill ui.Col
 	p.Fill(ui.Rect{X: x, Y: r.Y, W: w, H: r.H}, fill, radius)
 }
 
-// macSpinner draws a spinning NSProgressIndicator of regular size as a key window draws it: 32 points, 8 spokes 4 points wide with round ends from 6 points out to the edge, the darkest black (white in Dark Aqua) at 54.9% and each one behind it 7.06% lighter, stepping around once a second. Measured by reference.swift on macOS 27.2: 115, 133, 150, 168, 186, 204, 222 and 240 over white, 154 down to 43 over the window in Dark Aqua, and 8 pixels across a spoke at 2x, its sides straight and its ends reaching 6 and 16 points out along its middle; the turn's period is not measured.
+// macSpinner draws a spinning NSProgressIndicator of regular size as a key window draws it: 32 points, 8 spokes 4 points wide with round ends from 6 points out to the edge, the darkest black (white in Dark Aqua) at 54.9% and each one behind it 7.06% lighter, stepping around once a second. Measured by tools/appkit-reference on macOS 27.2: 115, 133, 150, 168, 186, 204, 222 and 240 over white, 154 down to 43 over the window in Dark Aqua, and 8 pixels across a spoke at 2x, its sides straight and its ends reaching 6 and 16 points out along its middle; the turn's period is not measured.
 func macSpinner(c *ui.Context, e ui.Element) {
 	t := c.Theme()
 	ink := pick(t.Dark, black, white)
@@ -420,7 +420,7 @@ func macSegmentedTrack(c *ui.Context, track ui.Element) {
 	track.MinHeight(24).Radius(6).Background(macFace(t.Background, t.Dark)).AlignItems(ui.Stretch)
 }
 
-// macSegment draws a segment: 12 points either side of its label, a line between two that are not chosen, and the chosen one in the accent with a white label, as a key window draws it whether the control selects one segment or any (#0078f9 with a 255 label in Aqua, #067eff in Dark Aqua, measured by reference.swift on macOS 27.2; t.Accent here). The other labels are labelColor over the track's face, 36 on 235 in Aqua and 223 on 48 in Dark Aqua (measured), as a push button's. AppKit's focus ring goes around the segment that has the focus.
+// macSegment draws a segment: 12 points either side of its label, a line between two that are not chosen, and the chosen one in the accent with a white label, as a key window draws it whether the control selects one segment or any (#0078f9 with a 255 label in Aqua, #067eff in Dark Aqua, measured by tools/appkit-reference on macOS 27.2; t.Accent here). The other labels are labelColor over the track's face, 36 on 235 in Aqua and 223 on 48 in Dark Aqua (measured), as a push button's. AppKit's focus ring goes around the segment that has the focus.
 func macSegment(c *ui.Context, seg ui.Element, chosen, separator bool) {
 	t := c.Theme()
 	seg.Padding(0, 12).Radius(6).Justify(ui.Center).AlignItems(ui.Center).TextColor(tint(macFace(t.Background, t.Dark), t.Dark, 0.847))
