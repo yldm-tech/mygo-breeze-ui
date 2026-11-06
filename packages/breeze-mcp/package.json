@@ -28,6 +28,7 @@
   "type": "module",
   "scripts": {
     "build": "bun build.ts",
+    "prepack": "bun build.ts",
     "dev": "bun src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

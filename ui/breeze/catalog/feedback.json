@@ -1,0 +1,46 @@
+{
+  "components": [
+    {
+      "name": "Avatar",
+      "category": "data",
+      "look": "drawn",
+      "description": "A picture of a person or a thing: the image in a circle, or initials as the platform draws a contact without one: macOS's gray monogram, Windows 11's PersonPicture, or GNOME's AdwAvatar on a gradient picked from the name.",
+      "example": "breeze.Avatar(c, \"Ada Lovelace\", nil)"
+    },
+    {
+      "name": "FindBar",
+      "category": "text",
+      "look": "themed",
+      "description": "A bar for finding text, in the platform's place for it: NSTextFinder's find bar on macOS, GtkSearchBar's bar on GNOME, a strip with a divider on Windows 11, which has none. The field, the buttons and the keys are MyGo's, in the platform's theme: a bar rebuilt outside MyGo could not say its names and its count (Find, No matches, 2 of 5, Previous, Next, Done) in MyGo's translations.",
+      "example": "breeze.FindBar(c, &app.finding, &app.query, len(app.matches), &app.match)"
+    },
+    {
+      "name": "Meter",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "A bar showing a level, with warning and critical levels: macOS's NSLevelIndicator in green, yellow or red, Windows 11's ProgressBar in its normal, paused or error color, or GNOME's GtkLevelBar.",
+      "example": "breeze.Meter(c, app.used, 0, app.size, &ui.MeterLevels{Warning: 0.8 * app.size, Critical: 0.95 * app.size}).Label(\"Disk\")"
+    },
+    {
+      "name": "Rating",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A row of stars setting a rating: macOS's NSLevelIndicator of rating style, Windows 11's RatingControl with its accent stars, or GNOME Software's stars, as GNOME has no rating control. The clicks and keys are MyGo's.",
+      "example": "breeze.Rating(c, &app.stars, 5).Label(\"Rating\")"
+    },
+    {
+      "name": "Toasts",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "The window's toasts in the platform's look: GNOME's AdwToast pill, Windows 11's InfoBar colored by the toast's type, or on macOS, which has no toast, a panel like a notification banner.",
+      "example": "breeze.Toasts(c)"
+    },
+    {
+      "name": "Tooltip",
+      "category": "overlays",
+      "look": "drawn",
+      "description": "A tip shown while the pointer rests on an element: a small panel below it on macOS, Windows 11's ToolTip above it, or GTK's dark tooltip below it on GNOME.",
+      "example": "breeze.Tooltip(c, breeze.Button(c, \"Share\"), \"Share the document\")"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "components": [
+    {
+      "name": "Autocomplete",
+      "category": "text",
+      "look": "drawn",
+      "description": "A text input suggesting the options that contain what was typed, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry; the suggestions show in the platform's menu: NSMenu's panel and rows, an AutoSuggestBox's list of ListViewItems, or a dropdown's popover.",
+      "example": "breeze.Autocomplete(c, &app.city, cities).Label(\"City\")"
+    },
+    {
+      "name": "EditableText",
+      "category": "text",
+      "look": "drawn",
+      "description": "A text edited in place, as a file's name in Finder: package ui's, with MyGo's accent border around the input covered while it is edited and the platform's frame drawn there: AppKit's focus ring, a focused WinUI TextBox's edge and accent line, nothing around GTK's editable label. The input's fill and caret are MyGo's.",
+      "example": "if breeze.EditableText(c, &app.name).Changed() {\n\tapp.rename()\n}"
+    },
+    {
+      "name": "GridView",
+      "category": "data",
+      "look": "drawn",
+      "description": "A scrolling grid of items built as they show, each drawn as the platform draws its own: Windows 11's GridViewItem with its 2-DIP accent border, GNOME's GtkGridView child with its accent-tinted fill, and on macOS, where NSCollectionView draws no selection, an inset table's rounded selection (inferred). The choice, the keys and accessibility are MyGo's, as are the items' gap and size.",
+      "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
+    },
+    {
+      "name": "List",
+      "category": "data",
+      "look": "drawn",
+      "description": "A scrolling list of rows built as they show: macOS's inset NSTableView with its rounded selection, Windows 11's ListView with the accent pill on the chosen item, or GNOME's GtkListView with the accent-tinted row. The choice, the keys and accessibility are MyGo's.",
+      "example": "breeze.List(c, &app.files, len(app.names), func(i int) {\n\tui.Text(c, app.names[i])\n})"
+    },
+    {
+      "name": "Outline",
+      "category": "data",
+      "look": "drawn",
+      "description": "A list of items in a tree, built as they show: macOS's inset NSOutlineView with its rounded selection and turning chevron, Windows 11's TreeView with its backplate and accent pill, or GNOME's GtkListView rows with a GtkTreeExpander's pan icons. The chevron is drawn in MyGo's arrow box; the choice, the keys and accessibility are MyGo's, as are the rows' padding and gaps.",
+      "example": "breeze.Outline(c, &app.files, roots, children, func(path string) {\n\tui.Text(c, path)\n})"
+    },
+    {
+      "name": "OutlineTable",
+      "category": "data",
+      "look": "drawn",
+      "description": "An outline whose rows are a table's, its chevrons in the first column: its rows drawn as Table draws them and its chevrons as Outline does. The header is MyGo's, in the platform's theme.",
+      "example": "breeze.OutlineTable(c, &app.files, columns, roots, children, func(path string, col int) {\n\tui.Text(c, path)\n})"
+    },
+    {
+      "name": "TokenField",
+      "category": "text",
+      "look": "drawn",
+      "description": "A field of tokens, as of tags, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry. The chips and the suggestions are MyGo's in the platform's theme, not NSTokenField's or TokenizingTextBox's tokens; GNOME has no token field.",
+      "example": "breeze.TokenField(c, &app.tags, allTags).Label(\"Tags\")"
+    }
+  ]
+}
