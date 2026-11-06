@@ -230,7 +230,7 @@ func settingsSet() -> [Item] {
         hosted("form-language", language, x: -4, y: 193, w: 340, h: 80),
         hosted("form-copies", copies, x: -4, y: 246, w: 340, h: 80),
         hosted("form-network", network, x: 320, y: -4, w: 340, h: 170),
-        hosted("form-advanced", advanced, x: 320, y: 132, w: 340, h: 90),
+        hosted("form-advanced", advanced, x: 320, y: 129, w: 340, h: 90),
     ]
 }
 
