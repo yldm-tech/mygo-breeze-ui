@@ -106,7 +106,7 @@ func overlaps(a, b ui.Rect) bool {
 	return a.X < b.X+b.W && b.X < a.X+a.W && a.Y < b.Y+b.H && b.Y < a.Y+a.H
 }
 
-// TestHeaderBarKeepsClearOfWindowControls checks the bar on every platform, left to right and right to left, with the window controls' room on their side (the left on macOS, the right on Windows and GNOME, mirrored right to left): it runs along the top of the window, as wide as it and at least as high as the room and the platform's bar, nothing of it overlaps the room, and the title is placed as the platform places it: 12 points after the start controls on macOS, 14 DIPs after them on Windows, centered across the bar on GNOME, with the end controls at the far end.
+// TestHeaderBarKeepsClearOfWindowControls checks the bar on every platform, left to right and right to left, with the window controls' room on their side (the left on macOS, the right on Windows and GNOME, mirrored right to left): it runs along the top of the window, as wide as it and at least as high as the room and the platform's bar, nothing of it overlaps the room, and the title is placed as the platform places it: 12 points after the start controls on macOS, 14 DIPs after the LeftHeader on Windows, which holds the image button 2 DIPs in (the back button's Margin), so 16 after the button, centered across the bar on GNOME, with the end controls at the far end.
 func TestHeaderBarKeepsClearOfWindowControls(t *testing.T) {
 	const w, h = 560, 160
 	for _, p := range Platforms {
@@ -146,10 +146,18 @@ func TestHeaderBarKeepsClearOfWindowControls(t *testing.T) {
 					t.Errorf("%v %v: the title's middle is at %v, not centered across the %v-pixel bar", p, dir, mid, w)
 				}
 			default:
-				want := map[Platform]float32{Mac: 12, Windows: 14}[p]
+				want := map[Platform]float32{Mac: 12, Windows: 16}[p]
 				if got := after(title, back); got < want-0.5 || got > want+0.5 {
 					t.Errorf("%v %v: the title starts %v after the start controls, want %v", p, dir, got, want)
 				}
+			}
+			// The start controls begin where the platform begins them: 17 points after the traffic lights on macOS, 2 DIPs in on Windows (the LeftPaddingColumn is as wide as the caption buttons at the start, none here, and the back button keeps its Margin of 2), 7 pixels in on GNOME (the bar's padding).
+			begin := back.X
+			if dir == ui.RightToLeft {
+				begin = w - (back.X + back.W)
+			}
+			if wantBegin := map[Platform]float32{Mac: 79 + 17, Windows: 2, Linux: 7}[p]; begin < wantBegin-0.5 || begin > wantBegin+0.5 {
+				t.Errorf("%v %v: the start controls begin %v from the window's edge, want %v", p, dir, begin, wantBegin)
 			}
 			if after(edit, title) <= 0 || after(share, edit) <= 0 {
 				t.Errorf("%v %v: the end controls do not follow the title: title %+v, Edit %+v, Share %+v", p, dir, title, edit, share)
@@ -159,7 +167,7 @@ func TestHeaderBarKeepsClearOfWindowControls(t *testing.T) {
 			if dir == ui.RightToLeft {
 				end = share.X
 			}
-			want := map[Platform]float32{Mac: 8, Windows: 138 + 48, Linux: 46}[p]
+			want := map[Platform]float32{Mac: 8, Windows: 138 + 48 + 2, Linux: 46}[p]
 			if end < want-0.5 || end > want+0.5 {
 				t.Errorf("%v %v: the last control ends %v from the window's edge, want %v", p, dir, end, want)
 			}
@@ -342,6 +350,9 @@ func TestHeaderBarHistoryButtons(t *testing.T) {
 		want := map[Platform][2]float32{Mac: {36, 36}, Windows: {40, 44}, Linux: {34, 34}}[p]
 		if back.W < want[0]-0.5 || back.W > want[0]+0.5 || back.H != want[1] {
 			t.Errorf("%v: Back is %v by %v, want %v by %v", p, back.W, back.H, want[0], want[1])
+		}
+		if begin := map[Platform]float32{Mac: 79 + 17, Windows: 2, Linux: 7}[p]; back.X < begin-0.5 || back.X > begin+0.5 {
+			t.Errorf("%v: Back begins at %v, want %v", p, back.X, begin)
 		}
 		if err := tester.Click("Back"); err != nil {
 			t.Fatal(err)

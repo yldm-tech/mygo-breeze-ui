@@ -302,7 +302,7 @@ public sealed class App : Application, IXamlMetadataProvider
             </StackPanel>
             """), ["wide-cards", "wide-action", "wide-switch-on", "wide-switch-off"]);
 
-        // widgets_headerbar_test.go's headerView (TestScreenshotsHeaderBar): a TitleBar along the top of the window titled Documents, with the Subtitle 12 items in the second scene, a Button of TitleBarBackButtonStyle as its LeftHeader, and as its RightHeader a Button reading Edit and a subtle 40-DIP Button holding the Share glyph, 4 apart, where Breeze UI's HeaderBar holds an image button, a push button and an image button. The TitleBar is 422 DIPs wide, the window's 560 less the 138 that MyGo's three 46-DIP caption buttons take (headerTestRoom), as the scene's borderless window has no caption buttons of its own.
+        // widgets_headerbar_test.go's headerView (TestScreenshotsHeaderBar): a TitleBar along the top of the window titled Documents, with the Subtitle 12 items in the second scene, a Button of TitleBarBackButtonStyle as its LeftHeader, and as its RightHeader a Button reading Edit and a subtle 40-DIP Button holding the Share glyph with TitleBarBackButtonStyle's Margin of 2, 4 apart, where Breeze UI's HeaderBar holds an image button, a push button and an image button. The TitleBar is 422 DIPs wide, the window's 560 less the 138 that MyGo's three 46-DIP caption buttons take (headerTestRoom), as the scene's borderless window has no caption buttons of its own.
         yield return new Scene("winui-headerbar", 560, 120, Canvas(560, 120, """
             <TitleBar x:Name="titlebar" Canvas.Left="0" Canvas.Top="0" Width="422" Title="Documents">
               <TitleBar.LeftHeader>
@@ -311,7 +311,7 @@ public sealed class App : Application, IXamlMetadataProvider
               <TitleBar.RightHeader>
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Stretch">
                   <Button x:Name="edit" Content="Edit" VerticalAlignment="Center"/>
-                  <Button x:Name="share" Width="40" Margin="0,2,0,2" VerticalAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
+                  <Button x:Name="share" Width="40" Margin="2" VerticalAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
                 </StackPanel>
               </TitleBar.RightHeader>
             </TitleBar>
@@ -324,7 +324,7 @@ public sealed class App : Application, IXamlMetadataProvider
               <TitleBar.RightHeader>
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Stretch">
                   <Button x:Name="edit" Content="Edit" VerticalAlignment="Center"/>
-                  <Button x:Name="share" Width="40" Margin="0,2,0,2" VerticalAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
+                  <Button x:Name="share" Width="40" Margin="2" VerticalAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
                 </StackPanel>
               </TitleBar.RightHeader>
             </TitleBar>
