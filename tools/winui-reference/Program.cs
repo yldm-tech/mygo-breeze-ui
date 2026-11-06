@@ -1,6 +1,6 @@
 // WinUI 3's own controls, for comparing Breeze UI's Windows look with them.
 //
-// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView), and SettingsCards holding a ComboBox, TextBoxes and NumberBoxes and SettingsExpanders where widgets_settings_test.go places Breeze UI's settings rows (settingsView), and wider ones that keep their content at the end, TabViews where widgets_tabview_test.go places Breeze UI's (tabViewView) and one whose tabs fill it (TestFluentTabViewAsMeasured) TitleBars where widgets_headerbar_test.go places Breeze UI's HeaderBar (headerView), SelectorBars where widgets_switcher_test.go places Breeze UI's ViewSwitcher (switcherView), and a CalendarView and a CalendarDatePicker where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (datePickerView), the same right to left, and a CalendarDatePicker with its calendar open (datePickerOpenView), in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
+// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView), and SettingsCards holding a ComboBox, TextBoxes and NumberBoxes and SettingsExpanders where widgets_settings_test.go places Breeze UI's settings rows (settingsView), and wider ones that keep their content at the end, TabViews where widgets_tabview_test.go places Breeze UI's (tabViewView) and one whose tabs fill it (TestFluentTabViewAsMeasured) TitleBars where widgets_headerbar_test.go places Breeze UI's HeaderBar (headerView), SelectorBars where widgets_switcher_test.go places Breeze UI's ViewSwitcher (switcherView), and a CalendarView and a CalendarDatePicker where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (datePickerView), the same right to left, and a CalendarDatePicker with its calendar open (datePickerOpenView), PipsPagers and a FlipView over a PipsPager where widgets_carousel_test.go places Breeze UI's PipsPagers and Carousel (carouselShotView), the FlipView's buttons shown in a second scene, and the same right to left, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
 //
 // Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and a flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene (CalendarDatePicker's own Flyout kept inside the window first, which would otherwise open in a window of its own on the screen). ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
 //
@@ -405,6 +405,15 @@ public sealed class App : Application, IXamlMetadataProvider
             <CalendarDatePicker x:Name="date-picker" Canvas.Left="120" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday"/>
             """), ["date-picker", "flyout-calendar"], OpenCalendar);
 
+        // widgets_carousel_test.go's carouselShotView on Windows (TestScreenshotsCarousel): a PipsPager of 5 pages with the 2nd chosen at 16, 16, one of 9 with the 7th chosen at 16, 56, which shows 5 pips (MaxVisiblePips) scrolled to keep the chosen one in the middle, and at 16, 96 a StackPanel 320 wide of a FlipView 160 high of four pages, each a Grid holding its slide's text centered, the 2nd shown, over a PipsPager of 4 centered 10 below it, as docs/api-specs/PipsPager/PipsPager.md pairs them, where Breeze UI's Carousel draws both. The FlipView's previous and next buttons show only once a mouse moves over it, which the scene's window never sees: winui-carousel-buttons shows them as a move would.
+        yield return new Scene("winui-carousel", 352, 312, Canvas(352, 312, CarouselXaml), CarouselItems, WaitForPips);
+        yield return new Scene("winui-carousel-buttons", 352, 312, Canvas(352, 312, CarouselXaml), CarouselItems, ShowFlipButtons);
+
+        // The same right to left (TestScreenshotsCarousel's rtl-light shot), mirrored by an inner Canvas of FlowDirection RightToLeft as winui-datepicker-rtl is.
+        yield return new Scene("winui-carousel-rtl", 352, 312, Canvas(352, 312, $$"""
+            <Canvas Width="352" Height="312" FlowDirection="RightToLeft">{{CarouselXaml}}</Canvas>
+            """), CarouselItems, WaitForPips);
+
         // fluent_native_test.go's TestFluentTabViewAsMeasured, its third TabView: 528 wide at 16, 16, five tabs that do not close (A1 chosen), without the add button, so that the tabs fill the strip.
         yield return new Scene("winui-tabview-fill", 560, 80, Canvas(560, 80, """
             <TabView x:Name="tabview-fill" Canvas.Left="16" Canvas.Top="16" Width="528" SelectedIndex="0" IsAddTabButtonVisible="False">
@@ -451,6 +460,68 @@ public sealed class App : Application, IXamlMetadataProvider
             <TextBlock x:Name="secondary-body" Canvas.Left="16" Canvas.Top="240" Text="Secondary body" Style="{StaticResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBlock x:Name="secondary-caption" Canvas.Left="16" Canvas.Top="266" Text="Secondary caption" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             """), ["large-title", "title", "subtitle", "heading", "body", "caption", "secondary-body", "secondary-caption"]);
+    }
+
+    // CarouselXaml is the body of the carousel scenes (see winui-carousel).
+    const string CarouselXaml = """
+        <PipsPager x:Name="pager-five" Canvas.Left="16" Canvas.Top="16" NumberOfPages="5" SelectedPageIndex="1"/>
+        <PipsPager x:Name="pager-nine" Canvas.Left="16" Canvas.Top="56" NumberOfPages="9" SelectedPageIndex="6"/>
+        <StackPanel x:Name="carousel" Canvas.Left="16" Canvas.Top="96" Width="320">
+          <FlipView x:Name="flipview" Height="160">
+            <Grid><TextBlock Text="Slide 1" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
+            <Grid><TextBlock Text="Slide 2" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
+            <Grid><TextBlock Text="Slide 3" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
+            <Grid><TextBlock Text="Slide 4" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
+          </FlipView>
+          <PipsPager x:Name="carousel-pager" HorizontalAlignment="Center" Margin="0,10,0,0" NumberOfPages="4" SelectedPageIndex="1"/>
+        </StackPanel>
+        """;
+
+    // CarouselItems are the elements of the carousel scenes whose frames, parts and pixels the report gives.
+    static readonly string[] CarouselItems = ["pager-five", "pager-nine", "carousel", "flipview", "carousel-pager"];
+
+    // WaitForPips shows the FlipView's 2nd page, which XAML cannot choose before the pages are added (a Selector's SelectedIndex past its items is refused), and gives the move to it and the PipsPagers' ScrollViewers the time to finish, which they animate (FlipView::OnSelectedIndexChanged animates a move to the adjacent page; ScrollToCenterOfViewport asks StartBringIntoView for an animation).
+    static async Task WaitForPips(FrameworkElement root, ElementTheme theme)
+    {
+        ((FlipView)root.FindName("flipview")).SelectedIndex = 1;
+        await Task.Delay(1000);
+    }
+
+    // ShowFlipButtons shows the FlipView's PreviousButtonHorizontal and NextButtonHorizontal, as FlipView::ChangeVisualState does once a mouse moves over it (m_showNavigationButtons), the 2nd page being neither the first nor the last.
+    static async Task ShowFlipButtons(FrameworkElement root, ElementTheme theme)
+    {
+        await WaitForPips(root, theme);
+        var flip = (FlipView)root.FindName("flipview");
+        foreach (var name in new[] { "PreviousButtonHorizontal", "NextButtonHorizontal" })
+        {
+            if (FindNamed(flip, name) is not FrameworkElement button)
+            {
+                throw new InvalidOperationException($"the FlipView has no {name}");
+            }
+            button.Visibility = Visibility.Visible;
+        }
+        await Task.Delay(300);
+    }
+
+    // FindNamed returns the element named name inside e's visual tree, its template parts included, which FindName on the scene's root does not reach.
+    static FrameworkElement? FindNamed(DependencyObject? e, string name)
+    {
+        if (e == null)
+        {
+            return null;
+        }
+        if (e is FrameworkElement f && f.Name == name)
+        {
+            return f;
+        }
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(e); i++)
+        {
+            if (FindNamed(VisualTreeHelper.GetChild(e, i), name) is FrameworkElement found)
+            {
+                return found;
+            }
+        }
+        return null;
     }
 
     // ShowRevealButton puts the PasswordBox named password into its Focused and ButtonVisible states, which draw it as focused and show its RevealButton: WinUI shows the button once text is typed into the focused box, as TestScreenshotsInputs types into Breeze UI's, and the scene's window never takes the focus.

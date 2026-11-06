@@ -53,7 +53,7 @@ func carouselShotView(p Platform) func(c *ui.Context) {
 	}
 }
 
-// TestScreenshotsCarousel writes the pagers and the carousel of every platform, light and dark, and right to left in the light theme, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames.
+// TestScreenshotsCarousel writes the pagers and the carousel of every platform, light and dark, and right to left in the light theme, at 2x to the directory BREEZE_SCREENSHOTS names, and on Windows the same again with FlipView's buttons shown by the mouse over the view. Without it the test only builds the frames.
 func TestScreenshotsCarousel(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	type shot struct {
@@ -80,6 +80,16 @@ func TestScreenshotsCarousel(t *testing.T) {
 				mode = "rtl-light"
 			}
 			writeShot(t, dir, fmt.Sprintf("breeze-carousel-%s-%s.png", strings.ToLower(p.String()), mode), tester)
+			if p == Windows && !s.rtl {
+				// FlipView's buttons, which a move of the mouse over the view shows, as tools/winui-reference's winui-carousel-buttons scene shows WinUI's.
+				tester.Move(carouselShotPlaces[2].X+160, carouselShotPlaces[2].Y+carouselTestPageHeight/2)
+				tester.Frame()
+				tester.Frame()
+				if _, ok := tester.Find("Next"); !ok {
+					t.Fatalf("%v: the mouse over the carousel does not show its buttons", p)
+				}
+				writeShot(t, dir, fmt.Sprintf("breeze-carousel-buttons-windows-%s.png", mode), tester)
+			}
 		}
 	}
 }
@@ -942,7 +952,7 @@ func TestCarouselLayout(t *testing.T) {
 		mid := (first.X + last.X + last.W) / 2
 		want := s.box.X + s.box.W/2
 		if p == Linux {
-			// snapshot_dots centers the dots on the widget made a pixel narrower, 319 of 320, and they stand half a spacing toward its end: their middle, and that of the 15-pixel cells around them, is 163 pixels in.
+			// The dots' widget is 308 wide inside its margins of 6; snapshot_dots centers the dots on it made a pixel narrower, 307, and they stand half a spacing toward its end: their middle, and that of the 15-pixel cells around them, is 6 + 153.5 + 3.5 = 163 pixels into the carousel.
 			want = s.box.X + 163
 		}
 		if mid != want {
