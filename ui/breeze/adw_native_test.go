@@ -610,3 +610,43 @@ func TestAdwDatePickerPopover(t *testing.T) {
 		t.Errorf("no ring on the 20th as the popover opens again: %v at its edge, its accent %v", edge, accent)
 	}
 }
+
+// TestAdwHeaderBarTitleWidthChars checks on GNOME that HeaderBar's title is at least as wide as AdwWindowTitle's title label, whose width-chars is 5 (adw-window-title.ui): GtkLabel asks for 5 of Pango's approximate character widths, the larger of the English sample string's width over its characters and the widest digit's, rounded to whole pixels, in the title's bold. It shows where the title is moved aside by an end box wider than half the room: in libadwaita 1.10.0's render of tools/adwaita-reference's switcher set, "Music" (43.6 pixels in Adwaita Sans Bold) is centered in a label 74 wide, 12 + 5 × 10 + 12, ending 6 before the switcher at 148, its ink from 84 to 126.
+func TestAdwHeaderBarTitleWidthChars(t *testing.T) {
+	var switcher ui.Rect
+	var least float32
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			ui.Column(c).Fill().Children(func() {
+				bar := 1
+				// The bar is named otherwise, so that the title's text is what shows Music.
+				HeaderBar(c, "Music", "", nil, func() { switcher = ViewSwitcher(c, &bar, switcherTestItems(true)...).Bounds() }).Label("Window")
+			})
+			th := c.Theme()
+			sample, _ := c.MeasureText(0, ui.Span{Text: pangoSampleEnglish, Size: th.FontSize, Weight: 700})
+			char := sample / float32(len([]rune(pangoSampleEnglish)))
+			for _, d := range "0123456789" {
+				w, _ := c.MeasureText(0, ui.Span{Text: string(d), Size: th.FontSize, Weight: 700})
+				char = max(char, float32(math.Round(float64(w))))
+			}
+			least = 12 + 5*char + 12
+		})
+	}, 560, 140)
+	tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tester.SetTitleBar(headerTestRoom(Linux, ui.LeftToRight))
+	tester.Frame()
+	tester.Frame()
+	tester.Frame()
+	title, ok := tester.Find("Music")
+	if !ok {
+		t.Fatal("the title is missing")
+	}
+	if title.W+24 >= least {
+		t.Fatalf("the title is %v wide, wider than 5 characters less their padding (%v): the test needs a shorter one", title.W, least-24)
+	}
+	// The title's label ends 6 before the end box and its text is centered in it.
+	if mid, want := title.X+title.W/2, switcher.X-6-least/2; mid < want-0.5 || mid > want+0.5 {
+		t.Errorf("the title's middle is at %v, want %v: the middle of a label %v wide ending 6 before the switcher at %v", mid, want, least, switcher.X)
+	}
+}
