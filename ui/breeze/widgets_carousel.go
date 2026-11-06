@@ -24,13 +24,14 @@ const (
 	pipsMacOthers = 0.45
 )
 
-// pipsFluentWidth and pipsFluentHeight are a WinUI pip's button, PipsPagerHorizontalOrientationButtonWidth and Height; pipsFluentNormal and pipsFluentSelected the font sizes of its EA3B glyph, PipsPagerNormalGlyphFontSize and PipsPagerSelectedGlyphFontSize, drawn as a dot as wide as the font size, the glyph filling its em (inferred); pipsFluentVisible is MaxVisiblePips's default.
+// pipsFluentWidth and pipsFluentHeight are a WinUI pip's button, PipsPagerHorizontalOrientationButtonWidth and Height; pipsFluentNormal and pipsFluentSelected the font sizes of its EA3B glyph, PipsPagerNormalGlyphFontSize and PipsPagerSelectedGlyphFontSize; pipsFluentGlyphFill is how much of the em that glyph's circle fills, 1920 of Segoe Fluent Icons' 2048 units, centered (its outline in SegoeIcons.ttf on Windows 11 26H2), so the dots are 3.75 and 5.625 DIPs across, as tools/winui-reference's winui-carousel scene measured them (3.74 and 5.63 by their ink in the light theme); pipsFluentVisible is MaxVisiblePips's default.
 const (
-	pipsFluentWidth    = 12
-	pipsFluentHeight   = 24
-	pipsFluentNormal   = 4
-	pipsFluentSelected = 6
-	pipsFluentVisible  = 5
+	pipsFluentWidth     = 12
+	pipsFluentHeight    = 24
+	pipsFluentNormal    = 4
+	pipsFluentSelected  = 6
+	pipsFluentGlyphFill = 1920.0 / 2048
+	pipsFluentVisible   = 5
 )
 
 // dotsAdw* are AdwCarouselIndicatorDots's values (adw-carousel-indicator-dots.c): the dots' radii and opacities, the room between two dots, and the margin around them.
@@ -92,7 +93,7 @@ func pageName(c *ui.Context, i int) string {
 
 // PipsPager creates a row of count page indicators, of which *selected is the index of the one chosen, drawn as the platform draws its page dots: a click on one chooses it, and the arrows choose the one before or after, Left and Right mirrored right to left, Up and Down as WinUI's PipsPager takes them. It is one Tab stop, none without pages; assistive technology sees a radio group named Pager whose radio buttons are named by their pages, Page 1, Page 2, as WinUI names its pips.
 //   - macOS: UIPageControl as UIKit for Mac draws it (inferred, as macOS has no page indicator): 6-point dots 19 apart in a control 23 points high, the chosen dot black and the others black at 45%, white in Dark Aqua, and AppKit's focus ring around the control (inferred).
-//   - Windows: WinUI's PipsPager: pips 12 by 24 DIPs, a 4-DIP dot of ControlStrongFillColorDefault, the chosen one 6 DIPs, a pip under the pointer 6 DIPs and pressed 4 in TextFillColorSecondary; at most 5 pips show, the row scrolling to keep the chosen one in its middle, as MaxVisiblePips's default; the system focus visual around the chosen pip. WinUI's previous and next buttons are collapsed by default and are not drawn.
+//   - Windows: WinUI's PipsPager: pips 12 by 24 DIPs, a dot 3.75 DIPs across of ControlStrongFillColorDefault, the chosen one 5.625 DIPs, a pip under the pointer 5.625 DIPs and pressed 3.75 in TextFillColorSecondary (the EA3B glyph's circle at 4 and 6 DIPs), and disabled the dots in ControlStrongFillColorDisabled; at most 5 pips show, the row scrolling to keep the chosen one in its middle, as MaxVisiblePips's default; the system focus visual around the chosen pip. WinUI's previous and next buttons are collapsed by default and are not drawn.
 //   - GNOME: AdwCarouselIndicatorDots: dots 15 pixels apart, of radius 3 at 30% of the text's color, the chosen one of radius 4 at 90%, 6 pixels from the edges, the dots growing and shrinking as the choice moves; the focus ring inside its edge (inferred, as libadwaita's dots take no focus).
 //
 // It returns the radio group, whose Changed reports a page chosen. Build it under a view showing *selected's page, or use Carousel, which holds its pages with one.
@@ -200,15 +201,22 @@ func pipsFluentInk(t *ui.Theme, hovered, pressed bool) ui.Color {
 	return pick(t.Dark, black.Alpha(0x72/255.0), white.Alpha(0x8b/255.0))
 }
 
-// pipsFluentDot returns the diameter of a pip's dot: 6 DIPs chosen or under the pointer, 4 otherwise and while pressed, as PipsPagerButtonBaseStyle's PointerOver and Pressed states set the glyph's FontSize.
-func pipsFluentDot(chosen, hovered, pressed bool) float32 {
-	switch {
-	case pressed:
-		return pipsFluentNormal
-	case hovered, chosen:
-		return pipsFluentSelected
+// pipsFluentDisabled returns a disabled pip's glyph color: WinUI draws it in PipsPagerSelectionIndicatorForegroundDisabled, ControlStrongFillColorDisabled (#51000000, #3FFFFFFF), which reads 166 over the window's 243 in the light theme and 87 over 32 in the dark one, chosen or not (measured by tools/winui-reference's winui-carousel-disabled scene on Windows 11 26H2). MyGo draws a disabled element at half opacity, each fill on its own, so it is the color that reads so at half opacity over the window (fluentUnderHalf).
+func pipsFluentDisabled(t *ui.Theme) ui.Color {
+	want := t.Background.Mix(black, 0x51/255.0)
+	if t.Dark {
+		want = t.Background.Mix(white, 0x3f/255.0)
 	}
-	return pipsFluentNormal
+	return fluentUnderHalf(want, t.Background)
+}
+
+// pipsFluentDot returns the diameter of a pip's dot, the EA3B glyph's circle at the glyph's font size: 6 DIPs chosen or under the pointer, 4 otherwise and while pressed, as PipsPagerButtonBaseStyle's PointerOver and Pressed states set the FontSize, the circle filling 15/16 of it.
+func pipsFluentDot(chosen, hovered, pressed bool) float32 {
+	size := float32(pipsFluentNormal)
+	if (hovered || chosen) && !pressed {
+		size = pipsFluentSelected
+	}
+	return size * pipsFluentGlyphFill
 }
 
 // pipsFluentScroll returns how far WinUI's ScrollViewer scrolls the pips of a pager of n pages to bring the chosen pip sel into its middle (ScrollToCenterOfViewport: HorizontalAlignmentRatio 0.5), held between its start and its end: the viewport is as wide as MaxVisiblePips pips (CalculateScrollViewerSize, the chosen pip as wide as the others).
@@ -243,7 +251,13 @@ func pipsFluent(c *ui.Context, root ui.Element, n, sel int, pip func(int) ui.Ele
 					hovered, pressed := e.Hovered(), e.Pressed()
 					d, ink := pipsFluentDot(i == sel, hovered, pressed), pipsFluentInk(t, hovered, pressed)
 					e.Draw(func(p *ui.Painter, r ui.Rect) {
-						p.Fill(ui.Rect{X: r.X + (r.W-d)/2, Y: r.Y + (r.H-d)/2, W: d, H: d}, ink, d/2)
+						// Read as it is drawn, as the pager's Disabled comes after it is built.
+						if e.Valid() && e.IsDisabled() {
+							ink = pipsFluentDisabled(t)
+						}
+						// A path, as Fill would round the dot's box to whole pixels.
+						var dot ui.Path
+						p.FillPath(dot.Circle(r.X+r.W/2, r.Y+r.H/2, d/2), ink)
 					})
 				}
 			})
@@ -380,7 +394,7 @@ type carouselState struct {
 
 // Carousel creates a view showing one of count pages, the one *selected names, which page builds, with the platform's page dots below it: page(i) builds page i's contents, and is called for the page shown and, while the view moves between pages, for those coming into view, each in a container of its own kept by its index. The arrows, Page Up and Page Down move to the page before or after, Home and End to the first and the last, as the platform's do; a click on a dot chooses its page. It is one Tab stop, none without pages, the view, named by the page it shows ("Page 2 of 4"), with the platform's focus ring around it; the dots below are no Tab stop.
 //   - macOS: the pages as NSPageController's horizontal strip moves them, sliding over 0.25 seconds, a touchpad's swipe moving them with the fingers (inferred, as macOS has no carousel with page dots); UIPageControl's dots (PipsPager) centered right below (inferred).
-//   - Windows: WinUI's FlipView: SolidBackgroundFillColorBase with corners of 4; while a mouse moves over it, and for 3 seconds after, its previous and next buttons at its sides, 16 by 38 DIPs, the in-app acrylic (#f9f9f9, #2c2c2c) with corners of 4 behind a filled caret in ControlStrongFillColorDefault (TextFillColorSecondary under the pointer and pressed, a press shrinking it to 0.875), the previous button hidden on the first page and the next on the last; a notch of the wheel, or a touchpad's swipe, flipping one page, again after a pause of 200 ms or the other way; the move animated to an adjacent page and immediate to another; Up and Down taken as Left and Right; the system focus visual around the view; and a PipsPager centered 10 DIPs below it, as WinUI's PipsPager documentation pairs them.
+//   - Windows: WinUI's FlipView: SolidBackgroundFillColorBase with corners of 4; while a mouse moves over it, and for 3 seconds after, its previous and next buttons at its sides, 16 by 38 DIPs, the in-app acrylic (#f9f9f9, #2c2c2c) with corners of 4 behind CaretLeftSolid8 or CaretRightSolid8, a caret 6 by 8 DIPs rounded at its corners and tip, in ControlStrongFillColorDefault (TextFillColorSecondary under the pointer and pressed, a press shrinking it to 0.875), the previous button hidden on the first page and the next on the last; a notch of the wheel, or a touchpad's swipe, flipping one page, again after a pause of 200 ms or the other way; the move animated to an adjacent page and immediate to another; Up and Down taken as Left and Right; the system focus visual around the view; and a PipsPager centered 10 DIPs below it, as WinUI's PipsPager documentation pairs them.
 //   - GNOME: AdwCarousel: no background; a touchpad's swipe (400 pixels to a page) or a drag of the pointer moving the pages, which go on to the next page past a velocity or back to the nearest; a notch of the wheel moving a page, 150 ms apart; libadwaita's spring between pages; AdwCarouselIndicatorDots below it with a margin of 6, following the pages as they move; the focus ring inside its edge (inferred).
 //
 // It returns the carousel, whose Changed reports a page chosen. Give it a width, and a height if its pages should not set it: the pages fill the view.
@@ -614,17 +628,46 @@ func carouselFlipButtons(c *ui.Context, t *ui.Theme, st *carouselState, count, s
 	}
 }
 
-// fluentFlipCaret draws CaretLeftSolid8 (EDD9) or CaretRightSolid8 (EDDA) at FlipViewButtonFontSize 8 in the middle of r: a filled caret 6 DIPs wide and 8 high pointing left or right, CaretUpSolid8's measured 8 by 6 turned on its side (inferred), scaled by scale.
+// fluentFlipCaret draws CaretLeftSolid8 (EDD9) or CaretRightSolid8 (EDDA) at FlipViewButtonFontSize 8 in the middle of r, scaled by scale: a caret 6 DIPs wide and 8 high pointing left or right, its flat side's corners rounded by 1 DIP and its tip rounded, the glyph's TrueType outline in Segoe Fluent Icons (SegoeIcons.ttf on Windows 11 26H2, in units of 2048 to the em, y down from the em's top, EDDA being EDD9 mirrored), as tools/winui-reference's winui-carousel-buttons scene measured it (its ink as large as a circle 6.41 DIPs across, the outline's 32.2 square DIPs).
 func fluentFlipCaret(p *ui.Painter, r ui.Rect, left bool, scale float32, ink ui.Color) {
-	cx, cy := r.X+r.W/2, r.Y+r.H/2
-	w, h := 3*scale, 4*scale
-	var tri ui.Path
-	if left {
-		tri.MoveTo(cx+w, cy-h).LineTo(cx-w, cy).LineTo(cx+w, cy+h).Close()
-	} else {
-		tri.MoveTo(cx-w, cy-h).LineTo(cx+w, cy).LineTo(cx-w, cy+h).Close()
+	k := 8 * scale / 2048
+	// The em, 8 DIPs square, centered in r, as the FontIcon is.
+	x0, y0 := r.X+r.W/2-4*scale, r.Y+r.H/2-4*scale
+	pt := func(x, y float32) (float32, float32) {
+		if !left {
+			x = 2048 - x
+		}
+		return x0 + x*k, y0 + y*k
 	}
-	p.FillPath(&tri, ink)
+	var caret ui.Path
+	at := func(x, y float32) { caret.MoveTo(pt(x, y)) }
+	line := func(x, y float32) { caret.LineTo(pt(x, y)) }
+	quad := func(qx, qy, x, y float32) {
+		ax, ay := pt(qx, qy)
+		bx, by := pt(x, y)
+		caret.QuadTo(ax, ay, bx, by)
+	}
+	at(1536, 0)
+	quad(1588, 0, 1635, 20)
+	quad(1682, 40, 1716.5, 74.5)
+	quad(1751, 109, 1771.5, 155)
+	quad(1792, 201, 1792, 254)
+	line(1792, 1794)
+	quad(1792, 1847, 1771.5, 1893)
+	quad(1751, 1939, 1716.5, 1973.5)
+	quad(1682, 2008, 1635, 2028)
+	quad(1588, 2048, 1536, 2048)
+	quad(1457, 2048, 1390, 2002)
+	line(421, 1336)
+	quad(344, 1283, 300, 1200.5)
+	quad(256, 1118, 256, 1024)
+	quad(256, 930, 300, 847.5)
+	quad(344, 765, 421, 712)
+	line(1390, 46)
+	quad(1424, 23, 1459, 11.5)
+	quad(1494, 0, 1536, 0)
+	caret.Close()
+	p.FillPath(&caret, ink)
 }
 
 // carouselInput has the view take the scrolling and the pointer's moves over it as they come. On Windows a scroll flips a page as FlipView::OnPointerWheelChanged does (Ctrl left to zooming), and a move of the mouse shows the buttons. On GNOME a notch of a mouse's wheel moves a page, up or down too, as AdwCarousel's scroll_cb does, and a touchpad's swipe moves the pages with the fingers, as on macOS (inferred there, where a mouse's wheel moves none, NSPageController following only a touchpad); the swipe starts only more sideways than up or down. A drag of the pointer moves them on GNOME, as AdwSwipeTracker's allow-mouse-drag lets AdwCarousel, once it went 16 pixels.
