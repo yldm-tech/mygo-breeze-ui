@@ -172,7 +172,7 @@ func calendarTitleFor(p Platform, locale string, m time.Month) string {
 // i18nMonth returns the name of month m in locale standing alone, as GtkCalendar's header shows it.
 func i18nMonth(locale string, m time.Month) string { return i18n.Months(locale, i18n.Wide, true)[m-1] }
 
-// TestCalendarViewChoosesDays checks on every platform, left to right and right to left, that a click chooses a day, which Changed reports, and that the keys move as the platform's calendar moves them: on macOS the arrows choose as they go, as NSDatePicker's do; on Windows and GNOME they move among the days and Enter chooses, as WinUI's CalendarView and GtkCalendar do; Page Down shows the next month on the same day, and Home and End go to its first and last days.
+// TestCalendarViewChoosesDays checks on every platform, left to right and right to left, that a click chooses a day, which Changed reports, and that the keys move as the platform's calendar moves them: on macOS the arrows choose as they go, as NSDatePicker's do; on Windows and GNOME they move among the days and Enter chooses, as WinUI's CalendarView and GtkCalendar do, on Windows along the days laid out in American English's direction, left to right either way (fluentDaysDirection); Page Down shows the next month on the same day, and Home and End go to its first and last days.
 func TestCalendarViewChoosesDays(t *testing.T) {
 	fixToday(t, datePickerToday)
 	for _, p := range Platforms {
@@ -194,9 +194,9 @@ func TestCalendarViewChoosesDays(t *testing.T) {
 				tester.Frame()
 				tester.Frame()
 			}
-			// The day after, toward the end of the line: Right left to right, Left right to left.
+			// The day after, toward the end of the line: Right left to right, Left right to left, but on Windows Right either way, as the days stay left to right in American English.
 			forth := ui.KeyRight
-			if dir == ui.RightToLeft {
+			if dir == ui.RightToLeft && p != Windows {
 				forth = ui.KeyLeft
 			}
 			press(forth)
@@ -861,6 +861,54 @@ func TestFluentCalendarAsRendered(t *testing.T) {
 		tester.Key(0, ui.KeyEscape)
 		tester.Frame()
 		tester.Frame()
+	}
+}
+
+// TestFluentCalendarDaysFollowTheLanguage pins on Windows, in a window laid out right to left, that CalendarView lays its days out in the direction of its language, as WinUI's CalendarView sets its Views grid's FlowDirection from the language's month and year pattern: in American English the 1st is left of the 2nd and Sunday's name left of Saturday's while the header mirrors, Next left of Previous (rendered with WinUI 3 on Windows 11 26H2 by tools/winui-reference's winui-datepicker-rtl scene); in Hebrew the days go from the right, and Left moves to the day after.
+func TestFluentCalendarDaysFollowTheLanguage(t *testing.T) {
+	fixToday(t, datePickerToday)
+	for _, locale := range []string{"en-US", "he-IL"} {
+		app := &calendarApp{date: time.Date(2026, time.November, 18, 10, 30, 0, 0, time.UTC)}
+		tester := dateTester(Windows, 640, 520, app.view)
+		tester.SetLocale(locale)
+		tester.SetDirection(ui.RightToLeft)
+		tester.Frame()
+		day := func(d int) ui.Rect {
+			t.Helper()
+			r, ok := tester.Find(dateText(locale, "yMMMMd", time.Date(2026, time.November, d, 0, 0, 0, 0, time.UTC)))
+			if !ok {
+				t.Fatalf("%s: the %dth is missing", locale, d)
+			}
+			return r
+		}
+		names := weekdayNames(locale, Windows)
+		sun, _ := tester.Find(names[time.Sunday])
+		sat, _ := tester.Find(names[time.Saturday])
+		prev, _ := tester.Find("Previous")
+		next, _ := tester.Find("Next")
+		if next.X > prev.X {
+			t.Errorf("%s: the header does not mirror: Next at %v, Previous at %v", locale, next.X, prev.X)
+		}
+		ltr := locale == "en-US"
+		if got := day(1).X < day(2).X; got != ltr {
+			t.Errorf("%s: the 1st left of the 2nd is %v, want %v", locale, got, ltr)
+		}
+		if got := sun.X < sat.X; got != ltr {
+			t.Errorf("%s: Sunday's name left of Saturday's is %v, want %v", locale, got, ltr)
+		}
+		forth := ui.KeyRight
+		if !ltr {
+			forth = ui.KeyLeft
+		}
+		tester.Click(dateText(locale, "yMMMMd", time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)))
+		tester.Frame()
+		tester.Key(0, forth)
+		tester.Frame()
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if app.date.Day() != 19 {
+			t.Errorf("%s: the arrow toward the days' end and Enter chose the %dth, want the 19th", locale, app.date.Day())
+		}
 	}
 }
 
