@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -312,6 +312,42 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     renderSwitcher(appearance: appearance, file: "appkit-switcher-\(mode).png")
 }
 
+// A tile as the preferences scene's PrefixRows hold one: a 30-point rounded square of systemBlue.
+struct Tile: View {
+    var body: some View { RoundedRectangle(cornerRadius: 7).fill(Color.blue).frame(width: 30, height: 30) }
+}
+
+// preferencesSet places SwiftUI's grouped Forms where ui/breeze/widgets_preferences_test.go's prefsView places Breeze UI's preferences widgets on macOS: at 16, 16 a section whose header holds a title and a Detect button and whose footer is a description, holding a row whose label is a Label with a tile, a title and a subtitle and holds a Remove button, a row with a value and a row whose label is a Label with a tile and a title; below it a Picker of the radio-group style of three options, two with a subtitle; on the right a section under a header holding a row with a value and a VStack row of a title over a TextEditor 60 points high. The Forms are shifted by their padding of 20, so that their sections land where Breeze UI's do.
+func preferencesSet() -> [Item] {
+    let speech = RowsForm {
+        Section {
+            LabeledContent { Button("Remove") {} } label: { Label { Text("Whisper"); Text("Base · 142 MB") } icon: { Tile() } }
+            LabeledContent("Language", value: "Auto")
+            LabeledContent { EmptyView() } label: { Label { Text("Tiny") } icon: { Tile() } }
+        } header: {
+            HStack { Text("Speech"); Spacer(); Button("Detect") {} }
+        } footer: { Text("Models are stored on this Mac.") }
+    }
+    let engine = RowsForm {
+        Picker("Engine", selection: .constant("whisper")) {
+            TitleSubtitle(title: "Whisper", subtitle: "On this Mac").tag("whisper")
+            TitleSubtitle(title: "Cloud", subtitle: "Sent to a service").tag("cloud")
+            TitleSubtitle(title: "Off", subtitle: "").tag("off")
+        }.pickerStyle(.radioGroup).labelsHidden()
+    }
+    let translation = RowsForm {
+        Section("Translation") {
+            LabeledContent("Model", value: "GPT")
+            VStack(alignment: .leading) { Text("Prompt"); TextEditor(text: .constant("Translate the subtitles.")).frame(height: 60) }
+        }
+    }
+    return [
+        hosted("form-preferences-group", speech, x: -4, y: -4, w: 340, h: 260),
+        hosted("form-radio-rows", engine, x: -4, y: 217, w: 340, h: 200),
+        hosted("form-content-row", translation, x: 320, y: -4.5, w: 340, h: 240),
+    ]
+}
+
 // textSet: AppKit's text styles (NSFont.preferredFont(forTextStyle:)) in labels, two in secondaryLabelColor, where TestScreenshotsText's textView places Breeze UI's Text (textTops).
 func textSet() -> [Item] {
     func label(_ s: String, _ style: NSFont.TextStyle, secondary: Bool = false) -> NSTextField {
@@ -581,6 +617,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
     render(rowsSet(), width: 672, height: 520, appearance: appearance, file: "appkit-rows-\(mode).png")
     render(settingsSet(), width: 672, height: 480, appearance: appearance, file: "appkit-settings-\(mode).png")
+    render(preferencesSet(), width: 672, height: 480, appearance: appearance, file: "appkit-preferences-\(mode).png")
     render(textSet(), width: 360, height: 300, appearance: appearance, file: "appkit-text-\(mode).png")
     renderTabs(appearance: appearance, file: "appkit-tabs-\(mode).png")
     renderDatePicker(appearance: appearance, focused: false, file: "appkit-datepicker-\(mode).png"); renderDatePicker(appearance: appearance, focused: true, file: "appkit-datepicker-focused-\(mode).png")
