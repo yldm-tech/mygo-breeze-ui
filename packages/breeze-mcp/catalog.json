@@ -113,6 +113,13 @@
       "example": "breeze.Card(c, func() {\n\tbreeze.SwitchRow(c, \"Dark mode\", \"\", &app.dark)\n\tbreeze.SwitchRow(c, \"Notifications\", \"\", &app.notify)\n})"
     },
     {
+      "name": "Carousel",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A view showing one of several pages, which a function builds by index, with the platform's page dots below it: on macOS the pages slide as NSPageController's strip moves them, with UIKit for Mac's page dots below (inferred, as macOS has no page indicator); on Windows 11 WinUI's FlipView, its previous and next buttons showing at its sides while the mouse moves over it, with a PipsPager 10 below; on GNOME AdwCarousel with AdwCarouselIndicatorDots below, the dots following the pages as they move. The arrows, Page Up, Page Down, Home and End move between the pages, as do a click on a dot, the wheel (Windows and GNOME), a touchpad's swipe (macOS and GNOME) and a drag (GNOME); it is one Tab stop named by the page it shows. Only the shown pages are built.",
+      "example": "breeze.Carousel(c, &app.slide, len(app.slides), func(i int) {\n\tui.Text(c, app.slides[i])\n}).Width(480)"
+    },
+    {
       "name": "Checkbox",
       "category": "choices",
       "look": "drawn",
@@ -335,6 +342,13 @@
       "look": "drawn",
       "description": "A single-line field hiding its text in the platform's text field: macOS's NSSecureTextField, Windows 11's PasswordBox with its RevealButton (shown while text typed since the focus came, revealing while pressed or Alt+F8 is held), or GNOME's GtkPasswordEntry with Show Text in its context menu.",
       "example": "breeze.PasswordField(c, &app.password).Placeholder(\"Password\")"
+    },
+    {
+      "name": "PipsPager",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A row of page indicators choosing a page: on macOS 7-point dots 19 apart as UIKit for Mac draws its UIPageControl (inferred, as macOS has no page indicator), on Windows 11 WinUI's PipsPager (12 by 24 pips, the chosen dot larger, at most 5 shown, scrolling to keep the chosen one in the middle), or on GNOME AdwCarouselIndicatorDots (the chosen dot larger and darker). A click on a pip or the arrows choose a page; it is one Tab stop, a radio group named Pager whose pips are named Page 1, Page 2. Use Carousel for pages with dots below them.",
+      "example": "breeze.PipsPager(c, &app.page, 5)"
     },
     {
       "name": "Popover",
