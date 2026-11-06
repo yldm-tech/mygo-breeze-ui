@@ -14,6 +14,16 @@
   "@calendarPrevious": {"description": "The accessible name of WinUI's CalendarView PreviousButton (UIA_FLIPVIEW_PREVIOUS)."},
   "calendarNext": "Next",
   "@calendarNext": {"description": "The accessible name of WinUI's CalendarView NextButton (UIA_FLIPVIEW_NEXT)."},
+  "pipsPagerName": "Pager",
+  "@pipsPagerName": {"description": "The accessible name of a pager's row of page indicators: WinUI's PipsPager name (PipsPagerNameText)."},
+  "pipsPagerPage": "Page {page}",
+  "@pipsPagerPage": {"description": "The accessible name of a page indicator, as in \"Page 3\": WinUI's PipsPagerPageText followed by the page's number (PipsPager::OnElementPrepared).", "placeholders": {"page": {"type": "int"}}},
+  "carouselPage": "Page {page} of {count}",
+  "@carouselPage": {"description": "The accessible name of a carousel's view, which takes the focus, as in \"Page 2 of 4\": the page shown and how many there are, as a screen reader says them for a pip of WinUI's PipsPager (page x of y).", "placeholders": {"page": {"type": "int"}, "count": {"type": "int"}}},
+  "carouselPrevious": "Previous",
+  "@carouselPrevious": {"description": "The accessible name of WinUI's FlipView PreviousButtonHorizontal, which shows the page before (UIA_FLIPVIEW_PREVIOUS)."},
+  "carouselNext": "Next",
+  "@carouselNext": {"description": "The accessible name of WinUI's FlipView NextButtonHorizontal, which shows the page after (UIA_FLIPVIEW_NEXT)."},
   "datePickerPlaceholder": "select a date",
   "@datePickerPlaceholder": {"description": "What a date picker without a date shows: WinUI's CalendarDatePicker's default PlaceholderText (TEXT_CALENDARDATEPICKER_DEFAULT_PLACEHOLDER_TEXT)."}
 }
