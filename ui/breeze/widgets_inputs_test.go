@@ -584,7 +584,7 @@ type inputsState struct {
 	empty, secret, chosen string
 }
 
-// inputsView lays out the group's widgets on platform p as tools/appkit-reference/reference.swift places AppKit's (inputsSet): an empty password field with its placeholder and one holding a password, a split button, an icon button and a disabled one; below them, a toolbar holding a split button and two icon buttons side by side.
+// inputsView lays out the group's widgets on platform p as tools/appkit-reference/Sources/appkit-reference/Scenes/inputs.swift places AppKit's (inputsSet): an empty password field with its placeholder and one holding a password, a split button, an icon button and a disabled one; below them, a toolbar holding a split button and two icon buttons side by side.
 func inputsView(p Platform, s *inputsState) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {

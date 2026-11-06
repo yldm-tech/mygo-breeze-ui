@@ -380,7 +380,7 @@ func TestContentRowHoldsItsContent(t *testing.T) {
 	}
 }
 
-// TestMacPreferencesMatchAppKit checks prefsView on macOS at 2x, light and dark, against the values read from reference.swift's preferences scene (appkit-preferences-*.png, macOS 27.2): the section of the group with a header button 50 points from the window's top (the button's 24 points from 16, and 10 below it); the tile of the one-line prefix row 10 points in from the section's edge and its row 50 points high between the separator and the section's end; the description's ink in secondaryLabelColor, 128 over the window in Aqua and 154 in Dark Aqua, its top 13 points below the section; and an unchosen radio button's trough over the section, 223 over 247 and 58 over 37.
+// TestMacPreferencesMatchAppKit checks prefsView on macOS at 2x, light and dark, against the values read from tools/appkit-reference's preferences scene (appkit-preferences-*.png, macOS 27.2): the section of the group with a header button 50 points from the window's top (the button's 24 points from 16, and 10 below it); the tile of the one-line prefix row 10 points in from the section's edge and its row 50 points high between the separator and the section's end; the description's ink in secondaryLabelColor, 128 over the window in Aqua and 154 in Dark Aqua, its top 13 points below the section; and an unchosen radio button's trough over the section, 223 over 247 and 58 over 37.
 func TestMacPreferencesMatchAppKit(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		tester := ui.NewTester(prefsView(Mac), 672, 480)
