@@ -724,6 +724,13 @@ def tabview_set():
     return fixed(560, 260, [(docs, 16, 16), (content, 16, 75), (prefs, 16, 136)], named={"docs": docs_bar, "content": content, "prefs": prefs_bar})
 
 
+def datepicker_set():
+    """TestScreenshotsDatePicker's datePickerView: a GtkCalendar at 16, 16 showing November 2026 with the 18th chosen, and at 360, 16 a GtkMenuButton showing the same day as American English writes it short, whose popover holds a calendar, closed. Run it with LC_ALL=en_US.UTF-8, so that GTK names the months and days in English and starts the weeks on Sunday; GTK marks the machine's today, which TestScreenshotsDatePicker fixes as the 6th of November 2026."""
+    calendar = Gtk.Calendar(year=2026, month=10, day=18)
+    button = Gtk.MenuButton(label="11/18/2026", popover=Gtk.Popover(child=Gtk.Calendar(year=2026, month=10, day=18)))
+    return fixed(560, 400, [(calendar, 16, 16), (button, 360, 16)], named={"calendar": calendar, "date-picker": button})
+
+
 def over_card_set():
     """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
     box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -776,6 +783,7 @@ SETS = [
     ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set), ("spinlimit", "adwaita-spinlimit", spin_limit_set),
     ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
     ("switcher", "adwaita-switcher", switcher_set),
+    ("datepicker", "adwaita-datepicker", datepicker_set),
     ("text", "adwaita-text", text_set),
 ]
 

@@ -95,8 +95,15 @@
       "name": "Calendar",
       "category": "choices",
       "look": "themed",
-      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
+      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar: CalendarView draws them.",
       "example": "breeze.Calendar(c, &app.day)"
+    },
+    {
+      "name": "CalendarView",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A month's calendar choosing a day, drawn as the platform draws its own: NSDatePicker's graphical calendar on macOS (the abbreviated month and year with ◀ ● ▶, short day names over a line, the chosen day a rounded rectangle, today's number in the accent), WinUI's CalendarView on Windows 11 (40-DIP round day items, today a filled accent circle, the chosen day an accent ring, up and down buttons), or GtkCalendar on GNOME (arrows around the month and the year, the chosen day filled with the accent, today underlined). Month and day names, the first day of the week and the numbers follow the window's language and the user's region. The arrows, Page Up, Page Down, Home and End move as the platform's calendar does, choosing as they move on macOS; Enter, Space or a click choose.",
+      "example": "breeze.CalendarView(c, &app.day)"
     },
     {
       "name": "Card",
@@ -160,6 +167,13 @@
       "look": "drawn",
       "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, without an icon, Windows 11's CalendarDatePicker, or a GNOME entry with its icon at 70%, as GTK has no date field. The calendar is MyGo's.",
       "example": "breeze.DateInput(c, &app.due).Label(\"Due\")"
+    },
+    {
+      "name": "DatePicker",
+      "category": "text",
+      "look": "drawn",
+      "description": "A button showing a date in the user's short format that opens CalendarView in a popover below it: the date field of SwiftUI's compact DatePicker on macOS, WinUI's CalendarDatePicker with its calendar glyph and flyout on Windows 11, or a GtkMenuButton with a pan-down arrow opening a GtkCalendar on GNOME. Choosing a day closes it; a zero date shows WinUI's placeholder, select a date.",
+      "example": "breeze.DatePicker(c, &app.due).Label(\"Due\")"
     },
     {
       "name": "DecimalInput",
