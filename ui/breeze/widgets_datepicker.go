@@ -1,8 +1,10 @@
 package breeze
 
 import (
+	"cmp"
 	"embed"
 	"io/fs"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -540,43 +542,33 @@ func fluentCalendar(b *calendarBuild, root ui.Element) {
 	})
 }
 
-// fluentWeekdayWidths returns the widths of WeekDayNames' seven star columns, holding names in size, in a row width wide. WinUI measures the CalendarView's template without a width limit where nothing limits the CalendarView's own width (on a Canvas, in CalendarDatePicker's flyout), so each star column takes its name's width with the TextBlock's Padding of 12 and Margin of 1 at either side as its least, and Grid's star resolution keeps that least for the columns it does not fit and shares the rest of the row equally among the others: in Segoe UI Variable "Mo" and "We" (42.5 and 41.7 DIPs with their padding) widen their columns, moving the names after them as much as 3.5 DIPs from the day numbers' columns (measured with WinUI 3 on Windows 11 26H2; Grid's star resolution inferred from the names' frames).
+// fluentWeekdayWidths returns the widths of WeekDayNames' seven star columns, holding names in size, in a row width wide. WinUI measures the CalendarView's template without a width limit where nothing limits the CalendarView's own width (on a Canvas, in CalendarDatePicker's flyout), so each star column keeps its name's width with the TextBlock's Padding of 12 and Margin of 1 at either side as its least; Grid's arrange then gives the columns the row in their order, each the larger of its least and an equal share of what the columns before it left (Grid.cpp's CGrid::SetFinalSize and DistributeStarSpace, whose sort keeps the order of star columns without a MaxWidth), so the columns after a wide name are narrower than those before it (fluentStarColumns): in Segoe UI Variable the columns come out 42, 45, 41, 44, 41, 41 and 40 DIPs, "Mo" and "We" (42.5 and 41.7 DIPs with their padding) widening theirs (measured with WinUI 3 on Windows 11 26H2, where WinUI also rounds each column to whole DIPs, which this does not).
 func fluentWeekdayWidths(c *ui.Context, names [7]string, size, width float32) [7]float32 {
-	var least, out [7]float32
-	var kept [7]bool
+	var least [7]float32
 	for i, n := range names {
 		w, _ := c.MeasureText(0, ui.Span{Text: n, Size: size, Weight: 600})
 		least[i] = w + 26
 	}
-	for {
-		room, free := width, 0
-		for i := range least {
-			if kept[i] {
-				room -= least[i]
-			} else {
-				free++
-			}
-		}
-		if free == 0 {
-			return least
-		}
-		share, more := room/float32(free), false
-		for i := range least {
-			if !kept[i] && least[i] > share {
-				kept[i], more = true, true
-			}
-		}
-		if more {
-			continue
-		}
-		for i := range out {
-			out[i] = share
-			if kept[i] {
-				out[i] = least[i]
-			}
-		}
-		return out
+	return fluentStarColumns(least, width)
+}
+
+// fluentStarColumns shares width among seven star columns of weight 1 with the least widths least, in order, as Grid.cpp's CGrid::SetFinalSize does: each the larger of its least and an equal share of what the columns before it left; where they overflow width, the excess comes back from the columns with room above their least, those with the least room first, each an equal share of what is left to take, none below its least.
+func fluentStarColumns(least [7]float32, width float32) [7]float32 {
+	var out [7]float32
+	for i := range out {
+		out[i] = max(least[i], max(width, 0)/float32(7-i))
+		width -= out[i]
 	}
+	if width < 0 {
+		order := []int{0, 1, 2, 3, 4, 5, 6}
+		slices.SortStableFunc(order, func(a, b int) int { return cmp.Compare(out[a]-least[a], out[b]-least[b]) })
+		for k, i := range order {
+			was := out[i]
+			out[i] = min(max(was+width/float32(7-k), least[i]), was)
+			width -= out[i] - was
+		}
+	}
+	return out
 }
 
 // fluentCalendarNav draws CalendarView's PreviousButton (back) or NextButton btn over the calendar's background bg: transparent, CalendarViewNavigationButtonBackgroundPointerOver (SubtleFillColorSecondary) under the pointer and Pressed (SubtleFillColorTertiary) pressed, corners of ControlCornerRadius; the CaretUpSolid8 (EDDB) or CaretDownSolid8 (EDDC) glyph at 8 DIPs in the CalendarView's Foreground (TextFillColorPrimary), ControlStrongFillColorDefault under the pointer and pressed, scaled by CalendarViewNavigationButtonScalePressed (0.875) pressed, drawn as a filled caret 8 DIPs wide and 6 high, centered in the glyph's 8-DIP box (measured with WinUI 3 on Windows 11 26H2); the system focus visual 2 DIPs around it (CalendarViewNavigationButtonFocusVisualMargin -2).

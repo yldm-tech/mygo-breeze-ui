@@ -800,22 +800,18 @@ func TestFluentCalendarAsRendered(t *testing.T) {
 		near("the row of names", float32(shotPixel(tester, box.X+4, box.Y+60)[0]), pick(dark, float32(255), 30), 0.5)
 		near("the month view", float32(shotPixel(tester, box.X+4, box.Y+120)[0]), pick(dark, float32(255), 31), 0.5)
 
-		// The columns' edges follow from the names' middles, the first starting 3 in (the border and the month view's margin of 2).
-		edge, wide := box.X+3, float32(0)
-		for i := range 7 {
-			name := weekdayNames("en-US", Windows)[i]
+		// The columns' edges follow from the names' middles, the first starting 3 in (the border and the month view's margin of 2): Grid's star columns sharing the 294 DIPs, each holding its name with its padding (TestFluentStarColumns).
+		var least [7]float32
+		for i, name := range weekdayNames("en-US", Windows) {
+			r, _ := tester.Find(name)
+			least[i] = r.W + 26
+		}
+		want := fluentStarColumns(least, 294)
+		edge := box.X + 3
+		for i, name := range weekdayNames("en-US", Windows) {
 			r, _ := tester.Find(name)
 			end := 2*(r.X+r.W/2) - edge
-			w, least := end-edge, r.W+26
-			if w < least-0.01 {
-				t.Errorf("dark %v: %s's column is %v wide, less than its name and padding, %v", dark, name, w, least)
-			}
-			if w > least+0.01 {
-				if wide == 0 {
-					wide = w
-				}
-				near(name+"'s column, sharing the rest", w, wide, 0.01)
-			}
+			near(name+"'s column", end-edge, want[i], 0.01)
 			edge = end
 		}
 		near("the last column's end", edge, box.X+box.W-3, 0.01)
@@ -865,6 +861,28 @@ func TestFluentCalendarAsRendered(t *testing.T) {
 		tester.Key(0, ui.KeyEscape)
 		tester.Frame()
 		tester.Frame()
+	}
+}
+
+// TestFluentStarColumns pins how CalendarView's row of day names shares its 294 DIPs, as Grid.cpp's CGrid::SetFinalSize gives star columns their widths in order: with the least widths of WinUI 3's own names in Segoe UI Variable (their TextBlocks 37.8, 42.5, 37.9, 41.7, 37.8, 34.7 and 37.0 DIPs wide with their padding, a margin of 1 at either side; measured on Windows 11 26H2 by tools/winui-reference's winui-datepicker scene), the columns come out 42, 44.5, 41.5, 43.7 and three of 40.8, which WinUI, rounding each to whole DIPs there, draws 42, 45, 41, 44, 41, 41 and 40; and names overflowing the row take the excess back from the columns with room, never below their least.
+func TestFluentStarColumns(t *testing.T) {
+	near := func(what string, got, want, by float32) {
+		t.Helper()
+		if got < want-by || got > want+by {
+			t.Errorf("%s is %v, want %v", what, got, want)
+		}
+	}
+	segoe := [7]float32{37.775390625 + 2, 42.498046875 + 2, 37.8515625 + 2, 41.73046875 + 2, 37.833984375 + 2, 34.67578125 + 2, 37.03125 + 2}
+	got := fluentStarColumns(segoe, 294)
+	for i, want := range []float32{42, 44.5, 41.5, 43.73, 40.76, 40.76, 40.76} {
+		near(fmt.Sprintf("column %d", i), got[i], want, 0.01)
+	}
+	for i, rendered := range []float32{42, 45, 41, 44, 41, 41, 40} {
+		near(fmt.Sprintf("column %d against WinUI's", i), got[i], rendered, 0.8)
+	}
+	got = fluentStarColumns([7]float32{30, 30, 30, 30, 30, 30, 60}, 294)
+	for i, want := range []float32{39, 39, 39, 39, 39, 39, 60} {
+		near(fmt.Sprintf("overflowing column %d", i), got[i], want, 0.01)
 	}
 }
 
