@@ -7,6 +7,9 @@ gi.require_version("Gdk", "4.0")
 gi.require_version("Graphene", "1.0")
 from gi.repository import Adw, Gdk, GLib, Gio, Graphene, Gtk  # noqa: E402, F401
 
+# The window's frame, by which its content is offset from Breeze UI's screenshots: 5 pixels, 10 at 2x.
+FRAME = 5
+
 
 class Scene:
     """A window's content: its size, its root widget, the widgets whose bounds to print, and what to do once it is shown (open a popover, take the focus)."""
@@ -15,6 +18,9 @@ class Scene:
         self.width, self.height, self.root = width, height, root
         self.named = named or {}
         self.shown = shown
+        # How long after the window is presented it is rendered, in milliseconds, and what to do once it is (let go of the mouse a set pressed).
+        self.wait = 1500
+        self.done = None
         self.popovers = popovers or []
         # What opens the popovers, once the window is up: by default each popover's popup.
         self.open_popovers = open_popovers or (lambda: [p.popup() for p in self.popovers])

@@ -9,12 +9,11 @@ import importlib
 import sys
 from pathlib import Path
 
-from common import Adw, Gdk, GLib, Graphene, Gtk
+from common import FRAME, Adw, Gdk, GLib, Graphene, Gtk
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 ONLY = set(sys.argv[2:])
 SCALE = 2
-FRAME = 5
 
 
 def load_sets():
@@ -103,6 +102,8 @@ def main():
 
         def shoot():
             render(window, scene, f"{OUT}/{file}")
+            if scene.done:
+                scene.done()
             for p in scene.popovers:
                 p.popdown()
                 p.unparent()
@@ -111,7 +112,7 @@ def main():
             return False
 
         # Wait past the dialog's spring animation, the toast's and the spinner's first frames.
-        GLib.timeout_add(1500, shoot)
+        GLib.timeout_add(scene.wait, shoot)
 
     GLib.idle_add(lambda: (next_job(), False)[1])
     loop.run()
