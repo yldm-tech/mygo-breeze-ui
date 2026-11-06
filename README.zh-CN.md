@@ -13,7 +13,7 @@ Breeze UI 让 [MyGo](https://github.com/egoist/mygo) 的原生 UI 控件按应�
 
 ## 包含内容
 
-- `ui/breeze`：按钮、切换按钮与切换组、复选框、单选按钮与单选按钮组、开关、文本框与搜索框（以及编辑 `ui.TextBuffer` 的文本框）、组合框、下拉选择、滑块、步进器、进度条、加载指示器、分段控件、标签页、可关闭标签并带新建按钮的文档标签栏、按平台字号层级排版的文字（标题、小标题、正文、说明文字和弱化的次要文字）、链接、分隔线、徽标、菜单按钮、弹出层、对话框和提示框、工具提示和 Toast 通知、折叠面板与手风琴、字段组与表单、卡片、设置行与开关行、下拉选择行、输入行、数值行与展开行、侧边栏、面包屑、后退与前进按钮、工具栏、隐藏标题栏窗口的标题栏（HeaderBar）、切换应用顶层视图的视图切换器（ViewSwitcher）、电平表、头像、评分、内联消息栏、环形进度、空状态页、带刻度的滑块、数字输入框、日期与时间输入框、按平台绘制月历（NSDatePicker、WinUI 的 CalendarView、GtkCalendar）并跟随用户语言与地区格式的日期选择器、颜色井、复选框组、分栏视图、列表、表格、树、大纲、网格、可编辑文本、自动补全与标记输入框、密码框、拆分按钮和图标按钮按各平台的样子绘制，对照 macOS 27、WinUI 3 和 libadwaita 1.10（GNOME 51），尺寸和颜色量自 AppKit 与 libadwaita 的实际渲染，或取自 WinUI 3 的主题资源；小数输入框、范围滑块、日历、颜色选择器、查找栏和滚动容器以同样的名字使用 `ui` 包的控件，配上平台主题。
+- `ui/breeze`：按各平台的样子绘制的控件，对照 macOS 27、WinUI 3 和 libadwaita 1.10（GNOME 51），尺寸和颜色量自 AppKit 与 libadwaita 的实际渲染，或取自 WinUI 3 的主题资源；另有少数控件以同样的名字使用 `ui` 包的控件，配上平台主题。全部控件见[官网目录](https://yldm-tech.github.io/mygo-breeze-ui/#catalog)，[Storybook](https://yldm-tech.github.io/mygo-breeze-ui/storybook/) 可以逐个查看，[`docs/widgets`](docs/widgets) 按组介绍。
 - 三个平台的浅色和深色主题，跟随用户选择的强调色、对比度和文字大小。
 - `breeze-ui` CLI：列出控件和平台，生成代码片段。
 - `breeze-ui-mcp`：基于同一份目录的只读 MCP 服务。
@@ -51,7 +51,7 @@ func (app *settings) view(c *ui.Context) {
 go run ./examples/breeze-ui
 ```
 
-指针、键盘、焦点和无障碍都来自 MyGo 的无外观控件（`ui.ButtonBase`、`ui.CheckboxBase`、`ui.SwitchBase`）。每个控件在各平台上的样子、数值的来源和目前的限制见 [docs/breeze-ui.md](docs/breeze-ui.md)。
+指针、键盘、焦点和无障碍都来自 MyGo 的无外观控件（`ui.ButtonBase`、`ui.CheckboxBase`、`ui.SwitchBase`）。每个控件在各平台上的样子、数值的来源和目前的限制按组列在 [docs/widgets](docs/widgets)，各控件共有的内容见 [docs/breeze-ui.md](docs/breeze-ui.md)。
 
 ## Storybook
 
