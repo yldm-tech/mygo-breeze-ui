@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const siteUrl = "https://yldm-tech.github.io/mygo-breeze-ui";
+const siteUrl = "https://breeze-ui.yldm.ai";
 const imageUrl = `${siteUrl}/og-image.png`;
 
 type SeoProps = {

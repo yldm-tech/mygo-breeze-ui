@@ -21,7 +21,7 @@ export function SiteFooter() {
         </nav>
         <nav className="footer-nav" aria-label={zh ? "资源" : "Resources"}>
           <strong>{zh ? "资源" : "Resources"}</strong>
-          <a href="https://yldm-tech.github.io/mygo-breeze-ui/storybook/" target="_blank" rel="noreferrer">Storybook</a>
+          <a href="https://breeze-ui.yldm.ai/storybook/" target="_blank" rel="noreferrer">Storybook</a>
           <a href="https://pkg.go.dev/github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">pkg.go.dev</a>
           <a href="https://github.com/egoist/mygo" target="_blank" rel="noreferrer">MyGo</a>
         </nav>

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://yldm-tech.github.io/mygo-breeze-ui/sitemap.xml
+Sitemap: https://breeze-ui.yldm.ai/sitemap.xml
