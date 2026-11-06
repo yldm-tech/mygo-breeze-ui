@@ -438,8 +438,15 @@
       "name": "SidebarItem",
       "category": "navigation",
       "look": "drawn",
-      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 42-pixel AdwSidebar row on GNOME.",
+      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen and its icon in the accent color (white on the focused selection), a NavigationViewItem with its accent pill on Windows 11, a 42-pixel AdwSidebar row on GNOME.",
       "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
+    },
+    {
+      "name": "SidebarItemImage",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "An item of a Sidebar showing a bitmap or an SVG in its own colors where SidebarItem tints its icon, as a colored mark or an avatar: the same row on every platform, the image kept as it is on the accent selection.",
+      "example": "breeze.SidebarItemImage(c, \"flagged\", flaggedMark, \"Flagged\")"
     },
     {
       "name": "SidebarSection",
@@ -447,6 +454,13 @@
       "look": "drawn",
       "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or AdwSidebar's bold heading on GNOME.",
       "example": "breeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
+    },
+    {
+      "name": "SidebarSectionWithActions",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A section of a Sidebar as SidebarSection, with controls such as an add button at the end of its title's row, centered on it and always shown; a click on them does not show or hide the items.",
+      "example": "breeze.SidebarSectionWithActions(c, \"Mailboxes\", &app.mailboxes, func() {\n\tif breeze.IconButton(c, plusIcon, \"Add Mailbox\").Clicked() {\n\t\tapp.addMailbox()\n\t}\n}, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
     },
     {
       "name": "Slider",
