@@ -710,3 +710,42 @@ func TestAdwCarouselDragAsRendered(t *testing.T) {
 		tester.Frame()
 	}
 }
+
+// TestAdwCarouselDotsWidth checks that a GNOME Carousel of many small pages is as wide as its dots, as tools/adwaita-reference's carouselmany set renders libadwaita 1.10.0's: a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number, over AdwCarouselIndicatorDots with a margin of 6, is 399 pixels wide, the dots 387 (adw_carousel_indicator_dots_measure gives their natural width, 15 a page and 6 at either end, as their minimum), and the first, chosen, dot is centered 16.5 into them, where Breeze UI's dots, which asked for no width, left the carousel as wide as its margins. It writes the view, light and dark, to the directory BREEZE_SCREENSHOTS names.
+func TestAdwCarouselDotsWidth(t *testing.T) {
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, dark := range []bool{false, true} {
+		shown := 0
+		var box ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Box(c).Fill().Children(func() {
+					ui.Box(c).Absolute().Left(16).Top(16).Children(func() {
+						box = Carousel(c, &shown, 25, func(i int) { ui.Text(c, fmt.Sprint(i+1)).SingleLine() }).Bounds()
+					})
+				})
+			})
+		}, 432, 96)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		mode := map[bool]string{false: "light", true: "dark"}[dark]
+		dots, ok := tester.Find("Pager")
+		if !ok {
+			t.Fatalf("%s: no pager", mode)
+		}
+		if box.W != 399 || dots.X != 22 || dots.W != 387 {
+			t.Errorf("%s: the carousel is %v wide and its dots %v from %v, want libadwaita's 399, and 387 from 22", mode, box.W, dots.W, dots.X)
+		}
+		ink := [3]int{70, 70, 74}
+		if dark {
+			ink = [3]int{233, 233, 234}
+		}
+		if got := shotPixel(tester, dots.X+16.5, dots.Y+10); !samePixel(got, ink, 2) {
+			t.Errorf("%s: the chosen dot's middle is %v, want libadwaita's %v", mode, got, ink)
+		}
+		writeShot(t, dir, fmt.Sprintf("breeze-carousel-many-linux-%s.png", mode), tester)
+	}
+}
