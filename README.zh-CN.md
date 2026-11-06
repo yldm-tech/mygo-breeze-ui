@@ -74,6 +74,8 @@ npx breeze-ui add Switch -o ui/switch_snippet.go
 go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest
 ```
 
+或者从 [Releases](https://github.com/yldm-tech/mygo-breeze-ui/releases) 下载 Linux、macOS 和 Windows 版。`breeze-ui version` 会打印它的版本号。
+
 ## MCP 服务
 
 ```sh
@@ -95,7 +97,7 @@ bun run typecheck
 bun run build
 ```
 
-Pull request 标题和提交信息使用 [Conventional Commits](https://www.conventionalcommits.org/)（`feat(breeze): ...`、`fix: ...`）。Labels 工作流会检查标题，并按类型、大小、区域和平台给每个 pull request 打标签；Conflicts 工作流会给与目标分支冲突的 pull request 打标签。`main` 上的 CI 通过后，如果上一个 tag 之后的提交需要发版，Release 工作流就会打 tag 并发布 GitHub Release：`feat` 升次版本号，`fix`、`perf` 和 `revert` 升修订号，破坏性改动（`feat!:` 或 `BREAKING CHANGE:` 脚注）升主版本号，版本仍是 0.x 时只升次版本号。需要强制发版时可以手动运行 Release 工作流。
+Pull request 标题和提交信息使用 [Conventional Commits](https://www.conventionalcommits.org/)（`feat(breeze): ...`、`fix: ...`）。Labels 工作流会检查标题，并按类型、大小、区域和平台给每个 pull request 打标签；Conflicts 工作流会给与目标分支冲突的 pull request 打标签。`main` 上的 CI 通过后，如果上一个 tag 之后的提交需要新版本，Release 工作流就会自动发版：把版本号写进 npm 包和 MCP 服务，以 `chore(release)` 提交到 `main`，给这个提交打 tag，再发布附带 Linux、macOS 和 Windows 版 `breeze-ui` 命令的 GitHub Release。版本号的规则是：`feat` 升次版本号，`fix`、`perf` 和 `revert` 升修订号，破坏性改动（`feat!:` 或 `BREAKING CHANGE:` 脚注）升主版本号，版本仍是 0.x 时只升次版本号。需要强制发版时可以手动运行 Release 工作流。
 
 ## Star History
 
