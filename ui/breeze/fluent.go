@@ -12,13 +12,26 @@ import (
 // fluentAccent is Windows's default accent color, SystemAccentColor.
 var fluentAccent = ui.Hex("#0078d4")
 
-// fluentSystemAccent returns SystemAccentColor: the accent the user chose, opaque, else Windows's default.
+// fluentSystemAccent returns SystemAccentColor: the accent of c's theme when fluentTheme made it (fluentThemeAccent), so that what ThemeOf builds with an app's accent takes that accent's shades, else the accent the user chose, opaque, else Windows's default.
 func fluentSystemAccent(c *ui.Context) ui.Color {
+	if a, ok := fluentThemeAccent(c.Theme()); ok {
+		return a
+	}
 	if a := c.Preferences().Accent; a.A > 0 {
 		a.A = 255
 		return a
 	}
 	return fluentAccent
+}
+
+// fluentThemeAccent returns the SystemAccentColor fluentTheme made t from, and whether it did: fluentTheme keeps that color in t's Selection, opaque in the dark theme and at 40% in the light one, and fills t's Accent with its AccentFillColorDefault shade, so a theme whose Accent is that shade of its opaque Selection is fluentTheme's, or a copy of one. A theme of another kind, such as package ui's, or one whose Accent an app replaced, reports false.
+func fluentThemeAccent(t *ui.Theme) (ui.Color, bool) {
+	a := t.Selection
+	if a.A == 0 {
+		return ui.Color{}, false
+	}
+	a.A = 255
+	return a, t.Accent == fluentAccentFill(a, t.Dark)
 }
 
 // fluentDefaultShades are the shades Windows derives from its default accent, #0078d4: SystemAccentColorLight2 and Light3 (2, 3) and Dark1 to Dark3 (-1 to -3). tools/winui-reference sets them so to render WinUI's controls, and its accent button reads #005a9e in the light theme and #76b9ed in the dark one, its hyperlink #004275 and #a6d8ff (measured from WinUI 3 3.3 in Windows App SDK 2.6.5 on Windows 11 26H2 by tools/winui-reference).
