@@ -19,7 +19,7 @@ function CliMcpPage() {
   const zh = locale === "zh";
   return (
     <main className="pb-[120px] pt-12 max-[680px]:pb-20 max-[680px]:pt-10">
-      <Seo title={zh ? "Breeze UI CLI 与 MCP" : "Breeze UI CLI and MCP"} description={zh ? "使用 Breeze UI CLI 和只读 MCP 服务搜索组件、列出平台并生成 Go 代码。" : "Use the Breeze UI CLI and read-only MCP server to search components, list platforms and generate Go code."} path="/cli-mcp" locale={locale} />
+      <Seo title={zh ? "MyGo Breeze CLI 与 MCP" : "MyGo Breeze CLI and MCP"} description={zh ? "使用 MyGo Breeze CLI 和只读 MCP 服务搜索组件、列出平台并生成 Go 代码。" : "Use the MyGo Breeze CLI and read-only MCP server to search components, list platforms and generate Go code."} socialTitle="MyGo Breeze CLI and MCP" socialDescription="Search components, list platforms and generate Go code with the MyGo Breeze CLI and MCP server." path="/cli-mcp" locale={locale} />
       <div className="mx-auto w-[calc(100%-48px)] max-w-[1160px] max-[680px]:w-[calc(100%-34px)]">
         <Link className="mb-12 inline-flex items-center gap-1.5 font-mono text-[11px] text-muted hover:text-ink" to="/">
           <ArrowLeft size={15} /> {zh ? "返回首页" : "Back home"}
