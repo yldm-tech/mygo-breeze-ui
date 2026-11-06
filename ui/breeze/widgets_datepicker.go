@@ -882,9 +882,9 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop).Margin(4, 0, 0, 0).Radius(8).Clip().
 					Shadow(0, 8, 17, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
 			case Linux:
-				// GtkPopover without its arrow (has-arrow false, as MyGo draws popovers) puts its contents right at the button's bottom edge, centered on it: in libadwaita 1.10.0's render (tools/adwaita-reference's datepickernoarrow set) the contents span 269 to 568 under a button spanning 360 to 476 and ending at 50, where they start. adwPopover's margin of 6 is a dropdown's.
+				// GtkPopover without its arrow (has-arrow false, as MyGo draws popovers) puts its contents right at the button's bottom edge, centered on it: in libadwaita 1.10.0's render (tools/adwaita-reference's datepickernoarrow set) the contents span 269 to 568 under a button spanning 360 to 476 and ending at 50, where they start, as adwPopover places every popover.
 				adwPopover(c, panel)
-				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop).Margin(0)
+				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop)
 			default:
 				macMenu(c, panel)
 				panel.Padding(6)
