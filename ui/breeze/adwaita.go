@@ -198,7 +198,12 @@ func adwRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	t := c.Theme()
 	row.Gap(4).Padding(4).Radius(999)
 	adwFocusRing(t, row, 999, nil)
-	hovered, pressed := row.Hovered(), row.Pressed()
+	adwRadioDot(c, dot, on, row.Hovered(), row.Pressed())
+}
+
+// adwRadioDot draws a grouped GtkCheckButton's circle on dot, as adwRadio describes, under the pointer while hovered and pressed while pressed.
+func adwRadioDot(c *ui.Context, dot ui.Element, on, hovered, pressed bool) {
+	t := c.Theme()
 	dot.Size(20, 20).Radius(10)
 	switch {
 	case on:
