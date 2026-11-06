@@ -13,7 +13,7 @@ type UiState = {
 };
 
 export const useUiStore = create<UiState>((set) => ({
-  locale: "en",
+  locale: "zh",
   filter: "all",
   mobileMenu: false,
   setLocale: (locale) => set({ locale }),
