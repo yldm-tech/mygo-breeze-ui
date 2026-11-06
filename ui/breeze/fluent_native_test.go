@@ -347,7 +347,7 @@ func TestFluentSettingsRowsOverTheCard(t *testing.T) {
 	}
 }
 
-// TestFluentTabViewAsMeasured checks a TabView against WinUI's render (winui-tabview), light and dark. A TabView 528 wide puts its three closable tabs at 24, 185 and 346, 161 wide, and its add button at 514, 2 DIPs past its end, where the strip's line runs on under it; two tabs that do not close, without the add button, are 240 wide at 24 and 264; and five, without it, share the width less 10, running 2 past the end. The chosen tab's outline reads over its fill along its top, 234 and 36, and over the window at its sides, 229 and 29, and its radius arcs leave the strip's line as it is, 229 and 29. The close button's × has its ink 8 DIPs square, centered half a DIP above and before the button's middle, 62 pixels of it at 2x; the add button's + 10 DIPs square, centered the same, 55 pixels of it.
+// TestFluentTabViewAsMeasured checks a TabView against WinUI's render (winui-tabview and winui-tabview-fill), light and dark. A TabView 528 wide puts its three closable tabs at 24, 185 and 346, 161 wide, and its add button at 514, 2 DIPs past its end, where the strip's line stops at the strip's end, not under the button's last 2 DIPs; two tabs that do not close, without the add button, are 240 wide at 24 and 264; and five, without it, share the width less 10, running 2 past the end, the strip's line stopping at its end there too (WinUI's five are 104 wide, as the scene's layout rounds to whole DIPs, and its line ends at 544). The chosen tab's outline reads over its fill along its top, 234 and 36, and over the window at its sides, 229 and 29, and its radius arcs leave the strip's line as it is, 229 and 29. The close button's × has its ink 8 DIPs square, centered half a DIP above and before the button's middle, 62 pixels of it at 2x; the add button's + 10 DIPs square, centered the same, 55 pixels of it.
 func TestFluentTabViewAsMeasured(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		docs := &tabViewApp{labels: []string{"Documents", "Downloads", "Pictures"}, closable: true, addable: true}
@@ -392,8 +392,15 @@ func TestFluentTabViewAsMeasured(t *testing.T) {
 		if got, want := gray(img, int(2*tab.X)-6, int(2*(tab.Y+tab.H))-2), pick(dark, 229, 29); got != want {
 			t.Errorf("dark %v: the strip's line under the chosen tab's radius arc reads %d, want %d", dark, got, want)
 		}
-		if got, want := gray(img, int(2*(add.X+add.W))-1, int(2*(add.Y+add.H+3))-1), pick(dark, 229, 29); got != want {
-			t.Errorf("dark %v: the strip's line under the add button's end reads %d, want %d", dark, got, want)
+		lineY := int(2*(add.Y+add.H+3)) - 1
+		if got, want := gray(img, int(2*(strip.X+strip.W))-1, lineY), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the strip's line at the strip's end reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*(add.X+add.W))-1, lineY), pick(dark, 243, 32); got != want {
+			t.Errorf("dark %v: under the add button's end, past the strip, reads %d, want the window's %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*(strip.X+strip.W))+1, int(2*(last.Y+last.H))-1), pick(dark, 243, 32); got != want {
+			t.Errorf("dark %v: past the end of the strip of five tabs reads %d, want the window's %d", dark, got, want)
 		}
 		x, _ := tester.Find("Close Tab")
 		for _, g := range []struct {

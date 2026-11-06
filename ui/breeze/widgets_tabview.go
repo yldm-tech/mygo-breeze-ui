@@ -394,11 +394,10 @@ func fluentTabGeometry(r ui.Rect) (fill, outline *ui.Path) {
 	return fill, outline
 }
 
-// fluentTabViewAdd draws the TabView's AddButton (TabViewButtonStyle): 32 by 24 (TabViewItemAddButtonWidth and Height) in a container padded 3,0,0,3 at the strip's bottom (TabViewItemAddButtonContainerPadding), ending 2 DIPs past the strip's end (fluentTabViewStrip) over the strip's line, which runs on under it, corners of ControlCornerRadius, the Add glyph at 12 (TabViewItemAddButtonFontSize) in TextFillColorPrimary, TextFillColorSecondary pressed, its face as the close button's, and the system focus visual 3 DIPs around it (FocusVisualMargin -3). The glyph's ink is a plus 10 DIPs across in strokes of three quarters of a DIP, its bars from 0.75 before the button's middle to the middle, its ink centered half a DIP above and before it (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview: the bars a pixel of full ink and one at half at 2x, 20 pixels long).
+// fluentTabViewAdd draws the TabView's AddButton (TabViewButtonStyle): 32 by 24 (TabViewItemAddButtonWidth and Height) in a container padded 3,0,0,3 at the strip's bottom (TabViewItemAddButtonContainerPadding), ending 2 DIPs past the strip's end (fluentTabViewStrip), where the strip's line stops at the strip's end rather than running on under it (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview: the line reads 229 and 29 up to 544, the TabView's end, and the window's 243 and 32 under the last 2 DIPs of the button, which ends at 546), corners of ControlCornerRadius, the Add glyph at 12 (TabViewItemAddButtonFontSize) in TextFillColorPrimary, TextFillColorSecondary pressed, its face as the close button's, and the system focus visual 3 DIPs around it (FocusVisualMargin -3). The glyph's ink is a plus 10 DIPs across in strokes of three quarters of a DIP, its bars from 0.75 before the button's middle to the middle, its ink centered half a DIP above and before it (measured from WinUI 3 3.3 by tools/winui-reference's winui-tabview: the bars a pixel of full ink and one at half at 2x, 20 pixels long).
 func fluentTabViewAdd(c *ui.Context, b ui.Element) {
 	t := c.Theme()
 	b.Size(32, 24).Margin(0, 0, 3, 0).MarginStart(3).MarginEnd(-2).Radius(4)
-	_, _, line := fluentExpanderCard(t)
 	fluentTabViewButtonFace(t, b, t.Background)
 	ink := t.Text
 	if b.Pressed() {
@@ -406,8 +405,6 @@ func fluentTabViewAdd(c *ui.Context, b ui.Element) {
 	}
 	focused := b.FocusVisible()
 	b.Draw(func(p *ui.Painter, r ui.Rect) {
-		// The strip's line under the part of the button past the strip's end.
-		p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H + 3 - 1, W: r.W, H: 1}, line, 0)
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
 		// As paths, which are antialiased where Fill keeps to whole pixels.
 		var plus ui.Path
