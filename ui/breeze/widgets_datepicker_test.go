@@ -82,6 +82,59 @@ func TestScreenshotsDatePicker(t *testing.T) {
 	}
 }
 
+// datePickerOpenView lays out a date picker of the 18th of November 2026 at 120, 16 for a screenshot of its open calendar, keeping its bounds in box: tools/winui-reference's winui-datepicker-open scene places WinUI's CalendarDatePicker there and opens its flyout.
+func datePickerOpenView(p Platform, box *ui.Rect) func(c *ui.Context) {
+	day := time.Date(2026, time.November, 18, 10, 0, 0, 0, time.UTC)
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Column(c).Fill().Padding(16).PaddingStart(120).AlignItems(ui.Start).Children(func() {
+				*box = DatePicker(c, &day).Bounds()
+			})
+		})
+	}
+}
+
+// TestScreenshotsFluentDatePickerOpen writes the Windows date picker with its calendar open, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names, in American English with today the 6th of November 2026, and pins where the calendar opens: centered under the picker and 4 DIPs below it, 300 by 352, as WinUI's CalendarDatePicker places its flyout (measured with WinUI 3 on Windows 11 26H2 by tools/winui-reference's winui-datepicker-open scene: the FlyoutPresenter 300 by 352, its middle at the picker's and its top 4 below the picker's bottom).
+func TestScreenshotsFluentDatePickerOpen(t *testing.T) {
+	fixToday(t, datePickerToday)
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, dark := range []bool{false, true} {
+		var box ui.Rect
+		tester := ui.NewTester(datePickerOpenView(Windows, &box), 420, 440)
+		tester.SetLocale("en-US")
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		if err := tester.Click("11/18/2026"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		tester.Frame()
+		prev, ok := tester.Find("Previous")
+		next, _ := tester.Find("Next")
+		last, _ := tester.Find(dayName(time.December, 12))
+		if !ok {
+			t.Fatal("the calendar did not open")
+		}
+		// The calendar's start is 218 DIPs before Previous and its top 7 above it (its border, Previous's margin of 6); its end is 8 after Next (Next's margin of 7 and the border), and its bottom 4 below the last week's days (their margin of 1, the month view's margin of 2 and the border).
+		cal := ui.Rect{X: prev.X - 218, Y: prev.Y - 7}
+		cal.W, cal.H = next.X+next.W+8-cal.X, last.Y+last.H+4-cal.Y
+		near := func(what string, got, want float32) {
+			t.Helper()
+			if got < want-0.01 || got > want+0.01 {
+				t.Errorf("dark %v: %s is %v, want %v", dark, what, got, want)
+			}
+		}
+		near("the calendar's width", cal.W, 300)
+		near("the calendar's height", cal.H, 352)
+		near("the calendar's middle", cal.X+cal.W/2, box.X+box.W/2)
+		near("the calendar's top", cal.Y, box.Y+box.H+4)
+		writeShot(t, dir, fmt.Sprintf("breeze-datepicker-open-windows-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), tester)
+	}
+}
+
 // calendarApp holds a calendar's date as a test keeps it, with how many times Changed reported a new one.
 type calendarApp struct {
 	date    time.Time
@@ -282,7 +335,7 @@ func TestCalendarViewFollowsTheLocale(t *testing.T) {
 	}
 }
 
-// TestCalendarViewSizes pins the platforms' sizes: NSDatePicker's calendar 139 by 148 points with its first week's first day 4 points in and 38 down, 18.5 by 18 (measured on macOS 27.2); WinUI's CalendarView 300 by 351 DIPs with 40-DIP day items, the first 4 in and 97 down (its border, ScrollViewer and item margins, the 48-DIP header, its line and the 42-DIP row of names; CalendarView_themeresources.xaml); GtkCalendar's 34-pixel arrows and grid rows 27 apart, the first week starting a week before November's first, a Sunday (gtkcalendar.c).
+// TestCalendarViewSizes pins the platforms' sizes: NSDatePicker's calendar 139 by 148 points with its first week's first day 4 points in and 38 down, 18.5 by 18 (measured on macOS 27.2); WinUI's CalendarView 300 by 352 DIPs with 40-DIP day items, the first 4 in and 98 down (its border, ScrollViewer and item margins, the 49-DIP header, its line and the 42-DIP row of names; CalendarView_themeresources.xaml, the header's height measured with WinUI 3 on Windows 11 26H2); GtkCalendar's 34-pixel arrows and grid rows 27 apart, the first week starting a week before November's first, a Sunday (gtkcalendar.c).
 func TestCalendarViewSizes(t *testing.T) {
 	fixToday(t, datePickerToday)
 	for _, p := range Platforms {
@@ -310,10 +363,10 @@ func TestCalendarViewSizes(t *testing.T) {
 			near("a day's height", one.H, 18)
 		case Windows:
 			near("the width", box.W, 300)
-			near("the height", box.H, 351)
+			near("the height", box.H, 352)
 			one, _ := tester.Find(dayName(time.November, 1))
 			near("the 1st's x", one.X-box.X, 4)
-			near("the 1st's y", one.Y-box.Y, 97)
+			near("the 1st's y", one.Y-box.Y, 98)
 			near("a day's width", one.W, 40)
 			near("a day's height", one.H, 40)
 		case Linux:
@@ -698,10 +751,117 @@ func TestFluentCalendarStatesAsMeasured(t *testing.T) {
 	if !ok {
 		t.Fatal("the flyout's calendar is not open")
 	}
-	// The calendar's start is 222 DIPs before Previous and its top 7 above (its border, Previous's margin of 6 and the header's start).
-	x, y := prev.X-222, prev.Y-7
+	// The calendar's start is 218 DIPs before Previous and its top 7 above (its border, Previous's margin of 6 and the header's start).
+	x, y := prev.X-218, prev.Y-7
 	if got := shotPixel(opened, x+2.6, y+2.6); got[0] > 250 {
 		t.Errorf("the flyout's calendar has no border along its round corner: %v at 2.6, 2.6", got)
+	}
+}
+
+// TestFluentCalendarAsRendered pins what WinUI 3's render on Windows 11 26H2 (tools/winui-reference's winui-datepicker and winui-datepicker-open scenes) shows of CalendarView and CalendarDatePicker beyond their sources: the Previous and Next buttons 34 by 36 DIPs, 218 and 258 DIPs in, with carets 6 DIPs high; the month's text 17 DIPs in and its middle 24.5 down, its room ending 12 DIPs before Previous's margin (the HeaderButton's margin of 3, its border and its padding of 8); the line under the header ControlStrokeColorDefault over the calendar's background (240, 47); the day names' columns widened to fit a name with its padding, the others sharing the rest; the picker's date 12 DIPs from its start and its calendar glyph, an outline 10 high with its band and five dots, its middle 16 DIPs before the picker's end; and in the picker's flyout the calendar's background and border over the presenter's in-app acrylic fallback (34 and 59 in the dark theme, the border 234 in the light one).
+func TestFluentCalendarAsRendered(t *testing.T) {
+	fixToday(t, datePickerToday)
+	near := func(what string, got, want, by float32) {
+		t.Helper()
+		if got < want-by || got > want+by {
+			t.Errorf("%s is %v, want %v", what, got, want)
+		}
+	}
+	for _, dark := range []bool{false, true} {
+		day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+		var box ui.Rect
+		tester := dateTester(Windows, 640, 520, func(c *ui.Context) {
+			ui.Row(c).Padding(16).AlignItems(ui.Start).Children(func() { box = CalendarView(c, &day).Bounds() })
+		})
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		prev, _ := tester.Find("Previous")
+		next, _ := tester.Find("Next")
+		near("Previous's width", prev.W, 34, 0.01)
+		near("Previous's height", prev.H, 36, 0.01)
+		near("Previous's x", prev.X-box.X, 218, 0.01)
+		near("Next's x", next.X-box.X, 258, 0.01)
+		inked := 0
+		for y := prev.Y; y < prev.Y+prev.H; y += 0.5 {
+			for x := prev.X; x < prev.X+prev.W; x += 0.5 {
+				if p := shotPixel(tester, x, y); (!dark && p[0] < 128) || (dark && p[0] > 128) {
+					inked++
+					break
+				}
+			}
+		}
+		near("the caret's height in pixels at 2x", float32(inked), 12, 1)
+		month, _ := tester.Find("November 2026")
+		near("the month's x", month.X-box.X, 17, 0.01)
+		near("the month's room", month.W, 186, 0.01)
+		near("the month's middle", month.Y+month.H/2-box.Y, 24.5, 0.01)
+		near("the line under the header", float32(shotPixel(tester, box.X+150, box.Y+50.25)[0]), pick(dark, float32(240), 47), 1)
+
+		// The columns' edges follow from the names' middles, the first starting 3 in (the border and the month view's margin of 2).
+		edge, wide := box.X+3, float32(0)
+		for i := range 7 {
+			name := weekdayNames("en-US", Windows)[i]
+			r, _ := tester.Find(name)
+			end := 2*(r.X+r.W/2) - edge
+			w, least := end-edge, r.W+26
+			if w < least-0.01 {
+				t.Errorf("dark %v: %s's column is %v wide, less than its name and padding, %v", dark, name, w, least)
+			}
+			if w > least+0.01 {
+				if wide == 0 {
+					wide = w
+				}
+				near(name+"'s column, sharing the rest", w, wide, 0.01)
+			}
+			edge = end
+		}
+		near("the last column's end", edge, box.X+box.W-3, 0.01)
+	}
+
+	day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+	var picker ui.Rect
+	tester := dateTester(Windows, 640, 520, func(c *ui.Context) {
+		ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { picker = DatePicker(c, &day).Bounds() })
+	})
+	tester.SetScale(2)
+	tester.Frame()
+	text, _ := tester.Find("11/18/2026")
+	near("the date's x", text.X-picker.X, 12, 0.01)
+	cx, cy := picker.X+picker.W-16, picker.Y+16
+	for _, at := range []struct {
+		what string
+		x, y float32
+		ink  bool
+	}{
+		{"the outline's top", cx, cy - 4.75, true}, {"above the outline", cx, cy - 5.75, false},
+		{"the outline's bottom", cx, cy + 4.75, true}, {"below the outline", cx, cy + 5.75, false},
+		{"the band's line", cx, cy - 2.5, true}, {"under the band's line", cx + 3.5, cy - 1.25, false},
+		{"the first dot", cx - 2.5, cy, true}, {"the third dot", cx + 2, cy, true},
+		{"the fourth dot", cx - 2.5, cy + 2, true}, {"no sixth dot", cx + 2, cy + 2, false},
+	} {
+		if got := shotPixel(tester, at.x, at.y)[0]; (got < 128) != at.ink {
+			t.Errorf("the glyph at %s reads %d, want ink %v", at.what, got, at.ink)
+		}
+	}
+	for _, dark := range []bool{false, true} {
+		tester.SetDark(dark)
+		tester.Frame()
+		if err := tester.Click("11/18/2026"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		tester.Frame()
+		prev, ok := tester.Find("Previous")
+		if !ok {
+			t.Fatal("the flyout's calendar is not open")
+		}
+		x, y := prev.X-218, prev.Y-7
+		near("the flyout's border", float32(shotPixel(tester, x+0.25, y+100)[0]), pick(dark, float32(234), 59), 1)
+		near("the flyout's calendar", float32(shotPixel(tester, x+2.5, y+200)[0]), pick(dark, float32(255), 34), 1)
+		tester.Key(0, ui.KeyEscape)
+		tester.Frame()
+		tester.Frame()
 	}
 }
 
