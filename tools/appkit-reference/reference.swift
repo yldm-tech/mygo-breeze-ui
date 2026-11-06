@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), and a source list for Sidebar's icons (renderSidebar), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), and a source list for Sidebar's icons (renderSidebar), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -102,6 +102,32 @@ func inputsSet() -> [Item] {
         Item(name: "secure-field-empty", view: empty, x: 16, y: 16, size: NSSize(width: 180, height: empty.fittingSize.height)),
         Item(name: "secure-field", view: filled, x: 220, y: 16, size: NSSize(width: 180, height: filled.fittingSize.height)),
         Item(name: "combo-button", view: combo, x: 16, y: 64), Item(name: "image-button", view: share, x: 160, y: 64), Item(name: "image-button-disabled", view: trash, x: 220, y: 64),
+    ]
+}
+
+// flatSet lays out the first row of TestScreenshotsFlat (flatView in ui/breeze/widgets_flat_test.go) as AppKit draws a button without a face at rest: NSButtons of bezel style accessoryBarAction (accessoryBar for the toggles, of type pushOnPushOff) that show their bezel only while the pointer is inside them (showsBorderOnlyWhileMouseInside), the image buttons in 24-point square frames. The pointer cannot be put inside a button offscreen, so the hovered one (trash, the second) is drawn with its bezel showing, as the pointer shows it; the row below holds the same buttons pressed (highlighted), which FlatButton draws only while the pointer presses one: an image button, a text button and the toggle on.
+func flatSet() -> [Item] {
+    func flat(_ symbol: String?, _ title: String, toggle: Bool = false, on: Bool = false, hover: Bool = false, pressed: Bool = false, enabled: Bool = true) -> NSButton {
+        let b: NSButton
+        if let symbol { b = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: title)!, target: noop, action: #selector(Noop.act(_:))) } else { b = NSButton(title: title, target: noop, action: #selector(Noop.act(_:))) }
+        b.bezelStyle = toggle ? .accessoryBar : .accessoryBarAction
+        if toggle { b.setButtonType(.pushOnPushOff); b.state = on ? .on : .off }
+        b.showsBorderOnlyWhileMouseInside = !(hover || pressed)
+        b.isEnabled = enabled
+        if pressed { b.highlight(true) }
+        return b
+    }
+    let square = NSSize(width: 24, height: 24)
+    return [
+        Item(name: "flat-image", view: flat("square.and.arrow.up", "Share"), x: 16, y: 16, size: square),
+        Item(name: "flat-image-hover", view: flat("trash", "Delete", hover: true), x: 64, y: 16, size: square),
+        Item(name: "flat-image-disabled", view: flat("trash", "Delete", enabled: false), x: 112, y: 16, size: square),
+        Item(name: "flat-text", view: flat(nil, "Skip"), x: 160, y: 16),
+        Item(name: "flat-toggle-off", view: flat("sidebar.left", "Sidebar", toggle: true), x: 240, y: 16, size: square),
+        Item(name: "flat-toggle-on", view: flat("sidebar.left", "Sidebar", toggle: true, on: true), x: 288, y: 16, size: square),
+        Item(name: "flat-image-pressed", view: flat("square.and.arrow.up", "Share", pressed: true), x: 16, y: 60, size: square),
+        Item(name: "flat-text-pressed", view: flat(nil, "Skip", pressed: true), x: 64, y: 60),
+        Item(name: "flat-toggle-on-pressed", view: flat("sidebar.left", "Sidebar", toggle: true, on: true, pressed: true), x: 144, y: 60, size: square),
     ]
 }
 
@@ -834,6 +860,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
     render(inputsSet(), width: 520, height: 180, appearance: appearance, file: "appkit-inputs-\(mode).png")
     renderToolbar(appearance: appearance, file: "appkit-inputs-toolbar-\(mode).png")
+    render(flatSet(), width: 360, height: 100, appearance: appearance, file: "appkit-flat-\(mode).png")
     render(iconLabelSet(), width: 520, height: 64, appearance: appearance, file: "appkit-iconlabel-\(mode).png")
     renderToolbar(appearance: appearance, file: "appkit-iconlabel-toolbar-\(mode).png", items: iconLabelItems, identifier: "iconlabel")
     render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
