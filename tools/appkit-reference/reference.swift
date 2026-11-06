@@ -608,6 +608,67 @@ func renderHeaderBar(appearance: NSAppearance.Name, subtitle: String, back: Bool
     win.orderOut(nil)
 }
 
+// SplitHeaderItems fills the toolbar of renderHeaderBarSplit: a tracking separator over the split view's divider, then the items of HeaderItems after it, so that they and the title sit over the content pane, as breeze.HeaderBar's start and end hold them in TestScreenshotsHeaderBarInPane.
+class SplitHeaderItems: HeaderItems {
+    override func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.sidebarTrackingSeparator] + super.toolbarDefaultItemIdentifiers(t) }
+}
+
+let splitHeaderItems = SplitHeaderItems()
+let splitHeaderItemsNoBack: SplitHeaderItems = { let h = SplitHeaderItems(); h.back = false; return h }()
+
+// renderHeaderBarSplit renders a titled window with a unified toolbar over an NSSplitViewController, a 236-point sidebar beside the content, the toolbar's items and the title after a tracking separator over the divider, with or without the back item and the subtitle, the window's frame view at 2x into an sRGB bitmap, as breeze.HeaderBar draws a bar over a window's content pane on macOS, and prints the frames of the traffic lights, the divider, the title's text fields, the toolbar's view and the items' platters.
+func renderHeaderBarSplit(appearance: NSAppearance.Name, subtitle: String, back: Bool = true, file: String) {
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: 720, height: 120), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    win.appearance = NSAppearance(named: appearance)
+    win.title = "Documents"; win.subtitle = subtitle
+    let split = NSSplitViewController()
+    let side = NSSplitViewItem(sidebarWithViewController: NSViewController()); side.viewController.view = NSView()
+    side.minimumThickness = 236; side.maximumThickness = 236
+    let content = NSSplitViewItem(viewController: NSViewController()); content.viewController.view = NSView()
+    split.addSplitViewItem(side); split.addSplitViewItem(content)
+    win.contentViewController = split
+    win.setContentSize(NSSize(width: 720, height: 120))
+    let bar = NSToolbar(identifier: back ? "split-header" : "split-header-noback"); bar.delegate = back ? splitHeaderItems : splitHeaderItemsNoBack; bar.displayMode = .iconOnly
+    win.toolbar = bar; win.toolbarStyle = .unified
+    win.orderFront(nil)
+    split.splitView.setPosition(236, ofDividerAt: 0)
+    let frame = win.contentView!.superview!
+    frame.layoutSubtreeIfNeeded(); frame.display()
+    let W = frame.bounds.width, H = frame.bounds.height
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = frame.bounds.size
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    let sideFrame = side.viewController.view.convert(side.viewController.view.bounds, to: frame)
+    print("== \(file) window \(W)x\(H) sidebar x=\(sideFrame.minX) w=\(sideFrame.width)")
+    for b in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+        if let v = win.standardWindowButton(b) {
+            let f = v.convert(v.bounds, to: frame)
+            print("button \(b.rawValue) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+    }
+    func walk(_ v: NSView) {
+        let name = String(describing: type(of: v))
+        let f = v.convert(v.bounds, to: frame)
+        if let t = v as? NSTextField, !t.stringValue.isEmpty {
+            let size = t.attributedStringValue.size()
+            print("text \(name) \"\(t.stringValue)\" x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height) advance=\(size.width) font=\(t.font!.fontName) \(t.font!.pointSize)")
+        } else if name.contains("Platter") || name == "NSToolbarButton" || name == "NSToolbarView" || name.contains("TitlebarView") || name.contains("ToolbarTitle") || name.contains("Separator") {
+            print("\(name) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+        v.subviews.forEach(walk)
+    }
+    walk(frame)
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
+    // The content pane's bar down a column clear of the items, and across the window under the title's middle.
+    print("  col x=400: " + runs((0..<Int(H * 2)).map { gray(800, $0) }))
+    print("  row y=26: " + runs((0..<Int(W * 2)).map { gray($0, 52) }))
+    win.orderOut(nil)
+}
+
 for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
     render(firstSet(), width: 360, height: 200, appearance: appearance, file: "appkit-\(mode).png")
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
@@ -624,4 +685,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     renderHeaderBar(appearance: appearance, subtitle: "", file: "appkit-headerbar-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-subtitle-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-noback-\(mode).png")
+    renderHeaderBarSplit(appearance: appearance, subtitle: "", file: "appkit-headerbar-split-\(mode).png")
+    renderHeaderBarSplit(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-split-subtitle-\(mode).png")
+    renderHeaderBarSplit(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-split-noback-\(mode).png")
 }
