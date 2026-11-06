@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -130,6 +130,65 @@ func flatSet() -> [Item] {
         Item(name: "flat-toggle-on-pressed", view: flat("sidebar.left", "Sidebar", toggle: true, on: true, pressed: true), x: 144, y: 60, size: square),
     ]
 }
+
+// templateImage is a 16-point template image stroking the path draw builds, in the coordinates of an SVG's 16 by 16 viewBox, 1.3 points wide, as the icons of the Go tests draw (idiomTestShareIcon and inputsTestTrashIcon).
+func templateImage(_ draw: @escaping (NSBezierPath) -> Void) -> NSImage {
+    let img = NSImage(size: NSSize(width: 16, height: 16), flipped: true) { _ in
+        let path = NSBezierPath(); path.lineWidth = 1.3; path.lineJoinStyle = .round
+        draw(path)
+        NSColor.black.setStroke(); path.stroke()
+        return true
+    }
+    img.isTemplate = true
+    return img
+}
+
+let shareImage = templateImage { p in
+    p.move(to: NSPoint(x: 8, y: 1.5)); p.line(to: NSPoint(x: 8, y: 10.5))
+    p.move(to: NSPoint(x: 4.8, y: 4.5)); p.line(to: NSPoint(x: 8, y: 1.5)); p.line(to: NSPoint(x: 11.2, y: 4.5))
+    p.move(to: NSPoint(x: 5, y: 7)); p.line(to: NSPoint(x: 3.5, y: 7)); p.line(to: NSPoint(x: 3.5, y: 14.5)); p.line(to: NSPoint(x: 12.5, y: 14.5)); p.line(to: NSPoint(x: 12.5, y: 7)); p.line(to: NSPoint(x: 11, y: 7))
+}
+
+let trashImage = templateImage { p in
+    p.move(to: NSPoint(x: 2.5, y: 4)); p.line(to: NSPoint(x: 13.5, y: 4))
+    p.move(to: NSPoint(x: 6, y: 4)); p.line(to: NSPoint(x: 6, y: 2.5)); p.line(to: NSPoint(x: 10, y: 2.5)); p.line(to: NSPoint(x: 10, y: 4))
+    p.move(to: NSPoint(x: 4, y: 4)); p.line(to: NSPoint(x: 4.8, y: 14)); p.line(to: NSPoint(x: 11.2, y: 14)); p.line(to: NSPoint(x: 12, y: 4))
+    p.move(to: NSPoint(x: 6.5, y: 6.5)); p.line(to: NSPoint(x: 6.5, y: 11.5))
+    p.move(to: NSPoint(x: 9.5, y: 6.5)); p.line(to: NSPoint(x: 9.5, y: 11.5))
+}
+
+// iconLabelSet lays out the push buttons of TestScreenshotsIconLabel (iconLabelView in ui/breeze/widgets_iconlabel_test.go): NSButtons of bezel style push showing a template image leading their titles (imagePosition .imageLeading), the second the default button and the third disabled.
+func iconLabelSet() -> [Item] {
+    func button(_ title: String, _ image: NSImage) -> NSButton {
+        let b = NSButton(title: title, image: image, target: noop, action: #selector(Noop.act(_:))); b.bezelStyle = .push; b.imagePosition = .imageLeading
+        return b
+    }
+    let share = button("Share", shareImage)
+    let export = button("Export", shareImage); export.keyEquivalent = "\r"
+    let delete = button("Delete", trashImage); delete.isEnabled = false
+    return [Item(name: "icon-label-button", view: share, x: 16, y: 16), Item(name: "icon-label-default", view: export, x: 130, y: 16), Item(name: "icon-label-disabled", view: delete, x: 250, y: 16)]
+}
+
+// IconLabelItems fills the toolbar of the icon-label scene: bordered items showing an image and a title (an NSToolbarItem with both, which the iconOnly display mode shows side by side), an image item between them and the last prominent, as iconLabelView's Toolbar holds them.
+class IconLabelItems: NSObject, NSToolbarDelegate {
+    func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("share"), .init("delete"), .init("export")] }
+    func toolbarAllowedItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(t) }
+    func toolbar(_ t: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar f: Bool) -> NSToolbarItem? {
+        let it = NSToolbarItem(itemIdentifier: id)
+        switch id.rawValue {
+        case "share":
+            it.image = shareImage; it.title = "Share"; it.label = "Share"
+        case "delete":
+            it.image = trashImage; it.label = "Delete"
+        default:
+            it.image = shareImage; it.title = "Export"; it.label = "Export"; it.style = .prominent
+        }
+        it.target = noop; it.action = #selector(Noop.act(_:)); it.isBordered = true
+        return it
+    }
+}
+
+let iconLabelItems = IconLabelItems()
 
 // StatusBar is the closest macOS has to an inline message bar, which breeze.InfoBar draws there: a row of a grouped Form holding a Label of an SF Symbol in the severity's color over a bold title and a secondary message, and a borderless button showing xmark. The Form insets its section 20 points, which statusSet takes back by placing the view 20 points up and to the left.
 struct StatusBar: View {
@@ -465,12 +524,12 @@ class ToolbarItems: NSObject, NSToolbarDelegate {
 
 let toolbarItems = ToolbarItems()
 
-// renderToolbar renders a titled window's unified toolbar holding ToolbarItems' items, the window's frame view at 2x into an sRGB bitmap, and prints the frames of the items' views and platters. It renders offscreen with the items' platters, 36 points high as a live capture shows them though lighter: the sizes inside them compare, and their fills as shares of the platter.
-func renderToolbar(appearance: NSAppearance.Name, file: String) {
+// renderToolbar renders a titled window's unified toolbar holding the items of items, ToolbarItems' unless given, the window's frame view at 2x into an sRGB bitmap, and prints the frames of the items' views and platters. It renders offscreen with the items' platters, 36 points high as a live capture shows them though lighter: the sizes inside them compare, and their fills as shares of the platter.
+func renderToolbar(appearance: NSAppearance.Name, file: String, items: NSToolbarDelegate = toolbarItems, identifier: String = "inputs") {
     let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: 520, height: 120), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
     win.appearance = NSAppearance(named: appearance)
     win.titleVisibility = .hidden
-    let bar = NSToolbar(identifier: "inputs"); bar.delegate = toolbarItems; bar.displayMode = .iconOnly
+    let bar = NSToolbar(identifier: identifier); bar.delegate = items; bar.displayMode = .iconOnly
     win.toolbar = bar; win.toolbarStyle = .unified
     win.orderFront(nil)
     let frame = win.contentView!.superview!
@@ -719,6 +778,8 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(inputsSet(), width: 520, height: 180, appearance: appearance, file: "appkit-inputs-\(mode).png")
     renderToolbar(appearance: appearance, file: "appkit-inputs-toolbar-\(mode).png")
     render(flatSet(), width: 360, height: 100, appearance: appearance, file: "appkit-flat-\(mode).png")
+    render(iconLabelSet(), width: 520, height: 64, appearance: appearance, file: "appkit-iconlabel-\(mode).png")
+    renderToolbar(appearance: appearance, file: "appkit-iconlabel-toolbar-\(mode).png", items: iconLabelItems, identifier: "iconlabel")
     render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
     render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
     render(statusActionsSet(), width: 560, height: 380, appearance: appearance, file: "appkit-statusactions-\(mode).png")
