@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -652,16 +653,16 @@ func TestAdwHeaderBarTitleWidthChars(t *testing.T) {
 	}
 }
 
-// TestAdwCarouselDragAsRendered drags Carousel on GNOME as tools/adwaita-reference's carouseldrag and carouseldragrtl sets drag AdwCarousel, and checks the pages and the dots against libadwaita 1.10.0's render: the mouse pressed in the view's middle and moved 10 times by 10 DIPs toward the next page, 100 ms apart, the first move lost below the 16-DIP threshold and the others applied, so the pages stand 90 DIPs on, at 1.28125 pages, as libadwaita prints; the dots of the first two pages (centered at 171.5 and 186.5, 272 down, mirrored right to left) at radii 3.72 and 3.28 and opacities 73% and 47%, their centers (104 and 156, 195 and 138 in the dark theme) as libadwaita's, and the pixel their rims cross on the side away from each other partly covered, as GTK draws them, where dots rounded to whole pixels left the first one's background and filled the second one's. Before the drag, the chosen dot, of radius 4, is drawn as GTK draws it to the level: its rim's pixel 3.5 DIPs right of its middle and half a DIP below it reads (97, 97, 101), (203, 203, 204) in the dark theme, where the dot drawn as a path read (109, 109, 113) and (190, 190, 191); this is checked off macOS, where MyGo rounds a rectangle's corners as Apple does (continuousCorners), as GNOME's dots are drawn on Linux. It writes carouselShotView then, light and dark and right to left in the light theme, to the directory BREEZE_SCREENSHOTS names.
+// TestAdwCarouselDragAsRendered drags Carousel on GNOME as tools/adwaita-reference's carouseldrag and carouseldragrtl sets drag AdwCarousel, and checks the pages and the dots against libadwaita 1.10.0's render: the mouse pressed in the view's middle and moved 10 times by 10 DIPs toward the next page, 100 ms apart, the first move lost below the 16-DIP threshold and the others applied, so the pages stand 90 DIPs on, at 1.28125 pages, as libadwaita prints; the dots of the page shown, the 2nd, and of the next one (centered at 171.5 and 186.5, 272 down, mirrored right to left) at radii 3.72 and 3.28 and opacities 73% and 47%, their centers (104 and 156, 195 and 138 in the dark theme) as libadwaita's, and the pixel their rims cross on the side away from each other partly covered, as GTK draws them, where dots rounded to whole pixels left the 2nd one's background and filled the 3rd one's. Before the drag, the chosen dot, of radius 4, is drawn as GTK draws it to the level: its rim's pixel 3.5 DIPs right of its middle and half a DIP below it reads (97, 97, 101), (203, 203, 204) in the dark theme, where the dot drawn as a path read (109, 109, 113) and (190, 190, 191); this is checked off macOS, where MyGo rounds a rectangle's corners as Apple does (continuousCorners), as GNOME's dots are drawn on Linux. It does so light and dark, left to right and right to left, and writes carouselShotView after the drag to the directory BREEZE_SCREENSHOTS names.
 func TestAdwCarouselDragAsRendered(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
-	for _, mode := range []string{"light", "dark", "rtl-light"} {
+	for _, mode := range []string{"light", "dark", "rtl-light", "rtl-dark"} {
 		tester := ui.NewTester(carouselShotView(Linux), 352, 312)
 		tester.SetScale(2)
-		dark, rtl := mode == "dark", mode == "rtl-light"
+		dark, rtl := strings.HasSuffix(mode, "dark"), strings.HasPrefix(mode, "rtl")
 		tester.SetDark(dark)
 		step := float32(-10)
-		// The first page's dot and the second's, and the pixels their outer rims cross, in DIPs.
+		// The dot of the page shown, the 2nd, and the 3rd's, and the pixels their outer rims cross, in DIPs.
 		first, second, firstRim, secondRim := float32(171.5), float32(186.5), float32(175), float32(189.5)
 		if rtl {
 			tester.SetDirection(ui.RightToLeft)
@@ -696,13 +697,13 @@ func TestAdwCarouselDragAsRendered(t *testing.T) {
 		}
 		for k, cx := range []float32{first, second} {
 			if got := shotPixel(tester, cx, 272); !samePixel(got, inks[k], 2) {
-				t.Errorf("%s: page %d's dot is %v in its middle, want libadwaita's %v", mode, k+1, got, inks[k])
+				t.Errorf("%s: page %d's dot is %v in its middle, want libadwaita's %v", mode, k+2, got, inks[k])
 			}
 		}
 		for k, rx := range []float32{firstRim, secondRim} {
 			got, lo, hi := shotPixel(tester, rx, 271.5)[0], min(bg, inks[k][0])+15, max(bg, inks[k][0])-15
 			if got < lo || got > hi {
-				t.Errorf("%s: page %d's dot's rim at %v is %d, want it partly covered, between %d and %d", mode, k+1, rx, got, lo, hi)
+				t.Errorf("%s: page %d's dot's rim at %v is %d, want it partly covered, between %d and %d", mode, k+2, rx, got, lo, hi)
 			}
 		}
 		writeShot(t, dir, fmt.Sprintf("breeze-carousel-drag-linux-%s.png", mode), tester)
