@@ -64,6 +64,8 @@ public sealed class App : Application, IXamlMetadataProvider
     readonly string outDir;
     readonly string[] only;
     readonly StringBuilder report = new();
+    // Report is the report of the running App, for the scenes' hooks to add what they read.
+    static StringBuilder? Report;
     readonly List<IXamlMetadataProvider> providers = [new XamlControlsXamlMetaDataProvider()];
 
     // App renders the scenes into dir, only those whose file names are in only when it is not empty. The XAML type providers of the CommunityToolkit assemblies next to the program (SettingsControls and what it uses) answer for their types after WinUI's own.
@@ -71,6 +73,7 @@ public sealed class App : Application, IXamlMetadataProvider
     {
         outDir = dir;
         this.only = only;
+        Report = report;
         foreach (var path in Directory.GetFiles(AppContext.BaseDirectory, "CommunityToolkit.WinUI*.dll"))
         {
             Type?[] types;
@@ -381,6 +384,11 @@ public sealed class App : Application, IXamlMetadataProvider
             await Task.Delay(800);
         });
 
+        // widgets_datepicker_test.go's datePickerOpenView on Windows (TestScreenshotsFluentDatePickerOpen): a CalendarDatePicker of the 18th of November 2026 at 120, 16 with its calendar open, which OpenCalendar puts where WinUI's flyout shows it.
+        yield return new Scene("winui-datepicker-open", 420, 440, Canvas(420, 440, """
+            <CalendarDatePicker x:Name="date-picker" Canvas.Left="120" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday"/>
+            """), ["date-picker", "flyout-calendar"], OpenCalendar);
+
         // fluent_native_test.go's TestFluentTabViewAsMeasured, its third TabView: 528 wide at 16, 16, five tabs that do not close (A1 chosen), without the add button, so that the tabs fill the strip.
         yield return new Scene("winui-tabview-fill", 560, 80, Canvas(560, 80, """
             <TabView x:Name="tabview-fill" Canvas.Left="16" Canvas.Top="16" Width="528" SelectedIndex="0" IsAddTabButtonVisible="False">
@@ -467,6 +475,81 @@ public sealed class App : Application, IXamlMetadataProvider
         ((Panel)root).Children.Add(presenter);
         await WhenLoaded(presenter);
         await Task.Delay(500);
+    }
+
+    // OpenCalendar sets the CalendarDatePicker named date-picker to the 18th of November 2026 and opens its calendar, to read where WinUI places the flyout's FlyoutPresenter, which Placement Bottom centers below the picker, and how its template dresses the presenter and the CalendarView, then closes it and puts a FlyoutPresenter of the same style, shadow and offset from the picker's bottom middle there in the scene, holding a CalendarView of the same style, corners, border and margin showing the same month and day, as RenderTargetBitmap does not draw popups and the scene's scale does not reach them.
+    static async Task OpenCalendar(FrameworkElement root, ElementTheme theme)
+    {
+        var day = new DateTimeOffset(2026, 11, 18, 10, 0, 0, TimeSpan.Zero);
+        var picker = (CalendarDatePicker)root.FindName("date-picker");
+        picker.Date = day;
+        await Task.Delay(500);
+        // The template's Flyout (FlyoutBase.AttachedFlyout of its root) would open in a window of its own on the screen, out of the off-screen window; kept in the window's root it opens there, at the same place, as the root has room around the picker.
+        if (VisualTreeHelper.GetChild(picker, 0) is FrameworkElement templateRoot && FlyoutBase.GetAttachedFlyout(templateRoot) is FlyoutBase attached)
+        {
+            attached.ShouldConstrainToRootBounds = true;
+        }
+        else
+        {
+            throw new InvalidOperationException("the picker's template has no attached flyout");
+        }
+        picker.IsCalendarOpen = true;
+        await Task.Delay(1000);
+        FlyoutPresenter? shown = null;
+        Popup? holder = null;
+        foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root.XamlRoot))
+        {
+            if (shown == null && Find<FlyoutPresenter>(popup.Child) is FlyoutPresenter found)
+            {
+                shown = found;
+                holder = popup;
+            }
+        }
+        if (shown == null || holder == null || Find<CalendarView>(shown) is not CalendarView inner)
+        {
+            throw new InvalidOperationException("the calendar did not open");
+        }
+        // The popup is not scaled with the scene: its offset from the picker's bottom middle, in the window's DIPs, is the offset in the scene's.
+        var target = picker.TransformToVisual(null).TransformPoint(new Point(picker.ActualWidth / 2, picker.ActualHeight));
+        var opened = shown.TransformToVisual(null).TransformPoint(new Point(0, 0));
+        double w = shown.ActualWidth, h = shown.ActualHeight;
+        double dx = opened.X + w / 2 - target.X, dy = opened.Y - target.Y;
+        var below = picker.TransformToVisual(root).TransformPoint(new Point(picker.ActualWidth / 2, picker.ActualHeight));
+        var at = new Point(below.X - w / 2 + dx, below.Y + dy);
+        var innerAt = inner.TransformToVisual(shown).TransformPoint(new Point(0, 0));
+        var Ts = (Thickness t) => $"{t.Left},{t.Top},{t.Right},{t.Bottom}";
+        var Cs = (CornerRadius r) => $"{r.TopLeft},{r.TopRight},{r.BottomRight},{r.BottomLeft}";
+        var Bs = (Brush b) => b is SolidColorBrush s ? $"#{s.Color.A:x2}{s.Color.R:x2}{s.Color.G:x2}{s.Color.B:x2}" : b?.GetType().Name ?? "null";
+        Report?.AppendLine($"opened flyout ({theme}): {w}x{h} at {dx},{dy} from the picker's bottom middle (window {opened.X},{opened.Y}); presenter padding {Ts(shown.Padding)} border {Ts(shown.BorderThickness)} {Bs(shown.BorderBrush)} corners {Cs(shown.CornerRadius)} background {Bs(shown.Background)} translation {shown.Translation} shadow {shown.Shadow?.GetType().Name ?? "none"} (popup's translation {holder.Translation} shadow {holder.Shadow?.GetType().Name ?? "none"}, its child's {holder.Child.Translation} {holder.Child.Shadow?.GetType().Name ?? "none"}) style {(shown.Style != null ? "set" : "none")}; calendar {inner.ActualWidth}x{inner.ActualHeight} at {innerAt.X},{innerAt.Y} margin {Ts(inner.Margin)} border {Ts(inner.BorderThickness)} {Bs(inner.BorderBrush)} corners {Cs(inner.CornerRadius)} background {Bs(inner.Background)}");
+        picker.IsCalendarOpen = false;
+        await Task.Delay(500);
+        var calendar = new CalendarView
+        {
+            Name = "flyout-calendar",
+            Language = "en-US",
+            FirstDayOfWeek = Windows.Globalization.DayOfWeek.Sunday,
+            SelectionMode = inner.SelectionMode,
+            CornerRadius = inner.CornerRadius,
+            BorderThickness = inner.BorderThickness,
+            Margin = inner.Margin,
+        };
+        if (inner.Style != null)
+        {
+            calendar.Style = inner.Style;
+        }
+        calendar.SelectedDates.Add(day);
+        calendar.SetDisplayDate(day);
+        // Sized by its content, as in the popup: a width set on it would limit the CalendarView's, and WinUI would wrap the day names that do not fit their columns rather than widen the columns.
+        var presenter = new FlyoutPresenter { Name = "flyout", Content = calendar, Translation = shown.Translation, Shadow = shown.Shadow };
+        if (shown.Style != null)
+        {
+            presenter.Style = shown.Style;
+        }
+        Microsoft.UI.Xaml.Controls.Canvas.SetLeft(presenter, at.X);
+        Microsoft.UI.Xaml.Controls.Canvas.SetTop(presenter, at.Y);
+        ((Panel)root).Children.Add(presenter);
+        await WhenLoaded(presenter);
+        await Task.Delay(800);
     }
 
     static T? Find<T>(DependencyObject? e) where T : DependencyObject
