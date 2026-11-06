@@ -106,12 +106,12 @@ func TestSwitchRowDisabled(t *testing.T) {
 	}
 }
 
-// TestActionRowHoldsItsControls checks the action row on every platform: its title and subtitle show, a button at its end takes clicks and the focus as it would anywhere, the button sits after the title, at the row's end, and the texts the platform's inset from the row's start, mirrored right to left.
+// TestActionRowHoldsItsControls checks the action row on every platform: its title and subtitle show, a button at its end takes clicks and the focus as it would anywhere, the button sits after the title, at the row's end, and the texts the platform's inset from the row's start, mirrored right to left. The row is wider than the 476 DIPs below which a SettingsCard wraps its content (TestSettingsCardWraps).
 func TestActionRowHoldsItsControls(t *testing.T) {
 	for _, p := range Platforms {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
 			clicks := 0
-			tester := layoutTester(p, 420, 200, func(c *ui.Context) {
+			tester := layoutTester(p, 560, 200, func(c *ui.Context) {
 				ui.Column(c).Padding(16).Children(func() {
 					ActionRow(c, "Wallpaper", "Choose a picture", func() {
 						if Button(c, "Open").Clicked() {
@@ -293,12 +293,16 @@ func rowsView(p Platform) func(c *ui.Context) {
 	}
 }
 
-// TestScreenshotsRows writes the rows group of every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames.
+// TestScreenshotsRows writes the rows group of every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames. Windows's window is taller, as SettingsCards 300 DIPs wide put their content below their text (tools/winui-reference's winui-rows scene is as tall).
 func TestScreenshotsRows(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	for _, p := range Platforms {
 		for _, dark := range []bool{false, true} {
-			tester := ui.NewTester(rowsView(p), 672, 520)
+			h := 520
+			if p == Windows {
+				h = 600
+			}
+			tester := ui.NewTester(rowsView(p), 672, h)
 			tester.SetScale(2)
 			tester.SetDark(dark)
 			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})

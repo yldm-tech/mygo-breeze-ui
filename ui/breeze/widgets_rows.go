@@ -117,7 +117,7 @@ func Card(c *ui.Context, fn func()) ui.Element {
 	return card
 }
 
-// ActionRow creates a row of settings: title, subtitle below it in the platform's secondary style (an empty subtitle shows none), and at its end the controls fn builds (nil for none). Alone it is drawn as a group of one row; rows one after another in a Card, a Fieldset or an AccordionItem join as the platform joins them. macOS: a row of a SwiftUI grouped Form as System Settings draws it, 10 points in from the section's edges, the 13-point title in labelColor over the 11-point subtitle in secondaryLabelColor, the controls at the trailing edge, a separator inset 10 points taking a point of its own between rows (measured on macOS 27.2). Windows: CommunityToolkit's SettingsCard, 68 DIPs high at least, padded 16, the 14-DIP header and the 12-DIP description in TextFillColorSecondary, the content 24 after them; in a Card or an AccordionItem a SettingsExpander's item, 52 high, padded 16,8, a line of CardStrokeColorDefault above it. GNOME: AdwActionRow, 54 pixels high at least (a 50-pixel header in the row's padding of 2), its header 12 in, the title box padded 6 with 3 between the title and the subtitle (smaller, dimmed), its suffixes 6 apart, the rows of a boxed list a line of card_shade_color apart, which makes a row a pixel taller. The row is a group that assistive technology names by title and describes by subtitle, as AdwActionRow is labelled by its title and described by its subtitle and SettingsCard's peer is a group.
+// ActionRow creates a row of settings: title, subtitle below it in the platform's secondary style (an empty subtitle shows none), and at its end the controls fn builds (nil for none). Alone it is drawn as a group of one row; rows one after another in a Card, a Fieldset or an AccordionItem join as the platform joins them. macOS: a row of a SwiftUI grouped Form as System Settings draws it, 10 points in from the section's edges, the 13-point title in labelColor over the 11-point subtitle in secondaryLabelColor, the controls at the trailing edge, a separator inset 10 points taking a point of its own between rows (measured on macOS 27.2). Windows: CommunityToolkit's SettingsCard, 68 DIPs high at least, padded 16, the 14-DIP header and the 12-DIP description in TextFillColorSecondary, the content 24 after them, or 8 below them at the start in a card narrower than 476 DIPs; in a Card or an AccordionItem a SettingsExpander's item, 52 high, padded 16,8 in a Card and 58,8,44,8 in an AccordionItem, a line of CardStrokeColorDefault above it. GNOME: AdwActionRow, 54 pixels high at least (a 50-pixel header in the row's padding of 2), its header 12 in, the title box padded 6 with 3 between the title and the subtitle (smaller, dimmed), its suffixes 6 apart, the rows of a boxed list a line of card_shade_color apart, which makes a row a pixel taller. The row is a group that assistive technology names by title and describes by subtitle, as AdwActionRow is labelled by its title and described by its subtitle and SettingsCard's peer is a group.
 func ActionRow(c *ui.Context, title, subtitle string, fn func()) ui.Element {
 	row := ui.Row(c).Shrink(0).Role(ui.RoleGroup).Label(title)
 	if subtitle != "" {
@@ -133,7 +133,7 @@ func ActionRow(c *ui.Context, title, subtitle string, fn func()) ui.Element {
 
 // SwitchRow creates an ActionRow with the platform's switch at its end toggling *on, the whole row toggling it on a click, Space or Enter, as AdwSwitchRow activates on a click anywhere: it is one switch for assistive technology, named by title and described by subtitle, the switch inside it not a stop of its own (adw-switch-row.c sets the role switch on the row and makes its GtkSwitch unfocusable). macOS: a SwiftUI Toggle of style switch in a grouped Form, a mini switch, 36 by 16 points with a 21 by 12 knob, 2 points in from its top and bottom and 1.5 from its ends (measured on macOS 27.2), AppKit's focus ring around it. Windows: a SettingsCard holding a ToggleSwitch of the card's RightAlignedCompactToggleSwitchStyle, 36 high, its On or Off content 12 DIPs before the track, as Windows Settings shows them (ToggleSwitch's default OnContent and OffContent, TEXT_TOGGLESWITCH_ON and TEXT_TOGGLESWITCH_OFF; Breeze UI shows them in English, without access to MyGo's translations); the card under the pointer and pressed as a clickable SettingsCard (ControlFillColorSecondary and ControlElevationBorderBrush, ControlFillColorTertiary and ControlStrokeColorDefault with the header in TextFillColorSecondary), its focus visual 3 DIPs around it. GNOME: AdwSwitchRow, its GtkSwitch at the end, the row's background currentColor at 3% under the pointer and 8% pressed (%boxed_list_row), its focus ring 2 pixels across its edge (outline-offset -1px). Changed reports a toggle. It is a counterpart of ui.Switch with ui.Field's label.
 func SwitchRow(c *ui.Context, title, subtitle string, on *bool) ui.Element {
-	row := ui.SwitchBase(c, on).Label(title).FocusRing(false)
+	row := ui.SwitchBase(c, on).Shrink(0).Label(title).FocusRing(false)
 	if subtitle != "" {
 		row.Description(subtitle)
 	}
@@ -151,7 +151,10 @@ func SwitchRow(c *ui.Context, title, subtitle string, on *bool) ui.Element {
 				if value {
 					state = "On"
 				}
-				ui.Text(c, state).SingleLine().TextColor(u.Text)
+				// OnContentPresenter and OffContentPresenter share the first column, as wide as the wider, each aligned to its end (HorizontalContentAlignment Right; measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: "On" and "Off" end at the same x, 12 before the track, in a wrapped card too).
+				on, _ := c.MeasureText(0, ui.Span{Text: "On", Size: u.FontSize})
+				off, _ := c.MeasureText(0, ui.Span{Text: "Off", Size: u.FontSize})
+				ui.Text(c, state).SingleLine().MinWidth(max(on, off)).TextAlign(ui.End).TextColor(u.Text)
 				track := ui.Box(c).Shrink(0)
 				// The ToggleSwitch is a control of its own in the card: under the pointer only over it.
 				over := track.Hovered()
@@ -220,14 +223,23 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 	var under ui.Color
 	var titleColor, subColor ui.Color
 	var subSize, lineGap, endGap, suffixGap float32
+	wrapped := false
 	switch p {
 	case Windows:
 		fill, _, stroke := fluentExpanderCard(t)
 		under = fill
 		joined := in == rowsInCard || in == rowsInAccordion
-		if joined {
-			// A SettingsExpander's item (DefaultSettingsExpanderItemStyle): MinHeight 52, BorderThickness 0,1,0,0, CornerRadius 0; Padding 58,8,44,8 puts its header past the expander's icon and its content before the chevron, which a Card has neither of, so 16 at both ends as ClickableSettingsExpanderItemPadding's end (inferred).
+		// SettingsCard's ContentAlignmentStates put the content below the header and description, at the start, 8 below them (RightWrapped and RightWrappedNoIcon, ContentSpacing's RowSpacing), while the card is narrower than SettingsCardWrapThreshold, 476 DIPs, its own width deciding (measured from WinUI 3 3.3 with CommunityToolkit's SettingsControls 8.2.251219 on Windows 11 26H2 by tools/winui-reference: SettingsCards and SettingsExpander items 298 and 300 wide wrap, 528 wide do not). Breeze UI decides it from the row's width in the previous frame, as InfoBar does.
+		wrapped = trailing != nil && prevWidth(c, row) < 476
+		switch in {
+		case rowsInAccordion:
+			// A SettingsExpander's item (DefaultSettingsExpanderItemStyle): MinHeight 52, BorderThickness 0,1,0,0, CornerRadius 0, and Padding 58,8,44,8, which puts its header past the expander's icon column and its content before the chevron's even when the expander has no icon (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: an item's header 58 DIPs in from its edge in a SettingsExpander without a HeaderIcon).
+			row.MinHeight(52).PaddingY(8).PaddingStart(58).PaddingEnd(44)
+		case rowsInCard:
+			// The style's MinHeight and border, padded 16 at both ends, as a Card has neither an icon nor a chevron (inferred, as ClickableSettingsExpanderItemPadding's end).
 			row.MinHeight(52).Padding(8, 16)
+		}
+		if joined {
 			if !first || in == rowsInAccordion {
 				row.BorderWidth(1, 0, 0, 0).BorderColor(stroke)
 			}
@@ -252,6 +264,9 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		}
 		// SettingsCardDescriptionFontSize, 12 where ControlContentThemeFontSize is 14, following the text size the user chose as the header does.
 		subSize, lineGap, endGap, suffixGap = t.FontSize*12/14, 0, 24, 8
+		if wrapped {
+			endGap = 8
+		}
 		if toggle {
 			radius := float32(4)
 			if joined {
@@ -340,8 +355,15 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		subSize, lineGap, endGap, suffixGap = t.FontSize*11/13, 2.5, 8, 8
 	}
 	row.Gap(endGap)
+	if wrapped {
+		// The header row takes the room MinHeight leaves, the header centered in it, and the content its own height below.
+		row.Column().AlignItems(ui.Stretch)
+	}
 	row.Children(func() {
 		labels := ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(lineGap)
+		if wrapped {
+			labels.Justify(ui.Center)
+		}
 		if p == Linux {
 			// row > box.header > box.title: margin-top and margin-bottom 6px.
 			labels.Padding(6, 0)
@@ -354,6 +376,9 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		})
 		if trailing != nil {
 			end := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
+			if wrapped {
+				end.AlignSelf(ui.Start)
+			}
 			if p == Mac {
 				// A grouped form centers its controls on the title's line, not on the row: a 16-point switch's top and a 24-point button's middle line up with the title's (measured on macOS 27.2), the button reaching into the row's padding.
 				_, line := c.MeasureText(0, ui.Span{Text: title, Size: t.FontSize})
