@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -739,21 +739,62 @@ def datepicker_set(open_popover=False, arrow=True):
     return scene
 
 
-def datepicker_focus_set():
-    """The datepicker set after a click on the calendar's 20th, the click of TestAdwCalendarAsStyled and TestAdwCalendarAsRendered: GtkCalendar chooses the day, takes the focus and sets GTK_STATE_FLAG_FOCUSED on its label, which shows libadwaita's focus ring. The click is the calendar's GtkGestureClick's pressed signal at the label's middle, which GtkCalendar handles as a click; the window does not show focus rings for the keyboard (focus-visible false), as after a click."""
+def calendar_day(calendar, day):
+    """The label of the calendar's day of the month shown."""
+    return next(w for w in descendants(calendar.get_last_child()) if isinstance(w, Gtk.Label) and w.get_label() == str(day) and not w.has_css_class("other-month"))
+
+
+def click_day(calendar, day):
+    """Clicks the calendar's day: its GtkGestureClick's pressed signal at the label's middle, which GtkCalendar handles as a click."""
+    label = calendar_day(calendar, day)
+    ok, point = label.compute_point(calendar, Graphene.Point().init(label.get_width() / 2, label.get_height() / 2))
+    for controller in calendar.observe_controllers():
+        if isinstance(controller, Gtk.GestureClick):
+            controller.emit("pressed", 1, point.x, point.y)
+
+
+def print_day(name, calendar, day):
+    """Prints whether the calendar has the focus and its day's state flags, where GTK_STATE_FLAG_FOCUSED (32) shows the focus ring, before the line of the set's PNG."""
+    print(f"  {name}: the calendar has the focus {calendar.has_focus()}, the {day}th's flags {int(calendar_day(calendar, day).get_state_flags())}")
+
+
+def datepicker_focus_set(keys=(), away=False):
+    """The datepicker set after a click on the calendar's 20th, the click of TestAdwCalendarAsStyled and TestAdwCalendarAsRendered: GtkCalendar chooses the day, takes the focus and sets GTK_STATE_FLAG_FOCUSED on its label, which shows libadwaita's focus ring. The window does not show focus rings for the keyboard (focus-visible false), as after a click. In the set datepickerkeys, the keys given are then pressed on the calendar (its GtkEventControllerKey's key-pressed signal): Right puts the ring on the 21st, a day not chosen. In the set datepickeraway, the menu button then takes the focus: GtkCalendar sets the flag on the label whether it has the focus or not, so the ring stays."""
     scene = datepicker_set()
-    calendar = scene.named["calendar"]
+    calendar, button = scene.named["calendar"], scene.named["date-picker"]
 
     def click(window):
-        day = descendants(calendar.get_last_child())
-        label = next(w for w in day if isinstance(w, Gtk.Label) and w.get_label() == "20" and not w.has_css_class("other-month"))
-        ok, point = label.compute_point(calendar, Graphene.Point().init(label.get_width() / 2, label.get_height() / 2))
-        for controller in calendar.observe_controllers():
-            if isinstance(controller, Gtk.GestureClick):
-                controller.emit("pressed", 1, point.x, point.y)
+        click_day(calendar, 20)
+        for key in keys:
+            for controller in calendar.observe_controllers():
+                if isinstance(controller, Gtk.EventControllerKey):
+                    controller.emit("key-pressed", key, 0, 0)
+        if away:
+            button.grab_focus()
         window.set_focus_visible(False)
+        print_day("after the click", calendar, 20)
 
     scene.shown = lambda window: GLib.timeout_add(300, lambda: (click(window), False)[1])
+    return scene
+
+
+def datepicker_reopen_set():
+    """The datepickernoarrow set after a click on the popover's calendar's 20th, the popover then closed, as an app closes it once a day is chosen, and opened again: the calendar keeps the label it focused (GtkCalendar's focus_row and focus_col), so it shows the ring as the popover opens again, where the popover opened the first time showed none."""
+    scene = datepicker_set(True, False)
+    button, inner = scene.named["date-picker"], scene.named["popover-calendar"]
+    popover = button.get_popover()
+
+    def reopen():
+        popover.popup()
+        GLib.timeout_add(200, lambda: (print_day("opened again", inner, 20), False)[1])
+
+    def opened():
+        print_day("opened", inner, 20)
+        click_day(inner, 20)
+        popover.popdown()
+        GLib.timeout_add(200, lambda: (reopen(), False)[1])
+
+    scene.open_popovers = lambda: (button.popup(), GLib.timeout_add(200, lambda: (opened(), False)[1]))
     return scene
 
 
@@ -813,6 +854,9 @@ SETS = [
     ("datepickeropen", "adwaita-datepicker-open", lambda: datepicker_set(True)),
     ("datepickernoarrow", "adwaita-datepicker-noarrow", lambda: datepicker_set(True, False)),
     ("datepickerfocus", "adwaita-datepicker-focus", datepicker_focus_set),
+    ("datepickerkeys", "adwaita-datepicker-keys", lambda: datepicker_focus_set([Gdk.KEY_Right])),
+    ("datepickeraway", "adwaita-datepicker-away", lambda: datepicker_focus_set(away=True)),
+    ("datepickerreopen", "adwaita-datepicker-reopen", datepicker_reopen_set),
     ("text", "adwaita-text", text_set),
 ]
 
