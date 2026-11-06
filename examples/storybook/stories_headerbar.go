@@ -36,6 +36,34 @@ func headerBarStories() []*story {
 				}
 				return "breeze.HeaderBar(c, " + q(*a.text["title"]) + ", " + q(*a.text["subtitle"]) + ", " + start + ", " + end + ")"
 			}},
+		{component: "HeaderBar", name: "In a content pane", category: "Navigation",
+			controls: []control{choiceArg("page", "All films", "All films", "Downloads"), textArg("subtitle", "Library"), toggleArg("start", true)},
+			render: func(c *ui.Context, a *args) {
+				ui.Row(c).MaxWidth(720).Height(220).AlignItems(ui.Stretch).Children(func() {
+					breeze.Sidebar(c, a.text["page"], func() {
+						breeze.SidebarItem(c, "All films", navigationFolderIcon, "All films")
+						breeze.SidebarItem(c, "Downloads", navigationFolderIcon, "Downloads")
+					}).Shrink(0).Width(200).Label("Library")
+					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
+						var start func()
+						if *a.on["start"] {
+							start = func() { breeze.IconButton(c, inputsIcons["folder"], "Folders") }
+						}
+						// Over the pane the bar keeps clear of only the window controls above it.
+						breeze.HeaderBar(c, *a.text["page"], *a.text["subtitle"], start, func() {
+							breeze.PrimaryButton(c, "Start")
+						})
+						ui.Column(c).Grow(1).Padding(16).Children(func() { breeze.Text(c, "Content") })
+					})
+				})
+			},
+			code: func(a *args) string {
+				start := "nil"
+				if *a.on["start"] {
+					start = "func() {\n\t\t\tbreeze.IconButton(c, folderIcon, \"Folders\")\n\t\t}"
+				}
+				return "ui.Row(c).Fill().Children(func() {\n\tbreeze.Sidebar(c, &app.page, func() {\n\t\tbreeze.SidebarItem(c, \"All films\", folderIcon, \"All films\")\n\t\tbreeze.SidebarItem(c, \"Downloads\", folderIcon, \"Downloads\")\n\t}).Width(200).Label(\"Library\")\n\tui.Column(c).Grow(1).Children(func() {\n\t\t// Over the pane the bar keeps clear of only the window controls above it.\n\t\tbreeze.HeaderBar(c, app.page, " + q(*a.text["subtitle"]) + ", " + start + ", func() {\n\t\t\tbreeze.PrimaryButton(c, \"Start\")\n\t\t})\n\t\tbuildContent()\n\t})\n})"
+			}},
 		{component: "HeaderBar", name: "With history", category: "Navigation",
 			controls: []control{textArg("title", "Notes")},
 			render: func(c *ui.Context, a *args) {
