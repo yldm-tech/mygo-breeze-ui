@@ -1,10 +1,10 @@
 # libadwaita's own controls, for comparing Breeze UI's GNOME look with them.
 #
-# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows, TestScreenshotsSettings and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections, TestScreenshotsInputs and TestScreenshotsText, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
+# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows, TestScreenshotsSettings, TestScreenshotsTabView and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections, TestScreenshotsInputs and TestScreenshotsText, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, settings and text; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, settings, tabview and text; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -683,6 +683,29 @@ def settings_set():
     return Scene(672, 480, root, named={"settings": settings, "language": language, "copies": copies, "network": network, "advanced": advanced})
 
 
+def tabview_set():
+    """TestScreenshotsTabView's tabViewView: an AdwTabBar 528 wide at 16, 16 over an AdwTabView of Documents (chosen), Downloads and Pictures, a flat button with adw-tab-new-symbolic as its end action, the chosen tab's text 12 below the 47-pixel bar, and at 16, 136 a bar of General and Advanced (chosen) without the end action. The pages' close buttons show on the chosen tab and under the pointer, as AdwTab shows them; the second bar's tabs close too, as AdwTabBar has no tabs that do not, while Breeze UI's tab view built without close shows none. The views take no room: only their bars show."""
+    def tab_bar(titles, chosen, end_action):
+        view = Adw.TabView()
+        pages = [view.append(Gtk.Label(label=title)) for title in titles]
+        for page, title in zip(pages, titles):
+            page.set_title(title)
+        view.set_selected_page(pages[chosen])
+        view.set_visible(False)
+        bar = Adw.TabBar(view=view, autohide=False)
+        if end_action:
+            new_tab = Gtk.Button(icon_name="adw-tab-new-symbolic", tooltip_text="New Tab")
+            new_tab.add_css_class("flat")
+            bar.set_end_action_widget(new_tab)
+        bar.set_size_request(528, -1)
+        return vbox(0, bar, view), bar
+
+    docs, docs_bar = tab_bar(["Documents", "Downloads", "Pictures"], 0, True)
+    content = Gtk.Label(label="Showing Documents")
+    prefs, prefs_bar = tab_bar(["General", "Advanced"], 1, False)
+    return fixed(560, 260, [(docs, 16, 16), (content, 16, 75), (prefs, 16, 136)], named={"docs": docs_bar, "content": content, "prefs": prefs_bar})
+
+
 def over_card_set():
     """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
     box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -720,7 +743,7 @@ SETS = [
     ("inputs", "adwaita-inputs", inputs_set),
     ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
     ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set),
-    ("settings", "adwaita-settings", settings_set),
+    ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
     ("text", "adwaita-text", text_set),
 ]
 

@@ -335,6 +335,20 @@ public sealed class App : Application, IXamlMetadataProvider
             </StackPanel>
             """), ["settings-card", "combo-row", "entry-row", "entry-row-empty", "spin-row", "combo-row-alone", "spin-row-disabled", "expander-row", "expander-proxy", "expander-metered", "expander-row-closed"]);
 
+        // widgets_tabview_test.go's tabViewView on Windows: a TabView 528 wide at 16, 16 holding Documents (chosen), Downloads and Pictures with its add button, the chosen tab's text 12 below its 40-DIP strip, and at 16, 136 a TabView of General and Advanced (chosen) whose tabs do not close, without the add button; TabWidthMode Equal and CloseButtonOverlayMode Auto, the defaults.
+        yield return new Scene("winui-tabview", 560, 260, Canvas(560, 260, """
+            <TabView x:Name="tabview-docs" Canvas.Left="16" Canvas.Top="16" Width="528" SelectedIndex="0">
+              <TabViewItem x:Name="tab-documents" Header="Documents"/>
+              <TabViewItem x:Name="tab-downloads" Header="Downloads"/>
+              <TabViewItem x:Name="tab-pictures" Header="Pictures"/>
+            </TabView>
+            <TextBlock x:Name="tab-content" Canvas.Left="16" Canvas.Top="68" Text="Showing Documents"/>
+            <TabView x:Name="tabview-prefs" Canvas.Left="16" Canvas.Top="136" Width="528" SelectedIndex="1" IsAddTabButtonVisible="False">
+              <TabViewItem x:Name="tab-general" Header="General" IsClosable="False"/>
+              <TabViewItem x:Name="tab-advanced" Header="Advanced" IsClosable="False"/>
+            </TabView>
+            """), ["tabview-docs", "tab-documents", "tab-downloads", "tab-pictures", "tab-content", "tabview-prefs", "tab-general", "tab-advanced"]);
+
         // TestScreenshotsText's textView: the TextBlock styles of Breeze UI's Text steps where textTops places them, the last two in TextFillColorSecondaryBrush.
         yield return new Scene("winui-text", 360, 300, Canvas(360, 300, """
             <TextBlock x:Name="large-title" Canvas.Left="16" Canvas.Top="16" Text="Large Title" Style="{StaticResource TitleLargeTextBlockStyle}"/>
