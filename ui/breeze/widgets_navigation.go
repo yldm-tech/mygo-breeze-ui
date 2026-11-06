@@ -26,7 +26,7 @@ func navCurrentSidebar(c *ui.Context) *navSidebar {
 	return nil
 }
 
-// Sidebar creates a sidebar of the sections and items fn builds (SidebarSection, SidebarItem), as the platform draws its source list (macOS), NavigationView's pane (Windows) or navigation sidebar (GNOME): a click chooses an item, whose ID *selected holds, and while the sidebar has the focus Up, Down, Home, End and the first letters of an item choose among them, as in ui.Sidebar. Give it a width. It is ui.Sidebar's counterpart, and its items are drawn as the platform draws them only when built with SidebarItem.
+// Sidebar creates a sidebar of the sections and items fn builds (SidebarSection, SidebarSectionWithActions, SidebarItem, SidebarItemImage), as the platform draws its source list (macOS), NavigationView's pane (Windows) or navigation sidebar (GNOME): a click chooses an item, whose ID *selected holds, and while the sidebar has the focus Up, Down, Home, End and the first letters of an item choose among them, as in ui.Sidebar. Give it a width. It is ui.Sidebar's counterpart, and its items are drawn as the platform draws them only when built with SidebarItem or SidebarItemImage.
 func Sidebar(c *ui.Context, selected *string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	var focus *ui.Handle
@@ -74,8 +74,13 @@ func Sidebar(c *ui.Context, selected *string, fn func()) ui.Element {
 	return sb
 }
 
-// SidebarSection creates a section of a Sidebar under title, holding the items fn builds while *open is true; a click on the title shows and hides them, as in ui.SidebarSection. The title is drawn as the platform heads a group of its sidebar: AppKit's group row, NavigationViewItemHeader or AdwSidebar's heading on GNOME. A nil open keeps the section open. It is ui.SidebarSection's counterpart.
+// SidebarSection creates a section of a Sidebar under title, holding the items fn builds while *open is true; a click on the title shows and hides them, as in ui.SidebarSection. The title is drawn as the platform heads a group of its sidebar: AppKit's group row, NavigationViewItemHeader or AdwSidebar's heading on GNOME. A nil open keeps the section open. It is ui.SidebarSection's counterpart, and SidebarSectionWithActions without actions.
 func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Element {
+	return SidebarSectionWithActions(c, title, open, nil, fn)
+}
+
+// SidebarSectionWithActions creates a section of a Sidebar as SidebarSection does, with the controls actions builds, as an add button, at the end of its title's row, centered on it and always shown: on macOS 2 points inside the selection's inset, as a SwiftUI sidebar's Section header ends with a borderless button; on Windows 12 DIPs from the pane's edge, as a NavigationViewItemHeader's content can hold a button; on GNOME at the heading's end, 12 pixels in as its text is (AdwSidebar's heading holds no suffix). The Windows and GNOME places are inferred. With an open section the controls stand before the disclosure arrow that shows under the pointer. A click on them does not show or hide the items, and each is a Tab stop of its own after the sidebar. The controls are built in the theme around the sidebar and drawn as they are anywhere else: IconButton is a bordered button. A nil actions is SidebarSection.
+func SidebarSectionWithActions(c *ui.Context, title string, open *bool, actions func(), fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
 	// MyGo draws the title FontSize-1 large in TextMuted, padded Space(1) and Space(2), so a theme of those around the section draws the platform's heading; fn's items build with the theme around the sidebar again.
@@ -101,13 +106,22 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 	}
 	st := navCurrentSidebar(c)
 	wrap := ui.Themed(c, &head).Background(ui.Transparent)
+	// grow is how much the title's row grows above and below to hold the actions, which were that much taller than it at either side in the last frame.
+	var grow *float32
+	more := float32(0)
+	if actions != nil {
+		grow = ui.Local(wrap, "breeze-sidebar-actions", func() float32 { return 0 })
+		more = *grow
+	}
 	if st != nil {
 		if st.built > 0 {
-			wrap.Margin(top, 0, 0, 0)
+			wrap.Margin(top+more, 0, 0, 0)
 		} else {
-			wrap.Margin(first, 0, 0, 0)
+			wrap.Margin(first+more, 0, 0, 0)
 		}
 		st.built++
+	} else if more > 0 {
+		wrap.Margin(more, 0, 0, 0)
 	}
 	var sec ui.Element
 	wrap.Children(func() {
@@ -119,14 +133,79 @@ func SidebarSection(c *ui.Context, title string, open *bool, fn func()) ui.Eleme
 			case Linux:
 				gap = 2
 			}
-			ui.Themed(c, t).Background(ui.Transparent).Gap(gap).Padding(below, 0, 0, 0).Children(fn)
+			ui.Themed(c, t).Background(ui.Transparent).Gap(gap).Padding(below+more, 0, 0, 0).Children(fn)
 		})
+		if actions != nil {
+			navSectionActions(c, p, t, title, open != nil, actions, grow)
+		}
 	})
 	return sec
 }
 
-// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise, its label semibold; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME an AdwSidebar row, 42 high, the chosen one darker. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
+// navSectionActions lays the controls actions builds over the end of the title row of the section just built in c's theme, the one SidebarSectionWithActions heads its section with, centered on the row, which an open section ends with its disclosure arrow (arrow), and builds them in t, the theme around the sidebar. *grow is how much the section grew the row by at either side, for controls taller than it, which it sets from this frame's layout for the next, asking for that frame when it changes.
+func navSectionActions(c *ui.Context, p Platform, t *ui.Theme, title string, arrow bool, actions func(), grow *float32) {
+	head := c.Theme()
+	// end is how far in from the section's end the controls end, gap the space between two of them.
+	var end, gap float32
+	switch p {
+	case Windows:
+		// 12 DIPs from the pane's edge, inside the pane's padding of 4; a CommandBar's 4 between them (inferred).
+		end, gap = 8, 4
+	case Linux:
+		// Where the heading's text ends, 6 inside the header's margin of 6, and a header bar's spacing of 6 (inferred).
+		end, gap = head.Space(2), 6
+	default:
+		// 2 points inside the selection's inset, as the group row's title starts 2 points inside it, and SwiftUI's default spacing of 8 in a Section header's HStack.
+		end, gap = 2, 8
+	}
+	if arrow {
+		// MyGo ends the title row with the disclosure arrow, Space(4) square, inside its padding of Space(2): the controls stand Space(1) before it.
+		end = head.Space(2) + head.Space(4) + head.Space(1)
+	}
+	// A copy of MyGo's title row, invisible, takes the row's height for the controls to center on: the title in its font, and the arrow's room. It lets the pointer through to the title under it, which a click on its free part still shows and hides the items with.
+	var row ui.Element
+	clone := ui.Row(c).Absolute().Top(0).Start(0).End(0).AlignItems(ui.Center).Padding(head.Space(1), head.Space(2)).PassThrough().Role(ui.RoleNone)
+	clone.Children(func() {
+		ui.Text(c, title).FontSize(head.FontSize - 1).FontWeight(600).SingleLine().Grow(1).Invisible()
+		if arrow {
+			ui.Box(c).Size(head.Space(4), head.Space(4)).Shrink(0).Invisible()
+		}
+		// The box reaches as far past the row as the row grew, so that it is as high as controls taller than the row and centers them on it.
+		ui.Themed(c, t).Background(ui.Transparent).Absolute().Top(-*grow).Bottom(-*grow).End(end).Justify(ui.Center).PassThrough().Role(ui.RoleNone).Children(func() {
+			row = ui.Row(c).AlignItems(ui.Center).Gap(gap).Role(ui.RoleNone).Children(actions)
+		})
+	})
+	// The last frame's layout: a title row it lacked is new, and the frame after the one that lays it out reads it. That frame is asked for as the row paints, so that a row without a box, as in a hidden sidebar, which paints nothing, asks for none.
+	h := clone.LayoutBounds().H
+	if h == 0 {
+		clone.Draw(func(*ui.Painter, ui.Rect) { c.Invalidate() })
+		return
+	}
+	want := max(0, (row.LayoutBounds().H-h)/2)
+	if want-*grow > 0.01 || *grow-want > 0.01 {
+		*grow = want
+		c.Invalidate()
+	}
+}
+
+// SidebarItem creates an item of a Sidebar choosing id, showing label after icon, nil for none, as the platform draws a row of its sidebar: on macOS 32 points high with a rounded selection, in the accent color while the sidebar has the focus and in gray otherwise, its label semibold, the icon in the accent color, white on that accent selection, as AppKit draws a source list's template images; on Windows a NavigationViewItem, 36 high with a 3 by 16 accent pill at the start of the chosen one; on GNOME an AdwSidebar row, 42 high, the chosen one darker; on both the icon in the text's color. Add to it with Children, as a Badge. Build it in this package's Sidebar, which tells it whether it is chosen and whether the sidebar has the focus. It is ui.SidebarItem's counterpart.
 func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Element {
+	return navSidebarItem(c, id, icon, nil, label)
+}
+
+// navImageSlot is the icon MyGo is given for an item of SidebarItemImage: an empty 16-pixel square, which takes the icon's room for the image laid over it.
+var navImageSlot = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"/>`))
+
+// SidebarItemImage creates an item of a Sidebar as SidebarItem does, showing label after image, a *ui.Bitmap or a *ui.SVG, in its own colors where SidebarItem tints its icon: a colored mark, a picture, an avatar. It fills the icon's 16-point square where SidebarItem's icon is (on macOS centered in the cell's 23-point image column, 9.5 in; on Windows in the 40-DIP column, 12 in; on GNOME 14 in, 12 before the label), scaled to fit, and keeps its colors on the chosen row, the accent one too, as AppKit, WinUI and GTK draw an image that is not a template; an SVG's currentColor takes the label's color. Assistive technology does not see the image; the label names the item.
+func SidebarItemImage(c *ui.Context, id string, image ui.ImageSource, label string) ui.Element {
+	return navSidebarItem(c, id, nil, image, label)
+}
+
+// navSidebarItem builds SidebarItem, showing icon tinted, or SidebarItemImage, showing image in its own colors.
+func navSidebarItem(c *ui.Context, id string, icon *ui.SVG, image ui.ImageSource, label string) ui.Element {
+	if image != nil {
+		icon = navImageSlot
+	}
 	p := PlatformOf(c)
 	t := c.Theme()
 	st := navCurrentSidebar(c)
@@ -146,8 +225,8 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 		row.Text = adwSidebarFg(t)
 		row.Accent, row.AccentText, row.SurfaceHover = row.Text, row.Text, adwInkAlpha(t, bg, 0.07)
 	default:
-		// AppKit's source list draws a template image in the text color and does not mark the row under the pointer.
-		row.Accent, row.AccentText, row.SurfaceHover = t.Text, white, ui.Transparent
+		// AppKit's source list draws a template image in the accent color, as its emphasized selection is filled (#0070f5 in Aqua and #007aff in Dark Aqua for the blue accent), unchosen, chosen without the focus and under the pointer, and white on the emphasized selection, measured by tools/appkit-reference (renderSidebar) on macOS 27.2; it does not mark the row under the pointer.
+		row.Accent, row.AccentText, row.SurfaceHover = macSidebarSelection(t), white, ui.Transparent
 	}
 	var item ui.Element
 	c.Key(id)
@@ -168,7 +247,26 @@ func SidebarItem(c *ui.Context, id string, icon *ui.SVG, label string) ui.Elemen
 	default:
 		macSidebarItem(c, item, chosen, focused, icon != nil)
 	}
+	if image != nil {
+		navItemImage(c, p, item, image)
+	}
 	return item
+}
+
+// navItemImage lays image over the empty icon of item, where macSidebarItem, fluentSidebarItem and adwSidebarItem put an item's icon: as far in from the item's start as they pad it, 16 square, centered on the row.
+func navItemImage(c *ui.Context, p Platform, item ui.Element, image ui.ImageSource) {
+	start := float32(9.5)
+	switch p {
+	case Windows:
+		start = 12
+	case Linux:
+		start = 14
+	}
+	item.Children(func() {
+		ui.Column(c).Absolute().Top(0).Bottom(0).Start(start).Justify(ui.Center).PassThrough().Role(ui.RoleNone).Children(func() {
+			ui.Image(c, image).Size(16, 16).Fit(ui.Contain).PassThrough()
+		})
+	})
 }
 
 // macSidebarBg is a source list's background, measured from an NSOutlineView of style sourceList rendered by AppKit on macOS 27.

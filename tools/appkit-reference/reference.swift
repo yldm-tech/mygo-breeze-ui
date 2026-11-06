@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), and a sheet and an alert with a destructive button (renderDialogs, which only -live captures), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), and a source list for Sidebar's icons (renderSidebar), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), and a sheet and an alert with a destructive button (renderDialogs, which only -live captures), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -102,6 +102,32 @@ func inputsSet() -> [Item] {
         Item(name: "secure-field-empty", view: empty, x: 16, y: 16, size: NSSize(width: 180, height: empty.fittingSize.height)),
         Item(name: "secure-field", view: filled, x: 220, y: 16, size: NSSize(width: 180, height: filled.fittingSize.height)),
         Item(name: "combo-button", view: combo, x: 16, y: 64), Item(name: "image-button", view: share, x: 160, y: 64), Item(name: "image-button-disabled", view: trash, x: 220, y: 64),
+    ]
+}
+
+// flatSet lays out the first row of TestScreenshotsFlat (flatView in ui/breeze/widgets_flat_test.go) as AppKit draws a button without a face at rest: NSButtons of bezel style accessoryBarAction (accessoryBar for the toggles, of type pushOnPushOff) that show their bezel only while the pointer is inside them (showsBorderOnlyWhileMouseInside), the image buttons in 24-point square frames. The pointer cannot be put inside a button offscreen, so the hovered one (trash, the second) is drawn with its bezel showing, as the pointer shows it; the row below holds the same buttons pressed (highlighted), which FlatButton draws only while the pointer presses one: an image button, a text button and the toggle on.
+func flatSet() -> [Item] {
+    func flat(_ symbol: String?, _ title: String, toggle: Bool = false, on: Bool = false, hover: Bool = false, pressed: Bool = false, enabled: Bool = true) -> NSButton {
+        let b: NSButton
+        if let symbol { b = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: title)!, target: noop, action: #selector(Noop.act(_:))) } else { b = NSButton(title: title, target: noop, action: #selector(Noop.act(_:))) }
+        b.bezelStyle = toggle ? .accessoryBar : .accessoryBarAction
+        if toggle { b.setButtonType(.pushOnPushOff); b.state = on ? .on : .off }
+        b.showsBorderOnlyWhileMouseInside = !(hover || pressed)
+        b.isEnabled = enabled
+        if pressed { b.highlight(true) }
+        return b
+    }
+    let square = NSSize(width: 24, height: 24)
+    return [
+        Item(name: "flat-image", view: flat("square.and.arrow.up", "Share"), x: 16, y: 16, size: square),
+        Item(name: "flat-image-hover", view: flat("trash", "Delete", hover: true), x: 64, y: 16, size: square),
+        Item(name: "flat-image-disabled", view: flat("trash", "Delete", enabled: false), x: 112, y: 16, size: square),
+        Item(name: "flat-text", view: flat(nil, "Skip"), x: 160, y: 16),
+        Item(name: "flat-toggle-off", view: flat("sidebar.left", "Sidebar", toggle: true), x: 240, y: 16, size: square),
+        Item(name: "flat-toggle-on", view: flat("sidebar.left", "Sidebar", toggle: true, on: true), x: 288, y: 16, size: square),
+        Item(name: "flat-image-pressed", view: flat("square.and.arrow.up", "Share", pressed: true), x: 16, y: 60, size: square),
+        Item(name: "flat-text-pressed", view: flat(nil, "Skip", pressed: true), x: 64, y: 60),
+        Item(name: "flat-toggle-on-pressed", view: flat("sidebar.left", "Sidebar", toggle: true, on: true, pressed: true), x: 144, y: 60, size: square),
     ]
 }
 
@@ -740,6 +766,89 @@ func renderDialogs(appearance: NSAppearance.Name, file: String) {
     win.orderOut(nil)
 }
 
+// SourceList fills the outline view of renderSidebar as a sidebar: a group row, Mailboxes, holding Inbox, Sent and Drafts, each a cell of a template SF Symbol and a title, and Flagged, whose image is not a template, a red square, as breeze.SidebarItemImage shows a colored image.
+class SourceList: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
+    let group = "Mailboxes"
+    let items = [("Inbox", "tray"), ("Sent", "paperplane"), ("Drafts", "doc"), ("Flagged", "")]
+    func outlineView(_ o: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int { item == nil ? 1 : items.count }
+    func outlineView(_ o: NSOutlineView, child i: Int, ofItem item: Any?) -> Any { item == nil ? group : items[i].0 }
+    func outlineView(_ o: NSOutlineView, isItemExpandable item: Any) -> Bool { (item as? String) == group }
+    func outlineView(_ o: NSOutlineView, isGroupItem item: Any) -> Bool { (item as? String) == group }
+    func outlineView(_ o: NSOutlineView, shouldSelectItem item: Any) -> Bool { (item as? String) != group }
+    func outlineView(_ o: NSOutlineView, viewFor col: NSTableColumn?, item: Any) -> NSView? {
+        let name = item as! String
+        let cell = NSTableCellView()
+        let text = NSTextField(labelWithString: name)
+        text.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(text); cell.textField = text
+        if name == group {
+            NSLayoutConstraint.activate([text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+            return cell
+        }
+        let symbol = items.first(where: { $0.0 == name })!.1
+        let image: NSImage
+        if symbol.isEmpty {
+            image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { r in NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1).setFill(); NSBezierPath(roundedRect: r, xRadius: 4, yRadius: 4).fill(); return true }
+        } else {
+            image = NSImage(systemSymbolName: symbol, accessibilityDescription: name)!
+        }
+        let view = NSImageView(image: image)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(view); cell.imageView = view
+        NSLayoutConstraint.activate([
+            view.leadingAnchor.constraint(equalTo: cell.leadingAnchor), view.widthAnchor.constraint(equalToConstant: 23), view.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            text.leadingAnchor.constraint(equalTo: view.trailingAnchor, constant: 3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
+    }
+}
+
+let sourceList = SourceList()
+
+// renderSidebar renders an NSOutlineView of style sourceList at the medium row size, as breeze.Sidebar draws it on macOS, 200 points wide, the item chosen (Sent unless given), the outline view the window's first responder when focused, so that AppKit draws the emphasized selection, and prints the frames of the rows and their image views and, for every row, the pixels across the middle of its image view: whether the template images take the text color or the accent, and whether the colored one keeps its own color on the emphasized selection.
+func renderSidebar(appearance: NSAppearance.Name, focused: Bool, chosen: String = "Sent", file: String) {
+    let W: CGFloat = 200, H: CGFloat = 200
+    let outline = NSOutlineView()
+    outline.style = .sourceList
+    outline.rowSizeStyle = .medium
+    outline.headerView = nil
+    let col = NSTableColumn(identifier: .init("main")); col.width = W
+    outline.addTableColumn(col); outline.outlineTableColumn = col
+    outline.dataSource = sourceList; outline.delegate = sourceList
+    outline.frame = NSRect(x: 0, y: 0, width: W, height: H)
+    let root = NSView(frame: NSRect(x: 0, y: 0, width: W, height: H))
+    root.appearance = NSAppearance(named: appearance)
+    let scroll = NSScrollView(frame: root.bounds); scroll.documentView = outline; scroll.drawsBackground = false
+    root.addSubview(scroll)
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: W, height: H), styleMask: [.borderless], backing: .buffered, defer: false)
+    win.contentView = root
+    outline.reloadData(); outline.expandItem(nil, expandChildren: true)
+    outline.selectRowIndexes(IndexSet(integer: outline.row(forItem: chosen)), byExtendingSelection: false)
+    if focused { win.makeFirstResponder(outline) } else { win.makeFirstResponder(nil) }
+    root.layoutSubtreeIfNeeded()
+    RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+    root.layoutSubtreeIfNeeded(); root.display()
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = root.bounds.size
+    root.cacheDisplay(in: root.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
+    print("== \(file) first responder \(win.firstResponder === outline)")
+    for row in 0..<outline.numberOfRows {
+        guard let rv = outline.rowView(atRow: row, makeIfNecessary: false), let cell = outline.view(atColumn: 0, row: row, makeIfNecessary: false) as? NSTableCellView else { continue }
+        let rf = rv.convert(rv.bounds, to: root)
+        print("row \(row) \"\(cell.textField?.stringValue ?? "")\" x=\(rf.minX) top=\(H - rf.maxY) w=\(rf.width) h=\(rf.height) selected=\(rv.isSelected) emphasized=\(rv.isEmphasized) tint=\(cell.imageView?.contentTintColor?.description ?? "nil")")
+        if let iv = cell.imageView {
+            let f = iv.convert(iv.bounds, to: root)
+            print("  image x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+            print("  row: " + runs((Int(f.minX * 2)..<Int(f.maxX * 2)).map { gray($0, Int((H - f.midY) * 2)) }))
+        }
+    }
+}
+
 // SplitHeaderItems fills the toolbar of renderHeaderBarSplit: a tracking separator over the split view's divider, then the items of HeaderItems after it, so that they and the title sit over the content pane, as breeze.HeaderBar's start and end hold them in TestScreenshotsHeaderBarInPane.
 class SplitHeaderItems: HeaderItems {
     override func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.sidebarTrackingSeparator] + super.toolbarDefaultItemIdentifiers(t) }
@@ -806,6 +915,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
     render(inputsSet(), width: 520, height: 180, appearance: appearance, file: "appkit-inputs-\(mode).png")
     renderToolbar(appearance: appearance, file: "appkit-inputs-toolbar-\(mode).png")
+    render(flatSet(), width: 360, height: 100, appearance: appearance, file: "appkit-flat-\(mode).png")
     render(iconLabelSet(), width: 520, height: 64, appearance: appearance, file: "appkit-iconlabel-\(mode).png")
     renderToolbar(appearance: appearance, file: "appkit-iconlabel-toolbar-\(mode).png", items: iconLabelItems, identifier: "iconlabel")
     render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
@@ -821,6 +931,9 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     renderHeaderBar(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-subtitle-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-noback-\(mode).png")
     renderDialogs(appearance: appearance, file: "appkit-dialogs-\(mode).png")
+    renderSidebar(appearance: appearance, focused: false, file: "appkit-sidebar-\(mode).png")
+    renderSidebar(appearance: appearance, focused: true, file: "appkit-sidebar-\(mode)-focused.png")
+    renderSidebar(appearance: appearance, focused: true, chosen: "Flagged", file: "appkit-sidebar-image-\(mode)-focused.png")
     renderHeaderBarSplit(appearance: appearance, subtitle: "", file: "appkit-headerbar-split-\(mode).png")
     renderHeaderBarSplit(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-split-subtitle-\(mode).png")
     renderHeaderBarSplit(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-split-noback-\(mode).png")

@@ -253,6 +253,27 @@
       "example": "breeze.FindBar(c, &app.finding, &app.query, len(app.matches), &app.match)"
     },
     {
+      "name": "FlatButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A text button without a face at rest, a translucent fill under the pointer and pressed that shows what is behind it: macOS's accessory bar button that shows its bezel only while the pointer is inside it (24 points high, its title in secondary gray at rest), Windows 11's Button of SubtleButtonStyle, or GNOME's .flat button; in a Toolbar or a HeaderBar, the bar's Button on macOS and in a Windows Toolbar, and flat where Button would be raised (GNOME, a Windows HeaderBar).",
+      "example": "if breeze.FlatButton(c, \"Skip\").Clicked() {\n\tapp.skip()\n}"
+    },
+    {
+      "name": "FlatIconButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A button showing only an icon without a face at rest, its label naming it and showing as its tooltip, for row accessories, close buttons, ⋯ menus and a player's controls: macOS's accessory bar button in a 24-point square (the icon secondary gray at rest, labelColor over the bezel under the pointer), Windows 11's Button of SubtleButtonStyle (40 by 29), or GNOME's 34-pixel .flat image button; in a Toolbar or a HeaderBar, IconButton's image item.",
+      "example": "breeze.FlatIconButton(c, moreIcon, \"More\").Menu(app.cardMenu)"
+    },
+    {
+      "name": "FlatToggle",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A toggle showing an icon without a face while off, its label naming it and showing as its tooltip: macOS's accessory bar toggle in a 24-point square (gray while on, the accent under the pointer), on Windows 11 a subtle button off and a checked ToggleButton's accent on (inferred: WinUI has no subtle toggle), or GNOME's .flat image toggle (currentColor at 10% while checked); in a Toolbar or a HeaderBar, the bar's toggle, and flat where Toggle would be raised (a text one on GNOME, any in a Windows HeaderBar).",
+      "example": "breeze.FlatToggle(c, &app.showPanel, panelIcon, \"Panel\")"
+    },
+    {
       "name": "Form",
       "category": "layout",
       "look": "drawn",
@@ -543,8 +564,15 @@
       "name": "SidebarItem",
       "category": "navigation",
       "look": "drawn",
-      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 42-pixel AdwSidebar row on GNOME.",
+      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen and its icon in the accent color (white on the focused selection), a NavigationViewItem with its accent pill on Windows 11, a 42-pixel AdwSidebar row on GNOME.",
       "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
+    },
+    {
+      "name": "SidebarItemImage",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "An item of a Sidebar showing a bitmap or an SVG in its own colors where SidebarItem tints its icon, as a colored mark or an avatar: the same row on every platform, the image kept as it is on the accent selection.",
+      "example": "breeze.SidebarItemImage(c, \"flagged\", flaggedMark, \"Flagged\")"
     },
     {
       "name": "SidebarSection",
@@ -552,6 +580,13 @@
       "look": "drawn",
       "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or AdwSidebar's bold heading on GNOME.",
       "example": "breeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
+    },
+    {
+      "name": "SidebarSectionWithActions",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A section of a Sidebar as SidebarSection, with controls such as an add button at the end of its title's row, centered on it and always shown; a click on them does not show or hide the items.",
+      "example": "breeze.SidebarSectionWithActions(c, \"Mailboxes\", &app.mailboxes, func() {\n\tif breeze.IconButton(c, plusIcon, \"Add Mailbox\").Clicked() {\n\t\tapp.addMailbox()\n\t}\n}, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
     },
     {
       "name": "Slider",
