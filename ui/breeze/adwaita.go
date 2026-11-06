@@ -107,14 +107,23 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 		return
 	}
 	adwFocusRing(t, b, 9, nil)
-	face := t.Surface
+	// $button_color, $button_hover_color and $button_active_color are currentColor at 10%, 15% and 30%, translucent, so a button shows what is behind it: over a boxed list's card its face is the card's color mixed, 235 in the light theme and 72 in the dark one where over the window it is 230 and 56 (measured from libadwaita 1.10.0 by tools/adwaita-reference, an AdwActionRow's suffix). The text takes its color over the face as it is over the window.
+	share := float32(0.10)
 	switch {
 	case pressed:
-		face = t.SurfacePressed
+		share = 0.30
 	case hovered:
-		face = t.SurfaceHover
+		share = 0.15
 	}
-	b.Background(face).TextColor(adwTextOn(t, face))
+	b.Background(adwInkLayer(t, share)).TextColor(adwTextOn(t, adwInkAlpha(t, t.Background, share)))
+}
+
+// adwInkLayer is currentColor at share as a translucent color, what adwInkAlpha lays over a background: white in the dark theme, and in the light one window_fg_color, the shade at 80%.
+func adwInkLayer(t *ui.Theme, share float32) ui.Color {
+	if t.Dark {
+		return white.Alpha(share)
+	}
+	return adwInk.Alpha(share * 0.8)
 }
 
 // adwCheckbox draws a GtkCheckButton: a 20-pixel indicator (14 and padding 3) with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 (.text-button) with corners of 9 that shows the focus ring inside its edge; checked, the accent with libadwaita's check mark in accent_fg_color.

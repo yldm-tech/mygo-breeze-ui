@@ -106,3 +106,43 @@ func TestAdwNestedRowLines(t *testing.T) {
 		}
 	}
 }
+
+// TestAdwButtonOverCard checks that on GNOME a button shows what is behind it, as libadwaita's translucent $button_color does: in an AdwActionRow of a boxed list its face is 235 in the light theme and 72 in the dark one, the card's color mixed, where over the window it is 230 and 57.
+func TestAdwButtonOverCard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Fill().Padding(16).Gap(16).Children(func() {
+					ui.Column(c).Width(300).Children(func() {
+						Card(c, func() {
+							ActionRow(c, "Wallpaper", "Choose a picture", func() { Button(c, "Open") })
+						})
+					})
+					ui.Row(c).Children(func() { Button(c, "Cancel") })
+				})
+			})
+		}, 400, 200)
+		tester.SetDark(dark)
+		tester.Frame()
+		face := func(name string) ui.Color {
+			r, ok := tester.Find(name)
+			if !ok {
+				t.Fatalf("dark %v: %q is missing", dark, name)
+			}
+			// Inside the button's padding of 17, before its label, on its middle row.
+			return adwPixel(tester, r.X+6, r.Y+r.H/2)
+		}
+		for _, k := range []struct {
+			name string
+			want ui.Color
+		}{
+			{"Open", pick(dark, ui.RGB(235, 235, 235), ui.RGB(72, 72, 75))},
+			{"Cancel", pick(dark, ui.RGB(230, 230, 231), ui.RGB(57, 57, 60))},
+		} {
+			if got := face(k.name); adwColorDiff(got, k.want) > 2.0/255 {
+				t.Errorf("dark %v: %q's face is %v, want libadwaita's %v", dark, k.name, got, k.want)
+			}
+		}
+	}
+}
