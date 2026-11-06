@@ -16,6 +16,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # package.json's catalog pins vite to vite-plus's own core through an npm: alias (vite: npm:@voidzero-dev/vite-plus-core@X), which must stay at vite-plus's version and which Dependabot does not move, so a vite-plus bump alone breaks the site's build (#24). Bump vite-plus and the alias together by hand.
+    ignore:
+      - dependency-name: vite-plus
+      - dependency-name: "@voidzero-dev/vite-plus-core"
     commit-message:
       prefix: chore
       include: scope
