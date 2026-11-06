@@ -426,3 +426,31 @@ func TestAdwPlusEvenWhenDisabled(t *testing.T) {
 		}
 	}
 }
+
+// TestAdwPopoverAtItsAnchor pins where GNOME's popover starts: GtkPopover without its arrow, as MyGo draws popovers, puts its contents right at the anchor's bottom edge, as libadwaita 1.10.0 renders the third set's Details popover under its Info button (its contents start at 104, where the button ends), in the light and the dark theme, rather than adwMenu's 6 pixels below it, a dropdown's.
+func TestAdwPopoverAtItsAnchor(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		open := true
+		var anchor, panel ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Box(c).Fill().Padding(16).AlignItems(ui.Start).Children(func() {
+					info := Button(c, "Info")
+					anchor = info.Bounds()
+					panel = Popover(c, info, &open, func() { ui.Text(c, "Details") }).Bounds()
+				})
+			})
+		}, 400, 240)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		if panel.H == 0 {
+			t.Fatalf("dark %v: the popover is not shown", dark)
+		}
+		if got, want := panel.Y, anchor.Y+anchor.H; got < want-0.01 || got > want+0.01 {
+			t.Errorf("dark %v: the popover starts at %v, want the button's bottom edge %v", dark, got, want)
+		}
+	}
+}

@@ -561,10 +561,10 @@ func adwLinkColor(t *ui.Theme) ui.Color {
 	return pick(t.Dark, t.Accent.Mix(black, 0.2), t.Accent.Mix(white, 0.45))
 }
 
-// adwPopover draws a popover's contents: popover_bg_color, corners of 15, padding 8 and adwMenu's ring and two soft shadows.
+// adwPopover draws a popover's contents: popover_bg_color, corners of 15, padding 8 and adwMenu's ring and two soft shadows, its contents right at the anchor's edge, as GtkPopover places them without its arrow (has-arrow false, as MyGo draws popovers): in libadwaita 1.10.0's render (tools/adwaita-reference's third set) the contents of the Details popover start at 104, where the Info button above it ends, in the light and the dark theme. adwMenu's margin of 6 is a dropdown's.
 func adwPopover(c *ui.Context, panel ui.Element) {
 	adwMenu(c, panel)
-	panel.Padding(8).Gap(6)
+	panel.Margin(0).Padding(8).Gap(6)
 }
 
 // adwSeparator is a separator's color, $border_color: currentColor at 15%.
