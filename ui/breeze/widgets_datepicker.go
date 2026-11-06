@@ -176,7 +176,7 @@ func (b *calendarBuild) start(p Platform) time.Time {
 // CalendarView creates a month's calendar choosing *date, drawn as the platform draws its calendar, in the window's language with its weeks starting on the first day of the user's regional formats (Context.Region), as MyGo's own controls: the names of the months and the days, and the numbers, come from MyGo's i18n package. A zero *date shows today's month with no day chosen.
 //
 // A click on a day chooses it. The days are one Tab stop, after the header's buttons on Windows and GNOME; the arrows move the day the keys are on, Up and Down by weeks (Left and Right mirrored right to left), Page Up and Page Down by months, keeping the day or taking the last of a shorter month, Home and End to the first and the last day of the month, and Enter and Space choose the day the keys are on; the month shown is that day's. Assistive technology sees a table named by the month, of buttons named by their dates (Element.ActiveDescendant tells it which day the keys are on), checked where chosen.
-//   - macOS: NSDatePicker of style clockAndCalendar, as SwiftUI's graphical DatePicker draws it: 139 by 148 points, a field (white, white at 4.9% over the window in Dark Aqua) inside a half-point line (black at 7.8%, white at 9.8%) whose bottom edge is darker; the month and the year abbreviated ("Nov 2026") in 13-point bold labelColor 3.5 points in; at the end the buttons ◀ (the month before), ● (today) and ▶ (the month after), 6, 7 and 6 points wide and 7 high, 8 apart, in secondaryLabelColor; the short day names ("Su") in 10-point bold secondaryLabelColor over a 1-point separator (black at 10%, white at 9.8%); six weeks in rows 18 points high, columns 18.5 wide from 4 points in, the numbers in 11 points at the end of their column, 2.5 before it; the days of the months around in tertiaryLabelColor, today's number in the accent (#0060e5, #26a0ff for the blue), the chosen day an 18 by 16 rectangle with corners of 2.5, selectedContentBackgroundColor with a white number while the calendar has the focus, unemphasizedSelectedContentBackgroundColor without it (measured on macOS 27.2). The whole calendar is the one Tab stop with AppKit's focus ring around it, its buttons not, as NSDatePicker is one control; every move chooses the day, as NSDatePicker's arrows and buttons do.
+//   - macOS: NSDatePicker of style clockAndCalendar, as SwiftUI's graphical DatePicker draws it: 139 by 148 points, a field (white, white at 4.9% over the window in Dark Aqua) inside a half-point line (black at 7.8%, white at 9.8%) whose bottom edge is darker; the month and the year abbreviated ("Nov 2026") in 13-point bold labelColor 3 points in; at the end the buttons ◀ (the month before), ● (today) and ▶ (the month after), 6, 7 and 6 points wide and 7 high, 8 apart, in secondaryLabelColor; the short day names ("Su") in 10-point bold secondaryLabelColor over a 1-point separator (black at 10%, white at 9.8%); six weeks in rows 18 points high, columns 18.5 wide from 4 points in, the numbers in 10 points with proportional digits at the end of their column, 2 before it; the days of the months around in tertiaryLabelColor, today's number in the accent (#0060e5, #26a0ff for the blue), the chosen day an 18 by 16 rectangle with corners of 2.5, selectedContentBackgroundColor with a white number while the calendar has the focus, unemphasizedSelectedContentBackgroundColor without it (measured on macOS 27.2). The whole calendar is the one Tab stop with AppKit's focus ring around it, its buttons not, as NSDatePicker is one control; every move chooses the day, as NSDatePicker's arrows and buttons do.
 //   - Windows: CalendarView: 300 by 351 DIPs, ControlFillColorInputActive inside a ControlStrokeColorDefault border with corners of 4; the month and the year ("November 2026") in 14-DIP semibold 16 DIPs in, the Previous and Next buttons (32 by 35, the CaretUpSolid8 and CaretDownSolid8 glyphs, SubtleFillColorSecondary under the pointer and Tertiary pressed, the glyph 0.875 as large pressed) at the end; a 1-DIP line; the short day names in 12-DIP semibold, centered in 42-DIP columns; six weeks of 40-DIP day items with a margin of 1, their numbers in 14 DIPs, the days out of the month in TextFillColorSecondary; today a filled AccentFillColorDefault circle with TextOnAccentFillColorPrimary text, the chosen day a 1-DIP AccentFillColorDefault ring with AccentTextFillColorPrimary text (a TextOnAccentFillColorPrimary ring inside today's circle when today is chosen), a day under the pointer SubtleFillColorSecondary, pressed Tertiary; the system focus visual 3 DIPs around the day the keys are on. The month header button that zooms out to the year is the header's text here, and the Previous and Next buttons are Tab stops before the days; the arrows only move among the days, Enter or Space or a click choosing one.
 //   - GNOME: GtkCalendar with libadwaita's style: view_bg_color inside a 1-pixel $border_color border; a header, its bottom border a line, of flat 34-pixel square image buttons with pan-start-symbolic and pan-end-symbolic around the month (the widest month's room) and, after free room, around the year (10 pixels wider than it); a grid padded 3 at the left and the bottom of rows 27 high (a label's 18 and its padding of 3 and margin of 3 above it) sharing the width in seven columns, a 3-pixel margin at each label's right; the abbreviated day names ("Sun"), the days in view_fg_color, those of the months around at 30%, today with a 2-pixel $border_color line along its label's bottom, the chosen day the accent with corners of 9 and accent_fg_color text; the focus ring inside the label the keys are on. The four buttons are Tab stops before the days; they and Ctrl with the arrows (Left and Right the month, Up and Down the year) choose the same day in another month or year, as GTK's do; the arrows only move among the days, Space or Enter or a click choosing one.
 //
@@ -330,7 +330,7 @@ func macCalendarToday(t *ui.Theme) ui.Color {
 	return t.Accent
 }
 
-// macCalendar builds NSDatePicker's calendar into root, CalendarView's macOS look (measured at 2x on macOS 27.2 by tools/appkit-reference's datepicker scene): 139 by 148 points; the field from half a point in, 137.5 by 146.5, inside a half-point line (black at 7.8%, 235 over white; white at 9.8% in Dark Aqua, a lighter 13.3% along its top), and under its bottom two half-point lines of black at 24% and 12% (white at 12% and 26%); the header 20 points high, the title 3.5 points in, its buttons centered half a point below its middle, the last 6.5 points from the end; the day names' row 17 points high and the separator, a point, under it at 37, from 3 to 135 points in; the weeks from 38, rows 18 high, columns 18.5 wide from 4 points in; the chosen day's rectangle inset half a point at its column's start and a point at its row's top and bottom. The text colors are AppKit's label colors over the field: labelColor 84.7%, secondaryLabelColor 49.8% (54.9% in Dark Aqua), tertiaryLabelColor 26% (25%). In a popover the field and its lines are left out, the calendar lying on the panel (inferred).
+// macCalendar builds NSDatePicker's calendar into root, CalendarView's macOS look (measured at 2x on macOS 27.2 by tools/appkit-reference's datepicker scene): 139 by 148 points; the box from half a point in, 137.5 by 146.5 (in Dark Aqua from a point in, 136.5 by 145), its edges half-point lines over the window (black at 7.8%, 235 over white; white at 9.8% in Dark Aqua, a lighter 13.3% along its top, 52 and 60 over the window's 30) around the field, and under its bottom two half-point lines of black at 24% and 12% (white at 12% and 26%); the header 20 points high, the title 3 points in, its buttons centered half a point below its middle, the last 6.5 points from the end; the day names' row 17 points high and the separator, a point, under it at 37, from 3 to 135 points in; the weeks from 38, rows 18 high, columns 18.5 wide from 4 points in, the day names and the numbers 2 points before their column's end, the names half a point below their row's middle; the chosen day's rectangle inset half a point at its column's start and a point at its row's top and bottom. The text colors are AppKit's label colors over the field: labelColor 84.7%, secondaryLabelColor 49.8% (54.9% in Dark Aqua), tertiaryLabelColor 26% (25%). In a popover the field and its lines are left out, the calendar lying on the panel (inferred).
 func macCalendar(b *calendarBuild, root ui.Element) {
 	c, t := b.c, b.t
 	field := macCalendarField(t, b.bare)
@@ -348,15 +348,21 @@ func macCalendar(b *calendarBuild, root ui.Element) {
 		low1 := pick(t.Dark, black.Alpha(0.239), white.Alpha(0.124))
 		low2 := pick(t.Dark, black.Alpha(0.122), white.Alpha(0.258))
 		rtl := b.rtl
+		// Dark Aqua draws the box half a point further in at the top and the sides and a point higher at the bottom.
+		in, w, h := float32(0.5), float32(137.5), float32(146.5)
+		if t.Dark {
+			in, w, h = 1, 136.5, 145
+		}
 		root.Draw(func(p *ui.Painter, r ui.Rect) {
-			box := ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: 137.5, H: 146.5}
+			box := ui.Rect{X: r.X + in, Y: r.Y + in, W: w, H: h}
 			if rtl {
-				box.X = r.X + r.W - 0.5 - box.W
+				box.X = r.X + r.W - in - box.W
 			}
-			p.Fill(box, field, 0)
+			// The lines lie over the window, the field inside them.
+			p.Fill(ui.Rect{X: box.X + 0.5, Y: box.Y + 0.5, W: box.W - 1, H: box.H - 0.5}, field, 0)
 			p.Fill(ui.Rect{X: box.X, Y: box.Y, W: 0.5, H: box.H}, edge, 0)
 			p.Fill(ui.Rect{X: box.X + box.W - 0.5, Y: box.Y, W: 0.5, H: box.H}, edge, 0)
-			p.Fill(ui.Rect{X: box.X, Y: box.Y, W: box.W, H: 0.5}, top, 0)
+			p.Fill(ui.Rect{X: box.X + 0.5, Y: box.Y, W: box.W - 1, H: 0.5}, top, 0)
 			p.Fill(ui.Rect{X: box.X, Y: box.Y + box.H, W: box.W, H: 0.5}, low1, 0)
 			p.Fill(ui.Rect{X: box.X, Y: box.Y + box.H + 0.5, W: box.W, H: 0.5}, low2, 0)
 		})
@@ -368,7 +374,7 @@ func macCalendar(b *calendarBuild, root ui.Element) {
 	})
 	sel := macListSelection(t, b.focused)
 	root.Children(func() {
-		ui.Row(c).Height(20).Shrink(0).PaddingStart(3.5).PaddingEnd(6.5).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Height(20).Shrink(0).PaddingStart(3).PaddingEnd(6.5).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, dateText(b.locale, "yMMM", b.month)).SingleLine().Grow(1).Shrink(1).MinWidth(0).FontSize(t.FontSize).FontWeight(700).TextColor(label)
 			for i, key := range []string{"calendarPreviousMonth", "calendarToday", "calendarNextMonth"} {
 				w := float32(6)
@@ -398,7 +404,7 @@ func macCalendar(b *calendarBuild, root ui.Element) {
 			}
 		})
 		calendarDays(b, Mac, func(name string) {
-			ui.Row(c).Width(18.5).Height(17).Shrink(0).Justify(ui.End).AlignItems(ui.Center).PaddingEnd(2.5).Role(ui.RoleColumnHeader).Children(func() {
+			ui.Row(c).Width(18.5).Height(17).Shrink(0).Justify(ui.End).AlignItems(ui.Center).Padding(1, 0, 0, 0).PaddingEnd(2).Role(ui.RoleColumnHeader).Children(func() {
 				ui.Text(c, name).SingleLine().FontSize(t.FontSize * 10 / 13).FontWeight(700).TextColor(secondary)
 			})
 		}, func(week int, fn func()) ui.Element {
@@ -426,7 +432,7 @@ func macCalendar(b *calendarBuild, root ui.Element) {
 			case d.Month() != b.month.Month():
 				fg = tertiary
 			}
-			e := ui.Row(c).Width(18.5).Height(18).Shrink(0).Justify(ui.End).AlignItems(ui.Center).PaddingEnd(2.5)
+			e := ui.Row(c).Width(18.5).Height(18).Shrink(0).Justify(ui.End).AlignItems(ui.Center).PaddingEnd(2)
 			if chosen {
 				rtl := b.rtl
 				e.Draw(func(p *ui.Painter, r ui.Rect) {
@@ -438,7 +444,7 @@ func macCalendar(b *calendarBuild, root ui.Element) {
 				})
 			}
 			e.Children(func() {
-				ui.Text(c, dateText(b.locale, "d#", d)).SingleLine().FontSize(t.FontSize * 11 / 13).FontFeatures("tnum").TextColor(fg)
+				ui.Text(c, dateText(b.locale, "d#", d)).SingleLine().FontSize(t.FontSize * 10 / 13).TextColor(fg)
 			})
 			return e
 		})
@@ -476,7 +482,8 @@ func fluentCalendar(b *calendarBuild, root ui.Element) {
 	c, t := b.c, b.t
 	bg := fluentCalendarBg(t)
 	th := fluentOver(t, bg)
-	root.Width(300).Border(1, t.Border).Radius(4).Background(bg)
+	// In CalendarDatePicker's flyout the template gives the CalendarView corners of OverlayCornerRadius (8).
+	root.Width(300).Border(1, t.Border).Radius(pick(b.bare, float32(4), 8)).Background(bg)
 	root.Children(func() {
 		ui.Row(c).Height(48).Shrink(0).AlignItems(ui.Start).Children(func() {
 			ui.Box(c).Grow(1).Shrink(1).MinWidth(0).Height(20).Margin(13, 0, 0, 0).MarginStart(15).MarginEnd(11).Justify(ui.Center).Children(func() {
@@ -550,7 +557,7 @@ func fluentCalendarNav(t, th *ui.Theme, bg ui.Color, btn ui.Element, back bool) 
 	})
 }
 
-// fluentCalendarDay draws CalendarViewDayItem e of day d, as CalendarViewBaseItemChrome draws it with CalendarViewBaseItemRoundedChromeEnabled: a circle as large as the item (radius half its 40 DIPs). Today: TodayBackground (AccentFillColorDefault; TodayHoverBackground, AccentFillColorSecondary, under the pointer, TodayPressedBackground, Tertiary, pressed) with TodayForeground (TextOnAccentFillColorPrimary), and when it is chosen too an inner 1-DIP ring of TodaySelectedInnerBorderBrush (TextOnAccentFillColorPrimary) 1 DIP in, today winning over the chosen day's ring. The chosen day: a ring of CalendarItemBorderThickness (1) in SelectedBorderBrush (AccentFillColorDefault), SelectedHoverBorderBrush (AccentFillColorSecondary) under the pointer and SelectedPressedBorderBrush (SubtleFillColorTertiary) pressed, its number in SelectedForeground (AccentTextFillColorPrimary; Tertiary pressed). Another day: CalendarItemHoverBackground with HoverBorderBrush (both SubtleFillColorSecondary) under the pointer, Pressed and PressedBorderBrush (SubtleFillColorTertiary) pressed with PressedForeground (TextFillColorSecondary); its number in CalendarItemForeground (TextFillColorPrimary), or OutOfScopeForeground (TextFillColorSecondary) out of the month, Primary under the pointer and Tertiary pressed. The number, in DayItemFontSize 14, sits half a DIP above the middle: the item's Padding 0,0,0,4 under DayItemMargin 0,3,0,0 (inferred). The system focus visual goes 3 DIPs around the item the keys are on (FocusVisualMargin -3), round with it.
+// fluentCalendarDay draws CalendarViewDayItem e of day d, as CalendarViewBaseItemChrome draws it with CalendarViewBaseItemRoundedChromeEnabled: a circle as large as the item (radius half its 40 DIPs). Today: TodayBackground (AccentFillColorDefault; TodayHoverBackground, AccentFillColorSecondary, under the pointer, TodayPressedBackground, Tertiary, pressed) with TodayForeground (TextOnAccentFillColorPrimary), and when it is chosen too an inner 1-DIP ring of TodaySelectedInnerBorderBrush (TextOnAccentFillColorPrimary) 1 DIP in, today winning over the chosen day's ring. The chosen day: a ring of CalendarItemBorderThickness (1) in SelectedBorderBrush (AccentFillColorDefault), SelectedHoverBorderBrush (AccentFillColorSecondary) under the pointer and SelectedPressedBorderBrush (SubtleFillColorTertiary) pressed, its number in SelectedForeground (AccentTextFillColorPrimary; Tertiary pressed), and under the pointer and pressed the fills any day takes there. Another day: CalendarItemHoverBackground with HoverBorderBrush (both SubtleFillColorSecondary) under the pointer, Pressed and PressedBorderBrush (SubtleFillColorTertiary) pressed with PressedForeground (TextFillColorSecondary); its number in CalendarItemForeground (TextFillColorPrimary), or OutOfScopeForeground (TextFillColorSecondary) out of the month, Primary under the pointer and Tertiary pressed (#72000000, #87FFFFFF). The number, in DayItemFontSize 14, sits half a DIP above the middle: the item's Padding 0,0,0,4 under DayItemMargin 0,3,0,0 (inferred). The system focus visual goes 3 DIPs around the item the keys are on (FocusVisualMargin -3), round with it.
 func fluentCalendarDay(c *ui.Context, b *calendarBuild, th *ui.Theme, bg ui.Color, e ui.Element, d time.Time, ringed bool) {
 	t := b.t
 	today, chosen, out := sameDay(d, b.today), sameDay(d, b.chosen), d.Month() != b.month.Month()
@@ -572,16 +579,17 @@ func fluentCalendarDay(c *ui.Context, b *calendarBuild, th *ui.Theme, bg ui.Colo
 		}
 	case chosen:
 		ring, fg = t.Accent, fluentLinkColor(c, false, pressed)
+		// GetItemBackgroundBrush gives a chosen day the fills of any other under the pointer and pressed.
 		switch {
 		case pressed:
-			ring = press
+			fill, ring = press, press
 		case hovered:
-			ring = bg.Mix(t.Accent, 0.9)
+			fill, ring = hover, bg.Mix(t.Accent, 0.9)
 		}
 	case pressed:
 		fill, ring, fg = press, press, th.TextMuted
 		if out {
-			fg = bg.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0x72)/255, 0x5d/255.0))
+			fg = fluentTertiaryOver(t, bg)
 		}
 	case hovered:
 		fill, ring = hover, hover
@@ -611,7 +619,7 @@ func fluentCalendarDay(c *ui.Context, b *calendarBuild, th *ui.Theme, bg ui.Colo
 
 // ---- GNOME: GtkCalendar as libadwaita styles it ----
 
-// adwCalendar builds a GtkCalendar into root, CalendarView's GNOME look (gtkcalendar.c's widgets, _calendar.scss): calendar.view, view_bg_color and view_fg_color inside a 1-pixel $border_color border without corners, or in a popover none of these, the calendar lying on the popover (popover > contents > .view); the header box, a 1-pixel $border_color border along its bottom, holding the image buttons (34 pixels square: min-width and min-height 24 with padding 5, %button_basic_flat with border-radius 0: transparent, $hover_color 7% under the pointer, $active_color 16% pressed) with pan-start-symbolic and pan-end-symbolic (their -rtl variants right to left), around the month's name in a homogeneous stack as wide as the longest of the twelve, then free room (the next month's button hexpands, aligned at its start), and the buttons around the year, whose label is 10 pixels wider than its natural width; the grid, padded 3 at the left and the bottom, homogeneous: each label a margin of 3 above and at the right, the day numbers padded 3 (rows 27 high for a label line of 18, Adwaita Sans 11's at 96 DPI, inferred). Its labels are the abbreviated day names (strftime's %a), then the days: in view_fg_color, the other months' (.other-month) at 30%, today (.today) with box-shadow inset 0 -2px $border_color, the chosen one (:selected) accent_bg_color with accent_fg_color and corners of $button_radius (9), and the focus ring (the focus-ring mixin on :focus: 2 pixels of $focus_border_color inside the label) on the one the keys are on.
+// adwCalendar builds a GtkCalendar into root, CalendarView's GNOME look (gtkcalendar.c's widgets, _calendar.scss): calendar.view, view_bg_color and view_fg_color inside a 1-pixel $border_color border without corners, or in a popover none of these, the calendar lying on the popover (popover > contents > .view); the header box, a 1-pixel $border_color border along its bottom, holding the image buttons (34 pixels square: min-width and min-height 24 with padding 5, %button_basic_flat with border-radius 0: transparent, $hover_color 7% under the pointer, $active_color 16% pressed) with pan-start-symbolic and pan-end-symbolic (their -rtl variants right to left), around the month's name in a homogeneous stack as wide as the longest of the twelve, then free room (the next month's button hexpands, aligned at its start), and the buttons around the year, whose label is 10 pixels wider than its natural width; the calendar's text in tabular digits (font-variant-numeric: tabular-nums); the grid, padded 3 at the left and the bottom, homogeneous: each label a margin of 3 above and at the right, the day numbers padded 3 (rows 27 high for a label line of 18, Adwaita Sans 11's at 96 DPI, inferred). Its labels are the abbreviated day names (strftime's %a), then the days: in view_fg_color, the other months' (.other-month) at 30%, today (.today) with box-shadow inset 0 -2px $border_color, the chosen one (:selected) accent_bg_color with accent_fg_color and corners of $button_radius (9), and the focus ring (the focus-ring mixin on :focus: 2 pixels of $focus_border_color inside the label) on the one the keys are on while the calendar has the focus, from a click too.
 func adwCalendar(b *calendarBuild, root ui.Element) {
 	c, t := b.c, b.t
 	under := adwListViewBg(t)
@@ -643,7 +651,7 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 			ui.Box(c).Grow(1).Role(ui.RoleNone)
 			arrow("calendarPreviousYear", true, -12)
 			ui.Box(c).Shrink(0).PaddingX(5).Center().Children(func() {
-				ui.Text(c, i18n.FormatNumber(b.locale, b.month.Year(), i18n.NumberOptions{NoGrouping: true})).SingleLine().TextColor(fg)
+				ui.Text(c, i18n.FormatNumber(b.locale, b.month.Year(), i18n.NumberOptions{NoGrouping: true})).SingleLine().FontFeatures("tnum").TextColor(fg)
 			})
 			arrow("calendarNextYear", false, 12)
 		})
@@ -651,7 +659,8 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 		grid := ui.Column(c).Shrink(0).Padding(0, 0, 3, 3).Focusable().FocusRing(false)
 		b.keys = grid
 		b.focused = grid.Focused()
-		focusRing := grid.FocusVisible()
+		// The focus-ring mixin is included with $focus-state ':focus', and GtkCalendar sets the focused label's GTK_STATE_FLAG_FOCUSED itself whatever moved the focus there, a click too: the ring shows while the calendar has the focus, not only from the keyboard.
+		focusRing := b.focused
 		grid.Children(func() {
 			calendarDays(b, Linux, func(name string) {
 				ui.Box(c).Grow(1).Basis(0).Padding(3, 3, 0, 0).Role(ui.RoleColumnHeader).Children(func() {
@@ -716,15 +725,15 @@ func adwCalendarDay(c *ui.Context, b *calendarBuild, under, fg, border ui.Color,
 		}
 	})
 	e.Children(func() {
-		ui.Text(c, dateText(b.locale, "d#", d)).SingleLine().TextColor(color)
+		ui.Text(c, dateText(b.locale, "d#", d)).SingleLine().FontFeatures("tnum").TextColor(color)
 	})
 }
 
 // ---- the date picker: a button opening the calendar ----
 
 // DatePicker creates a button showing *date in the user's regional formats, as the platform's date picker shows it (MyGo's short date, "11/18/2026" in the United States), that opens CalendarView in a popover below it; a zero *date shows WinUI's placeholder, "select a date", on every platform. A click on a day, or Enter or Space on the day the keys are on, chooses it and closes the popover, the focus going back to the button; Escape or a click outside closes it. The keys in the calendar are CalendarView's: on macOS the arrows choose as they move, and the popover stays open.
-//   - macOS: SwiftUI's DatePicker of the compact style without its stepper, which is NSDatePicker of style textField with presentsCalendarOverlay: the date field's bezel (macDatePicker: 23 points high with its line, corners of 7), the date 4 points in; the calendar overlay, the graphical calendar on a panel like a menu (macMenu) padded 6, below the field's start (inferred: the overlay is a window of its own that the renders do not show).
-//   - Windows: CalendarDatePicker: a button's face 32 DIPs high (fluentDateTimeFace), the date (DateText, Padding 12,0,0,2) and the calendar glyph E787 at 12 DIPs in TextFillColorSecondary centered in a 32-DIP column at the end (drawn as a calendar's outline, inferred), the system focus visual 3 DIPs around it (FocusVisualMargin -3); its Flyout, Placement Bottom, centered below it with a FlyoutPresenter of Padding 0, BorderThickness 0, corners of OverlayCornerRadius (8) and the default shadow, holding the CalendarView, which closes once a day is chosen.
+//   - macOS: SwiftUI's DatePicker of the compact style without its stepper, which is NSDatePicker of style textField with presentsCalendarOverlay: the date field's bezel (macDatePicker: 23 points high with its line, corners of 7), the date 3.5 points in (its tabular digits' ink from 5.5); the calendar overlay, the graphical calendar on a panel like a menu (macMenu) padded 6, below the field's start (inferred: the overlay is a window of its own that the renders do not show).
+//   - Windows: CalendarDatePicker: a button's face 32 DIPs high (fluentDateTimeFace), the date (DateText, Padding 12,0,0,2) and the calendar glyph E787 at 12 DIPs in TextFillColorSecondary, TextFillColorPrimary at rest once a date is chosen, centered in a 32-DIP column at the end (drawn as a calendar's outline, inferred), the system focus visual 3 DIPs around it (FocusVisualMargin -3); its Flyout, Placement Bottom, centered below it with a FlyoutPresenter of Padding 0, BorderThickness 0, corners of OverlayCornerRadius (8) and the default shadow, holding the CalendarView, which closes once a day is chosen.
 //   - GNOME: a GtkMenuButton showing the date, as GNOME's apps open a GtkCalendar from one: a raised button (adwButton) padded 5px 9px, the label 4 pixels before pan-down-symbolic, $button_checked_color (30%) while the popover is open; the popover (adwPopover) centered below it, holding the calendar without its border.
 //
 // Assistive technology sees a pop-up button whose value is the date, expanded while the calendar is open. It returns the button, whose Changed reports a day chosen.
@@ -743,12 +752,12 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 	b.Role(ui.RolePopUpButton).Value(text).Expanded(*open)
 	switch p {
 	case Windows:
-		fluentDatePicker(c, b, text)
+		fluentDatePicker(c, b, text, !date.IsZero())
 	case Linux:
 		adwDatePicker(c, b, text, *open)
 	default:
 		macDatePicker(c, b, false, nil)
-		b.MinWidth(0).Padding(2, 4).AlignItems(ui.Center).Children(func() {
+		b.MinWidth(0).Padding(2, 4).PaddingStart(3.5).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, text).SingleLine().FontFeatures("tnum")
 		})
 	}
@@ -782,10 +791,11 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 	return b
 }
 
-// fluentDatePicker draws CalendarDatePicker's button b showing text (DatePicker).
-func fluentDatePicker(c *ui.Context, b ui.Element, text string) {
+// fluentDatePicker draws CalendarDatePicker's button b showing text (DatePicker), a date when dated. The calendar glyph is CalendarDatePickerCalendarGlyphForeground (TextFillColorSecondary), and with a date the Selected state's CalendarDatePickerTextForegroundSelected (TextFillColorPrimary), which the PointerOver and Pressed states, started after it, cover with their TextFillColorSecondary (calendardatepicker_partial.cpp's UpdateVisualState).
+func fluentDatePicker(c *ui.Context, b ui.Element, text string, dated bool) {
 	t := c.Theme()
-	fluentDateTimeFace(c, b, b.Hovered(), b.Pressed())
+	hovered, pressed := b.Hovered(), b.Pressed()
+	fluentDateTimeFace(c, b, hovered, pressed)
 	b.MinWidth(0).Padding(0).PaddingStart(12).AlignItems(ui.Center).FocusRing(false)
 	focused := b.FocusVisible()
 	b.DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -794,6 +804,9 @@ func fluentDatePicker(c *ui.Context, b ui.Element, text string) {
 		}
 	})
 	glyph := t.TextMuted
+	if dated && !hovered && !pressed {
+		glyph = t.Text
+	}
 	b.Children(func() {
 		ui.Text(c, text).SingleLine().Margin(0, 0, 2, 0)
 		ui.Box(c).Size(32, 30).Shrink(0).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {

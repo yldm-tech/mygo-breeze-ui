@@ -543,3 +543,193 @@ func TestCalendarViewColorsAsMeasured(t *testing.T) {
 		}
 	}
 }
+
+// shotPixel returns the pixel of tester's last frame, rendered at 2x, at x, y in DIPs.
+func shotPixel(tester *ui.Tester, x, y float32) [3]int {
+	c := tester.Image().RGBAAt(int(x*2), int(y*2))
+	return [3]int{int(c.R), int(c.G), int(c.B)}
+}
+
+// samePixel reports whether a and b are within tolerance in every channel.
+func samePixel(a, b [3]int, tolerance int) bool {
+	for i := range a {
+		if d := a[i] - b[i]; d < -tolerance || d > tolerance {
+			return false
+		}
+	}
+	return true
+}
+
+// TestMacCalendarAsMeasured pins NSDatePicker's calendar and field as rendered by tools/appkit-reference's datepicker scene on macOS 27.2, where Breeze UI's glyphs then land on AppKit's pixel for pixel: the numbers in 10 points (the height and width of a 10-point text of the same digits, without tabular digits) ending 2 points before their column's end, the day names ending there too and half a point below their 17-point row's middle, the title 3 points in, the field's date 3.5 points in; and the box's edges, half-point lines over the window, at half a point in Aqua (235 over white, the bottom's two lines 194 and 224) and a point in Dark Aqua (52 at the sides and 60 at the top over the window's 30, the bottom's lines 58 and 88 a point higher).
+func TestMacCalendarAsMeasured(t *testing.T) {
+	fixToday(t, datePickerToday)
+	for _, dark := range []bool{false, true} {
+		day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+		var box, field, ref ui.Rect
+		tester := dateTester(Mac, 640, 520, func(c *ui.Context) {
+			ui.Row(c).Padding(16).Gap(16).AlignItems(ui.Start).Children(func() {
+				box = CalendarView(c, &day).Bounds()
+				field = DatePicker(c, &day).Bounds()
+				ref = ui.Text(c, "11").SingleLine().FontSize(c.Theme().FontSize * 10 / 13).Bounds()
+			})
+		})
+		tester.SetDark(dark)
+		tester.SetScale(2)
+		tester.Frame()
+		tester.Frame()
+		near := func(what string, got, want float32) {
+			t.Helper()
+			if got < want-0.01 || got > want+0.01 {
+				t.Errorf("dark %v: %s is %v, want %v", dark, what, got, want)
+			}
+		}
+		num, _ := tester.Find("11")
+		cell, _ := tester.Find(dayName(time.November, 11))
+		near("the 11th's height", num.H, ref.H)
+		near("the 11th's width", num.W, ref.W)
+		near("the 11th's end", cell.X+cell.W-(num.X+num.W), 2)
+		su, _ := tester.Find("Su")
+		near("Su's end", su.X+su.W-box.X, 4+18.5-2)
+		near("Su's middle", su.Y+su.H/2-box.Y, 20+17.0/2+0.5)
+		title, _ := tester.Find("Nov 2026")
+		near("the title's start", title.X-box.X, 3)
+		date, _ := tester.Find("11/18/2026")
+		near("the field's date", date.X-field.X, 3.5)
+		px := func(what string, x, y float32, want int) {
+			t.Helper()
+			if got := shotPixel(tester, box.X+x, box.Y+y); !samePixel(got, [3]int{want, want, want}, 2) {
+				t.Errorf("dark %v: %s at %v, %v is %v, want %d", dark, what, x, y, got, want)
+			}
+		}
+		if dark {
+			px("the window at the start", 0.75, 70, 30)
+			px("the start's line", 1.25, 70, 52)
+			px("the end's line", 137.25, 70, 52)
+			px("the top's line", 70, 1.25, 60)
+			px("the bottom's first line", 70, 146.25, 58)
+			px("the bottom's second line", 70, 146.75, 88)
+			px("the window under the box", 70, 147.25, 30)
+		} else {
+			px("the start's line", 0.75, 70, 235)
+			px("the end's line", 137.75, 70, 235)
+			px("the top's line", 70, 0.75, 235)
+			px("the bottom's first line", 70, 147.25, 194)
+			px("the bottom's second line", 70, 147.75, 224)
+		}
+	}
+}
+
+// TestFluentCalendarStatesAsMeasured pins CalendarViewBaseItemChrome's states (CalendarView_themeresources.xaml, CalendarViewBaseItemChrome.cpp) and CalendarDatePicker's glyph: a day of another month pressed in the dark theme writes its number in TextFillColorTertiary, #87FFFFFF over the calendar; the chosen day under the pointer takes CalendarItemHoverBackground (SubtleFillColorSecondary, black at 3.5% over white) inside its ring, as GetItemBackgroundBrush gives it whether chosen or not; the picker's glyph is TextFillColorSecondary without a date and TextFillColorPrimary with one (the Selected state); and the CalendarView in the picker's flyout has corners of OverlayCornerRadius (8), its border along the flyout's round corner.
+func TestFluentCalendarStatesAsMeasured(t *testing.T) {
+	fixToday(t, datePickerToday)
+	day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+	tester := dateTester(Windows, 640, 520, func(c *ui.Context) {
+		ui.Row(c).Padding(16).AlignItems(ui.Start).Children(func() { CalendarView(c, &day) })
+	})
+	tester.SetScale(2)
+	tester.SetDark(true)
+	tester.Frame()
+	out, _ := tester.Find(dayName(time.December, 1))
+	tester.Press(out.X+out.W/2, out.Y+out.H/2)
+	tester.Frame()
+	under := shotPixel(tester, out.X+0.5, out.Y+0.5)
+	var want, brightest [3]int
+	for i := range want {
+		want[i] = under[i] + (255-under[i])*0x87/255
+	}
+	for y := out.Y + 8; y < out.Y+32; y += 0.5 {
+		for x := out.X + 8; x < out.X+32; x += 0.5 {
+			if p := shotPixel(tester, x, y); p[0] > brightest[0] {
+				brightest = p
+			}
+		}
+	}
+	if !samePixel(brightest, want, 4) {
+		t.Errorf("a pressed day of another month is written in %v, want TextFillColorTertiary %v over %v", brightest, want, under)
+	}
+	tester.Release(out.X+out.W/2, out.Y+out.H/2)
+	tester.Frame()
+
+	// The release chose the 1st of December: a calendar of its own for the pointer.
+	day = time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+	tester = dateTester(Windows, 640, 520, func(c *ui.Context) {
+		ui.Row(c).Padding(16).AlignItems(ui.Start).Children(func() { CalendarView(c, &day) })
+	})
+	tester.SetScale(2)
+	tester.Frame()
+	chosen, _ := tester.Find(dayName(time.November, 18))
+	tester.Move(chosen.X+chosen.W/2, chosen.Y+chosen.H/2)
+	tester.Frame()
+	if got, want := shotPixel(tester, chosen.X+20, chosen.Y+6), 246; !samePixel(got, [3]int{want, want, want}, 2) {
+		t.Errorf("the chosen day under the pointer is %v inside its ring, want SubtleFillColorSecondary %d", got, want)
+	}
+
+	glyph := func(date time.Time) int {
+		var box ui.Rect
+		picker := dateTester(Windows, 640, 520, func(c *ui.Context) {
+			ui.Row(c).Padding(16).AlignItems(ui.Start).Children(func() { box = DatePicker(c, &date).Bounds() })
+		})
+		picker.SetScale(2)
+		picker.Frame()
+		picker.Frame()
+		darkest := 255
+		for y := box.Y + 8; y < box.Y+24; y += 0.5 {
+			for x := box.X + box.W - 26; x < box.X+box.W-6; x += 0.5 {
+				darkest = min(darkest, shotPixel(picker, x, y)[0])
+			}
+		}
+		return darkest
+	}
+	if dated, placeholder := glyph(day), glyph(time.Time{}); dated > 50 || placeholder < 70 {
+		t.Errorf("the glyph's darkest pixel is %d with a date and %d without, want TextFillColorPrimary (under 50) and TextFillColorSecondary (over 70)", dated, placeholder)
+	}
+
+	opened := dateTester(Windows, 640, 520, func(c *ui.Context) {
+		ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { DatePicker(c, &day) })
+	})
+	opened.SetScale(2)
+	opened.Frame()
+	if err := opened.Click("11/18/2026"); err != nil {
+		t.Fatal(err)
+	}
+	opened.Frame()
+	opened.Frame()
+	prev, ok := opened.Find("Previous")
+	if !ok {
+		t.Fatal("the flyout's calendar is not open")
+	}
+	// The calendar's start is 222 DIPs before Previous and its top 7 above (its border, Previous's margin of 6 and the header's start).
+	x, y := prev.X-222, prev.Y-7
+	if got := shotPixel(opened, x+2.6, y+2.6); got[0] > 250 {
+		t.Errorf("the flyout's calendar has no border along its round corner: %v at 2.6, 2.6", got)
+	}
+}
+
+// TestAdwCalendarAsStyled pins libadwaita's _calendar.scss: the focus ring of the label the keys are on (the focus-ring mixin with $focus-state ':focus', which GtkCalendar's own GTK_STATE_FLAG_FOCUSED sets) shows once a click has given the calendar the focus, 2 pixels of $focus_border_color inside the chosen day's accent; and the day numbers are in tabular digits (font-variant-numeric: tabular-nums), as wide as a text of the same digits so written.
+func TestAdwCalendarAsStyled(t *testing.T) {
+	fixToday(t, datePickerToday)
+	day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+	var ref ui.Rect
+	tester := dateTester(Linux, 640, 520, func(c *ui.Context) {
+		ui.Row(c).Padding(16).Gap(16).AlignItems(ui.Start).Children(func() {
+			CalendarView(c, &day)
+			ref = ui.Text(c, "11").SingleLine().FontFeatures("tnum").Bounds()
+		})
+	})
+	tester.SetScale(2)
+	tester.Frame()
+	if err := tester.Click(dayName(time.November, 20)); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	label, _ := tester.Find(dayName(time.November, 20))
+	accent := shotPixel(tester, label.X+label.W/2, label.Y+4)
+	if ring := shotPixel(tester, label.X+1, label.Y+label.H/2); samePixel(ring, accent, 10) {
+		t.Errorf("no focus ring after a click: %v at the label's edge, its accent %v", ring, accent)
+	}
+	num, _ := tester.Find("11")
+	if num.W < ref.W-0.01 || num.W > ref.W+0.01 {
+		t.Errorf("the 11th is %v wide, want %v, in tabular digits", num.W, ref.W)
+	}
+}
