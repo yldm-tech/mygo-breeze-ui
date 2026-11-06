@@ -218,6 +218,13 @@
       "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
     },
     {
+      "name": "HeaderBar",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "The title bar a view draws in a window whose title bar is hidden (mygo.WindowOptions.TitleBarStyle): a title, an optional subtitle and controls before and after it, keeping clear of the window controls in c.TitleBar()'s room and moving the window when dragged outside its controls. It is drawn as a macOS window's unified toolbar showing its title (52 points high, the title after the start controls), Windows 11's TitleBar control (48 DIPs high with controls, the title in the caption style after them), or GNOME's AdwHeaderBar (47 pixels high, the title centered); breeze's buttons inside take the title bar's look.",
+      "example": "breeze.HeaderBar(c, \"Documents\", \"12 items\", func() {\n\tbreeze.BackButton(c, app.router)\n}, func() {\n\tbreeze.IconButton(c, shareIcon, \"Share\")\n})"
+    },
+    {
       "name": "IconButton",
       "category": "actions",
       "look": "drawn",

@@ -359,3 +359,19 @@ func TestHeaderBarHistoryButtons(t *testing.T) {
 		}
 	}
 }
+
+// TestHeaderBarAdwSidesHoldTheirControls checks GNOME's bar in a window too narrow to center the title between its sides: the end controls, wider than half the room the title leaves, stay inside the bar and clear of the window controls, and the title moves toward the start rather than under them, as GtkCenterBox moves its center child aside.
+func TestHeaderBarAdwSidesHoldTheirControls(t *testing.T) {
+	const w = 330
+	s := &headerTestState{name: "Window"}
+	tester := headerTester(Linux, ui.LeftToRight, w, 160, s)
+	tester.Frame()
+	title, edit, share := headerFind(t, tester, "Documents"), headerFind(t, tester, "Edit"), headerFind(t, tester, "Share")
+	room := headerTestRoom(Linux, ui.LeftToRight)
+	if share.X+share.W > w-room.Right+0.5 {
+		t.Errorf("Share ends at %v, past the window controls' room at %v", share.X+share.W, w-room.Right)
+	}
+	if title.X+title.W > edit.X {
+		t.Errorf("the title, ending at %v, runs under Edit at %v", title.X+title.W, edit.X)
+	}
+}

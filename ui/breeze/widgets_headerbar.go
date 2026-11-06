@@ -191,21 +191,34 @@ func headerAdwContent(c *ui.Context, l headerLayout, title, subtitle string, sta
 	headerAdwSide(c, l, end, l.after, true).MarginStart(l.titleGap).Justify(ui.End)
 }
 
-// headerAdwSide builds the start box (or the end box, atEnd) of an AdwHeaderBar: fn's controls and, at the bar's edge, the room the window controls take there, which GTK draws in a GTK 3 header bar of its own, padded 6 at either end (MyGo's linux/titlebar.go): the room less the bar's padding of 7 and the box's spacing of 6, so that the controls end where that header bar starts, 6 from the window buttons inside it, as they are from an AdwHeaderBar's windowcontrols. The two boxes share the room the title leaves equally, so that the title is centered across the bar while they hold their contents.
+// headerAdwSide builds the start box (or the end box, atEnd) of an AdwHeaderBar: fn's controls and, at the bar's edge, the room the window controls take there, which GTK draws in a GTK 3 header bar of its own, padded 6 at either end (MyGo's linux/titlebar.go): the room less the bar's padding of 7 and the box's spacing of 6, so that the controls end where that header bar starts, 6 from the window buttons inside it, as they are from an AdwHeaderBar's windowcontrols. The two boxes share the room the title leaves equally, so that the title is centered across the bar, but neither is narrower than what it holds, as GtkCenterBox moves its center child aside for a side that needs more than half: each box is at least as wide as its controls were in the previous frame, and a frame is asked for while that width changes.
 func headerAdwSide(c *ui.Context, l headerLayout, fn func(), room float32, atEnd bool) ui.Element {
 	side := ui.Row(c).Grow(1).Basis(0).AlignItems(ui.Center).Gap(l.gap)
 	// The window controls' room at the bar's edge, the same side in every frame, so that the siblings keep their places.
 	w := max(room-l.start-l.gap, 0)
+	var items ui.Element
 	side.Children(func() {
 		if !atEnd {
 			ui.Box(c).Shrink(0).Width(w).Role(ui.RoleNone).Hidden(room == 0)
 		}
-		headerItems(c, l, fn)
+		items = headerItems(c, l, fn)
 		if atEnd {
 			ui.Box(c).Shrink(0).Width(w).Role(ui.RoleNone).Hidden(room == 0)
 		}
 	})
-	return side
+	least := w
+	if fn != nil {
+		least += items.LayoutBounds().W
+		if room > 0 {
+			least += l.gap
+		}
+	}
+	last := ui.Local(side, "breeze-header-side", func() float32 { return -1 })
+	if *last != least {
+		*last = least
+		c.Invalidate()
+	}
+	return side.MinWidth(least)
 }
 
 // adwHeaderBarBackground is headerbar_bg_color: #ffffff in the light theme and #2e2e32 in the dark one (_colors.scss).
