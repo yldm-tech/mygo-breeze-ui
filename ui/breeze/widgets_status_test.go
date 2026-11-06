@@ -810,6 +810,10 @@ func TestAdwBannerActions(t *testing.T) {
 		if below := b.Y >= text.Y+text.H; below != (width < 300) {
 			t.Errorf("width %v: the action %v, the text %v", width, b, text)
 		}
+		// Beside a narrow action, narrower than the Dismiss button's 84, the title stays centered across the whole strip, as AdwBanner keeps it.
+		if bar, _ := tester.Find("Offline"); width > 300 && math.Abs(float64(text.X+text.W/2-(bar.X+bar.W/2))) > 0.5 {
+			t.Errorf("width %v: the text %v is not centered across the banner %v beside the action %v", width, text, bar, b)
+		}
 		img := tester.Image()
 		bg := theme.Background.Mix(ui.Hex("#7d7d83"), 0.3)
 		want := bg.Mix(pick(theme.Dark, adwInk, white), adwBannerShares[0][0])

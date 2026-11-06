@@ -347,24 +347,28 @@ func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func
 			face := bg.Mix(pick(t.Dark, adwInk, white), share)
 			button.Background(face).TextColor(adwTextOn(t, face)).Children(func() { ui.Text(c, dismiss).SingleLine() })
 		}
-		// The minimum widths are the Dismiss button's; actions keep their own.
+		// The minimum widths are the Dismiss button's; actions keep their own, so the arrangement and the title's margin go by the width the actions have.
 		least := func(w float32) {
 			if actions == nil {
 				button.MinWidth(w)
 			}
 		}
+		shown := bw
+		if actions == nil {
+			shown = max(bw, 84)
+		}
 		switch {
-		case 6+tw+6+max(bw, 84) > width:
+		case 6+tw+6+shown > width:
 			bar.Column().AlignItems(ui.Center).Gap(9).Padding(12)
 			least(min(max(bw, 160), width))
-		case tw+(max(bw, 84)+36)*2 > width:
+		case tw+(shown+36)*2 > width:
 			bar.AlignItems(ui.Center).Gap(6).PaddingStart(12)
 			label.Grow(1).TextAlign(ui.Start)
 			least(84)
 		default:
 			// A margin as wide as the button and the gap keeps the title centered across the strip.
 			bar.AlignItems(ui.Center).Gap(6)
-			label.Grow(1).MarginStart(max(bw, 84) + 6)
+			label.Grow(1).MarginStart(shown + 6)
 			least(84)
 		}
 	})
