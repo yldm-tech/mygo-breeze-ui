@@ -346,3 +346,77 @@ func TestFluentSettingsRowsOverTheCard(t *testing.T) {
 		}
 	}
 }
+
+// TestFluentTabViewAsMeasured checks a TabView against WinUI's render (winui-tabview), light and dark. A TabView 528 wide puts its three closable tabs at 24, 185 and 346, 161 wide, and its add button at 514, 2 DIPs past its end, where the strip's line runs on under it; two tabs that do not close, without the add button, are 240 wide at 24 and 264; and five, without it, share the width less 10, running 2 past the end. The chosen tab's outline reads over its fill along its top, 234 and 36, and over the window at its sides, 229 and 29, and its radius arcs leave the strip's line as it is, 229 and 29. The close button's × has its ink 8 DIPs square, centered half a DIP above and before the button's middle, 62 pixels of it at 2x; the add button's + 10 DIPs square, centered the same, 55 pixels of it.
+func TestFluentTabViewAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		docs := &tabViewApp{labels: []string{"Documents", "Downloads", "Pictures"}, closable: true, addable: true}
+		prefs := &tabViewApp{labels: []string{"General", "Advanced"}, selected: 1}
+		many := &tabViewApp{labels: []string{"A1", "B2", "C3", "D4", "E5"}}
+		var strip ui.Rect
+		tester := fluentNativeTester(560, 300, dark, func(c *ui.Context) {
+			ui.Column(c).Padding(16).Gap(24).Children(func() {
+				strip = TabView(c, &docs.selected, docs.labels, docs.close, docs.add).Bounds()
+				TabView(c, &prefs.selected, prefs.labels, nil, nil)
+				TabView(c, &many.selected, many.labels, nil, nil)
+			})
+		})
+		near := func(a, b float32) bool { return a > b-0.01 && a < b+0.01 }
+		for i, x := range []float32{24, 185, 346} {
+			if r, _ := tester.Find(docs.labels[i]); !near(r.X, x) || !near(r.W, 161) {
+				t.Errorf("dark %v: tab %d is %v, want 161 wide at %v", dark, i, r, x)
+			}
+		}
+		add, _ := tester.Find("Add New Tab")
+		if !near(add.X, 514) || !near(add.X+add.W, strip.X+strip.W+2) {
+			t.Errorf("dark %v: the add button is %v in the strip %v, want it at 514, ending 2 past the strip", dark, add, strip)
+		}
+		for i, x := range []float32{24, 264} {
+			if r, _ := tester.Find(prefs.labels[i]); !near(r.X, x) || !near(r.W, 240) {
+				t.Errorf("dark %v: tab %s is %v, want 240 wide at %v", dark, prefs.labels[i], r, x)
+			}
+		}
+		first, _ := tester.Find("A1")
+		last, _ := tester.Find("E5")
+		if !near(first.X, 24) || !near(first.W, (528-10)/5.0) || !near(last.X+last.W, 16+528+2-4) {
+			t.Errorf("dark %v: five tabs run from %v to %v, want %v wide from 24, ending 4 before 2 past the strip's end", dark, first, last, (528-10)/5.0)
+		}
+		img := tester.Image()
+		tab, _ := tester.Find("Documents")
+		if got, want := gray(img, int(2*(tab.X+tab.W/2)), int(2*tab.Y)), pick(dark, 234, 36); got != want {
+			t.Errorf("dark %v: the chosen tab's top edge reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*tab.X)-1, int(2*(tab.Y+16))), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the chosen tab's side reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*tab.X)-6, int(2*(tab.Y+tab.H))-2), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the strip's line under the chosen tab's radius arc reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*(add.X+add.W))-1, int(2*(add.Y+add.H+3))-1), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the strip's line under the add button's end reads %d, want %d", dark, got, want)
+		}
+		x, _ := tester.Find("Close Tab")
+		for _, g := range []struct {
+			name      string
+			r         ui.Rect
+			size, ink float32
+		}{{"close button's ×", x, 8, 62}, {"add button's +", add, 10, 55}} {
+			bg := gray(img, int(2*g.r.X)+1, int(2*g.r.Y)+1)
+			box, ok := fluentInkBox(img, g.r, func(x, y int) bool { return absDiff(uint8(gray(img, x, y)), uint8(bg)) > 60 })
+			cx, cy := 2*(g.r.X+g.r.W/2-0.5), 2*(g.r.Y+g.r.H/2-0.5)
+			if !ok || float32(box.Dx()) != 2*g.size || float32(box.Dy()) != 2*g.size || float32(box.Min.X+box.Max.X)/2 != cx || float32(box.Min.Y+box.Max.Y)/2 != cy {
+				t.Errorf("dark %v: the %s ink covers %v at 2x, want %v pixels square centered on %v, %v", dark, g.name, box, 2*g.size, cx, cy)
+			}
+			fg := float64(pick(dark, 26, 255))
+			area := 0.0
+			for y := int(2 * g.r.Y); y < int(2*(g.r.Y+g.r.H)); y++ {
+				for x := int(2 * g.r.X); x < int(2*(g.r.X+g.r.W)); x++ {
+					area += (float64(gray(img, x, y)) - float64(bg)) / (fg - float64(bg))
+				}
+			}
+			if area < float64(g.ink)-5 || area > float64(g.ink)+5 {
+				t.Errorf("dark %v: the %s ink sums to %.1f pixels at 2x, want %v", dark, g.name, area, g.ink)
+			}
+		}
+	}
+}
