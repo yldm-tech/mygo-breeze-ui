@@ -1,6 +1,6 @@
 // WinUI 3's own controls, for comparing Breeze UI's Windows look with them.
 //
-// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView) and wider ones that keep their content at the end, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
+// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView), and SettingsCards holding a ComboBox, TextBoxes and NumberBoxes and SettingsExpanders where widgets_settings_test.go places Breeze UI's settings rows (settingsView), and wider ones that keep their content at the end, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
 //
 // Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and the flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene. ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
 //
@@ -301,6 +301,39 @@ public sealed class App : Application, IXamlMetadataProvider
               <tk:SettingsCard x:Name="wide-switch-off" Header="Notifications"><ToggleSwitch/></tk:SettingsCard>
             </StackPanel>
             """), ["wide-cards", "wide-action", "wide-switch-on", "wide-switch-off"]);
+
+        // widgets_settings_test.go's settingsView on Windows (TestScreenshotsSettings), laid out as rowsView's scene is, in two columns 300 wide, 16 from the window's edges and 24 apart, their parts 16 apart: a card of rows (SettingsCards with DefaultSettingsExpanderItemStyle's setters over the card's fill, padded 16 at the sides, the first without its line) holding a ComboBox, a TextBox holding a name, an empty TextBox and a NumberBox with inline spin buttons, then a SettingsCard holding a ComboBox and a disabled one holding a NumberBox; beside them a SettingsExpander, open, with a description, holding two items, and a closed one. SettingsCard gives the ComboBox and the TextBox a MinWidth of 120; the NumberBox takes Breeze UI's 152.
+        yield return new Scene("winui-settings", 672, 640, Canvas(672, 640, """
+            <StackPanel Canvas.Left="16" Canvas.Top="16" Width="300" Spacing="16">
+              <Border x:Name="settings-card" CornerRadius="{ThemeResource ControlCornerRadius}" BorderThickness="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <StackPanel>
+                  <tk:SettingsCard x:Name="combo-row" Header="Appearance" Description="Light or dark" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0" Background="Transparent">
+                    <ComboBox SelectedIndex="2"><x:String>Light</x:String><x:String>Dark</x:String><x:String>Auto</x:String></ComboBox>
+                  </tk:SettingsCard>
+                  <tk:SettingsCard x:Name="entry-row" Header="Name" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><TextBox Text="Evan" Width="120"/></tk:SettingsCard>
+                  <tk:SettingsCard x:Name="entry-row-empty" Header="Email" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><TextBox Width="120"/></tk:SettingsCard>
+                  <tk:SettingsCard x:Name="spin-row" Header="Font size" Description="Points" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><NumberBox Value="12" Minimum="6" Maximum="72" SpinButtonPlacementMode="Inline" Width="152"/></tk:SettingsCard>
+                </StackPanel>
+              </Border>
+              <tk:SettingsCard x:Name="combo-row-alone" Header="Language">
+                <ComboBox SelectedIndex="0"><x:String>English</x:String><x:String>Français</x:String></ComboBox>
+              </tk:SettingsCard>
+              <tk:SettingsCard x:Name="spin-row-disabled" Header="Copies" IsEnabled="False"><NumberBox Value="3" Minimum="1" Maximum="9" SpinButtonPlacementMode="Inline" Width="152"/></tk:SettingsCard>
+            </StackPanel>
+            <StackPanel Canvas.Left="340" Canvas.Top="16" Width="300" Spacing="16">
+              <tk:SettingsExpander x:Name="expander-row" Header="Network" Description="Wi-Fi and proxies" IsExpanded="True">
+                <tk:SettingsExpander.Items>
+                  <tk:SettingsCard x:Name="expander-proxy" Header="Proxy" Description="Automatic"/>
+                  <tk:SettingsCard x:Name="expander-metered" Header="Metered"><ToggleSwitch/></tk:SettingsCard>
+                </tk:SettingsExpander.Items>
+              </tk:SettingsExpander>
+              <tk:SettingsExpander x:Name="expander-row-closed" Header="Advanced">
+                <tk:SettingsExpander.Items>
+                  <tk:SettingsCard Header="Logs"/>
+                </tk:SettingsExpander.Items>
+              </tk:SettingsExpander>
+            </StackPanel>
+            """), ["settings-card", "combo-row", "entry-row", "entry-row-empty", "spin-row", "combo-row-alone", "spin-row-disabled", "expander-row", "expander-proxy", "expander-metered", "expander-row-closed"]);
 
         // TestScreenshotsText's textView: the TextBlock styles of Breeze UI's Text steps where textTops places them, the last two in TextFillColorSecondaryBrush.
         yield return new Scene("winui-text", 360, 300, Canvas(360, 300, """

@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -195,6 +195,45 @@ func rowsSet() -> [Item] {
     ]
 }
 
+// A DisclosureGroup's label as ExpanderRow draws it on macOS: a title over a secondary subtitle, as LabeledContent lays out a row's label.
+struct TitleSubtitle: View {
+    let title: String, subtitle: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2.5) {
+            Text(title)
+            if !subtitle.isEmpty { Text(subtitle).font(.subheadline).foregroundStyle(.secondary) }
+        }
+    }
+}
+
+// settingsSet places SwiftUI's grouped Forms where ui/breeze/widgets_settings_test.go's settingsView places Breeze UI's settings rows on macOS: a section of a Picker of the menu style with a subtitle, a TextField with a label holding a name, an empty one and a Stepper with a format and a subtitle at 16, 16; a Picker alone and a disabled Stepper alone below it; on the right a DisclosureGroup, open, whose label is a title over a subtitle, holding a row with a subtitle and a switch, and a closed one. The Forms are shifted by their padding of 20, so that their sections land where Breeze UI's do.
+func settingsSet() -> [Item] {
+    let settings = RowsForm {
+        Section {
+            Picker(selection: .constant("Auto")) { ForEach(["Light", "Dark", "Auto"], id: \.self) { Text($0).tag($0) } } label: { Text("Appearance"); Text("Light or dark") }
+            TextField("Name", text: .constant("Evan"))
+            TextField("Email", text: .constant(""))
+            Stepper(value: .constant(12.0), in: 6...72, step: 1, format: .number) { Text("Font size"); Text("Points") }
+        }
+    }
+    let language = RowsForm { Picker("Language", selection: .constant("English")) { ForEach(["English", "Français"], id: \.self) { Text($0).tag($0) } } }
+    let copies = RowsForm { Stepper(value: .constant(3.0), in: 1...9, step: 1, format: .number) { Text("Copies") }.disabled(true) }
+    let network = RowsForm {
+        DisclosureGroup(isExpanded: .constant(true)) {
+            LabeledContent { EmptyView() } label: { Text("Proxy"); Text("Automatic") }
+            Toggle("Metered", isOn: .constant(false))
+        } label: { TitleSubtitle(title: "Network", subtitle: "Wi-Fi and proxies") }
+    }
+    let advanced = RowsForm { DisclosureGroup(isExpanded: .constant(false)) { Text("Logs") } label: { TitleSubtitle(title: "Advanced", subtitle: "") } }
+    return [
+        hosted("form-settings", settings, x: -4, y: -4, w: 340, h: 230),
+        hosted("form-language", language, x: -4, y: 193, w: 340, h: 80),
+        hosted("form-copies", copies, x: -4, y: 246, w: 340, h: 80),
+        hosted("form-network", network, x: 320, y: -4, w: 340, h: 170),
+        hosted("form-advanced", advanced, x: 320, y: 129, w: 340, h: 90),
+    ]
+}
+
 // textSet: AppKit's text styles (NSFont.preferredFont(forTextStyle:)) in labels, two in secondaryLabelColor, where TestScreenshotsText's textView places Breeze UI's Text (textTops).
 func textSet() -> [Item] {
     func label(_ s: String, _ style: NSFont.TextStyle, secondary: Bool = false) -> NSTextField {
@@ -304,5 +343,6 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
     render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
     render(rowsSet(), width: 672, height: 520, appearance: appearance, file: "appkit-rows-\(mode).png")
+    render(settingsSet(), width: 672, height: 480, appearance: appearance, file: "appkit-settings-\(mode).png")
     render(textSet(), width: 360, height: 300, appearance: appearance, file: "appkit-text-\(mode).png")
 }

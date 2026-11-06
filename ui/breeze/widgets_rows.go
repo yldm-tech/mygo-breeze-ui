@@ -193,13 +193,32 @@ func macMiniSwitch(c *ui.Context, t *ui.Theme, sw ui.Element, on, focused bool) 
 
 // rowsBuild styles row as the platform's settings row where it is built (rowsJoin) and builds in it the title and the subtitle, in a column that takes the room left, and after them what trailing builds, given the color under the row's end and whether the row is under the pointer and pressed; toggle says the row toggles a switch, reacting to the pointer and showing the focus.
 func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle bool, trailing func(under ui.Color, hovered, pressed bool)) {
+	item, in, first := rowsJoin(c, row)
+	look := rowsLook{lit: toggle}
+	if toggle {
+		look.hovered, look.pressed, look.focused = row.Hovered(), row.Pressed(), row.FocusVisible()
+	}
+	rowsStyle(c, row, item, in, first, title, subtitle, look, trailing)
+}
+
+// rowsLook is how a row reacts: lit says it lights up under the pointer and pressed and shows a focus ring, as a row the user activates does, in the states hovered, pressed and focused; content, when set, builds the row's children in place of the title, the subtitle and the trailing controls, given the colors rowsStyle picks.
+type rowsLook struct {
+	lit                       bool
+	hovered, pressed, focused bool
+	content                   func(ink rowsInk)
+}
+
+// rowsInk holds the colors and the subtitle's size of a row as rowsStyle picks them: the color under the row, the title's and the subtitle's.
+type rowsInk struct {
+	under, title, sub ui.Color
+	subSize           float32
+}
+
+// rowsStyle styles row, item of a group of kind in (its first if first), as the platform's settings row and builds its children as rowsBuild describes.
+func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first bool, title, subtitle string, look rowsLook, trailing func(under ui.Color, hovered, pressed bool)) {
 	t := c.Theme()
 	p := PlatformOf(c)
-	item, in, first := rowsJoin(c, row)
-	hovered, pressed, focused := false, false, false
-	if toggle {
-		hovered, pressed, focused = row.Hovered(), row.Pressed(), row.FocusVisible()
-	}
+	toggle, hovered, pressed, focused := look.lit, look.hovered, look.pressed, look.focused
 	if p == Mac {
 		row.AlignItems(ui.Start)
 	} else {
@@ -359,6 +378,10 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		subSize, lineGap, endGap, suffixGap = t.FontSize*11/13, 2.5, 8, 8
 	}
 	row.Gap(endGap)
+	if look.content != nil {
+		row.Children(func() { look.content(rowsInk{under: under, title: titleColor, sub: subColor, subSize: subSize}) })
+		return
+	}
 	if wrapped {
 		// The header row takes the room MinHeight leaves, the header centered in it, and the content its own height below.
 		row.Column().AlignItems(ui.Stretch)
