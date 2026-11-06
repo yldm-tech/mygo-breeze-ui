@@ -494,8 +494,8 @@ func adwDialog(c *ui.Context, back, panel ui.Element) {
 	adwSheetShadow(panel)
 }
 
-// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide, with the sheet's 1-pixel $window_outline_color (white at 7%) inside its edge; the heading in .title-2 (weight 800, 136%) and the body (.body, line-height 140%) 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, padded 12 above and 24 at the sides and below, equal widths 12 apart, at least 60 pixels wide past their padding while they all fit so, 44 pixels high with corners of 12, in the order they were added, so the default comes last. In a window at most 360 pixels high the dialog is .short, as adw-dialog.c's breakpoint makes it: the heading in .title-4 (weight 700, 118%), 6 pixels above the body, padded 24 above and 18 at the sides, and the responses padded 9 above and 18 at the sides and below, 40 pixels high, with no least width (_message-dialog.scss).
-func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n int, button func(int) ui.Element) {
+// adwAlert draws an AdwAlertDialog: dialog_bg_color, corners of 18, 300 to 372 pixels wide, with the sheet's 1-pixel $window_outline_color (white at 7%) inside its edge; the heading in .title-2 (weight 800, 136%) and the body (.body, line-height 140%) 10 pixels below it, centered, padded 32 above and 24 at the sides; and the responses in a row below, padded 12 above and 24 at the sides and below, equal widths 12 apart, at least 60 pixels wide past their padding while they all fit so, 44 pixels high with corners of 12, in the order they were added, so the default comes last; every response but button styled, the suggested or the destructive one, which keeps its own fill, takes the response face. In a window at most 360 pixels high the dialog is .short, as adw-dialog.c's breakpoint makes it: the heading in .title-4 (weight 700, 118%), 6 pixels above the body, padded 24 above and 18 at the sides, and the responses padded 9 above and 18 at the sides and below, 40 pixels high, with no least width (_message-dialog.scss).
+func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n, styled int, button func(int) ui.Element) {
 	t := c.Theme()
 	adwDimming(t, back)
 	w, h := c.Size()
@@ -526,7 +526,7 @@ func adwAlert(c *ui.Context, back, panel ui.Element, title, message string, n in
 		ui.Row(c).Padding(above, side, side, side).Gap(12).Children(func() {
 			for i := range n {
 				b := button(i).MinHeight(24+2*padY).MinWidth(least+2*padX).Padding(padY, padX).Radius(12).Grow(1).Basis(0)
-				if i < n-1 {
+				if i != styled {
 					// currentColor at 10%, 15% and 30%, over the alert's own background rather than the window's.
 					share := float32(0.10)
 					switch {
