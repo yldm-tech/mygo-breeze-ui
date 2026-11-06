@@ -452,6 +452,10 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	}
 	// The 1-DIP border, drawn over the box here, is inside the template's BorderElement, and TextControlThemePadding 10,5,6,6 inside it: the text starts 11 DIPs in and 6 down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text box at 27,56 in a TextBox at 16,50). The template mirrors right to left, so the sides are the start and the end.
 	f.Padding(6, 0, 7, 0).PaddingStart(11).PaddingEnd(7).Radius(4).Background(fill).Border(0, ui.Color{})
+	if !focused {
+		// TextControlPlaceholderForeground, TextFillColorSecondary, over the box's fill rather than the window's: 95 over 251 in the light theme and 207 over 45 in the dark one (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: an empty PasswordBox's placeholder in winui-inputs). Focused, the placeholder keeps the theme's TextMuted (not compared).
+		f.PlaceholderColor(fluentSecondaryOver(t, fill))
+	}
 	if kind != multiLine {
 		f.MinHeight(32)
 	}

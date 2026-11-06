@@ -82,6 +82,33 @@ func TestFluentRevealGlyphAsMeasured(t *testing.T) {
 	}
 }
 
+// TestFluentPlaceholderAsMeasured checks an empty PasswordBox's placeholder against WinUI's render: TextFillColorSecondary over the box's fill, its ink reading 95 over 251 in the light theme and 207 over 45 in the dark one, where over the window it would read 92 and 204.
+func TestFluentPlaceholderAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		pw := ""
+		var f ui.Rect
+		tester := fluentNativeTester(400, 120, dark, func(c *ui.Context) {
+			ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { f = PasswordField(c, &pw).Placeholder("Password").Width(180).Bounds() })
+		})
+		img := tester.Image()
+		ink, fill := 255, gray(img, int(2*f.X)+6, int(2*f.Y)+6)
+		if dark {
+			ink = 0
+		}
+		for y := int(2 * f.Y); y < int(2*(f.Y+f.H)); y++ {
+			for x := int(2 * f.X); x < int(2*(f.X+f.W)); x++ {
+				if v := gray(img, x, y); (!dark && v < ink) || (dark && v > ink) {
+					ink = v
+				}
+			}
+		}
+		want := map[bool][2]int{false: {95, 251}, true: {207, 45}}[dark]
+		if ink != want[0] || fill != want[1] {
+			t.Errorf("dark %v: the placeholder's ink reads %d over %d, want %d over %d", dark, ink, fill, want[0], want[1])
+		}
+	}
+}
+
 // TestFluentSplitButtonEdgesAsMeasured checks that a SplitButton's border reads over its parts' faces, as its border Grids lie over its background Grids: the top edge 236 and the bottom 211 over the face of 251 in the light theme, 65 and 60 over 45 in the dark one, where a Button's edges, over the window, read 229 and 204, 53 and 48.
 func TestFluentSplitButtonEdgesAsMeasured(t *testing.T) {
 	for _, dark := range []bool{false, true} {
