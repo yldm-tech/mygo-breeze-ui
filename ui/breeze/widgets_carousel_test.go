@@ -566,3 +566,448 @@ func TestCarouselBuildsTheShownPages(t *testing.T) {
 		}
 	}
 }
+
+// carouselMotionTester returns a tester of the test carousel on p without ReduceMotion, so that it animates, laid out dir.
+func carouselMotionTester(p Platform, s *carouselTestState, dir ui.Direction) *ui.Tester {
+	tester := ui.NewTester(func(c *ui.Context) { Preview(c, p, func() { s.view(c) }) }, 400, 320)
+	tester.SetPreferences(ui.Preferences{TextScale: 1})
+	tester.SetDirection(dir)
+	tester.Frame()
+	tester.Frame()
+	return tester
+}
+
+// TestCarouselSlidesTowardTheNextPage checks on every platform that the next page comes in from the end side as the carousel moves to it, from the right left to right and from the left right to left, the page shown going out the other way.
+func TestCarouselSlidesTowardTheNextPage(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			s := &carouselTestState{shown: 1}
+			tester := carouselMotionTester(p, s, dir)
+			if err := tester.Click("Before"); err != nil {
+				t.Fatal(err)
+			}
+			carouselPress(tester, 0, ui.KeyTab)
+			forth := ui.KeyRight
+			if dir == ui.RightToLeft {
+				forth = ui.KeyLeft
+			}
+			tester.Key(0, forth)
+			tester.Frame()
+			tester.Advance(60 * 1e6)
+			tester.Frame()
+			out, ok1 := tester.Find("Slide 2")
+			in, ok2 := tester.Find("Slide 3")
+			if !ok1 || !ok2 {
+				t.Fatalf("%v %v: moving, the carousel does not show both pages", p, dir)
+			}
+			if (dir == ui.LeftToRight) != (in.X > out.X) {
+				t.Errorf("%v %v: the next page is at %v, the page shown at %v", p, dir, in.X, out.X)
+			}
+			view := s.box
+			if mid := out.X + out.W/2; mid > view.X && mid < view.X+view.W && (mid-view.X-view.W/2)*(in.X-out.X) > 0 {
+				t.Errorf("%v %v: the page shown went toward the next page's side", p, dir)
+			}
+		}
+	}
+}
+
+// TestCarouselMotion checks how each platform moves between pages: GNOME's spring takes a page over 0.3 seconds or so and passes the pages between on a longer move; Windows animates a move to the adjacent page but jumps to another (FlipView::OnSelectedIndexChanged); macOS slides over 0.25 seconds (inferred).
+func TestCarouselMotion(t *testing.T) {
+	for _, p := range Platforms {
+		s := &carouselTestState{shown: 0}
+		tester := carouselMotionTester(p, s, ui.LeftToRight)
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		carouselPress(tester, 0, ui.KeyTab)
+		tester.Key(0, ui.KeyEnd)
+		tester.Frame()
+		tester.Advance(30 * 1e6)
+		tester.Frame()
+		jumped := tester.HasText("Slide 4") && !tester.HasText("Slide 1") && !tester.HasText("Slide 2")
+		if jumped != (p == Windows) {
+			t.Errorf("%v: End from the first page jumped %v, want %v", p, jumped, p == Windows)
+		}
+		tester.Advance(time1s)
+		tester.Frame()
+		tester.Frame()
+		if !tester.HasText("Slide 4") || tester.HasText("Slide 3") {
+			t.Errorf("%v: a second after End the carousel does not rest on the last page", p)
+		}
+		tester.Key(0, ui.KeyLeft)
+		tester.Frame()
+		tester.Advance(30 * 1e6)
+		tester.Frame()
+		if !tester.HasText("Slide 3") || !tester.HasText("Slide 4") {
+			t.Errorf("%v: 30 ms after Left the carousel is not between the last two pages", p)
+		}
+		tester.Advance(240 * 1e6)
+		tester.Frame()
+		tester.Frame()
+		moving := tester.HasText("Slide 4")
+		if moving != (p == Linux) {
+			t.Errorf("%v: 270 ms after Left the carousel still moves %v, want %v", p, moving, p == Linux)
+		}
+	}
+}
+
+// time1s is a second.
+const time1s = 1e9
+
+// carouselMiddle returns the middle of the test carousel's view, which the pages fill.
+func carouselMiddle(tester *ui.Tester) (x, y float32) {
+	r, _ := tester.Find("Slide 2")
+	if r.W == 0 {
+		for _, s := range carouselTestSlides {
+			if b, ok := tester.Find(s); ok {
+				r = b
+				break
+			}
+		}
+	}
+	return r.X + r.W/2, r.Y + r.H/2
+}
+
+// TestCarouselSwipesWithATouchpad checks the touchpad's swipe on GNOME and macOS, left to right and right to left: the pages follow the fingers, on GNOME 400 pixels to a page (TOUCHPAD_BASE_DISTANCE_H), on macOS the view's width (inferred); a slow swipe ending less than half a page on goes back, past half a page on; a quick one goes on to the next page (VELOCITY_THRESHOLD_TOUCHPAD); and a scroll more up or down than sideways leaves the pages, as SCROLL_ORIENTATION_FACTOR rejects it.
+func TestCarouselSwipesWithATouchpad(t *testing.T) {
+	for _, p := range []Platform{Linux, Mac} {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			name := fmt.Sprintf("%v %v", p, dir)
+			page := float32(400)
+			if p == Mac {
+				page = 320
+			}
+			sign := float32(1)
+			if dir == ui.RightToLeft {
+				sign = -1
+			}
+			s := &carouselTestState{shown: 1}
+			tester := carouselMotionTester(p, s, dir)
+			x, y := carouselMiddle(tester)
+			// Slowly a third of a page on: it goes back.
+			for range 4 {
+				tester.Scroll(x, y, sign*page/12, 0)
+				tester.Advance(100 * 1e6)
+				tester.Frame()
+			}
+			if !tester.HasText("Slide 3") {
+				t.Errorf("%s: a third of a page into a swipe the next page does not show", name)
+			}
+			tester.Advance(time1s)
+			tester.Frame()
+			tester.Frame()
+			if s.shown != 1 || tester.HasText("Slide 3") {
+				t.Errorf("%s: a slow swipe of a third of a page showed page %d, want it back on 1", name, s.shown)
+			}
+			// Slowly two thirds of a page on: it goes on.
+			for range 8 {
+				tester.Scroll(x, y, sign*page/12, 0)
+				tester.Advance(100 * 1e6)
+				tester.Frame()
+			}
+			tester.Advance(time1s)
+			tester.Frame()
+			tester.Frame()
+			if s.shown != 2 {
+				t.Errorf("%s: a slow swipe of two thirds of a page showed page %d, want 2", name, s.shown)
+			}
+			// Quickly a tenth of a page back: it goes on to the page before.
+			for range 4 {
+				tester.Scroll(x, y, -sign*page/40, 0)
+				tester.Advance(10 * 1e6)
+			}
+			tester.Frame()
+			tester.Advance(time1s)
+			tester.Frame()
+			tester.Frame()
+			if s.shown != 1 {
+				t.Errorf("%s: a quick swipe of a tenth of a page back showed page %d, want 1", name, s.shown)
+			}
+			tester.Scroll(x, y, sign*20, 60)
+			tester.Advance(time1s)
+			tester.Frame()
+			tester.Frame()
+			if s.shown != 1 {
+				t.Errorf("%s: a scroll more down than sideways moved to page %d", name, s.shown)
+			}
+		}
+	}
+}
+
+// TestCarouselWheel checks a mouse's wheel: on Windows a notch flips a page, down or to the right the next, but another the same way within 200 ms flips none, while one the other way or after the pause does (FlipView::OnPointerWheelChanged); on GNOME a notch moves a page and another within 150 ms none (AdwCarousel's scroll_cb); on macOS the wheel moves no page (inferred, as NSPageController follows only a touchpad).
+func TestCarouselWheel(t *testing.T) {
+	for _, p := range Platforms {
+		s := &carouselTestState{shown: 1}
+		tester := carouselMotionTester(p, s, ui.LeftToRight)
+		x, y := carouselMiddle(tester)
+		notch := func() {
+			tester.Wheel(x, y, 0, 40)
+			tester.Frame()
+		}
+		notch()
+		want := 2
+		if p == Mac {
+			want = 1
+		}
+		if s.shown != want {
+			t.Fatalf("%v: a notch down showed page %d, want %d", p, s.shown, want)
+		}
+		if p == Mac {
+			continue
+		}
+		tester.Advance(100 * 1e6)
+		notch()
+		if s.shown != 2 {
+			t.Errorf("%v: a notch 100 ms after the last showed page %d, want none flipped", p, s.shown)
+		}
+		tester.Advance(250 * 1e6)
+		notch()
+		if s.shown != 3 {
+			t.Errorf("%v: a notch 250 ms after the last showed page %d, want 3", p, s.shown)
+		}
+		if p == Windows {
+			tester.Wheel(x, y, 0, -40)
+			tester.Frame()
+			if s.shown != 2 {
+				t.Errorf("%v: a notch up right after showed page %d, want 2, as it goes the other way", p, s.shown)
+			}
+		}
+	}
+}
+
+// TestCarouselDragsOnGNOME checks that on GNOME the pointer drags the pages, as AdwCarousel lets a mouse, once it went 16 pixels, and a slow drag past half a page shows the next one, left to right and right to left; on Windows and macOS a drag moves none.
+func TestCarouselDragsOnGNOME(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			s := &carouselTestState{shown: 1}
+			tester := carouselMotionTester(p, s, dir)
+			x, y := carouselMiddle(tester)
+			step := float32(-20)
+			if dir == ui.RightToLeft {
+				step = 20
+			}
+			tester.Press(x, y)
+			tester.Frame()
+			moved := false
+			for k := 1; k <= 10; k++ {
+				tester.Advance(100 * 1e6)
+				tester.Move(x+step*float32(k), y)
+				tester.Frame()
+				moved = moved || tester.HasText("Slide 3")
+			}
+			tester.Release(x+step*10, y)
+			tester.Frame()
+			tester.Advance(time1s)
+			tester.Frame()
+			tester.Frame()
+			want := 1
+			if p == Linux {
+				want = 2
+			}
+			if s.shown != want || moved != (p == Linux) {
+				t.Errorf("%v %v: a slow drag of 200 DIPs showed page %d (the pages moved %v), want %d", p, dir, s.shown, moved, want)
+			}
+		}
+	}
+}
+
+// TestCarouselFlipButtons checks FlipView's previous and next buttons on Windows, left to right and right to left: hidden until the mouse moves over the view; then 16 by 38 DIPs, 1 DIP in from the view's sides and centered down it, the previous one at the start; a click on Next shows the next page; hidden again 3 seconds after the mouse last moved over the view, not over a button; on the first page no previous button and on the last no next one.
+func TestCarouselFlipButtons(t *testing.T) {
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		s := &carouselTestState{shown: 1}
+		tester := carouselMotionTester(Windows, s, dir)
+		if _, ok := tester.Find("Next"); ok {
+			t.Fatalf("%v: the buttons show before the mouse moved over the view", dir)
+		}
+		x, y := carouselMiddle(tester)
+		tester.Move(x, y)
+		tester.Frame()
+		prev, ok1 := tester.Find("Previous")
+		next, ok2 := tester.Find("Next")
+		if !ok1 || !ok2 {
+			t.Fatalf("%v: the mouse over the view does not show both buttons", dir)
+		}
+		view := s.box
+		view.H -= 34 // the PipsPager below, 10 and 24
+		for _, b := range []ui.Rect{prev, next} {
+			if b.W != 16 || b.H != 38 || b.Y+b.H/2 != view.Y+view.H/2 {
+				t.Errorf("%v: a button is %v, want 16 by 38 centered down the view %v", dir, b, view)
+			}
+		}
+		start, end := prev, next
+		if dir == ui.RightToLeft {
+			start, end = next, prev
+		}
+		if start.X != view.X+1 || end.X+end.W != view.X+view.W-1 {
+			t.Errorf("%v: the buttons are at %v and %v in the view %v, want 1 in from its sides, the previous one at the start", dir, prev, next, view)
+		}
+		if err := tester.Click("Next"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		if s.shown != 2 {
+			t.Errorf("%v: a click on Next showed page %d", dir, s.shown)
+		}
+		// Over a button they stay, as OnPointerEnteredNavigationButtons keeps them; the mouse moves back over the page.
+		tester.Move(x, y)
+		tester.Frame()
+		tester.Advance(2900 * 1e6)
+		tester.Frame()
+		if _, ok := tester.Find("Next"); !ok {
+			t.Errorf("%v: the buttons are gone before 3 seconds", dir)
+		}
+		tester.Advance(200 * 1e6)
+		tester.Frame()
+		if _, ok := tester.Find("Next"); ok {
+			t.Errorf("%v: the buttons stay 3 seconds after the mouse last moved", dir)
+		}
+		s.shown = 0
+		tester.Move(x+1, y)
+		tester.Frame()
+		tester.Frame()
+		if _, ok := tester.Find("Previous"); ok {
+			t.Errorf("%v: the first page shows a previous button", dir)
+		}
+		s.shown = 3
+		tester.Move(x, y)
+		tester.Frame()
+		tester.Frame()
+		if _, ok := tester.Find("Next"); ok {
+			t.Errorf("%v: the last page shows a next button", dir)
+		}
+	}
+}
+
+// TestCarouselFlipButtonsDrawn checks FlipView's buttons at 2x, light and dark: the in-app acrylic's fallback color (#f9f9f9, #2c2c2c) and a caret 6 DIPs wide in ControlStrongFillColorDefault in the middle, pointing to the start in the previous button.
+func TestCarouselFlipButtonsDrawn(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		s := &carouselTestState{shown: 1}
+		var th ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Windows, func() {
+				s.view(c)
+				th = *c.Theme()
+			})
+		}, 400, 320)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		x, y := carouselMiddle(tester)
+		tester.Move(x, y)
+		tester.Frame()
+		face := pick(dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c"))
+		strong := face.Mix(pick(dark, black, white), pick(dark, float32(0x72)/255, 0x8b/255.0))
+		prev, _ := tester.Find("Previous")
+		cx, cy := prev.X+prev.W/2, prev.Y+prev.H/2
+		if got := pagerPixel(tester, 2, prev.X+2, prev.Y+4); !macNear(got, face, 2) {
+			t.Errorf("dark %v: the button's face reads %v, want %v", dark, got, face)
+		}
+		// The caret's tip at the start and its flat side 6 DIPs on, at the end.
+		if got := pagerPixel(tester, 2, cx+2.25, cy); !macNear(got, strong, 3) {
+			t.Errorf("dark %v: the caret reads %v near its flat side, want %v", dark, got, strong)
+		}
+		if got := pagerPixel(tester, 2, cx+2.25, cy-2.75); !macNear(got, strong, 3) {
+			t.Errorf("dark %v: the caret's flat side is not 8 DIPs high (%v)", dark, got)
+		}
+		if got := pagerPixel(tester, 2, cx-2.25, cy-2); !macNear(got, face, 3) {
+			t.Errorf("dark %v: the caret is not pointed toward the start (%v)", dark, got)
+		}
+		if got := pagerPixel(tester, 2, cx+3.5, cy); !macNear(got, face, 3) {
+			t.Errorf("dark %v: the caret is wider than 6 DIPs (%v)", dark, got)
+		}
+		_ = th
+	}
+}
+
+// TestCarouselLayout checks where each platform puts the dots below the pages, from the view's bottom, without reading the host font's widths: WinUI's PipsPager centered 10 DIPs below the FlipView; AdwCarouselIndicatorDots 6 below with a margin of 6 under it, as wide as the carousel; UIPageControl centered right below (inferred).
+func TestCarouselLayout(t *testing.T) {
+	for _, p := range Platforms {
+		s := &carouselTestState{shown: 1}
+		tester := layoutTester(p, 400, 320, s.view)
+		tester.Frame()
+		first, _ := tester.Find("Page 1")
+		last, _ := tester.Find("Page 4")
+		pageBottom := s.box.Y + carouselTestPageHeight
+		var gap, below float32
+		switch p {
+		case Windows:
+			gap, below = 10, 0
+		case Linux:
+			gap, below = 6, 6
+		}
+		if first.Y-pageBottom != gap || s.box.Y+s.box.H-(first.Y+first.H) != below {
+			t.Errorf("%v: the dots are %v below the pages and %v above the carousel's bottom, want %v and %v", p, first.Y-pageBottom, s.box.Y+s.box.H-(first.Y+first.H), gap, below)
+		}
+		mid := (first.X + last.X + last.W) / 2
+		want := s.box.X + s.box.W/2
+		if p == Linux {
+			// snapshot_dots centers the dots on the widget made a pixel narrower, 319 of 320, and they stand half a spacing toward its end: their middle, and that of the 15-pixel cells around them, is 163 pixels in.
+			want = s.box.X + 163
+		}
+		if mid != want {
+			t.Errorf("%v: the dots' middle is at %v, want %v", p, mid, want)
+		}
+	}
+}
+
+// TestCarouselFocusRing checks the focus ring around the carousel's view once Tab brings the focus there: WinUI's focus visual on the view's edge, libadwaita's focus color 2 pixels inside it (inferred), AppKit's ring 3 points outside it (inferred).
+func TestCarouselFocusRing(t *testing.T) {
+	for _, p := range Platforms {
+		s := &carouselTestState{shown: 1}
+		var th ui.Theme
+		tester := layoutTester(p, 400, 320, func(c *ui.Context) {
+			s.view(c)
+			th = *c.Theme()
+		})
+		tester.SetScale(2)
+		tester.Frame()
+		view := s.box
+		y := view.Y + carouselTestPageHeight/2
+		x := view.X + 0.75
+		if p == Mac {
+			x = view.X - 2
+		}
+		before := pagerPixel(tester, 2, x, y)
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		carouselPress(tester, 0, ui.KeyTab)
+		got := pagerPixel(tester, 2, x, y)
+		switch p {
+		case Linux:
+			want := th.Background.Mix(ui.RGB(th.Focus.R, th.Focus.G, th.Focus.B), float32(th.Focus.A)/255)
+			if !macNear(got, want, 3) {
+				t.Errorf("%v: the view's edge reads %v focused, want %v", p, got, want)
+			}
+		default:
+			if got == before {
+				t.Errorf("%v: the view's edge reads %v focused as unfocused", p, got)
+			}
+		}
+	}
+}
+
+// TestCarouselDisabled checks on every platform that a disabled carousel takes neither keys, clicks on its dots, nor the wheel.
+func TestCarouselDisabled(t *testing.T) {
+	for _, p := range Platforms {
+		s := &carouselTestState{shown: 1, disabled: true}
+		tester := layoutTester(p, 400, 320, s.view)
+		tester.Frame()
+		if err := tester.Click("Page 4"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		x, y := carouselMiddle(tester)
+		tester.Wheel(x, y, 0, 40)
+		tester.Frame()
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		carouselPress(tester, 0, ui.KeyTab)
+		carouselPress(tester, 0, ui.KeyRight)
+		if s.shown != 1 {
+			t.Errorf("%v: a disabled carousel showed page %d", p, s.shown)
+		}
+	}
+}
