@@ -366,15 +366,6 @@ func TestDestructiveAlertDialogKeepsTheDefaultSafe(t *testing.T) {
 	}
 }
 
-func indexOf(s []string, v string) int {
-	for i, x := range s {
-		if x == v {
-			return i
-		}
-	}
-	return -1
-}
-
 // TestDestructiveAlertDialogLooks checks the buttons of the destructive alert: the destructive one drawn as DestructiveButton is on the platform, systemRed on macOS and destructive_bg_color on GNOME; the default in the accent only on Windows, where ContentDialog's DefaultButton is, and plain on macOS, whose NSAlert then has no default, and on GNOME.
 func TestDestructiveAlertDialogLooks(t *testing.T) {
 	for _, p := range Platforms {

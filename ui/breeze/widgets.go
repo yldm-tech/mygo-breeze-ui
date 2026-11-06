@@ -16,6 +16,11 @@ func Button(c *ui.Context, label string) ui.Element { return button(c, label, fa
 func PrimaryButton(c *ui.Context, label string) ui.Element { return button(c, label, true) }
 
 func button(c *ui.Context, label string, primary bool) ui.Element {
+	return iconLabelButton(c, nil, label, primary)
+}
+
+// iconLabelButton builds the push button of Button, PrimaryButton and IconLabelButton: icon, unless nil, before label, unless empty, each platform spacing the two as its own buttons do (iconLabelLook).
+func iconLabelButton(c *ui.Context, icon *ui.SVG, label string, primary bool) ui.Element {
 	b := ui.ButtonBase(c)
 	kind := idiomText
 	switch {
@@ -33,7 +38,8 @@ func button(c *ui.Context, label string, primary bool) ui.Element {
 		idiomFluentAppBarButton(c, b, label == "", false)
 	case p == Windows:
 		fluentButton(c, b, primary)
-	case p == Linux && tb != nil && kind == idiomImage:
+	case p == Linux && tb != nil && (kind == idiomImage || icon != nil && kind == idiomText):
+		// Image buttons and image-text buttons are flat in a toolbar (%toolbar in _toolbars.scss).
 		idiomAdwFlatButton(c, b, false)
 	case p == Linux:
 		// Text buttons and the suggested action stay raised in a toolbar (_toolbars.scss).
@@ -43,8 +49,18 @@ func button(c *ui.Context, label string, primary bool) ui.Element {
 	default:
 		macButton(c, b, primary)
 	}
-	if label != "" {
-		b.Children(func() { ui.Text(c, label).SingleLine() })
+	if icon != nil && label != "" {
+		iconLabelLook(c, b, tb != nil, primary)
+	}
+	if icon != nil || label != "" {
+		b.Children(func() {
+			if icon != nil {
+				ui.Icon(c, icon).Size(16, 16).Shrink(0)
+			}
+			if label != "" {
+				ui.Text(c, label).SingleLine()
+			}
+		})
 	}
 	return b
 }
