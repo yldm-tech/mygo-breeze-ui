@@ -4,7 +4,8 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, carousel, carouselrtl, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, carousel, carouselrtl, carouseldrag, carouseldragrtl, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+import subprocess
 import sys
 
 import gi
@@ -12,8 +13,9 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gdk", "4.0")
+gi.require_version("GdkX11", "4.0")
 gi.require_version("Graphene", "1.0")
-from gi.repository import Adw, Gdk, GLib, Gio, Graphene, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, GdkX11, GLib, Gio, Graphene, Gtk  # noqa: E402,F401 (GdkX11 gives the window's surface get_xid)
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 ONLY = set(sys.argv[2:])
@@ -28,6 +30,9 @@ class Scene:
         self.width, self.height, self.root = width, height, root
         self.named = named or {}
         self.shown = shown
+        # How long after the window is presented it is rendered, in milliseconds, and what to do once it is (let go of the mouse a set pressed).
+        self.wait = 1500
+        self.done = None
         self.popovers = popovers or []
         # What opens the popovers, once the window is up: by default each popover's popup.
         self.open_popovers = open_popovers or (lambda: [p.popup() for p in self.popovers])
@@ -815,8 +820,8 @@ def datepicker_rtl_set():
     return fixed(560, 400, [(calendar, 544 - width, 16), (button, 200 - button.measure(Gtk.Orientation.HORIZONTAL, -1)[1], 16)], named={"calendar": calendar, "date-picker": button})
 
 
-def carousel_set(rtl=False):
-    """TestScreenshotsCarousel's carouselShotView: AdwCarouselIndicatorDots of 5 pages with the 2nd chosen at 16, 16 and of 9 pages with the 7th chosen at 16, 56, each showing a carousel of empty pages that the scene keeps out of sight, 1 pixel square and transparent (the dots read its pages and position once it is laid out), and at 16, 96 a vertical GtkBox 320 wide of an AdwCarousel 160 high of four pages, each a label of its slide centered, the 2nd shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as libadwaita's demo (adw-demo-page-carousel.ui) lays them out, where Breeze UI's PipsPagers and Carousel stand. With rtl, the carouselrtl set, the default direction is right to left and each stands as far from the window's right edge."""
+def carousel_set(rtl=False, drag=False):
+    """TestScreenshotsCarousel's carouselShotView: AdwCarouselIndicatorDots of 5 pages with the 2nd chosen at 16, 16 and of 9 pages with the 7th chosen at 16, 56, each showing a carousel of empty pages that the scene keeps out of sight, 1 pixel square and transparent (the dots read its pages and position once it is laid out, and are measured again then), and at 16, 96 a vertical GtkBox 320 wide of an AdwCarousel 160 high of four pages, each a label of its slide centered, the 2nd shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as libadwaita's demo (adw-demo-page-carousel.ui) lays them out, where Breeze UI's PipsPagers and Carousel stand. With rtl, the carouselrtl set, the default direction is right to left and each stands as far from the window's right edge. With drag, the carouseldrag and carouseldragrtl sets, xdotool presses the mouse in the carousel's middle and moves it 10 times by 10 pixels toward its start, the way to the next page, 100 ms apart, and the window is rendered with the mouse still pressed, as TestAdwCarouselDragAsRendered drags Breeze UI's; the carousel's position is printed."""
     if rtl:
         Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL)
 
@@ -848,7 +853,31 @@ def carousel_set(rtl=False):
     # The dots' natural widths: 15 pixels a page and 6 at either end (adw_carousel_indicator_dots_measure).
     items = [(five_pages, 0, 0), (nine_pages, 0, 0)]
     items += [(five, at(87), 16), (nine, at(147), 56), (box, at(320), 96)]
-    return fixed(352, 312, items, named={"five": five, "nine": nine, "carousel": slides, "dots": dots, "box": box})
+    scene = fixed(352, 312, items, named={"five": five, "nine": nine, "carousel": slides, "dots": dots, "box": box})
+
+    def shown(window):
+        """Measures the dots again once the carousels are laid out: the dots measure their carousel's snap points, which AdwCarousel sets only as it allocates its pages, and they measure again only when its number of pages changes, so dots measured first stay 27 pixels wide (as for one page) and draw their dots past their sides."""
+        GLib.timeout_add(300, lambda: ([d.queue_resize() for d in (five, nine, dots)], False)[1])
+        if drag:
+            GLib.timeout_add(400, lambda: (press_and_drag(window.get_surface().get_xid()), False)[1])
+
+    def press_and_drag(xid):
+        """Presses the mouse in the carousel's middle, in the window's coordinates (the content's and the frame), and moves it by 10 pixels 10 times, 100 ms apart, from another process so that GTK takes each move as it comes. Right to left, GTK maps the window off the screen's left edge, at -361 without a window manager, where the press would land on its resize edge: xdotool moves it to the screen's corner first."""
+        x, y = at(320) + 160 + FRAME, 96 + 80 + FRAME
+        step = 10 if rtl else -10
+        args = ["xdotool", "windowmove", "--sync", str(xid), "0", "0", "sleep", "0.2", "mousemove", "--window", str(xid), str(x), str(y), "sleep", "0.2", "mousedown", "1"]
+        for k in range(1, 11):
+            args += ["sleep", "0.1", "mousemove", "--window", str(xid), str(x + step * k), str(y)]
+        subprocess.Popen(args)
+
+    def let_go():
+        print(f"  position: {slides.get_position():g}")
+        subprocess.run(["xdotool", "mouseup", "1"], check=True)
+
+    scene.shown = shown
+    if drag:
+        scene.wait, scene.done = 2500, let_go
+    return scene
 
 
 def over_card_set():
@@ -913,6 +942,8 @@ SETS = [
     ("datepickerrtl", "adwaita-datepicker-rtl", datepicker_rtl_set),
     ("carousel", "adwaita-carousel", carousel_set),
     ("carouselrtl", "adwaita-carousel-rtl", lambda: carousel_set(True)),
+    ("carouseldrag", "adwaita-carousel-drag", lambda: carousel_set(drag=True)),
+    ("carouseldragrtl", "adwaita-carousel-drag-rtl", lambda: carousel_set(True, drag=True)),
     ("text", "adwaita-text", text_set),
 ]
 
@@ -1005,6 +1036,8 @@ def main():
 
         def shoot():
             render(window, scene, f"{OUT}/{file}")
+            if scene.done:
+                scene.done()
             for p in scene.popovers:
                 p.popdown()
                 p.unparent()
@@ -1013,7 +1046,7 @@ def main():
             return False
 
         # Wait past the dialog's spring animation, the toast's and the spinner's first frames.
-        GLib.timeout_add(1500, shoot)
+        GLib.timeout_add(scene.wait, shoot)
 
     GLib.idle_add(lambda: (next_job(), False)[1])
     loop.run()
