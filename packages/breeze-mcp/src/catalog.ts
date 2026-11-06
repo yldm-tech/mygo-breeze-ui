@@ -15,22 +15,50 @@ export type CatalogItem = {
   example?: string
 }
 
-type CatalogFile = {
+export type CatalogFile = {
   version: number
   platforms: Omit<CatalogItem, "kind">[]
   components: Omit<CatalogItem, "kind">[]
 }
 
-const sourceCatalogFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../ui/breeze/catalog.json")
+// The catalog's files in a checkout (ui/breeze/catalog/*.json), and the catalog assembled from them that the package carries (build.ts writes it).
+const sourceCatalogDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../ui/breeze/catalog")
 const packagedCatalogFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../catalog.json")
 
-function catalogPath() {
-  return fs.existsSync(sourceCatalogFile) ? sourceCatalogFile : packagedCatalogFile
+/** assembleCatalog merges the files of dir as the Go package does: in the order of their names, platforms.json giving the version and the platforms and each other file the components of one group, the components in the byte order of their names. The version must be given once, and no two components or platforms may share a name. */
+export function assembleCatalog(dir = sourceCatalogDir): CatalogFile {
+  let version: number | undefined
+  const platforms: CatalogFile["platforms"] = []
+  const components: CatalogFile["components"] = []
+  const seen = new Set<string>()
+  const files = fs.readdirSync(dir).filter((name) => name.endsWith(".json")).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  for (const name of files) {
+    const file = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")) as Partial<CatalogFile>
+    if (file.version !== undefined) {
+      if (version !== undefined) throw new Error(`${name}: the catalog's version is given twice`)
+      version = file.version
+    }
+    for (const [kind, items] of [["platform", file.platforms ?? []], ["component", file.components ?? []]] as const) {
+      for (const item of items) {
+        if (seen.has(`${kind} ${item.name}`)) throw new Error(`${name}: ${kind} ${item.name} is listed twice`)
+        seen.add(`${kind} ${item.name}`)
+      }
+    }
+    platforms.push(...(file.platforms ?? []))
+    components.push(...(file.components ?? []))
+  }
+  if (version === undefined) throw new Error(`${dir}: no file gives the catalog's version`)
+  components.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+  return { version, platforms, components }
+}
+
+function readCatalog(): CatalogFile {
+  if (fs.existsSync(sourceCatalogDir)) return assembleCatalog(sourceCatalogDir)
+  return JSON.parse(fs.readFileSync(packagedCatalogFile, "utf8")) as CatalogFile
 }
 
 export function loadCatalog(): CatalogItem[] {
-  const source = fs.readFileSync(catalogPath(), "utf8")
-  const parsed = JSON.parse(source) as CatalogFile
+  const parsed = readCatalog()
   return [
     ...parsed.components.map((item) => ({ ...item, kind: "component" as const })),
     ...parsed.platforms.map((item) => ({ ...item, kind: "platform" as const })),

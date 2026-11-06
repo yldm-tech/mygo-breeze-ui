@@ -1,0 +1,32 @@
+{
+  "components": [
+    {
+      "name": "ComboRow",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A settings row choosing one of a list, the choice at its end: a grouped form's Picker on macOS (the choice before a circle with up and down chevrons), a SettingsCard holding a ComboBox on Windows 11, or AdwComboRow on GNOME, where the whole row opens the list. It joins a Card, a Fieldset or an AccordionItem as ActionRow does.",
+      "example": "breeze.ComboRow(c, \"Appearance\", \"Light or dark\", &app.appearance, []string{\"Light\", \"Dark\", \"Auto\"})"
+    },
+    {
+      "name": "EntryRow",
+      "category": "text",
+      "look": "drawn",
+      "description": "A settings row editing a text, named by its title: a grouped form's TextField with a label on macOS (the text at the trailing edge, no bezel), a SettingsCard holding a TextBox on Windows 11, or AdwEntryRow on GNOME, its title shrinking above the text as the row is focused or filled. It joins a Card, a Fieldset or an AccordionItem as ActionRow does.",
+      "example": "breeze.EntryRow(c, \"Name\", &app.name)"
+    },
+    {
+      "name": "ExpanderRow",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A settings row that opens to show the rows built in it: a grouped form's DisclosureGroup on macOS, CommunityToolkit's SettingsExpander on Windows 11, or AdwExpanderRow on GNOME, each with the platform's own header and arrow. Alone it is a group of its own; in a Card, a Fieldset or an AccordionItem it joins as a row does.",
+      "example": "breeze.ExpanderRow(c, \"Network\", \"Wi-Fi and proxies\", &app.network, func() {\n\tbreeze.SwitchRow(c, \"Metered\", \"\", &app.metered)\n})"
+    },
+    {
+      "name": "SpinRow",
+      "category": "text",
+      "look": "drawn",
+      "description": "A settings row setting a number between limits with stepping buttons, its text the one focus stop: a grouped form's Stepper with its value in a text field on macOS, a SettingsCard holding a NumberBox on Windows 11, or AdwSpinRow on GNOME, with circular − and + buttons. It joins a Card, a Fieldset or an AccordionItem as ActionRow does.",
+      "example": "breeze.SpinRow(c, \"Font size\", \"Points\", &app.size, 6, 72, 1)"
+    }
+  ]
+}

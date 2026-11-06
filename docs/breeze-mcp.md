@@ -19,4 +19,4 @@ An installed package provides the `breeze-ui-mcp` command. Add that command to t
 | `list_platforms` | List the platforms Breeze UI draws and the version each look follows. |
 | `generate_snippet` | Generate a Go snippet for a component. |
 
-The `breeze-ui://catalog` resource returns the complete JSON catalog. The source of truth is `ui/breeze/catalog.json`; the Go package, CLI, MCP server, and website all consume that file so names and examples stay aligned.
+The `breeze-ui://catalog` resource returns the complete JSON catalog. The source of truth is the files of `ui/breeze/catalog/`, one per group of widgets beside `platforms.json`; the Go package, CLI, MCP server, and website all merge those files into the same catalog so names and examples stay aligned. The published package carries the merged catalog, which its build writes to `packages/breeze-mcp/catalog.json` (not committed).

@@ -1,0 +1,23 @@
+# Dialogs
+
+The widgets of [`ui/breeze/widgets_dialogs.go`](../../ui/breeze/widgets_dialogs.go), whose catalog entries are [`ui/breeze/catalog/dialogs.json`](../../ui/breeze/catalog/dialogs.json). What every widget shares, its platforms, themes and limits, is in [Breeze UI for MyGo](../breeze-ui.md).
+
+## Looks
+
+| Widget | macOS | Windows 11 | GNOME |
+|---|---|---|---|
+| `Sheet` | macOS 27's sheet: centered on the window, which it dims (black at 20%, 23% in Dark Aqua), the window's background, corners of 16; a click outside does nothing | ContentDialog over the smoke layer; a click outside does nothing | floating AdwDialog over the dimmed window; a click outside does nothing |
+| `DestructiveButton` | NSAlert's destructive button: a push button's shape, its face tinted with systemRed, a systemRed label | a plain button: WinUI has no destructive style | `.destructive-action`: `destructive_bg_color`, a white bold label |
+| `DestructiveAlertDialog` | NSAlert with `hasDestructiveAction`: the destructive button red, no default in the accent | ContentDialog: the cancel the accent DefaultButton, the destructive button plain | AdwAlertDialog: the destructive response filled red, the default response plain |
+
+## Sources
+
+`Sheet(c, open, fn)` is `Modal` for a dialog holding a form: it returns the panel, which takes more styles, and Escape closes it, which `Dismissed` reports, but a click outside it does nothing, as none of the three platforms closes such a dialog on one, so what was typed in it is not lost to a stray click. It is built on `ui.DialogBase`, so the focus stays in it and returns to where it was when it closes; the dialog's backdrop lets the pointer through to a layer under it that takes the clicks outside the panel. On macOS it is drawn as macOS 27 shows an NSWindow sheet, measured from a live capture on macOS 27.2 (`renderDialogs` in `tools/appkit-reference`): centered on the window, its title bar included (AppKit centers the sheet's frame on its window's, with or without a toolbar), over the window dimmed with black at 20% (23% in Dark Aqua), filled with the window's background, with corners whose arc MyGo's radius of 16 matches. On Windows and GNOME it looks as `Modal` does.
+
+`DestructiveButton(c, label)` and `DestructiveAlertDialog(c, open, title, message, destructive, buttons...)` mark an action that destroys data as the platforms do. The alert keeps `AlertDialog`'s contract and its buttons' places, but `buttons[destructive]` is drawn destructive and is never the default: the default, which has the focus and which Enter clicks, is the last of the other buttons, so Enter cancels; with the destructive button alone there is no default, the alert itself has the focus and Enter clicks nothing. A `destructive` that is not the index of a button draws none destructive, and the alert is `AlertDialog`'s. macOS 27's NSAlert, given a button with `hasDestructiveAction`, takes its Return key away and leaves no default in the accent (measured), and draws that button with a face tinted with systemRed under a systemRed label, which `DestructiveButton` draws too; Windows's ContentDialog has no destructive style, so the cancel is its accent `DefaultButton` and the destructive button plain; GNOME's AdwAlertDialog fills the destructive response with `destructive_bg_color` and leaves the default response plain.
+
+## Limits
+
+Besides [those of every widget](../breeze-ui.md#limits):
+
+- **Sheets and destructive actions.** `Sheet` draws no title bar, and on macOS the capture leaves the sheet's shadow out, so it takes `Modal`'s, drawn to resemble AppKit's; macOS beeps at a click outside a sheet, which Breeze UI does not. `Modal`'s macOS look is unchanged: macOS 27 dims the window behind a sheet and an alert, which the macOS 26 measurements of `Modal` and `AlertDialog` leave undimmed. AppKit draws the destructive look only inside an alert: a push button with `hasDestructiveAction` elsewhere, and SwiftUI's bordered `Button(role: .destructive)`, stay plain (rendered on macOS 27.2), so `DestructiveButton` on macOS is the alert's button outside one; its pressed face, twice the tint, is inferred. On macOS the alert's Enter clicks the cancel, which has the focus, where NSAlert gives no button the Return key. On Windows `DestructiveButton` is a plain button. The GNOME destructive button and response and the Windows destructive alert follow libadwaita's `_buttons.scss` and WinUI's ContentDialog without a reference render: `tools/adwaita-reference` and `tools/winui-reference` need libadwaita 1.10 and Windows 11, which the machine these were drawn on did not have, so their values are inferred. A `DestructiveButton` in a `Toolbar` or a `HeaderBar` keeps its look outside one.

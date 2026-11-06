@@ -1,0 +1,11 @@
+{
+  "components": [
+    {
+      "name": "ViewSwitcher",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "The control that switches an app's top-level views, each a breeze.ViewItem of an icon and a label; build the chosen view after it, and put it in a HeaderBar's end controls or a Toolbar to switch the window's views from there. It is drawn as macOS's NSToolbarItemGroup of selectionMode selectOne in a toolbar (one platter of 37-point image segments, the chosen one a gray pill, the labels naming them) and its NSSegmentedControl elsewhere (icons before the labels), Windows 11's SelectorBar (icon and text, the accent pill under the chosen item), or GNOME's AdwViewSwitcher in its wide policy (flat buttons at least 120 wide, the icon beside the bold label, the chosen one filled). Tab stops once at the chosen item and the arrows choose among them; assistive technology sees a radio group on macOS and a tab list elsewhere, each item named by its label.",
+      "example": "breeze.ViewSwitcher(c, &app.view,\n\tbreeze.ViewItem{Icon: libraryIcon, Label: \"Library\"},\n\tbreeze.ViewItem{Icon: browseIcon, Label: \"Browse\"},\n\tbreeze.ViewItem{Icon: radioIcon, Label: \"Radio\"},\n)"
+    }
+  ]
+}

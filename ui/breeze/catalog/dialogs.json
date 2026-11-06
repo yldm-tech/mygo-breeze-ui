@@ -1,0 +1,25 @@
+{
+  "components": [
+    {
+      "name": "DestructiveAlertDialog",
+      "category": "overlays",
+      "look": "drawn",
+      "description": "An alert whose destructive button is never the default: Enter clicks the last of the other buttons, so it never destroys anything. macOS's NSAlert with hasDestructiveAction, its destructive button red, with no accent default; Windows 11's ContentDialog with the cancel as its accent DefaultButton and the destructive button plain; GNOME's AdwAlertDialog with the destructive response filled red. The index returned is AlertDialog's.",
+      "example": "if breeze.DestructiveAlertDialog(c, &app.confirm, \"Delete “Notes”?\", \"You can’t undo this action.\", 1, \"Cancel\", \"Delete\") == 1 {\n\tapp.delete()\n}"
+    },
+    {
+      "name": "DestructiveButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A push button for an action that destroys data: on macOS NSAlert's destructive button, a red-tinted face under a systemRed label; on GNOME .destructive-action, red with a white label; on Windows 11, which has no destructive style, a plain button.",
+      "example": "if breeze.DestructiveButton(c, \"Delete\").Clicked() {\n\tapp.confirm = true\n}"
+    },
+    {
+      "name": "Sheet",
+      "category": "overlays",
+      "look": "drawn",
+      "description": "A dialog for a form that a click outside does not close, only Escape: macOS 27's sheet, centered over the window it dims, Windows 11's ContentDialog over the smoke layer, or a floating AdwDialog over the dimmed window on GNOME.",
+      "example": "breeze.Sheet(c, &app.renaming, func() {\n\tbreeze.TextInput(c, &app.name).Label(\"Name\")\n})"
+    }
+  ]
+}

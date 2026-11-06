@@ -325,7 +325,7 @@ func TestStatusPageKeepsItsBehavior(t *testing.T) {
 	}
 }
 
-// statusView lays out the status widgets where tools/appkit-reference/reference.swift, tools/winui-reference and tools/adwaita-reference place their counterparts: four message bars, one of each severity, the first and the last closable, across the window 16 from its edges and 68 apart, and below them rings of 0.25, 0.6, 1 and 0 at the regular size and one of 0.6 at 16.
+// statusView lays out the status widgets where tools/appkit-reference, tools/winui-reference and tools/adwaita-reference place their counterparts: four message bars, one of each severity, the first and the last closable, across the window 16 from its edges and 68 apart, and below them rings of 0.25, 0.6, 1 and 0 at the regular size and one of 0.6 at 16.
 func statusView(p Platform, open *[4]bool) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {
@@ -411,7 +411,7 @@ func statusActionsView(p Platform, open *[4]bool) func(c *ui.Context) {
 	}
 }
 
-// statusPageView lays out a status page filling the window, with an icon, a title, a description and an action, as reference.swift places SwiftUI's ContentUnavailableView.
+// statusPageView lays out a status page filling the window, with an icon, a title, a description and an action, as tools/appkit-reference places SwiftUI's ContentUnavailableView.
 func statusPageView(p Platform) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {

@@ -14,7 +14,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// referenceView lays out the controls as tools/appkit-reference/reference.swift places AppKit's first set, so their screenshots compare control by control: three buttons, three check boxes and three switches, the last of each disabled.
+// referenceView lays out the controls as tools/appkit-reference/Sources/appkit-reference/Scenes/widgets.swift (firstSet) places AppKit's first set, so their screenshots compare control by control: three buttons, three check boxes and three switches, the last of each disabled.
 func referenceView(p Platform, state *[6]bool) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {
@@ -37,7 +37,7 @@ func referenceView(p Platform, state *[6]bool) func(c *ui.Context) {
 	}
 }
 
-// referenceView2 lays out more controls as tools/appkit-reference/reference.swift places AppKit's second set: radio buttons, fields, a pop-up button, a toggle, a slider, a progress bar, a segmented control, a spinner and a text view.
+// referenceView2 lays out more controls as tools/appkit-reference/Sources/appkit-reference/Scenes/widgets.swift (secondSet) places AppKit's second set: radio buttons, fields, a pop-up button, a toggle, a slider, a progress bar, a segmented control, a spinner and a text view.
 func referenceView2(p Platform, s *referenceState) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {

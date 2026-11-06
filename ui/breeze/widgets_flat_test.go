@@ -425,7 +425,7 @@ func TestFlatButtonFocusRing(t *testing.T) {
 // flatState is what flatView's toggles edit.
 type flatState struct{ off, on, darkOn bool }
 
-// flatView lays out the flat buttons on platform p as tools/appkit-reference/reference.swift places AppKit's (flatSet): an image button, a second one under the pointer (the screenshot test moves it there), a disabled one, a text button, and an image toggle off and on, 48 points apart from 16 in; below them a dark part, as a player's controls over its video, holding the same buttons in the platform's dark theme.
+// flatView lays out the flat buttons on platform p as tools/appkit-reference/Sources/appkit-reference/Scenes/flat.swift places AppKit's (flatSet): an image button, a second one under the pointer (the screenshot test moves it there), a disabled one, a text button, and an image toggle off and on, 48 points apart from 16 in; below them a dark part, as a player's controls over its video, holding the same buttons in the platform's dark theme.
 func flatView(p Platform, s *flatState) func(c *ui.Context) {
 	return func(c *ui.Context) {
 		Preview(c, p, func() {
