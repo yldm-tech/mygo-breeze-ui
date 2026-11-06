@@ -1,0 +1,540 @@
+package breeze
+
+import (
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/egoist/mygo/ui"
+)
+
+func init() {
+	drawnWidgets["ViewSwitcher"] = true
+}
+
+// switcherTestIcons are the icons of the test switchers, Library, Browse and Radio, 16 points square; tools/appkit-reference's switcher scene reads the same SVGs.
+var switcherTestIcons = []*ui.SVG{
+	ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2.5 2.5h3v11h-3zM6.5 2.5h3v11h-3zM10.4 3.4l2.4-.6 2.4 10.2-2.4.6z" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`)),
+	ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z" fill="none" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`)),
+	ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6"/><path d="M5.3 5.3a3.8 3.8 0 0 0 0 5.4M10.7 5.3a3.8 3.8 0 0 1 0 5.4M3.2 3.2a6.8 6.8 0 0 0 0 9.6M12.8 3.2a6.8 6.8 0 0 1 0 9.6" fill="none" stroke="#000" stroke-width="1.3" stroke-linecap="round"/></svg>`)),
+}
+
+// switcherTestLabels are the labels of the test switchers' items.
+var switcherTestLabels = []string{"Library", "Browse", "Radio"}
+
+// switcherTestItems returns the test switchers' items, with their icons when icons is true.
+func switcherTestItems(icons bool) []ViewItem {
+	items := make([]ViewItem, len(switcherTestLabels))
+	for i, s := range switcherTestLabels {
+		items[i].Label = s
+		if icons {
+			items[i].Icon = switcherTestIcons[i]
+		}
+	}
+	return items
+}
+
+// switcherTestState is what a test switcher view keeps: the chosen item, whether the switcher is in the header bar or in the content, and the switcher's box as last built.
+type switcherTestState struct {
+	selected int
+	inBar    bool
+	disabled bool
+	box      ui.Rect
+}
+
+// view builds a window with a header bar titled Music over its content, a button Before, then a button After; the switcher of Library, Browse and Radio with icons is among the header bar's end controls when inBar, or between the two buttons otherwise.
+func (s *switcherTestState) view(c *ui.Context) {
+	switcher := func() {
+		v := ViewSwitcher(c, &s.selected, switcherTestItems(true)...).Disabled(s.disabled)
+		s.box = v.Bounds()
+	}
+	ui.Column(c).Fill().Children(func() {
+		var end func()
+		if s.inBar {
+			end = switcher
+		}
+		HeaderBar(c, "Music", "", nil, end)
+		ui.Column(c).Padding(16).Gap(12).AlignItems(ui.Start).Children(func() {
+			Button(c, "Before")
+			if !s.inBar {
+				switcher()
+			}
+			Button(c, "After")
+		})
+	})
+}
+
+// TestViewSwitcherChoosesWithClicksAndKeys checks the switcher on every platform, left to right and right to left, alone and in a header bar: a click chooses an item; Tab reaches the chosen item once, the arrow toward the start chooses the previous item and the one toward the end the next one, the focus following, as MyGo's radio groups and tabs move it; and the next Tab leaves the switcher.
+func TestViewSwitcherChoosesWithClicksAndKeys(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			for _, inBar := range []bool{false, true} {
+				name := fmt.Sprintf("%v %v in bar %v", p, dir, inBar)
+				s := &switcherTestState{inBar: inBar}
+				tester := layoutTester(p, 640, 300, s.view)
+				tester.SetDirection(dir)
+				tester.Frame()
+				tester.Frame()
+				if err := tester.Click("Radio"); err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+				tester.Frame()
+				if s.selected != 2 {
+					t.Fatalf("%s: a click on Radio chose %d", name, s.selected)
+				}
+				if err := tester.Click("Before"); err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+				tester.Frame()
+				press := func(mods ui.Modifiers, k ui.Key) {
+					tester.Key(mods, k)
+					tester.Frame()
+					tester.Frame()
+				}
+				// In the header bar the switcher comes before the content's buttons.
+				into, out := ui.Modifiers(0), "After"
+				if inBar {
+					into, out = ui.Shift, "Before"
+				}
+				press(into, ui.KeyTab)
+				if !tester.Focused("Radio") {
+					t.Fatalf("%s: Tab did not stop at the chosen item", name)
+				}
+				forth, back := ui.KeyRight, ui.KeyLeft
+				if dir == ui.RightToLeft {
+					forth, back = back, forth
+				}
+				press(0, back)
+				press(0, back)
+				if s.selected != 0 || !tester.Focused("Library") {
+					t.Errorf("%s: the arrow toward the start twice chose %d", name, s.selected)
+				}
+				press(0, forth)
+				if s.selected != 1 || !tester.Focused("Browse") {
+					t.Errorf("%s: the arrow toward the end chose %d", name, s.selected)
+				}
+				press(0, ui.KeyTab)
+				if !tester.Focused(out) {
+					t.Errorf("%s: Tab from the switcher did not leave it for %s", name, out)
+				}
+			}
+		}
+	}
+}
+
+// TestViewSwitcherNamesItsItems checks on every platform that each item is named by its label, also on macOS in a header bar, whose toolbar group shows the icons only, as AppKit's icon-only toolbar does.
+func TestViewSwitcherNamesItsItems(t *testing.T) {
+	for _, p := range Platforms {
+		for _, inBar := range []bool{false, true} {
+			s := &switcherTestState{inBar: inBar}
+			tester := layoutTester(p, 640, 300, s.view)
+			tester.Frame()
+			for _, label := range switcherTestLabels {
+				if r, ok := tester.Find(label); !ok || r.W < 30 {
+					t.Errorf("%v in bar %v: no item is named %q", p, inBar, label)
+				}
+			}
+		}
+	}
+}
+
+// TestViewSwitcherDisabled checks on every platform that a disabled switcher takes neither clicks nor the keys.
+func TestViewSwitcherDisabled(t *testing.T) {
+	for _, p := range Platforms {
+		s := &switcherTestState{selected: 1, disabled: true}
+		tester := layoutTester(p, 640, 300, s.view)
+		tester.Frame()
+		if err := tester.Click("Radio"); err != nil {
+			t.Fatalf("%v: %v", p, err)
+		}
+		tester.Frame()
+		if err := tester.Click("Before"); err != nil {
+			t.Fatalf("%v: %v", p, err)
+		}
+		tester.Frame()
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		tester.Key(0, ui.KeyRight)
+		tester.Frame()
+		if s.selected != 1 {
+			t.Errorf("%v: a disabled switcher chose %d", p, s.selected)
+		}
+	}
+}
+
+// switcherSizes builds a switcher with icons and one without on p, in a header bar when inBar, and returns the items' boxes of each, Library, Browse and Radio, and the switchers' boxes.
+func switcherSizes(p Platform, inBar bool, labels []string) (with, without [3]ui.Rect, boxes [2]ui.Rect) {
+	items := func(icons bool) []ViewItem {
+		its := make([]ViewItem, len(labels))
+		for i, s := range labels {
+			its[i].Label = s
+			if icons {
+				its[i].Icon = switcherTestIcons[i]
+			}
+		}
+		return its
+	}
+	a, b := 1, 1
+	// The items without icons are named apart, so that the two switchers' items can be told apart.
+	plain := items(false)
+	for i := range plain {
+		plain[i].Label += " "
+	}
+	tester := layoutTester(p, 900, 300, func(c *ui.Context) {
+		build := func() {
+			boxes[0] = ViewSwitcher(c, &a, items(true)...).Bounds()
+			boxes[1] = ViewSwitcher(c, &b, plain...).Bounds()
+		}
+		if inBar {
+			HeaderBar(c, "Music", "", nil, build)
+			return
+		}
+		ui.Column(c).Padding(16).Gap(12).AlignItems(ui.Start).Children(build)
+	})
+	tester.Frame()
+	tester.Frame()
+	tester.Frame()
+	for i, s := range labels {
+		with[i], _ = tester.Find(s)
+		without[i], _ = tester.Find(s + " ")
+	}
+	return with, without, boxes
+}
+
+// TestViewSwitcherSizes checks the switcher's sizes on every platform, without reading the host font's widths: on macOS in a header bar, the toolbar group's 36-point platter of 37-point image segments (111 for three, as AppKit lays out three 16-point images), or of title segments as wide as the widest when an item has no icon; on macOS alone, NSSegmentedControl's 24-point segments, an icon making a segment 18 points wider (16 and 2); on Windows a SelectorBar 48 DIPs high of 40-DIP items, an icon making an item 24 wider (16 and SelectorBarItemSpacing 8); on GNOME buttons 34 pixels high, 3 apart, as wide as the widest and at least 120.
+func TestViewSwitcherSizes(t *testing.T) {
+	near := func(a, b float32) bool { return a-b < 0.01 && b-a < 0.01 }
+	for _, p := range Platforms {
+		for _, inBar := range []bool{false, true} {
+			name := fmt.Sprintf("%v in bar %v", p, inBar)
+			with, without, boxes := switcherSizes(p, inBar, switcherTestLabels)
+			switch {
+			case p == Mac && inBar:
+				if !near(boxes[0].W, 111) || !near(boxes[0].H, 36) {
+					t.Errorf("%s: the image group is %v by %v, want 111 by 36", name, boxes[0].W, boxes[0].H)
+				}
+				for i := range 3 {
+					if !near(with[i].W, 37) || !near(without[i].W, without[0].W) || without[i].W < 35 {
+						t.Errorf("%s: segment %d is %v wide with an icon and %v with a title, want 37 and the widest's", name, i, with[i].W, without[i].W)
+					}
+				}
+			case p == Mac:
+				for i := range 3 {
+					if !near(with[i].H, 24) || !near(with[i].W-without[i].W, 18) {
+						t.Errorf("%s: segment %d is %v high and %v wider with its icon, want 24 and 18", name, i, with[i].H, with[i].W-without[i].W)
+					}
+				}
+			case p == Windows:
+				if !near(boxes[0].H, 48) {
+					t.Errorf("%s: the SelectorBar is %v high, want 48", name, boxes[0].H)
+				}
+				for i := range 3 {
+					if !near(with[i].H, 40) || !near(with[i].W-without[i].W, 24) {
+						t.Errorf("%s: item %d is %v high and %v wider with its icon, want 40 and 24", name, i, with[i].H, with[i].W-without[i].W)
+					}
+				}
+			default:
+				for i := range 3 {
+					if !near(with[i].H, 34) || !near(with[i].W, with[0].W) || with[i].W < 120 {
+						t.Errorf("%s: button %d is %v by %v, want 34 high, as wide as the first and at least 120", name, i, with[i].W, with[i].H)
+					}
+				}
+				if gap := with[1].X - (with[0].X + with[0].W); !near(gap, 3) {
+					t.Errorf("%s: the buttons are %v apart, want 3", name, gap)
+				}
+			}
+		}
+	}
+	// Equal widths follow the widest label: GNOME's buttons and macOS's title segments in a toolbar.
+	for _, p := range []Platform{Mac, Linux} {
+		labels := []string{"A", "A much longer label", "B"}
+		with, without, _ := switcherSizes(p, true, labels)
+		row := with
+		if p == Mac {
+			row = without
+		}
+		if !near(row[0].W, row[1].W) || !near(row[2].W, row[1].W) || row[1].W <= 120 {
+			t.Errorf("%v: buttons %v, %v and %v wide, want all as wide as the widest", p, row[0].W, row[1].W, row[2].W)
+		}
+	}
+}
+
+// TestViewSwitcherMacToolbarPill checks the macOS toolbar group's pixels, left to right and right to left: the chosen segment's pill is a pressed toolbar item's face (235 in Aqua) beside its icon, an unchosen segment shows the platter there, and a 1-point separator darkens the boundary between two unchosen segments, on the later segment's side.
+func TestViewSwitcherMacToolbarPill(t *testing.T) {
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		s := &switcherTestState{selected: 1, inBar: true}
+		tester := layoutTester(Mac, 640, 300, func(c *ui.Context) {
+			Use(c)
+			s.view(c)
+		})
+		tester.SetDirection(dir)
+		tester.Frame()
+		tester.Frame()
+		img := tester.Image()
+		gray := func(x, y float32) int { return int(img.RGBAAt(int(x), int(y)).G) }
+		browse, _ := tester.Find("Browse")
+		library, _ := tester.Find("Library")
+		y := browse.Y + browse.H/2
+		// 6 points in from a side of the segment is inside its pill and clear of its centered 16-point icon.
+		if v := gray(browse.X+6, y); v < 233 || v > 237 {
+			t.Errorf("%v: the chosen segment's pill reads %d, want 235", dir, v)
+		}
+		if v := gray(library.X+library.W/2-11, y); v < 250 {
+			t.Errorf("%v: an unchosen segment reads %d, want the white platter", dir, v)
+		}
+		// The pills' ends, in points into the 111-point group from its start, as AppKit draws them (switcherMacInsets): the pill covers the points from from to to-1 and the platter shows on either side.
+		for _, pill := range []struct{ sel, from, to int }{{1, 40, 72}, {2, 77, 107}, {0, 4, 35}} {
+			s.selected = pill.sel
+			tester.Frame()
+			img = tester.Image()
+			at := func(x int) int {
+				if dir == ui.RightToLeft {
+					x = 110 - x
+				}
+				return gray(s.box.X+float32(x), y)
+			}
+			if a, b := at(pill.from), at(pill.to-1); a < 233 || a > 237 || b < 233 || b > 237 {
+				t.Errorf("%v: segment %d's pill reads %d and %d at its ends, want 235 from %d to %d points", dir, pill.sel, a, b, pill.from, pill.to)
+			}
+			if pill.from > 4 {
+				if v := at(pill.from - 1); v < 250 {
+					t.Errorf("%v: segment %d's pill starts before %d points (%d)", dir, pill.sel, pill.from, v)
+				}
+			}
+			if pill.to < 107 {
+				if v := at(pill.to); v < 250 {
+					t.Errorf("%v: segment %d's pill runs past %d points (%d)", dir, pill.sel, pill.to, v)
+				}
+			}
+		}
+		s.selected = 0
+		tester.Frame()
+		img = tester.Image()
+		radio, _ := tester.Find("Radio")
+		x := radio.X
+		if dir == ui.RightToLeft {
+			x = radio.X + radio.W - 1
+		}
+		if v := gray(x, y); v > 215 {
+			t.Errorf("%v: the separator before Radio reads %d, want the platter darkened by 20%%", dir, v)
+		}
+	}
+}
+
+// TestViewSwitcherMacPillsAsAppKit checks the macOS toolbar group's pills and the middles of its images against NSToolbarItemGroups of two to four 16-point images and three 24-point ones, chosen in turn, as AppKit draws them on macOS 27.2 (in points into the group, from its start).
+func TestViewSwitcherMacPillsAsAppKit(t *testing.T) {
+	for _, g := range []struct {
+		seg   float32
+		pills [][2]float32
+		mids  []float32
+	}{
+		{37, [][2]float32{{4, 35}, {40, 70}}, []float32{19.5, 55}},
+		{37, [][2]float32{{4, 35}, {40, 72}, {77, 107}}, []float32{19.5, 56, 92}},
+		{37, [][2]float32{{4, 35}, {40, 72}, {77, 109}, {114, 144}}, []float32{19.5, 56, 93, 129}},
+		{41, [][2]float32{{4, 39}, {44, 80}, {85, 119}}, []float32{21.5, 62, 102}},
+	} {
+		n := len(g.pills)
+		r := ui.Rect{W: g.seg * float32(n), H: 36}
+		for i, want := range g.pills {
+			p := switcherMacPill(r, n, i, false)
+			if p.X != want[0] || p.X+p.W != want[1] || p.Y != 4 || p.H != 28 {
+				t.Errorf("%d segments of %v: pill %d spans %v to %v, want %v to %v", n, g.seg, i, p.X, p.X+p.W, want[0], want[1])
+			}
+			if mid := g.seg*float32(i) + g.seg/2 + switcherMacShift(n, i); mid != g.mids[i] {
+				t.Errorf("%d segments of %v: image %d's middle is at %v, want %v", n, g.seg, i, mid, g.mids[i])
+			}
+			if m := switcherMacPill(r, n, i, true); m.X != r.W-want[1] || m.W != p.W {
+				t.Errorf("%d segments of %v: right to left, pill %d spans %v to %v, want it mirrored", n, g.seg, i, m.X, m.X+m.W)
+			}
+		}
+	}
+}
+
+// TestViewSwitcherMacIconsOnPills checks the macOS toolbar group at 2x, left to right and right to left, with square icons: each segment's icon is centered on the segment's pill, at 19.5, 56 and 92 points into a group of three as AppKit centers them (switcherMacShift), in black as AppKit draws a toolbar item's glyph in Aqua (idiomMacInk); and AppKit's focus ring goes around the chosen segment's pill when the keyboard brings the focus there.
+func TestViewSwitcherMacIconsOnPills(t *testing.T) {
+	square := ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16"/></svg>`))
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		selected := 1
+		var box ui.Rect
+		tester := layoutTester(Mac, 640, 200, func(c *ui.Context) {
+			Use(c)
+			ui.Column(c).Fill().Children(func() {
+				HeaderBar(c, "Music", "", nil, func() {
+					box = ViewSwitcher(c, &selected, ViewItem{square, "Library"}, ViewItem{square, "Browse"}, ViewItem{square, "Radio"}).Bounds()
+				})
+				ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() { Button(c, "Before") })
+			})
+		})
+		tester.SetDirection(dir)
+		tester.SetScale(2)
+		tester.Frame()
+		tester.Frame()
+		img := tester.Image()
+		at := func(x, y float32) ui.Color {
+			c := img.RGBAAt(int(x*2), int(y*2))
+			return ui.RGB(c.R, c.G, c.B)
+		}
+		y := box.Y + box.H/2
+		for i, mid := range []float32{19.5, 56, 92} {
+			if dir == ui.RightToLeft {
+				mid = box.W - mid
+			}
+			// A quarter of a point inside and outside each side of the icon: the icon's first and last pixels at 2x, and the pill's or the platter's beside them.
+			l, r := box.X+mid-8, box.X+mid+8
+			if a, b := at(l+0.25, y).G, at(r-0.25, y).G; a > 10 || b > 10 {
+				t.Errorf("%v: icon %d reads %d and %d at its sides, want black from %v to %v points into the group", dir, i, a, b, mid-8, mid+8)
+			}
+			if a, b := at(l-0.25, y).G, at(r+0.25, y).G; a < 200 || b < 200 {
+				t.Errorf("%v: icon %d reaches past %v to %v points into the group (%d and %d beside it)", dir, i, mid-8, mid+8, a, b)
+			}
+		}
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		tester.Key(ui.Shift, ui.KeyTab)
+		tester.Frame()
+		tester.Frame()
+		if !tester.Focused("Browse") {
+			t.Fatalf("%v: Shift+Tab did not bring the focus to the chosen segment", dir)
+		}
+		img = tester.Image()
+		pill := switcherMacPill(box, 3, 1, dir == ui.RightToLeft)
+		if c := at(pill.X-3, y); int(c.B)-int(c.R) < 40 {
+			t.Errorf("%v: 3 points before the focused segment's pill reads %v, want the focus ring", dir, c)
+		}
+	}
+}
+
+// TestViewSwitcherMacTitleSegments checks the macOS toolbar group's title segments, which it shows when an item has no icon, without reading the host font's widths: each as wide as the widest title's advance plus 23.25 points, as AppKit lays out NSToolbarItemGroups of titles (three Browse segments make a group of 202.5 points around a title of 44.38), and at least 35 (three A segments make one of 105).
+func TestViewSwitcherMacTitleSegments(t *testing.T) {
+	for _, labels := range [][]string{{"Library", "A much longer label", "Radio"}, {"A", "B", "C"}} {
+		selected := 0
+		var box, text ui.Rect
+		items := make([]ViewItem, len(labels))
+		for i, s := range labels {
+			items[i].Label = s
+		}
+		tester := layoutTester(Mac, 900, 200, func(c *ui.Context) {
+			HeaderBar(c, "Music", "", nil, func() {
+				box = ViewSwitcher(c, &selected, items...).Bounds()
+				// The widest title alone, in the toolbar's font, to measure its advance.
+				text = ui.Text(c, labels[1]).SingleLine().Bounds()
+			})
+		})
+		tester.Frame()
+		tester.Frame()
+		want := 3 * max(text.W+23.25, 35)
+		if d := box.W - want; d > 0.01 || d < -0.01 {
+			t.Errorf("%q: the group is %v wide around a widest title of %v, want %v", labels, box.W, text.W, want)
+		}
+	}
+}
+
+// TestViewSwitcherAdwBoldLabels checks that GNOME's buttons show their labels in bold, as libadwaita's buttons do (_buttons.scss), without reading the host font's widths: a button holding a long label is wider than the label in the regular weight, its icon, the gap and the padding.
+func TestViewSwitcherAdwBoldLabels(t *testing.T) {
+	const long = "A much longer label"
+	selected := 0
+	var box, regular ui.Rect
+	tester := layoutTester(Linux, 900, 200, func(c *ui.Context) {
+		ui.Column(c).Padding(16).Gap(12).AlignItems(ui.Start).Children(func() {
+			box = ViewSwitcher(c, &selected, ViewItem{switcherTestIcons[0], long}, ViewItem{switcherTestIcons[1], "B"}).Bounds()
+			regular = ui.Text(c, long).SingleLine().Bounds()
+		})
+	})
+	tester.Frame()
+	tester.Frame()
+	// The two buttons are equally wide, 3 apart.
+	button := (box.W - 3) / 2
+	if plain := regular.W + 16 + 6 + 24; button < plain+1 {
+		t.Errorf("the button is %v wide, want wider than %v, its label in the regular weight with its icon, gap and padding", button, plain)
+	}
+}
+
+// TestViewSwitcherChosenLooks checks the chosen item's look on Windows and GNOME, reading pixels clear of the text: WinUI's accent pill, 16 by 3, centered at the bottom of the chosen SelectorBarItem and on no other; GNOME's chosen button currentColor at 10% over the window, another one transparent.
+func TestViewSwitcherChosenLooks(t *testing.T) {
+	for _, p := range []Platform{Windows, Linux} {
+		var th ui.Theme
+		s := &switcherTestState{selected: 1}
+		tester := layoutTester(p, 640, 300, func(c *ui.Context) {
+			Use(c)
+			th = *c.Theme()
+			s.view(c)
+		})
+		tester.Frame()
+		tester.Frame()
+		img := tester.Image()
+		at := func(x, y float32) ui.Color {
+			c := img.RGBAAt(int(x), int(y))
+			return ui.RGB(c.R, c.G, c.B)
+		}
+		same := func(a, b ui.Color) bool {
+			d := func(x, y uint8) bool { return int(x)-int(y) <= 2 && int(y)-int(x) <= 2 }
+			return d(a.R, b.R) && d(a.G, b.G) && d(a.B, b.B)
+		}
+		browse, _ := tester.Find("Browse")
+		radio, _ := tester.Find("Radio")
+		if p == Windows {
+			for _, r := range []ui.Rect{browse, radio} {
+				got := at(r.X+r.W/2, r.Y+r.H-2)
+				if chosen := r == browse; same(got, th.Accent) != chosen {
+					t.Errorf("%v: the pill's place under %v reads %v, chosen %v", p, r, got, chosen)
+				}
+				if got := at(r.X+r.W/2-9, r.Y+r.H-2); same(got, th.Accent) {
+					t.Errorf("%v: the pill reaches 9 DIPs from the item's middle", p)
+				}
+			}
+			continue
+		}
+		face := adwInkAlpha(&th, th.Background, 0.10)
+		if got := at(browse.X+4, browse.Y+browse.H/2); !same(got, face) {
+			t.Errorf("%v: the chosen button reads %v, want %v", p, got, face)
+		}
+		if got := at(radio.X+4, radio.Y+radio.H/2); !same(got, th.Background) {
+			t.Errorf("%v: an unchosen button reads %v, want the window's %v", p, got, th.Background)
+		}
+		// The corners of 9 ($button_radius) leave the pixel 2 in from the chosen button's corner mostly outside it, where corners of 6 would cover it.
+		if got := at(browse.X+2, browse.Y+2); int(got.G)-int(face.G) < (int(th.Background.G)-int(face.G))/2 {
+			t.Errorf("%v: 2 pixels in from the chosen button's corner reads %v, want mostly the window's %v as corners of 9 leave it", p, got, th.Background)
+		}
+	}
+}
+
+// switcherView lays out the switchers for screenshots: a header bar titled Music with a switcher of Library, Browse and Radio among its end controls, and the same switcher alone 16 from the window's side and 16 below the bar, Browse chosen in both. tools/appkit-reference's switcher scene, tools/winui-reference's winui-switcher scene and tools/adwaita-reference's switcher set place the platforms' own there.
+func switcherView(p Platform) func(c *ui.Context) {
+	bar, alone := 1, 1
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Column(c).Fill().Children(func() {
+				HeaderBar(c, "Music", "", nil, func() { ViewSwitcher(c, &bar, switcherTestItems(true)...) })
+				ui.Column(c).Grow(1).Padding(16).AlignItems(ui.Start).Children(func() {
+					ViewSwitcher(c, &alone, switcherTestItems(true)...)
+				})
+			})
+		})
+	}
+}
+
+// TestScreenshotsViewSwitcher writes the switchers of every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names, the window controls' room as headerTestRoom gives it. Without it the test only builds the frames.
+func TestScreenshotsViewSwitcher(t *testing.T) {
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, p := range Platforms {
+		for _, dark := range []bool{false, true} {
+			tester := ui.NewTester(switcherView(p), 560, 140)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+			tester.SetTitleBar(headerTestRoom(p, ui.LeftToRight))
+			tester.Frame()
+			tester.Frame()
+			tester.Frame()
+			if !tester.HasText("Music") || !tester.HasText("Browse") {
+				t.Fatalf("%v: the bar's title or the switcher is missing", p)
+			}
+			mode := map[bool]string{false: "light", true: "dark"}[dark]
+			writeShot(t, dir, fmt.Sprintf("breeze-switcher-%s-%s.png", strings.ToLower(p.String()), mode), tester)
+		}
+	}
+}
