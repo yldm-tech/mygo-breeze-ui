@@ -36,8 +36,8 @@ func carouselTestPage(c *ui.Context, built map[int]int) func(i int) {
 // carouselShotPlaces are where carouselShotView puts its three controls, in DIPs from the window's top left corner, from its top right corner right to left: the pager of 5, the pager of 9 and the carousel, 320 wide. tools/appkit-reference's carousel scene, tools/winui-reference's winui-carousel scene and tools/adwaita-reference's carousel set put the platforms' own there.
 var carouselShotPlaces = [3]ui.Point{{X: 16, Y: 16}, {X: 16, Y: 56}, {X: 16, Y: 96}}
 
-// carouselShotView lays out the screenshot test's controls on p: a PipsPager of 5 pages with the 2nd chosen, one of 9 with the 7th chosen, and a Carousel 320 wide of 4 pages with the 2nd shown, at carouselShotPlaces.
-func carouselShotView(p Platform) func(c *ui.Context) {
+// carouselShotView lays out the screenshot test's controls on p: a PipsPager of 5 pages with the 2nd chosen, one of 9 with the 7th chosen, and a Carousel 320 wide of 4 pages with the 2nd shown, at carouselShotPlaces, all three disabled when disabled is.
+func carouselShotView(p Platform, disabled bool) func(c *ui.Context) {
 	five, nine, shown := 1, 6, 1
 	return func(c *ui.Context) {
 		Preview(c, p, func() {
@@ -46,15 +46,15 @@ func carouselShotView(p Platform) func(c *ui.Context) {
 				at := func(k int, build func()) {
 					ui.Box(c).Absolute().Start(carouselShotPlaces[k].X).Top(carouselShotPlaces[k].Y).Children(build)
 				}
-				at(0, func() { PipsPager(c, &five, 5) })
-				at(1, func() { PipsPager(c, &nine, 9) })
-				at(2, func() { Carousel(c, &shown, 4, carouselTestPage(c, nil)).Width(320) })
+				at(0, func() { PipsPager(c, &five, 5).Disabled(disabled) })
+				at(1, func() { PipsPager(c, &nine, 9).Disabled(disabled) })
+				at(2, func() { Carousel(c, &shown, 4, carouselTestPage(c, nil)).Width(320).Disabled(disabled) })
 			})
 		})
 	}
 }
 
-// TestScreenshotsCarousel writes the pagers and the carousel of every platform, light and dark, and right to left in the light theme, at 2x to the directory BREEZE_SCREENSHOTS names, and on Windows the same again with FlipView's buttons shown by the mouse over the view. Without it the test only builds the frames.
+// TestScreenshotsCarousel writes the pagers and the carousel of every platform, light and dark, and right to left in the light theme, at 2x to the directory BREEZE_SCREENSHOTS names, and on Windows the same three again with FlipView's buttons shown by the mouse over the view, and the pagers and the carousel disabled, light and dark. Without it the test only builds the frames.
 func TestScreenshotsCarousel(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	type shot struct {
@@ -63,7 +63,7 @@ func TestScreenshotsCarousel(t *testing.T) {
 	}
 	for _, p := range Platforms {
 		for _, s := range []shot{{false, false}, {true, false}, {false, true}} {
-			tester := ui.NewTester(carouselShotView(p), 352, 312)
+			tester := ui.NewTester(carouselShotView(p, false), 352, 312)
 			tester.SetScale(2)
 			tester.SetDark(s.dark)
 			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
@@ -81,8 +81,8 @@ func TestScreenshotsCarousel(t *testing.T) {
 				mode = "rtl-light"
 			}
 			writeShot(t, dir, fmt.Sprintf("breeze-carousel-%s-%s.png", strings.ToLower(p.String()), mode), tester)
-			if p == Windows && !s.rtl {
-				// FlipView's buttons, which a move of the mouse over the view shows, as tools/winui-reference's winui-carousel-buttons scene shows WinUI's.
+			if p == Windows {
+				// FlipView's buttons, which a move of the mouse over the view shows, as tools/winui-reference's winui-carousel-buttons and winui-carousel-buttons-rtl scenes show WinUI's.
 				tester.Move(carouselShotPlaces[2].X+160, carouselShotPlaces[2].Y+carouselTestPageHeight/2)
 				tester.Frame()
 				tester.Frame()
@@ -92,6 +92,16 @@ func TestScreenshotsCarousel(t *testing.T) {
 				writeShot(t, dir, fmt.Sprintf("breeze-carousel-buttons-windows-%s.png", mode), tester)
 			}
 		}
+	}
+	// Disabled on Windows, light and dark, as tools/winui-reference's winui-carousel-disabled scene shows WinUI's.
+	for _, dark := range []bool{false, true} {
+		tester := ui.NewTester(carouselShotView(Windows, true), 352, 312)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		writeShot(t, dir, fmt.Sprintf("breeze-carousel-disabled-windows-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), tester)
 	}
 }
 
@@ -349,7 +359,7 @@ func TestPipsPagerMacFocusRing(t *testing.T) {
 	}
 }
 
-// TestPipsPagerFluentPips checks WinUI's pips on Windows at 2x, light and dark: the chosen pip's dot 6 DIPs across, another's 4, in ControlStrongFillColorDefault (#72000000, #8BFFFFFF) over the window; a pip under the pointer 6 DIPs across in TextFillColorSecondary (#9E000000, #C5FFFFFF); and the system focus visual on the chosen pip's edge once Tab brings the focus there.
+// TestPipsPagerFluentPips checks WinUI's pips on Windows at 2x, light and dark: the chosen pip's dot 5.625 DIPs across, another's 3.75 (the EA3B glyph's circle at 6 and 4), in ControlStrongFillColorDefault (#72000000, #8BFFFFFF) over the window; a pip under the pointer 5.625 DIPs across and a pressed one 3.75 in TextFillColorSecondary (#9E000000, #C5FFFFFF), as tools/winui-reference's winui-carousel-states scene shows them; and the system focus visual on the chosen pip's edge once Tab brings the focus there.
 func TestPipsPagerFluentPips(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		s := &pagerTestState{selected: 1, count: 5}
@@ -393,8 +403,15 @@ func TestPipsPagerFluentPips(t *testing.T) {
 		tester.Move(r.X+r.W/2, r.Y+r.H/2)
 		tester.Frame()
 		dot("Page 4", secondary, 5.625)
-		tester.Move(300, 180)
+		tester.Press(r.X+r.W/2, r.Y+r.H/2)
 		tester.Frame()
+		dot("Page 4", secondary, 3.75)
+		tester.Move(300, 180)
+		tester.Release(300, 180)
+		tester.Frame()
+		if s.selected != 1 {
+			t.Fatalf("dark %v: a press let go away from the pip chose page %d", dark, s.selected+1)
+		}
 		if err := tester.Click("Before"); err != nil {
 			t.Fatal(err)
 		}
@@ -403,6 +420,44 @@ func TestPipsPagerFluentPips(t *testing.T) {
 		edge := pagerPixel(tester, 2, chosen.X+0.75, chosen.Y+chosen.H/2)
 		if d := int(edge.G) - int(th.Background.G); (dark && d < 100) || (!dark && d > -100) {
 			t.Errorf("dark %v: the chosen pip's edge reads %v, want the focus visual's outer stroke", dark, edge)
+		}
+	}
+}
+
+// TestPipsPagerFluentDisabled checks that a disabled pager's pips and a disabled carousel's on Windows read ControlStrongFillColorDisabled (#51000000, #3FFFFFFF) over the window, chosen or not, at their sizes, as tools/winui-reference's winui-carousel-disabled scene measured WinUI's: 166 in the light theme and 87 in the dark one, where MyGo's half opacity alone would make them 189 and 93.
+func TestPipsPagerFluentDisabled(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, inCarousel := range []bool{false, true} {
+			var th ui.Theme
+			pager, carousel := &pagerTestState{selected: 1, count: 5, disabled: true}, &carouselTestState{shown: 1, disabled: true}
+			tester := layoutTester(Windows, 400, 320, func(c *ui.Context) {
+				if inCarousel {
+					carousel.view(c)
+				} else {
+					pager.view(c)
+				}
+				th = *c.Theme()
+			})
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.Frame()
+			tester.Frame()
+			want := th.Background.Mix(pick(dark, black, white), pick(dark, float32(0x51)/255, 0x3f/255.0))
+			for _, c := range []struct {
+				label string
+				d     float32
+			}{{"Page 2", 5.625}, {"Page 4", 3.75}} {
+				r, ok := tester.Find(c.label)
+				if !ok {
+					t.Fatalf("dark %v, in a carousel %v: no %s", dark, inCarousel, c.label)
+				}
+				if got := pagerPixel(tester, 2, r.X+r.W/2, r.Y+r.H/2); !macNear(got, want, 2) {
+					t.Errorf("dark %v, in a carousel %v: %s's dot reads %v, want %v", dark, inCarousel, c.label, got, want)
+				}
+				if got := inkDiameter(tester, 2, r, th.Background, want); got < c.d-0.08 || got > c.d+0.08 {
+					t.Errorf("dark %v, in a carousel %v: %s's dot is %v DIPs across by its ink, want %v", dark, inCarousel, c.label, got, c.d)
+				}
+			}
 		}
 	}
 }
@@ -918,7 +973,7 @@ func TestCarouselFlipButtons(t *testing.T) {
 	}
 }
 
-// TestCarouselFlipButtonsDrawn checks FlipView's buttons at 2x, light and dark, left to right and right to left: the in-app acrylic's fallback color (#f9f9f9, #2c2c2c) and a caret 6 DIPs wide and 8 high in ControlStrongFillColorDefault in the middle, the previous button's pointing to the start, mirrored right to left as its glyph is (MirroredWhenRightToLeft).
+// TestCarouselFlipButtonsDrawn checks FlipView's buttons at 2x, light and dark, left to right and right to left: the in-app acrylic's fallback color (#f9f9f9, #2c2c2c) and a caret 6 DIPs wide and 8 high in ControlStrongFillColorDefault in the middle, the previous button's pointing to the start, mirrored right to left as its glyph is (MirroredWhenRightToLeft), as tools/winui-reference's winui-carousel-buttons and winui-carousel-buttons-rtl scenes show them; and the caret under the pointer and pressed.
 func TestCarouselFlipButtonsDrawn(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
@@ -968,6 +1023,43 @@ func TestCarouselFlipButtonsDrawn(t *testing.T) {
 			}
 			if got := pagerPixel(tester, 2, tip, cy); int(got.G) > (int(face.G)+int(strong.G))/2 == !dark {
 				t.Errorf("%s: the caret's tip reads %v in its first half DIP, want it blunt", name, got)
+			}
+			// Under the pointer the caret is TextFillColorSecondary at its size, and pressed shrunk to 0.875 about its em's middle, as winui-carousel-states shows them: 95 in the light theme and 207 in the dark one, covering 32.2 and 24.7 square DIPs (WinUI's pressed glyph, hinted to whole pixels at 7 DIPs, measured 23.9 and 24.3).
+			secondary := face.Mix(pick(dark, black, white), pick(dark, float32(0x9e)/255, 0xc5/255.0))
+			box := ui.Rect{X: cx - 4, Y: cy - 5, W: 8, H: 10}
+			tester.Move(cx, cy)
+			tester.Frame()
+			if got := pagerPixel(tester, 2, cx+flat, cy); !macNear(got, secondary, 3) {
+				t.Errorf("%s: the caret under the pointer reads %v, want %v", name, got, secondary)
+			}
+			if got := inkArea(tester, 2, box, face, secondary); got < 31.2 || got > 33.2 {
+				t.Errorf("%s: the caret under the pointer covers %v square DIPs, want 32.2", name, got)
+			}
+			// halves returns the ink left of the middle over that right of it, and the ink above the middle less that below it.
+			halves := func() (float32, float32) {
+				ink := func(x, y, w, h float32) float32 {
+					return inkArea(tester, 2, ui.Rect{X: x, Y: y, W: w, H: h}, face, secondary)
+				}
+				return ink(cx-4, cy-5, 4, 10) / ink(cx, cy-5, 4, 10), ink(cx-4, cy-5, 8, 5) - ink(cx-4, cy, 8, 5)
+			}
+			across, _ := halves()
+			tester.Press(cx, cy)
+			tester.Frame()
+			if got := pagerPixel(tester, 2, cx+flat, cy); !macNear(got, secondary, 3) {
+				t.Errorf("%s: the pressed caret reads %v, want %v", name, got, secondary)
+			}
+			if got := inkArea(tester, 2, box, face, secondary); got < 23.7 || got > 25.7 {
+				t.Errorf("%s: the pressed caret covers %v square DIPs, want 24.7", name, got)
+			}
+			// Shrunk about the middle, the ink keeps its share on either side of it and is as much above as below.
+			if got, down := halves(); got < across-0.05 || got > across+0.05 || down < -0.3 || down > 0.3 {
+				t.Errorf("%s: the pressed caret is not shrunk about its middle: %v of its ink left of it for every 1 right, where unpressed %v, and %v more above than below", name, got, across, down)
+			}
+			tester.Move(x, y)
+			tester.Release(x, y)
+			tester.Frame()
+			if s.shown != 1 {
+				t.Errorf("%s: a press let go away from the button showed page %d", name, s.shown+1)
 			}
 		}
 	}

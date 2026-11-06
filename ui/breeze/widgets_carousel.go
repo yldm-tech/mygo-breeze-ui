@@ -201,6 +201,15 @@ func pipsFluentInk(t *ui.Theme, hovered, pressed bool) ui.Color {
 	return pick(t.Dark, black.Alpha(0x72/255.0), white.Alpha(0x8b/255.0))
 }
 
+// pipsFluentDisabled returns a disabled pip's glyph color: WinUI draws it in PipsPagerSelectionIndicatorForegroundDisabled, ControlStrongFillColorDisabled (#51000000, #3FFFFFFF), which reads 166 over the window's 243 in the light theme and 87 over 32 in the dark one, chosen or not (measured by tools/winui-reference's winui-carousel-disabled scene on Windows 11 26H2). MyGo draws a disabled element at half opacity, each fill on its own, so it is the color that reads so at half opacity over the window (fluentUnderHalf).
+func pipsFluentDisabled(t *ui.Theme) ui.Color {
+	want := t.Background.Mix(black, 0x51/255.0)
+	if t.Dark {
+		want = t.Background.Mix(white, 0x3f/255.0)
+	}
+	return fluentUnderHalf(want, t.Background)
+}
+
 // pipsFluentDot returns the diameter of a pip's dot, the EA3B glyph's circle at the glyph's font size: 6 DIPs chosen or under the pointer, 4 otherwise and while pressed, as PipsPagerButtonBaseStyle's PointerOver and Pressed states set the FontSize, the circle filling 15/16 of it.
 func pipsFluentDot(chosen, hovered, pressed bool) float32 {
 	size := float32(pipsFluentNormal)
@@ -242,6 +251,10 @@ func pipsFluent(c *ui.Context, root ui.Element, n, sel int, pip func(int) ui.Ele
 					hovered, pressed := e.Hovered(), e.Pressed()
 					d, ink := pipsFluentDot(i == sel, hovered, pressed), pipsFluentInk(t, hovered, pressed)
 					e.Draw(func(p *ui.Painter, r ui.Rect) {
+						// Read as it is drawn, as the pager's Disabled comes after it is built.
+						if e.Valid() && e.IsDisabled() {
+							ink = pipsFluentDisabled(t)
+						}
 						// A path, as Fill would round the dot's box to whole pixels.
 						var dot ui.Path
 						p.FillPath(dot.Circle(r.X+r.W/2, r.Y+r.H/2, d/2), ink)
