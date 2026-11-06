@@ -31,7 +31,7 @@ const switcherAdwLeast = 120
 // ViewSwitcher creates the control that switches an app's top-level views, one of items, chosen by *selected, as the platform draws its own; build the chosen view after it. Put it in a HeaderBar's end controls or in a Toolbar to switch the window's views from there, or anywhere in the view.
 //
 // It is MyGo's SegmentedBase on macOS, a radio group of radio buttons as AppKit reports an NSToolbarItemGroup and an NSSegmentedControl (AXRadioGroup, measured on macOS 27.2), and MyGo's TabsBase on Windows and GNOME, a tab list of tabs as AdwViewSwitcher is (GTK_ACCESSIBLE_ROLE_TAB_LIST and TAB) and the nearest MyGo has to a SelectorBar's list of selectable items. Either way Tab stops once in it, at the chosen item, the arrows choose among the items, mirrored right to left, and each item is named by its label, as SelectorBarItemAutomationPeer names an item by its Text and AppKit a segment by its label.
-//   - macOS: in a Toolbar or a HeaderBar, an NSToolbarItemGroup of selectionMode selectOne as a key window's unified toolbar draws it: one 36-point platter of a bordered toolbar item (idiomMacPlatter) holding the segments, each 37 points wide around its 16-point icon in black (white in Dark Aqua); the chosen segment a pill 28 points high 4 inside the platter's top and bottom, 6 points narrower than a segment, the first pill 4 in from the platter's start and the last 4 from its end, the others spread evenly between, filled as a pressed toolbar item is (black at 7.8% in Aqua, (89,88,88) in Dark Aqua: the live capture reads 232 on a 252 platter and (91,90,90) on (71,70,70)); a separator 1 by 20 points at the boundary between two segments neither of which is chosen, black at 20% (white at 28% in Dark Aqua) over the platter, read from the live capture. The toolbar shows the icons only, as AppKit's does in its icon-only display mode, the labels naming the segments; when an item has no icon the segments show the labels instead, in 13 points, as wide as the widest. A pressed segment shows the pill too and the focus ring goes around the focused segment's pill (inferred). Outside a toolbar, Segmented's NSSegmentedControl, each segment's 16-point icon 2 points before its label (measured: three image and label segments are 18 points wider each than label segments alone).
+//   - macOS: in a Toolbar or a HeaderBar, an NSToolbarItemGroup of selectionMode selectOne as a key window's unified toolbar draws it: one 36-point platter of a bordered toolbar item (idiomMacPlatter) holding the segments, each 37 points wide around its 16-point icon in black (white in Dark Aqua); the chosen segment a pill 28 points high 4 inside the platter's top and bottom, 4 in from the platter's start in the first segment and from its end in the last, otherwise 3 after the boundary before the segment and 2 before the one after it (switcherMacInsets), each segment's icon centered on its pill, filled as a pressed toolbar item is (black at 7.8% in Aqua, (89,88,88) in Dark Aqua: the live capture reads 232 on a 252 platter and (91,90,90) on (71,70,70)); a separator 1 by 20 points at the boundary between two segments neither of which is chosen, black at 20% (white at 28% in Dark Aqua) over the platter, read from the live capture. The toolbar shows the icons only, as AppKit's does in its icon-only display mode, the labels naming the segments; when an item has no icon the segments show the labels instead, in 13 points, as wide as the widest. A pressed segment shows the pill too and the focus ring goes around the focused segment's pill (inferred). Outside a toolbar, Segmented's NSSegmentedControl, each segment's 16-point icon 2 points before its label (measured: three image and label segments are 18 points wider each than label segments alone).
 //   - Windows: WinUI's SelectorBar, padded 4 above and below: items 40 DIPs high, padded 12,10,12,7 above a 3-DIP row for the pill, the 16-DIP icon (an IconElement of 20, scaled 0.8 with a margin of -2 at its sides) 8 before the text in ControlContentThemeFontSize (14), in TextFillColorPrimary, TextFillColorSecondary under the pointer and TextFillColorTertiary pressed (the chosen item TextFillColorSecondary under the pointer and pressed); the chosen item's accent pill, 16 by 3, centered at its bottom, growing from 4 wide as WinUI animates it. WinUI's SelectorBar fills no item under the pointer or pressed (its SelectorBarItemBackground brushes are transparent in every state), so only the text changes.
 //   - GNOME: AdwViewSwitcher with the wide policy, as in a header bar: buttons 34 pixels high, 3 apart, all as wide as the widest and at least 120, each a flat button with corners of 9 holding the 16-pixel icon 6 before its bold label, padded 2 12 and centered; the chosen one currentColor at 10% (13% under the pointer, 19% pressed), another one 7% under the pointer and 16% pressed, with the focus ring inside its edge.
 //
@@ -169,26 +169,33 @@ func switcherMacBar(c *ui.Context, root ui.Element, item func(int) ui.Element, i
 	})
 }
 
-// switcherMacPill returns the pill of segment i of n in the group's box r, as AppKit places it (see ViewSwitcher): 4 points inside the platter's top and bottom, 6 points narrower than a segment, the first 4 in from the platter's start and the last 4 from its end, the others spread evenly between (measured on macOS 27.2 with three 16-point images: pills 31 points wide at 4, 40 and 76 points into a 111-point group); a single segment's pill 4 in from both ends (inferred).
-func switcherMacPill(r ui.Rect, n, i int, rtl bool) ui.Rect {
-	seg := r.W / float32(n)
-	w, x := r.W-8, float32(4)
-	if n > 1 {
-		w = seg - 6
-		x += float32(i) * (r.W - 8 - w) / float32(n-1)
+// switcherMacInsets returns how far the pill of segment i of n stands in from the segment's start and from its end, as AppKit places it: 4 points from the platter's start in the first segment and from its end in the last, otherwise 3 after the boundary before the segment (the separator's point and 2) and 2 before the boundary after it. Measured on macOS 27.2 with NSToolbarItemGroups of two to five 16-point images (37-point segments), of three 24-point ones (41) and of three titles, chosen in turn, offscreen and live: in a 111-point group of three the pills span 4 to 35, 40 to 72 and 77 to 107 points, in a 148-point group of four 4 to 35, 40 to 72, 77 to 109 and 114 to 144, in a 74-point group of two 4 to 35 and 40 to 70. A single segment's pill is 4 in from both ends (inferred).
+func switcherMacInsets(n, i int) (start, end float32) {
+	start, end = 3, 2
+	if i == 0 {
+		start = 4
 	}
-	if rtl {
-		x = r.W - x - w
+	if i == n-1 {
+		end = 4
 	}
-	return ui.Rect{X: r.X + x, Y: r.Y + 4, W: w, H: r.H - 8}
+	return start, end
 }
 
-// switcherMacShift is how far toward the group's end AppKit moves the image or the title of segment i of n from the segment's middle, centering it on the segment's pill (switcherMacPill): 1 - 2i/(n-1) points, a point toward the end in the first segment of three and a point back in the last, as measured on macOS 27.2.
-func switcherMacShift(n, i int) float32 {
-	if n < 2 {
-		return 0
+// switcherMacPill returns the pill of segment i of n in the group's box r (see ViewSwitcher and switcherMacInsets): 4 points inside the platter's top and bottom, the segments sharing the box equally; right to left it is mirrored (inferred).
+func switcherMacPill(r ui.Rect, n, i int, rtl bool) ui.Rect {
+	seg := r.W / float32(n)
+	start, end := switcherMacInsets(n, i)
+	x0, x1 := float32(i)*seg+start, float32(i+1)*seg-end
+	if rtl {
+		x0, x1 = r.W-x1, r.W-x0
 	}
-	return 1 - 2*float32(i)/float32(n-1)
+	return ui.Rect{X: r.X + x0, Y: r.Y + 4, W: x1 - x0, H: r.H - 8}
+}
+
+// switcherMacShift is how far toward the group's end AppKit moves the image or the title of segment i of n from the segment's middle, centering it on the segment's pill (switcherMacPill) whether or not the segment is chosen: half the difference of the pill's insets, a point toward the end in the first segment, half a point in the ones between and half a point back in the last (measured on macOS 27.2 with the groups switcherMacInsets lists: the images' middles at 19.5, 56 and 92 points into a group of three, 19.5, 56, 93 and 129 into one of four).
+func switcherMacShift(n, i int) float32 {
+	start, end := switcherMacInsets(n, i)
+	return (start - end) / 2
 }
 
 // ---- Windows ----

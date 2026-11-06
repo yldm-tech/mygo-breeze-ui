@@ -283,6 +283,31 @@ func TestViewSwitcherMacToolbarPill(t *testing.T) {
 		if v := gray(library.X+library.W/2-11, y); v < 250 {
 			t.Errorf("%v: an unchosen segment reads %d, want the white platter", dir, v)
 		}
+		// The pills' ends, in points into the 111-point group from its start, as AppKit draws them (switcherMacInsets): the pill covers the points from from to to-1 and the platter shows on either side.
+		for _, pill := range []struct{ sel, from, to int }{{1, 40, 72}, {2, 77, 107}, {0, 4, 35}} {
+			s.selected = pill.sel
+			tester.Frame()
+			img = tester.Image()
+			at := func(x int) int {
+				if dir == ui.RightToLeft {
+					x = 110 - x
+				}
+				return gray(s.box.X+float32(x), y)
+			}
+			if a, b := at(pill.from), at(pill.to-1); a < 233 || a > 237 || b < 233 || b > 237 {
+				t.Errorf("%v: segment %d's pill reads %d and %d at its ends, want 235 from %d to %d points", dir, pill.sel, a, b, pill.from, pill.to)
+			}
+			if pill.from > 4 {
+				if v := at(pill.from - 1); v < 250 {
+					t.Errorf("%v: segment %d's pill starts before %d points (%d)", dir, pill.sel, pill.from, v)
+				}
+			}
+			if pill.to < 107 {
+				if v := at(pill.to); v < 250 {
+					t.Errorf("%v: segment %d's pill runs past %d points (%d)", dir, pill.sel, pill.to, v)
+				}
+			}
+		}
 		s.selected = 0
 		tester.Frame()
 		img = tester.Image()
@@ -293,6 +318,35 @@ func TestViewSwitcherMacToolbarPill(t *testing.T) {
 		}
 		if v := gray(x, y); v > 215 {
 			t.Errorf("%v: the separator before Radio reads %d, want the platter darkened by 20%%", dir, v)
+		}
+	}
+}
+
+// TestViewSwitcherMacPillsAsAppKit checks the macOS toolbar group's pills and the middles of its images against NSToolbarItemGroups of two to four 16-point images and three 24-point ones, chosen in turn, as AppKit draws them on macOS 27.2 (in points into the group, from its start).
+func TestViewSwitcherMacPillsAsAppKit(t *testing.T) {
+	for _, g := range []struct {
+		seg   float32
+		pills [][2]float32
+		mids  []float32
+	}{
+		{37, [][2]float32{{4, 35}, {40, 70}}, []float32{19.5, 55}},
+		{37, [][2]float32{{4, 35}, {40, 72}, {77, 107}}, []float32{19.5, 56, 92}},
+		{37, [][2]float32{{4, 35}, {40, 72}, {77, 109}, {114, 144}}, []float32{19.5, 56, 93, 129}},
+		{41, [][2]float32{{4, 39}, {44, 80}, {85, 119}}, []float32{21.5, 62, 102}},
+	} {
+		n := len(g.pills)
+		r := ui.Rect{W: g.seg * float32(n), H: 36}
+		for i, want := range g.pills {
+			p := switcherMacPill(r, n, i, false)
+			if p.X != want[0] || p.X+p.W != want[1] || p.Y != 4 || p.H != 28 {
+				t.Errorf("%d segments of %v: pill %d spans %v to %v, want %v to %v", n, g.seg, i, p.X, p.X+p.W, want[0], want[1])
+			}
+			if mid := g.seg*float32(i) + g.seg/2 + switcherMacShift(n, i); mid != g.mids[i] {
+				t.Errorf("%d segments of %v: image %d's middle is at %v, want %v", n, g.seg, i, mid, g.mids[i])
+			}
+			if m := switcherMacPill(r, n, i, true); m.X != r.W-want[1] || m.W != p.W {
+				t.Errorf("%d segments of %v: right to left, pill %d spans %v to %v, want it mirrored", n, g.seg, i, m.X, m.X+m.W)
+			}
 		}
 	}
 }
