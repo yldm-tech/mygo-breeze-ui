@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, carousel, carouselrtl, carouseldrag, carouseldragrtl, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, carousel, carouselrtl, carouseldrag, carouseldragrtl, carouselinsensitive, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import subprocess
 import sys
 
@@ -820,8 +820,8 @@ def datepicker_rtl_set():
     return fixed(560, 400, [(calendar, 544 - width, 16), (button, 200 - button.measure(Gtk.Orientation.HORIZONTAL, -1)[1], 16)], named={"calendar": calendar, "date-picker": button})
 
 
-def carousel_set(rtl=False, drag=False):
-    """TestScreenshotsCarousel's carouselShotView: AdwCarouselIndicatorDots of 5 pages with the 2nd chosen at 16, 16 and of 9 pages with the 7th chosen at 16, 56, each showing a carousel of empty pages that the scene keeps out of sight, 1 pixel square and transparent (the dots read its pages and position once it is laid out, and are measured again then), and at 16, 96 a vertical GtkBox 320 wide of an AdwCarousel 160 high of four pages, each a label of its slide centered, the 2nd shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as libadwaita's demo (adw-demo-page-carousel.ui) lays them out, where Breeze UI's PipsPagers and Carousel stand. With rtl, the carouselrtl set, the default direction is right to left and each stands as far from the window's right edge. With drag, the carouseldrag and carouseldragrtl sets, xdotool presses the mouse in the carousel's middle and moves it 10 times by 10 pixels toward its start, the way to the next page, 100 ms apart, and the window is rendered with the mouse still pressed, as TestAdwCarouselDragAsRendered drags Breeze UI's; the carousel's position is printed."""
+def carousel_set(rtl=False, drag=False, insensitive=False):
+    """TestScreenshotsCarousel's carouselShotView: AdwCarouselIndicatorDots of 5 pages with the 2nd chosen at 16, 16 and of 9 pages with the 7th chosen at 16, 56, each showing a carousel of empty pages that the scene keeps out of sight, 1 pixel square and transparent (the dots read its pages and position once it is laid out, and are measured again then), and at 16, 96 a vertical GtkBox 320 wide of an AdwCarousel 160 high of four pages, each a label of its slide centered, the 2nd shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as libadwaita's demo (adw-demo-page-carousel.ui) lays them out, where Breeze UI's PipsPagers and Carousel stand. With rtl, the carouselrtl set, the default direction is right to left and each stands as far from the window's right edge. With drag, the carouseldrag and carouseldragrtl sets, xdotool presses the mouse in the carousel's middle and moves it 10 times by 10 pixels toward its start, the way to the next page, 100 ms apart, and the window is rendered with the mouse still pressed, as TestAdwCarouselDragAsRendered drags Breeze UI's; the carousel's position is printed. With insensitive, the carouselinsensitive set, the pagers and the carousel's box are insensitive, to show how libadwaita draws dots that are."""
     if rtl:
         Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL)
 
@@ -845,6 +845,9 @@ def carousel_set(rtl=False, drag=False):
     slides.set_size_request(320, 160)
     dots = Adw.CarouselIndicatorDots(carousel=slides, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
     box = vbox(0, slides, dots, width=320)
+    if insensitive:
+        for widget in (five, nine, box):
+            widget.set_sensitive(False)
 
     def at(width):
         """The left of a widget width pixels wide 16 from the window's start: its left side, or its right side right to left (GtkFixed places its children from the left in either direction)."""
@@ -944,6 +947,7 @@ SETS = [
     ("carouselrtl", "adwaita-carousel-rtl", lambda: carousel_set(True)),
     ("carouseldrag", "adwaita-carousel-drag", lambda: carousel_set(drag=True)),
     ("carouseldragrtl", "adwaita-carousel-drag-rtl", lambda: carousel_set(True, drag=True)),
+    ("carouselinsensitive", "adwaita-carousel-insensitive", lambda: carousel_set(insensitive=True)),
     ("text", "adwaita-text", text_set),
 ]
 
