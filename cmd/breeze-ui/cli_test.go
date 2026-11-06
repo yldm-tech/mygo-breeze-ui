@@ -53,7 +53,7 @@ func TestListPlatformsAndLooks(t *testing.T) {
 	if err := run([]string{"list", "-kind", "platform"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"platform\tmacOS\tmacOS 26+", "platform\tWindows\tWindows 11", "platform\tLinux\tGNOME 48"} {
+	for _, want := range []string{"platform\tmacOS\tmacOS 26+", "platform\tWindows\tWindows 11", "platform\tLinux\tGNOME 51"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("list -kind platform = %q, missing %q", out.String(), want)
 		}
@@ -62,7 +62,7 @@ func TestListPlatformsAndLooks(t *testing.T) {
 	if err := run([]string{"list"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "component\tSwitch\tdrawn") || !strings.Contains(out.String(), "component\tTable\tthemed") {
+	if !strings.Contains(out.String(), "component\tSwitch\tdrawn") || !strings.Contains(out.String(), "component\tRangeSlider\tthemed") {
 		t.Fatalf("list = %q", out.String())
 	}
 }

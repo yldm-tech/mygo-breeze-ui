@@ -9,19 +9,34 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Button creates a push button showing label, as the platform's push buttons look. Ask Clicked whether it was clicked; give it other content with Children and an empty label. It is ui.Button's counterpart.
+// Button creates a push button showing label, as the platform's push buttons look; inside a Toolbar, as the platform's toolbar items: a bordered NSToolbarItem on macOS, whose image-only items side by side share one platter, an AppBarButton on Windows, and on GNOME a raised text button or, without a label, a flat image button. Ask Clicked whether it was clicked; give it other content with Children and an empty label. It is ui.Button's counterpart.
 func Button(c *ui.Context, label string) ui.Element { return button(c, label, false) }
 
-// PrimaryButton creates a button in the accent color for the main action, as the platform draws its default button (macOS), accent button (Windows) or suggested action (GNOME). It is ui.PrimaryButton's counterpart.
+// PrimaryButton creates a button in the accent color for the main action, as the platform draws its default button (macOS), accent button (Windows) or suggested action (GNOME); inside a Toolbar on macOS, a prominent toolbar item, an accent capsule. It is ui.PrimaryButton's counterpart.
 func PrimaryButton(c *ui.Context, label string) ui.Element { return button(c, label, true) }
 
 func button(c *ui.Context, label string, primary bool) ui.Element {
 	b := ui.ButtonBase(c)
-	switch PlatformOf(c) {
-	case Windows:
+	kind := idiomText
+	switch {
+	case primary:
+		kind = idiomPrimary
+	case label == "":
+		kind = idiomImage
+	}
+	tb, i := idiomToolbarItem(c, b, kind)
+	switch p := PlatformOf(c); {
+	case p == Windows && tb != nil && !primary:
+		idiomFluentAppBarButton(c, b, label == "", false)
+	case p == Windows:
 		fluentButton(c, b, primary)
-	case Linux:
+	case p == Linux && tb != nil && kind == idiomImage:
+		idiomAdwFlatButton(c, b, false)
+	case p == Linux:
+		// Text buttons and the suggested action stay raised in a toolbar (_toolbars.scss).
 		adwButton(c, b, primary)
+	case tb != nil:
+		idiomMacToolbarItem(c, b, tb, i, primary)
 	default:
 		macButton(c, b, primary)
 	}
@@ -33,6 +48,7 @@ func button(c *ui.Context, label string, primary bool) ui.Element {
 
 // Checkbox creates a check box toggling *checked, with a label, as the platform's check boxes look. It is ui.Checkbox's counterpart.
 func Checkbox(c *ui.Context, checked *bool, label string) ui.Element {
+	formsJoinCheckGroup(c, checked)
 	row := ui.CheckboxBase(c, checked).AlignItems(ui.Center).FocusRing(false)
 	on := *checked
 	var box ui.Element
@@ -44,7 +60,7 @@ func Checkbox(c *ui.Context, checked *bool, label string) ui.Element {
 	})
 	switch PlatformOf(c) {
 	case Windows:
-		fluentCheckbox(c, row, box, on)
+		fluentCheckbox(c, row, box, on, false)
 	case Linux:
 		adwCheckbox(c, row, box, on)
 	default:
@@ -109,20 +125,36 @@ func Radio[T comparable](c *ui.Context, selected *T, value T, label string) ui.E
 	return row
 }
 
-// Toggle creates a button that stays pressed while *on, showing label, as the platform draws a toggle button; inside a ToggleGroup, as a segment of the group. It is ui.Toggle's counterpart.
+// Toggle creates a button that stays pressed while *on, showing label, as the platform draws a toggle button; inside a ToggleGroup, as a segment of the group; inside a Toolbar, as the platform's toolbar toggle: a one-item NSToolbarItemGroup on macOS, its platter in the accent while on, an AppBarToggleButton on Windows, and on GNOME a raised toggle button or, without a label, a flat image toggle. It is ui.Toggle's counterpart.
 func Toggle(c *ui.Context, on *bool, label string) ui.Element {
 	b := ui.ToggleBase(c, on)
 	grouped, first := nextInToggleGroup(c)
+	kind := idiomToggle
+	if grouped {
+		kind = idiomOther
+	}
+	tb, i := idiomToolbarItem(c, b, kind)
+	bar := tb != nil && !grouped
 	switch p := PlatformOf(c); {
+	case p == Windows && bar:
+		idiomFluentAppBarButton(c, b, label == "", *on)
 	case p == Windows:
 		fluentToggle(c, b, *on)
 	case p == Linux && grouped:
 		adwLinkedToggle(c, b, *on, first)
+	case p == Linux && bar && label == "":
+		idiomAdwFlatButton(c, b, *on)
 	case p == Linux:
 		adwToggle(c, b, *on)
 	case grouped:
 		// A segment of an NSSegmentedControl that selects any number of segments.
 		macSegment(c, b, *on, false)
+	case bar:
+		idiomMacToolbarItem(c, b, tb, i, *on)
+		if label == "" {
+			// An image toggle is a group's 36-point square item (measured: a one-image NSToolbarItemGroup is 36 by 36).
+			b.MinWidth(36).Padding(0)
+		}
 	default:
 		macToggle(c, b, *on)
 	}
@@ -162,6 +194,16 @@ func TextInput(c *ui.Context, value *string) ui.Element {
 // TextArea creates a multi-line text input editing *value, in the box the platform draws around its text views. It is ui.TextArea's counterpart.
 func TextArea(c *ui.Context, value *string) ui.Element {
 	return styleField(c, ui.TextArea(c, value), multiLine)
+}
+
+// TextInputBuffer creates a single-line text input editing value, a ui.TextBuffer whose edits never copy the whole document, in the box TextInput draws: the same bezel, focus ring, fill, placeholder and disabled look on every platform. Editing, the selection, undo, input methods and assistive technology are MyGo's, as ui.TextInputBuffer gives them; MyGo styles a buffer input with the padding, background, border and corners of ui.TextInput (styledBufferInput in textbuffer_input.go), which styleField replaces as it does TextInput's. It is ui.TextInputBuffer's counterpart.
+func TextInputBuffer(c *ui.Context, value *ui.TextBuffer) ui.Element {
+	return styleField(c, ui.TextInputBuffer(c, value), singleLine)
+}
+
+// TextAreaBuffer creates a multi-line text input editing value, a ui.TextBuffer whose edits never copy the whole document and whose layout keeps only the paragraphs in view, in the box TextArea draws: the same text view frame, focus ring, fill and disabled look on every platform. Editing, the selection, undo, input methods, its scrolling and assistive technology are MyGo's, as ui.TextAreaBuffer gives them. It is ui.TextAreaBuffer's counterpart.
+func TextAreaBuffer(c *ui.Context, value *ui.TextBuffer) ui.Element {
+	return styleField(c, ui.TextAreaBuffer(c, value), multiLine)
 }
 
 // SearchField creates a field for a search query with a magnifying glass, and a button clearing it while it holds text, as the platform's search fields look. It is ui.SearchField's counterpart.
@@ -300,14 +342,13 @@ func Tabs(c *ui.Context, selected *int, labels ...string) ui.Element {
 	parts.List.Children(func() {
 		for i, label := range labels {
 			tab := parts.Tab(i)
-			sep := i > 0 && i != *selected && i-1 != *selected
 			switch p {
 			case Windows:
 				fluentTab(c, tab, i == *selected)
 			case Linux:
 				adwTab(c, tab, i == *selected)
 			default:
-				macSegment(c, tab, i == *selected, sep)
+				macTab(c, tab, i == *selected)
 			}
 			tab.Children(func() { ui.Text(c, label).SingleLine() })
 		}
@@ -322,13 +363,22 @@ func Combobox(c *ui.Context, selected *string, options []string) ui.Element {
 	return styleField(c, ui.Combobox(c, selected, options), singleLine)
 }
 
-// NumberInput creates a field editing *value between lo and hi in steps of step. It is package ui's.
+// NumberInput creates a field editing *value between lo and hi in steps of step, with buttons stepping it, as the platform draws a number field: an NSTextField with an NSStepper beside it on macOS, a NumberBox with its spin buttons inline on Windows, a GtkSpinButton with its − and + buttons after the text on GNOME. What is typed applies once it is a number in range, Up and Down step it, the buttons are disabled at the limits and named Decrease and Increase, and the text shows the value rounded to step's decimals once the input loses the focus; Changed reports a new value. It is ui.NumberInput's counterpart, rebuilt from ui.TextInputBase and ui.ButtonBase as ui.NumberInput is built, so its keys, focus order (the text, Decrease, Increase) and names are MyGo's: the buttons stay tab stops, as WinUI's and GTK's are not, and step once a click, as AppKit's, WinUI's and GTK's repeat while held. On Windows and GNOME the box holds the buttons and fills the width a column gives it, as a NumberBox and a GtkSpinButton do; on macOS the field keeps MyGo's 80 DIPs, the stepper beside it.
 func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
-	return ui.NumberInput(c, value, lo, hi, step)
+	switch PlatformOf(c) {
+	case Windows:
+		return formsFluentNumberInput(c, value, lo, hi, step)
+	case Linux:
+		return formsAdwNumberInput(c, value, lo, hi, step)
+	}
+	return formsMacNumberInput(c, value, lo, hi, step)
 }
 
-// RadioGroup creates the group that radio buttons built in fn choose within, which the arrows move through. It is package ui's.
-func RadioGroup(c *ui.Context, fn func()) ui.Element { return ui.RadioGroup(c, fn) }
+// RadioGroup creates the group that radio buttons built in fn choose within, a column of them, set as far apart as the platform sets its radio buttons: 6 points down the column and 8 across a row on macOS (SwiftUI's radio-group picker), RadioButtons' RowSpacing 8 and ColumnSpacing 7 on Windows, and on GNOME, which has no radio group, the padded check buttons next to each other. The group is ui.RadioGroup's own element, so Tab stops once at the chosen radio button, the arrows, Home and End choose among them, assistive technology sees a radio group named by Label, and Row lays it out across, as package ui's. It is ui.RadioGroup's counterpart.
+func RadioGroup(c *ui.Context, fn func()) ui.Element {
+	down, across := formsRadioGroupSpacing(PlatformOf(c))
+	return ui.RadioGroup(c, fn).GapY(down).GapX(across)
+}
 
 // Modal shows a dialog built by fn over the window while *open, as the platform draws its dialogs; clicking outside it or pressing Escape sets *open to false, which Dismissed reports. It is ui.Modal's counterpart.
 func Modal(c *ui.Context, open *bool, fn func()) ui.Element {
@@ -400,15 +450,46 @@ func AlertDialog(c *ui.Context, open *bool, title, message string, buttons ...st
 	return chosen
 }
 
-// Table creates a table of n rows in columns, whose cells cell builds. It is package ui's.
+// Table creates a table of n rows in columns, whose cells cell builds, as package ui's Table does, its rows drawn as the platform draws them: an inset NSTableView's rounded selection, accent while the table has the focus and gray otherwise (macOS); ListView's items, with their backplate and the accent pill on the chosen one, as WinUI 3 has no table (Windows); a GtkColumnView's rows with the accent-tinted row (GNOME). The choice, the sort, the columns' widths and order, the keys, the focus and accessibility are MyGo's, as are the header, in the platform's theme, the cells' padding and the rows' least height of Space(8). A table choosing cells (ListState.CellSelect) keeps MyGo's cells in the platform's theme, and so does the room a row leaves after its last column when every column is narrower than the table. It is ui.Table's counterpart.
 func Table(c *ui.Context, s *ui.ListState, columns []ui.TableColumn, n int, cell func(row, col int)) ui.Element {
-	return ui.Table(c, s, columns, n, cell)
+	p := PlatformOf(c)
+	if s != nil && s.CellSelect {
+		tb := ui.Table(c, s, columns, n, cell)
+		collStyleTable(p, tb, collBg(p, c.Theme()))
+		return tb
+	}
+	rows := collNewRows(c, p, s)
+	tb := ui.Table(c, s, columns, n, func(row, col int) {
+		rows.cell(c, row, col, columns[col].Align, 0, false, false, func() { cell(row, col) })
+	})
+	collStyleTable(p, tb, rows.bg)
+	return tb
 }
 
-// Tree creates a tree of the items fn builds with TreeItem. It is package ui's.
-func Tree(c *ui.Context, fn func()) ui.Element { return ui.Tree(c, fn) }
+// Tree creates a tree of the items fn builds with TreeItem, as package ui's Tree does, drawn as the platform draws a tree's rows: an inset NSOutlineView's, its selection accent while the tree has the focus and gray otherwise (macOS), TreeView's items with their backplate (Windows), or a GtkListView's rows in a view's background (GNOME). The items are built in a theme of the platform's row colors, which MyGo's TreeItem takes as its caller marks it Selected; the keys, the focus and accessibility are MyGo's. It is ui.Tree's counterpart.
+func Tree(c *ui.Context, fn func()) ui.Element {
+	p := PlatformOf(c)
+	t := c.Theme()
+	th := *t
+	tree := ui.Tree(c, func() {
+		items := ui.Themed(c, &th).Background(ui.Transparent).Role(ui.RoleNone)
+		// The focus of the frame before, as the column holding the items has it before they build.
+		collTreeTheme(p, t, &th, items.FocusWithin())
+		// Themed took the text's color from th before collTreeTheme set it.
+		items.TextColor(th.Text)
+		items.Children(fn)
+	})
+	if p == Linux {
+		tree.Background(adwListViewBg(t))
+	}
+	return tree
+}
 
-// TreeItem creates an item of a Tree, open while *open, with the items children builds. It is package ui's.
+// TreeItem creates an item of a Tree, open while *open, with the items children builds, as package ui's TreeItem does, at the platform's height, insets, corners and indentation of its rows (collTreeItem): Selected shows it chosen in the platform's colors inside this package's Tree. MyGo's disclosure arrow stays, and WinUI's accent pill on the chosen item is not drawn. It is ui.TreeItem's counterpart.
 func TreeItem(c *ui.Context, label string, open *bool, children func()) ui.Element {
-	return ui.TreeItem(c, label, open, children)
+	p := PlatformOf(c)
+	depth := collTreeDepth(c)
+	item := ui.TreeItem(c, label, open, collTreeChildren(c, children))
+	collTreeItem(c, p, item, depth, label)
+	return item
 }

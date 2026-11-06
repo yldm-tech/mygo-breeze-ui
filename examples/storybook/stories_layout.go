@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -96,6 +98,52 @@ func layoutStories() []*story {
 			},
 			code: func(*args) string {
 				return "breeze.Form(c, func() {\n\tbreeze.Field(c, \"Name\", func() { breeze.TextInput(c, &app.name) })\n\tbreeze.Field(c, \"Email\", func() { breeze.TextInput(c, &app.email).Placeholder(\"ada@example.com\") })\n\tbreeze.Field(c, \"Updates\", func() { breeze.Checkbox(c, &app.newsletter, \"Send me the newsletter\") })\n})"
+			}},
+		{component: "Scroll", name: "Rows", category: "Layout",
+			controls: []control{numberArg("rows", 30, 1, 100)},
+			render: func(c *ui.Context, a *args) {
+				t := c.Theme()
+				breeze.Scroll(c).FillWidth().MaxWidth(320).Height(180).Border(1, t.Border).Label("Rows").Children(func() {
+					for i := range int(*a.num["rows"]) {
+						ui.Text(c, fmt.Sprintf("Row %d", i+1)).Padding(6, 10)
+					}
+				})
+			},
+			code: func(*args) string {
+				return "breeze.Scroll(c).Height(180).Children(func() {\n\tfor _, row := range app.rows {\n\t\tui.Text(c, row)\n\t}\n})"
+			}},
+		{component: "ScrollHorizontal", name: "Tags", category: "Layout",
+			controls: []control{numberArg("tags", 12, 1, 40)},
+			render: func(c *ui.Context, a *args) {
+				t := c.Theme()
+				breeze.ScrollHorizontal(c).FillWidth().MaxWidth(320).Gap(8).Padding(8).Border(1, t.Border).Label("Tags").Children(func() {
+					for i := range int(*a.num["tags"]) {
+						breeze.Button(c, fmt.Sprintf("Tag %d", i+1)).Shrink(0)
+					}
+				})
+			},
+			code: func(*args) string {
+				return "breeze.ScrollHorizontal(c).Gap(8).Children(func() {\n\tfor _, tag := range app.tags {\n\t\tbreeze.Button(c, tag)\n\t}\n})"
+			}},
+		{component: "ScrollBoth", name: "Canvas", category: "Layout",
+			controls: []control{numberArg("width", 900, 100, 2000), numberArg("height", 600, 100, 2000)},
+			render: func(c *ui.Context, a *args) {
+				t := c.Theme()
+				w, h := float32(*a.num["width"]), float32(*a.num["height"])
+				breeze.ScrollBoth(c).FillWidth().MaxWidth(320).Height(200).Border(1, t.Border).Label("Canvas").Children(func() {
+					ui.Box(c).Size(w, h).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {
+						// A grid every 50 DIPs, so the canvas shows how far it scrolled.
+						for x := float32(0); x <= r.W; x += 50 {
+							p.Fill(ui.Rect{X: r.X + x, Y: r.Y, W: 1, H: r.H}, t.Border, 0)
+						}
+						for y := float32(0); y <= r.H; y += 50 {
+							p.Fill(ui.Rect{X: r.X, Y: r.Y + y, W: r.W, H: 1}, t.Border, 0)
+						}
+					})
+				})
+			},
+			code: func(*args) string {
+				return "breeze.ScrollBoth(c).Size(320, 200).Children(func() {\n\tui.Box(c).Size(app.width, app.height).Draw(app.drawCanvas)\n})"
 			}},
 		{component: "Split", name: "Sidebar", category: "Layout",
 			controls: []control{numberArg("size", 120, 40, 280)},

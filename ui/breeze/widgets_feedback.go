@@ -11,7 +11,7 @@ import (
 
 // ---- feedback: tooltips, toasts, meters, avatars, ratings and the find bar ----
 //
-// macOS values are measured from AppKit's NSLevelIndicator and NSTextFinder's find bar rendered at 2x, as tools/appkit-reference/reference.swift renders the other controls, the colored ones drawn into an sRGB bitmap (the display's profile, which that script reads, gives the same grays but paler colors), or read from AppKit (NSFont.toolTipsFont, NSColor.systemYellow); AppKit draws tooltips, notifications and contact monograms out of a view's reach, so those are inferred. Windows values are WinUI 3's theme resources (ToolTip_themeresources.xaml, InfoBar_themeresources.xaml and InfoBar.xaml, ProgressBar_themeresources.xaml, RatingControl_themeresources.xaml and RatingControl.cpp, PersonPicture_themeresources.xaml, PersonPicture.xaml, PersonPicture.cpp and InitialsGenerator.cpp, Common_themeresources_any.xaml, AcrylicBrush_themeresources.xaml). GNOME values are libadwaita 1.7.6's stylesheet (_tooltip.scss, _misc.scss for toasts, _level-bar.scss, _avatar.scss, _toolbars.scss for the search bar, _colors.scss, _defaults.scss), adw-toast-widget.ui and .c, adw-avatar.c, and GTK 4.18's gtktooltip.c, gtktooltipwindow.ui and gtklevelbar.c; GNOME has no rating control, so its stars are GNOME Software's (gs-star-widget.c, gs-star-image.c, gs-review-dialog.ui and style.css of 48.0).
+// macOS values are measured from AppKit's NSLevelIndicator and NSTextFinder's find bar rendered at 2x, as tools/appkit-reference/reference.swift renders the other controls, the colored ones drawn into an sRGB bitmap (the display's profile, which that script reads, gives the same grays but paler colors), or read from AppKit (NSFont.toolTipsFont, NSColor.systemYellow); AppKit draws tooltips, notifications and contact monograms out of a view's reach, so those are inferred. Windows values are WinUI 3's theme resources (ToolTip_themeresources.xaml, InfoBar_themeresources.xaml and InfoBar.xaml, ProgressBar_themeresources.xaml, RatingControl_themeresources.xaml and RatingControl.cpp, PersonPicture_themeresources.xaml, PersonPicture.xaml, PersonPicture.cpp and InitialsGenerator.cpp, Common_themeresources_any.xaml, AcrylicBrush_themeresources.xaml). GNOME values are libadwaita 1.10.0's stylesheet (_tooltip.scss, _misc.scss for toasts, _level-bar.scss, _avatar.scss, _toolbars.scss for the search bar, _colors.scss), adw-toast-widget.ui and .c, adw-avatar.c and its icons/adw-avatar-default.svg, adwaita-icon-theme 51.0's window-close-symbolic, and GTK 4.24.0's gtktooltip.c, gtktooltipwindow.ui and gtklevelbar.c; GNOME has no rating control, so its stars are GNOME Software's (gs-star-widget.c, gs-star-image.c, gs-review-dialog.ui and style.css of 51.0).
 
 // Tooltip shows text by anchor while the pointer rests on it or the keyboard focus comes to it, in the platform's tooltip: a small panel below the element on macOS, WinUI's ToolTip above it on Windows, and GTK's tooltip below it on GNOME. It is built on ui.TooltipBase, so the timing, Escape, a disabled anchor showing none and the one-at-a-time rule are MyGo's. Assistive technology does not read the tip, so text becomes anchor's Description, as Element.Tooltip makes it; unlike Element.Tooltip, which keeps a Description given before it, Tooltip replaces one, as package ui offers no way to read it: give a Description of your own after Tooltip. It returns anchor, as Element.Tooltip does, whose counterpart it is.
 func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
@@ -20,6 +20,12 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		return anchor
 	}
 	anchor.Description(text)
+	platformTooltip(c, anchor, text)
+	return anchor
+}
+
+// platformTooltip shows text as anchor's tooltip in the platform's look, on ui.TooltipBase, without touching anchor's Description: Tooltip gives it one, IconButton does not, as its tooltip is its name.
+func platformTooltip(c *ui.Context, anchor ui.Element, text string) {
 	p := PlatformOf(c)
 	ui.TooltipBase(c, anchor, func(tip ui.Element) {
 		switch p {
@@ -32,7 +38,6 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		}
 		tip.Children(func() { ui.Text(c, text) })
 	})
-	return anchor
 }
 
 // macTooltip draws an AppKit tooltip: text in NSFont.toolTipsFont (11 points, read from AppKit), in a light or dark panel with a hairline edge, below the element. AppKit draws tooltips in a window of its own, which does not render offscreen: the panel's colors, padding, corners and shadow are inferred, following the menus of mac.go.
@@ -143,8 +148,8 @@ func fluentToastSeverity(typ string) int {
 	return fluentToastInformational
 }
 
-// fluentToastColors returns an InfoBar's background and its icon's fill for a severity: SystemFillColorSolidAttentionBackground (the solid one, as the toast floats over content) or SystemFillColorSuccessBackground, CautionBackground and CriticalBackground behind the content; SystemFillColorAttention (the accent fill) or SystemFillColorSuccess, Caution and Critical for the icon.
-func fluentToastColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
+// fluentToastColors returns an InfoBar's background and its icon's fill for a severity: SystemFillColorSolidAttentionBackground (the solid one, as the toast floats over content) or SystemFillColorSuccessBackground, CautionBackground and CriticalBackground behind the content; SystemFillColorAttention or SystemFillColorSuccess, Caution and Critical for the icon. SystemFillColorAttentionBrush is SystemAccentColor, accent, in the light theme and SystemAccentColorLight2, the accent fill, in the dark one (Common_themeresources_any.xaml, InfoBarInformationalSeverityIconBackground in InfoBar_themeresources.xaml).
+func fluentToastColors(t *ui.Theme, accent ui.Color, severity int) (bg, icon ui.Color) {
 	switch severity {
 	case fluentToastSuccess:
 		return pick(t.Dark, ui.Hex("#dff6dd"), ui.Hex("#393d1b")), pick(t.Dark, ui.Hex("#0f7b0f"), ui.Hex("#6ccb5f"))
@@ -153,15 +158,15 @@ func fluentToastColors(t *ui.Theme, severity int) (bg, icon ui.Color) {
 	case fluentToastError:
 		return pick(t.Dark, ui.Hex("#fde7e9"), ui.Hex("#442726")), pick(t.Dark, ui.Hex("#c42b1c"), ui.Hex("#ff99a4"))
 	}
-	return pick(t.Dark, ui.Hex("#f7f7f7"), ui.Hex("#2e2e2e")), t.Accent
+	return pick(t.Dark, ui.Hex("#f7f7f7"), ui.Hex("#2e2e2e")), pick(t.Dark, accent, t.Accent)
 }
 
-// fluentToast draws a toast as an InfoBar: at least 48 DIPs high, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border, InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon with InfoBarIconMargin 0,16,14,16; the title semibold and the message 12 after it, both 14 DIPs and 14 from the top; the action button 16 after them and 8 from the top; and the close button, 38 DIPs with a margin of 5, drawn as an AppBarButton. The shadow, as the toast floats over the window, is a flyout's, inferred.
+// fluentToast draws a toast as an InfoBar: at least 48 DIPs high, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border, InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon with InfoBarIconMargin 0,16,14,16; the title semibold and the message 12 after it, both 14 DIPs and 14 from the top; the action button 16 after them and 8 from the top; and the close button (fluentInfoBarClose). The shadow, as the toast floats over the window, is a flyout's, inferred.
 func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	t := c.Theme()
 	w, _ := c.Size()
 	severity := fluentToastSeverity(ts.Type)
-	bg, iconFill := fluentToastColors(t, severity)
+	bg, iconFill := fluentToastColors(t, fluentSystemAccent(c), severity)
 	parts.Root.Row().AlignItems(ui.Start).MinHeight(48).MaxWidth(min(w-32, 640)).PaddingStart(16).Radius(4).
 		Background(bg).Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.098))).TextColor(t.Text).FontSize(14).
 		Shadow(0, 8, 16, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
@@ -180,17 +185,7 @@ func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 				b.Margin(8, 0, 0, 0).MarginStart(16).Children(func() { ui.Text(c, ts.Action).SingleLine() })
 			}
 		})
-		dismiss := parts.CloseButton().Label("Close").Size(38, 38).Margin(5).Shrink(0).Radius(4).Center()
-		hover, pressed := fluentSubtle(t)
-		switch {
-		case dismiss.Pressed():
-			dismiss.Background(pressed)
-		case dismiss.Hovered():
-			dismiss.Background(hover)
-		}
-		dismiss.Children(func() {
-			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.22, 1, t.Text) })
-		})
+		fluentInfoBarClose(c, parts.CloseButton().Label("Close"))
 	})
 }
 
@@ -227,13 +222,17 @@ func adwToastViewport(c *ui.Context, viewport ui.Element) {
 	viewport.Padding(0, 12, 24, 12).AlignItems(ui.Center).Gap(12)
 }
 
-// adwToast draws an AdwToast: $toast_bg_color (#505053) with white text, a pill (border-radius 150px) padded 6 pixels, 12 at the start, its parts 6 apart; the title in .heading, bold, with a margin of 0 6px; the action as a button (white at 10%, 15% under the pointer, 30% pressed, 34 pixels high, bold); and the close button, a 34-pixel .circular .flat button with window-close-symbolic (white at 7% under the pointer, 16% pressed). Its two shadows are the stylesheet's. AdwToast has no description; one shows after the title, not bold, which is inferred.
+// adwToast draws an AdwToast: $toast_bg_color (#505053) with white text, a pill (border-radius 150px) padded 6 pixels, 12 at the start, its parts 6 apart; the title in .heading, bold, with a margin of 0 6px; the action as a button (white at 10%, 15% under the pointer, 30% pressed, 34 pixels high, bold); and the close button, a 34-pixel .circular .flat button with window-close-symbolic (white at 7% under the pointer, 16% pressed), whose arms are 2 pixels wide and cut square at the edges of the square from (4,4) to (12,12) of its 16-pixel icon. Its two shadows are the stylesheet's. AdwToast has no description; one shows after the title, not bold, which is inferred.
 func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	w, _ := c.Size()
 	bg := ui.Hex("#505053")
 	parts.Root.Row().AlignItems(ui.Center).Gap(6).Padding(6).PaddingStart(12).MinHeight(46).MaxWidth(w-24).Radius(23).
 		Background(bg).TextColor(white).
 		Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
+	if ts.Action != "" {
+		// A toast with a button is at least 426 pixels wide, its title taking the room and the button at its end, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference: "Note deleted" with Undo is 426 wide where its content needs 241, and a toast without a button is as wide as its content.
+		parts.Root.MinWidth(min(426, w-24))
+	}
 	parts.Root.Children(func() {
 		ui.Row(c).Grow(1).Shrink(1).Gap(6).MarginX(6).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, ts.Title).FontWeight(700).SingleLine()
@@ -261,8 +260,10 @@ func adwToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 			dismiss.Background(bg.Mix(white, 0.07))
 		}
 		dismiss.Children(func() {
-			// window-close-symbolic, a 16-pixel icon.
-			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.25, 1.5, white) })
+			// window-close-symbolic, a 16-pixel icon: the cross stroked 2 wide past the square its arms end in, clipped to it.
+			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) {
+				p.Clip(ui.Rect{X: r.X + 4, Y: r.Y + 4, W: 8, H: 8}, 0, func() { toastCross(p, r, 0.1875, 2, white) })
+			})
 		})
 	})
 }
@@ -316,10 +317,10 @@ func macMeterFill(t *ui.Theme, level int) ui.Color {
 	return t.Success
 }
 
-// macMeter draws an NSLevelIndicator of continuous capacity style, regular size, as measured from AppKit: a bar 16 points high with corners of 2.5, a track of black at 7.1% (white at 10.2% in Dark Aqua) inside a half-point edge (black at 19.2%, white at 7.1%), filled from its start with the level's color inside a half-point edge 13% darker, square where the fill ends.
+// macMeter draws an NSLevelIndicator of continuous capacity style, regular size, as measured from AppKit: a bar 16 points high with corners of 2 (AppKit's corner, rendered in a key window at 2x on macOS 27.2, reaches its full edge a pixel sooner than MyGo's corner of 2.5 does, row by row and column by column), a track of black at 7.1% (white at 10.2% in Dark Aqua) inside a half-point edge (black at 19.2%, white at 7.1%), filled from its start with the level's color inside a half-point edge 13% darker, square where the fill ends.
 func macMeter(c *ui.Context, m ui.Element, frac float32, level int) {
 	t := c.Theme()
-	const radius = 2.5
+	const radius = 2
 	edge := tint(t.Background, t.Dark, pick(t.Dark, float32(0.192), 0.071))
 	track := tint(t.Background, t.Dark, pick(t.Dark, float32(0.071), 0.102))
 	fill := macMeterFill(t, level)
@@ -626,7 +627,7 @@ func adwAvatarInitials(text string) string {
 	return string(out)
 }
 
-// adwAvatar draws an AdwAvatar without an image: the gradient of the color its name hashes to, from top to bottom, and the initials bold in the color's light tint, as large as fits the biggest square inside the circle less a padding of 0.4 times the size minus 5 pixels (adw-avatar.c's update_font_size); white below 25 pixels, the .contrasted class adw_avatar_set_size adds. Without a name it shows avatar-default-symbolic at half its size instead (update_visibility and adw_avatar_set_size).
+// adwAvatar draws an AdwAvatar without an image: the gradient of the color its name hashes to, from top to bottom, and the initials bold in the color's light tint, as large as fits the biggest square inside the circle less a padding of 0.4 times the size minus 5 pixels (adw-avatar.c's update_font_size); white below 25 pixels, the .contrasted class adw_avatar_set_size adds. Without a name it shows libadwaita's own adw-avatar-default-symbolic (since 1.9, in place of the icon theme's filled avatar-default-symbolic) at half its size instead (update_icon and adw_avatar_set_size).
 func adwAvatar(e ui.Element, name string) {
 	col := adwAvatarColors[adwAvatarColor(name)]
 	e.LinearGradient(ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{{Color: col[1], At: 0}, {Color: col[2], At: 1}}})
@@ -638,7 +639,14 @@ func adwAvatar(e ui.Element, name string) {
 		}
 		if name == "" {
 			s := float32(int(r.W) / 2)
-			p.FillPath(avatarPerson(r.X+(r.W-s)/2, r.Y+(r.H-s)/2, s), fg)
+			x, y, k := r.X+(r.W-s)/2, r.Y+(r.H-s)/2, s/16
+			// icons/adw-avatar-default.svg, a 16-pixel icon stroked 2 wide with round ends and joins: a head, a circle of radius 4 at (8,5), over shoulders from (15,15) up a quarter circle of radius 4 to (11,11), across to (5,11) and down another to (1,15). Its arcs are cubic curves here (a quarter circle's control points 0.5523 of the radius out), MyGo's paths having no arcs.
+			const q = 4 * 0.5523
+			var person ui.Path
+			person.Circle(x+8*k, y+5*k, 4*k)
+			person.MoveTo(x+15*k, y+15*k).CubeTo(x+15*k, y+(15-q)*k, x+(11+q)*k, y+11*k, x+11*k, y+11*k).
+				LineTo(x+5*k, y+11*k).CubeTo(x+(5-q)*k, y+11*k, x+1*k, y+(15-q)*k, x+1*k, y+15*k)
+			p.StrokePath(&person, 2*k, fg)
 			return
 		}
 		if in == "" {
@@ -767,9 +775,9 @@ func fluentRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, set, unset bool, ho
 	}
 }
 
-// adwRatingStar draws a star of GNOME Software's GsStarWidget: starred-symbolic, in @yellow_5 (#e5a50a) while set and in the text color at 20% opacity while not (style.css).
+// adwRatingStar draws a star of GNOME Software's GsStarWidget: starred-symbolic, in @yellow_5 (#e5a50a) while set (star-image > image.starred) and at 20% opacity while not (image.non-starred), in star-image's color: the text color in the light theme and @yellow_1 (#f9f06b) in the dark one (style.css of 51.0, its prefers-color-scheme: dark block; style-dark.css of 48.0 had the same).
 func adwRatingStar(p *ui.Painter, t *ui.Theme, b ui.Rect, inner float32, set bool) {
-	fill := t.Background.Mix(t.Text, 0.2)
+	fill := t.Background.Mix(pick(t.Dark, t.Text, ui.Hex("#f9f06b")), 0.2)
 	if set {
 		fill = ui.Hex("#e5a50a")
 	}

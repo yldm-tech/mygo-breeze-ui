@@ -3,20 +3,20 @@
   "platforms": [
     {
       "name": "macOS",
-      "description": "AppKit's controls of macOS 26 and later, measured from AppKit's own rendering.",
+      "description": "AppKit's controls of macOS 26 and 27, measured from AppKit's own rendering on macOS 27.2 in a key window.",
       "value": "macOS 26+",
       "example": "breeze.SetPlatform(breeze.Mac)"
     },
     {
       "name": "Windows",
-      "description": "WinUI 3's Fluent 2 controls of Windows 11, from the theme resources of microsoft-ui-xaml.",
+      "description": "WinUI 3's Fluent 2 controls of Windows 11, from the theme resources of microsoft-ui-xaml, the core controls compared with WinUI 3's own rendering.",
       "value": "Windows 11",
       "example": "breeze.SetPlatform(breeze.Windows)"
     },
     {
       "name": "Linux",
-      "description": "GNOME's libadwaita controls, from the libadwaita 1.7 stylesheet.",
-      "value": "GNOME 48",
+      "description": "GNOME's libadwaita controls, from the libadwaita 1.10 stylesheet (GTK 4.24, adwaita-icon-theme 51), compared pixel by pixel with libadwaita 1.10.0's own rendering.",
+      "value": "GNOME 51",
       "example": "breeze.SetPlatform(breeze.Linux)"
     }
   ],
@@ -36,6 +36,13 @@
       "example": "breeze.AccordionItem(c, \"Privacy\", &app.privacy, func() {\n\tbreeze.Checkbox(c, &app.share, \"Share usage data\")\n})"
     },
     {
+      "name": "ActionRow",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A settings row: a title, an optional subtitle below it and controls at its end, drawn as a row of a grouped form in System Settings on macOS, CommunityToolkit's SettingsCard on Windows 11, or AdwActionRow on GNOME. Rows one after another in a Card, a Fieldset or an AccordionItem join as the platform joins them: a section with inset separators, SettingsCards 4 DIPs apart or a SettingsExpander's items, a boxed list.",
+      "example": "breeze.ActionRow(c, \"Wallpaper\", \"Choose a picture\", func() {\n\tbreeze.Button(c, \"Open\")\n})"
+    },
+    {
       "name": "AlertDialog",
       "category": "overlays",
       "look": "drawn",
@@ -46,7 +53,7 @@
       "name": "Autocomplete",
       "category": "text",
       "look": "drawn",
-      "description": "A text input suggesting the options that contain what was typed, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry; the list of suggestions is MyGo's in the platform's theme.",
+      "description": "A text input suggesting the options that contain what was typed, in the platform's text field box: macOS's bezeled field, Windows 11's TextBox or GNOME's entry; the suggestions show in the platform's menu: NSMenu's panel and rows, an AutoSuggestBox's list of ListViewItems, or a dropdown's popover.",
       "example": "breeze.Autocomplete(c, &app.city, cities).Label(\"City\")"
     },
     {
@@ -60,7 +67,7 @@
       "name": "BackButton",
       "category": "navigation",
       "look": "drawn",
-      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: a macOS 26 toolbar item, a 36-point round platter with a hairline around SF Symbols' chevron, Windows 11's NavigationView back button with its arrow, or GNOME's flat image button with go-previous-symbolic, as in a header bar.",
+      "description": "A button going back in a router's history, disabled at its start, its right click listing the pages before: a macOS toolbar item, a 36-point platter with a hairline around SF Symbols' chevron, shared with ForwardButton in a Toolbar, Windows 11's NavigationView back button with its arrow, or GNOME's flat image button with go-previous-symbolic, as in a header bar.",
       "example": "breeze.BackButton(c, app.router)"
     },
     {
@@ -81,15 +88,22 @@
       "name": "Button",
       "category": "actions",
       "look": "drawn",
-      "description": "A push button: macOS's push button, Windows 11's button with its elevation border, or GNOME's text button.",
+      "description": "A push button: macOS's push button, Windows 11's button with its elevation border, or GNOME's text button; in a Toolbar, the platform's toolbar item: a 36-point capsule on macOS, an AppBarButton on Windows 11, a raised text button on GNOME.",
       "example": "if breeze.Button(c, \"Cancel\").Clicked() {\n\tapp.cancel()\n}"
     },
     {
       "name": "Calendar",
       "category": "choices",
       "look": "themed",
-      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
+      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
       "example": "breeze.Calendar(c, &app.day)"
+    },
+    {
+      "name": "Card",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A card around content that belongs together: SwiftUI's GroupBox on macOS, the card of WinUI's Expander and SettingsCard on Windows 11, or a .card on GNOME. Rows built in it join into the platform's list.",
+      "example": "breeze.Card(c, func() {\n\tbreeze.SwitchRow(c, \"Dark mode\", \"\", &app.dark)\n\tbreeze.SwitchRow(c, \"Notifications\", \"\", &app.notify)\n})"
     },
     {
       "name": "Checkbox",
@@ -101,8 +115,8 @@
     {
       "name": "CheckboxGroup",
       "category": "choices",
-      "look": "themed",
-      "description": "A check box over the check boxes it groups, checked when they all are and mixed when some are: package ui's, in the platform's theme. The boxes built with breeze.Checkbox are the platform's; the one over them is MyGo's 16-DIP box, which has no base for it, smaller than Windows 11's and GNOME's boxes below it.",
+      "look": "drawn",
+      "description": "A check box over the check boxes it groups, checked when they all are and mixed when some are: the platform's check box, with macOS's mixed dash, Windows 11's indeterminate glyph or GNOME's dash.svg, over the boxes built with breeze.Checkbox, indented below its label (24 DIPs on Windows 11, as WinUI Gallery's three-state sample). Rebuilt on ui.CheckboxBase; it counts only the boxes built with breeze.Checkbox.",
       "example": "breeze.CheckboxGroup(c, \"Notifications\", func() {\n\tbreeze.Checkbox(c, &app.mail, \"Mail\")\n\tbreeze.Checkbox(c, &app.calendar, \"Calendar\")\n})"
     },
     {
@@ -116,7 +130,7 @@
       "name": "ColorPicker",
       "category": "choices",
       "look": "themed",
-      "description": "A picker of a color with a saturation and brightness square, hue and opacity sliders, the hex and swatches: package ui's, laid out as AppKit's color panel, in the platform's theme. WinUI's ColorPicker and GTK's color chooser lay theirs out differently.",
+      "description": "A picker of a color with a saturation and brightness square, hue and opacity sliders, the hex and swatches: package ui's, laid out as AppKit's color panel, in the platform's theme. Its parts are built inside it, and a picker rebuilt outside MyGo could not name them, their values and the swatches' colors in MyGo's translations. WinUI's ColorPicker and GTK's color chooser lay theirs out differently.",
       "example": "breeze.ColorPicker(c, &app.tint)"
     },
     {
@@ -137,14 +151,14 @@
       "name": "DateInput",
       "category": "text",
       "look": "drawn",
-      "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, Windows 11's CalendarDatePicker, or a GNOME entry, as GTK has no date field. The calendar icon and the calendar are MyGo's.",
+      "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, without an icon, Windows 11's CalendarDatePicker, or a GNOME entry with its icon at 70%, as GTK has no date field. The calendar is MyGo's.",
       "example": "breeze.DateInput(c, &app.due).Label(\"Due\")"
     },
     {
       "name": "DecimalInput",
       "category": "text",
       "look": "themed",
-      "description": "A field editing an exact decimal, as an amount of money, with buttons stepping it: package ui's, in the platform's theme. Its field and buttons are built inside it, out of reach of a style applied to what it returns.",
+      "description": "A field editing an exact decimal, as an amount of money, with buttons stepping it: package ui's, in the platform's theme. Its field and buttons are built inside it, out of reach of a style applied to what it returns, and a field rebuilt outside MyGo could not show its errors (Enter a number, Use at most 2 decimal places) in MyGo's translations, while NumberInput, which shows none, is rebuilt.",
       "example": "breeze.DecimalInput(c, &app.amount, \"0\", \"\", \"0.01\")"
     },
     {
@@ -157,29 +171,29 @@
     {
       "name": "EditableText",
       "category": "text",
-      "look": "themed",
-      "description": "A text edited in place, as a file's name in Finder: package ui's, in the platform's theme. The input it shows while editing is built inside it, out of reach of a style applied to what it returns.",
+      "look": "drawn",
+      "description": "A text edited in place, as a file's name in Finder: package ui's, with MyGo's accent border around the input covered while it is edited and the platform's frame drawn there: AppKit's focus ring, a focused WinUI TextBox's edge and accent line, nothing around GTK's editable label. The input's fill and caret are MyGo's.",
       "example": "if breeze.EditableText(c, &app.name).Changed() {\n\tapp.rename()\n}"
     },
     {
       "name": "Field",
       "category": "layout",
       "look": "drawn",
-      "description": "A labeled control: in a Form the labels line up before the controls as in a macOS form; elsewhere the label is above, 8 DIPs on Windows 11 as a TextBox's header.",
+      "description": "A labeled control: in a Form the labels line up before the controls as in a macOS form; elsewhere the label is above, 8 DIPs on Windows 11 at regular weight as a TextBox's header.",
       "example": "breeze.Field(c, \"Name\", func() {\n\tbreeze.TextInput(c, &app.name)\n})"
     },
     {
       "name": "Fieldset",
       "category": "layout",
       "look": "drawn",
-      "description": "A group of fields under a legend: a grouped form section on macOS (NSBox's fill), the fields under a Body Strong header on Windows 11, which has no group box, or a card under an AdwPreferencesGroup's title on GNOME.",
+      "description": "A group of fields under a legend: a grouped form section on macOS (NSBox's fill), the fields under a Body Strong header on Windows 11, which has no group box, or a card under an AdwPreferencesGroup's bold title on GNOME.",
       "example": "breeze.Fieldset(c, \"Shipping\", func() {\n\tbreeze.Field(c, \"Address\", func() { breeze.TextInput(c, &app.address) })\n})"
     },
     {
       "name": "FindBar",
       "category": "text",
       "look": "themed",
-      "description": "A bar for finding text, in the platform's place for it: NSTextFinder's find bar on macOS, GtkSearchBar's bar on GNOME, a strip with a divider on Windows 11, which has none. The field, the buttons and the keys are MyGo's, in the platform's theme.",
+      "description": "A bar for finding text, in the platform's place for it: NSTextFinder's find bar on macOS, GtkSearchBar's bar on GNOME, a strip with a divider on Windows 11, which has none. The field, the buttons and the keys are MyGo's, in the platform's theme: a bar rebuilt outside MyGo could not say its names and its count (Find, No matches, 2 of 5, Previous, Next, Done) in MyGo's translations.",
       "example": "breeze.FindBar(c, &app.finding, &app.query, len(app.matches), &app.match)"
     },
     {
@@ -199,9 +213,23 @@
     {
       "name": "GridView",
       "category": "data",
-      "look": "themed",
-      "description": "A scrolling grid of items built as they show: package ui's, in the platform's theme. MyGo builds each item's frame around its content, so the cells of NSCollectionView, GridView and GtkGridView are not drawn.",
+      "look": "drawn",
+      "description": "A scrolling grid of items built as they show, each drawn as the platform draws its own: Windows 11's GridViewItem with its 2-DIP accent border, GNOME's GtkGridView child with its accent-tinted fill, and on macOS, where NSCollectionView draws no selection, an inset table's rounded selection (inferred). The choice, the keys and accessibility are MyGo's, as are the items' gap and size.",
       "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
+    },
+    {
+      "name": "IconButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A button showing only an icon, the caller's SVG tinted with the button's text color, its label naming it and showing as its tooltip: macOS's bordered push button with an image, Windows 11's Button with a 16-DIP icon, or GNOME's 34-pixel image button; in a Toolbar, the platform's image item (an NSToolbar image item, an icon-only AppBarButton, a flat image button).",
+      "example": "breeze.IconButton(c, shareIcon, \"Share\")"
+    },
+    {
+      "name": "InfoBar",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An inline message bar with a severity, a title and a message, optionally closable: Windows 11's InfoBar colored by its severity, GNOME's AdwBanner (banners have no severity), or on macOS, which has no message bar, a grouped form section with a colored SF Symbol (inferred). The severity is a toast's Type: \"success\", \"warning\", \"error\" or informational.",
+      "example": "breeze.InfoBar(c, \"warning\", \"Update available\", \"Restart to finish installing.\", &app.showUpdate)"
     },
     {
       "name": "Link",
@@ -221,7 +249,7 @@
       "name": "MenuButton",
       "category": "actions",
       "look": "drawn",
-      "description": "A button drawn as the platform's pull-down button, opening the system's own native menu.",
+      "description": "A button drawn as the platform's pull-down button with its chevron, or as a toolbar item in a Toolbar, opening the system's own native menu.",
       "example": "breeze.MenuButton(c, \"Sort\", func(m *ui.Menu) {\n\tm.Item(\"Name\")\n})"
     },
     {
@@ -241,23 +269,30 @@
     {
       "name": "NumberInput",
       "category": "text",
-      "look": "themed",
-      "description": "A field editing a number with a stepper beside it: package ui's, in the platform's theme. Its field and stepper are built inside it, out of reach of a style applied to what it returns.",
+      "look": "drawn",
+      "description": "A field editing a number with buttons stepping it: an NSTextField with an NSStepper beside it on macOS, a NumberBox with its inline spin buttons on Windows 11, or a GtkSpinButton with − and + after the text on GNOME. Rebuilt from ui.TextInputBase and ui.ButtonBase as ui.NumberInput is, with its keys, Tab order and Decrease and Increase buttons.",
       "example": "breeze.NumberInput(c, &app.count, 0, 10, 1)"
     },
     {
       "name": "Outline",
       "category": "data",
-      "look": "themed",
-      "description": "A list of items in a tree, built as they show: package ui's, in the platform's theme. MyGo builds the arrows and the chosen row around the content, out of reach of NSOutlineView's, TreeView's or GtkTreeExpander's look.",
+      "look": "drawn",
+      "description": "A list of items in a tree, built as they show: macOS's inset NSOutlineView with its rounded selection and turning chevron, Windows 11's TreeView with its backplate and accent pill, or GNOME's GtkListView rows with a GtkTreeExpander's pan icons. The chevron is drawn in MyGo's arrow box; the choice, the keys and accessibility are MyGo's, as are the rows' padding and gaps.",
       "example": "breeze.Outline(c, &app.files, roots, children, func(path string) {\n\tui.Text(c, path)\n})"
     },
     {
       "name": "OutlineTable",
       "category": "data",
-      "look": "themed",
-      "description": "An outline whose rows are a table's, the arrows in its first column: package ui's, in the platform's theme, as Table and Outline are.",
+      "look": "drawn",
+      "description": "An outline whose rows are a table's, its chevrons in the first column: its rows drawn as Table draws them and its chevrons as Outline does. The header is MyGo's, in the platform's theme.",
       "example": "breeze.OutlineTable(c, &app.files, columns, roots, children, func(path string, col int) {\n\tui.Text(c, path)\n})"
+    },
+    {
+      "name": "PasswordField",
+      "category": "text",
+      "look": "drawn",
+      "description": "A single-line field hiding its text in the platform's text field: macOS's NSSecureTextField, Windows 11's PasswordBox with its RevealButton (shown while text typed since the focus came, revealing while pressed or Alt+F8 is held), or GNOME's GtkPasswordEntry with Show Text in its context menu.",
+      "example": "breeze.PasswordField(c, &app.password).Placeholder(\"Password\")"
     },
     {
       "name": "Popover",
@@ -270,14 +305,14 @@
       "name": "PopoverMenuButton",
       "category": "actions",
       "look": "drawn",
-      "description": "A button drawn as the platform's pull-down button, opening a menu MyGo draws in the window in the platform's theme.",
+      "description": "A button drawn as the platform's pull-down button with its chevron, or as a toolbar item in a Toolbar, opening a menu MyGo draws in the window in the platform's menu colors and corners.",
       "example": "breeze.PopoverMenuButton(c, \"More\", func(m *ui.Menu) {\n\tm.Item(\"Rename\")\n})"
     },
     {
       "name": "PrimaryButton",
       "category": "actions",
       "look": "drawn",
-      "description": "The main action in the accent color: macOS's default button, Windows 11's accent button or GNOME's suggested action.",
+      "description": "The main action in the accent color: macOS's default button, Windows 11's accent button or GNOME's suggested action; in a Toolbar, the platform's toolbar item.",
       "example": "if breeze.PrimaryButton(c, \"Save\").Clicked() {\n\tapp.save()\n}"
     },
     {
@@ -286,6 +321,13 @@
       "look": "drawn",
       "description": "A progress bar, or a moving one for a negative value: macOS's bar, Windows 11's thin ProgressBar, or GNOME's progress bar.",
       "example": "breeze.Progress(c, app.done)"
+    },
+    {
+      "name": "ProgressRing",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "A circular progress indicator filled to a value from 0 to 1: macOS's determinate spinning NSProgressIndicator, Windows 11's ProgressRing with IsIndeterminate false, or on GNOME, which has none, a ring after AdwSpinner in the accent (inferred). A negative value shows the Spinner.",
+      "example": "breeze.ProgressRing(c, app.uploaded).Label(\"Upload\")"
     },
     {
       "name": "Radio",
@@ -297,15 +339,15 @@
     {
       "name": "RadioGroup",
       "category": "choices",
-      "look": "themed",
-      "description": "The group radio buttons choose within, which the arrows move through: package ui's container around the platform's radio buttons.",
+      "look": "drawn",
+      "description": "The group radio buttons choose within, which the arrows move through, its radio buttons set as far apart as the platform sets them: 6 points down a column and 8 across a row on macOS, as SwiftUI's radio-group picker; RadioButtons' row spacing 8 and column spacing 7 on Windows 11; the padded check buttons next to each other on GNOME, which has no radio group.",
       "example": "breeze.RadioGroup(c, func() {\n\tbreeze.Radio(c, &app.size, \"S\", \"Small\")\n\tbreeze.Radio(c, &app.size, \"L\", \"Large\")\n})"
     },
     {
       "name": "RangeSlider",
       "category": "choices",
       "look": "themed",
-      "description": "A slider of two knobs setting a range: package ui's, in the platform's accent and colors. Its knobs take the focus as elements inside it, whose focus rings only MyGo's drawing can show, so it is not drawn as the platforms' sliders; macOS and GNOME have no range slider, Windows its Community Toolkit's RangeSelector.",
+      "description": "A slider of two knobs setting a range: package ui's, in the platform's accent and colors. Its knobs take the focus as elements inside it, whose focus rings only MyGo's drawing can show, and knobs rebuilt outside MyGo could not be named after the slider's Label (Price minimum), so it is not drawn as the platforms' sliders; macOS and GNOME have no range slider, Windows its Community Toolkit's RangeSelector.",
       "example": "breeze.RangeSlider(c, &app.min, &app.max, 0, 100, 0).Label(\"Price\")"
     },
     {
@@ -314,6 +356,27 @@
       "look": "drawn",
       "description": "A row of stars setting a rating: macOS's NSLevelIndicator of rating style, Windows 11's RatingControl with its accent stars, or GNOME Software's stars, as GNOME has no rating control. The clicks and keys are MyGo's.",
       "example": "breeze.Rating(c, &app.stars, 5).Label(\"Rating\")"
+    },
+    {
+      "name": "Scroll",
+      "category": "layout",
+      "look": "themed",
+      "description": "A container scrolling its children vertically: package ui's, its scroll bar painted by MyGo in the platform's scroll bar color and width (the overlay knob's black or white at 50% on macOS, WinUI's ScrollBarThumbFill, GNOME's 3-pixel slider at 20%). MyGo paints the bar itself from the theme alone, so its thickness, track, arrows and growth under the pointer are MyGo's on every platform.",
+      "example": "breeze.Scroll(c).Grow(1).Children(func() {\n\tfor _, line := range app.lines {\n\t\tui.Text(c, line)\n\t}\n})"
+    },
+    {
+      "name": "ScrollBoth",
+      "category": "layout",
+      "look": "themed",
+      "description": "A container scrolling its children both ways, as a canvas or a wide table does: package ui's, its two scroll bars painted by MyGo in the platform's scroll bar color and width, as Scroll's.",
+      "example": "breeze.ScrollBoth(c).Size(400, 300).Children(func() {\n\tui.Box(c).Size(1200, 900)\n})"
+    },
+    {
+      "name": "ScrollHorizontal",
+      "category": "layout",
+      "look": "themed",
+      "description": "A row scrolling its children horizontally: package ui's, its scroll bar painted by MyGo in the platform's scroll bar color and width, as Scroll's.",
+      "example": "breeze.ScrollHorizontal(c).Gap(8).Children(func() {\n\tfor _, tag := range app.tags {\n\t\tbreeze.Button(c, tag)\n\t}\n})"
     },
     {
       "name": "SearchField",
@@ -326,7 +389,7 @@
       "name": "Segmented",
       "category": "choices",
       "look": "drawn",
-      "description": "A segmented control choosing one of a few views: macOS's NSSegmentedControl, Windows 11's SelectorBar, or GNOME's AdwToggleGroup.",
+      "description": "A segmented control choosing one of a few views: macOS's NSSegmentedControl, the chosen segment in the accent color as a key window draws it, Windows 11's SelectorBar, or GNOME's AdwToggleGroup.",
       "example": "breeze.Segmented(c, &app.view, \"Day\", \"Week\", \"Month\")"
     },
     {
@@ -340,21 +403,21 @@
       "name": "Sidebar",
       "category": "navigation",
       "look": "drawn",
-      "description": "A sidebar of sections and items, which the arrows and typing choose among: macOS's source list, its selection in the accent color while it has the focus and gray otherwise, Windows 11's NavigationView pane, or GNOME's navigation sidebar.",
+      "description": "A sidebar of sections and items, which the arrows and typing choose among: macOS's source list, its selection in the accent color while it has the focus and gray otherwise, Windows 11's NavigationView pane, or GNOME's AdwSidebar.",
       "example": "breeze.Sidebar(c, &app.mailbox, func() {\n\tbreeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\t\tbreeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\")\n\t})\n}).Width(220)"
     },
     {
       "name": "SidebarItem",
       "category": "navigation",
       "look": "drawn",
-      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 36-pixel navigation sidebar row on GNOME.",
+      "description": "An item of a Sidebar with an optional icon: a 32-point source list row on macOS, its label semibold when chosen, a NavigationViewItem with its accent pill on Windows 11, a 42-pixel AdwSidebar row on GNOME.",
       "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
     },
     {
       "name": "SidebarSection",
       "category": "navigation",
       "look": "drawn",
-      "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or a dimmed heading on GNOME.",
+      "description": "A section of a Sidebar that its title shows and hides, headed as the platform heads one: AppKit's group row, Windows 11's NavigationViewItemHeader, or AdwSidebar's bold heading on GNOME.",
       "example": "breeze.SidebarSection(c, \"Mailboxes\", &app.mailboxes, func() {\n\tbreeze.SidebarItem(c, \"inbox\", nil, \"Inbox\")\n})"
     },
     {
@@ -374,30 +437,44 @@
     {
       "name": "Split",
       "category": "layout",
-      "look": "themed",
-      "description": "Two panes side by side with a divider that a drag or the arrows move: package ui's, its 1-DIP line in the theme's border color, 1 wide as NSSplitView's thin divider and GtkPaned's separator are. MyGo's divider turns to the accent under the pointer, as none of the platforms' do, and grabs 6 DIPs.",
+      "look": "drawn",
+      "description": "Two panes side by side with a divider that a drag or the arrows move: MyGo's 1-DIP line in the theme's border color, 1 wide as NSSplitView's thin divider and GtkPaned's separator are, which stays that color under the pointer and while dragged, as on every platform, where MyGo's turns to the accent. It grabs 6 DIPs.",
       "example": "breeze.Split(c, &app.sidebar, app.files, app.editor).Fill()"
+    },
+    {
+      "name": "SplitButton",
+      "category": "actions",
+      "look": "drawn",
+      "description": "A button of two parts, the main action, which Clicked reports, and an arrow opening the system's own menu: macOS's NSComboButton of style split, Windows 11's SplitButton, or GNOME's AdwSplitButton; in a Toolbar, the platform's toolbar split button.",
+      "example": "breeze.SplitButton(c, \"Save\", func(m *ui.Menu) {\n\tm.Item(\"Save As…\")\n})"
     },
     {
       "name": "SplitPercent",
       "category": "layout",
-      "look": "themed",
-      "description": "Split with the first pane's share of the room in percent: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "Split with the first pane's share of the room in percent, its divider in the border color under the pointer too.",
       "example": "breeze.SplitPercent(c, &app.share, app.files, app.editor).Fill()"
     },
     {
       "name": "SplitVertical",
       "category": "layout",
-      "look": "themed",
-      "description": "Split with the first pane above the second: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "Split with the first pane above the second, its divider in the border color under the pointer too.",
       "example": "breeze.SplitVertical(c, &app.top, app.editor, app.console).Fill()"
     },
     {
       "name": "SplitVerticalPercent",
       "category": "layout",
-      "look": "themed",
-      "description": "SplitPercent with the first pane above the second: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "SplitPercent with the first pane above the second, its divider in the border color under the pointer too.",
       "example": "breeze.SplitVerticalPercent(c, &app.share, app.editor, app.console).Fill()"
+    },
+    {
+      "name": "StatusPage",
+      "category": "feedback",
+      "look": "drawn",
+      "description": "An empty-state page with an icon, a title, a description and actions below them: GNOME's AdwStatusPage, SwiftUI's ContentUnavailableView on macOS, or on Windows 11, which has no such control, a page after WinUI's type ramp (inferred).",
+      "example": "breeze.StatusPage(c, searchIcon, \"No Results\", \"Check the spelling or try a new search.\", func() {\n\tbreeze.Button(c, \"Clear Search\")\n})"
     },
     {
       "name": "StepSlider",
@@ -421,18 +498,32 @@
       "example": "breeze.Switch(c, &app.sync).Label(\"Sync\")"
     },
     {
+      "name": "SwitchRow",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A settings row with a switch at its end that a click anywhere on the row toggles, one switch for assistive technology named by its title: a grouped form's Toggle with its mini switch on macOS, a SettingsCard with a ToggleSwitch and its On or Off text on Windows 11, or AdwSwitchRow on GNOME.",
+      "example": "breeze.SwitchRow(c, \"Dark mode\", \"Use a dark appearance\", &app.dark)"
+    },
+    {
       "name": "Table",
       "category": "data",
-      "look": "themed",
-      "description": "A table of rows and columns: package ui's, in the platform's theme. MyGo has no table base to draw the platform's rows on.",
+      "look": "drawn",
+      "description": "A table of rows and columns whose rows are drawn as the platform draws them: macOS's inset NSTableView with its rounded selection, Windows 11's ListView items with their backplate and accent pill, or GNOME's GtkColumnView with the accent-tinted row. The choice, the sort, the columns and accessibility are MyGo's, as are the header, the cells' padding and the rows' least height.",
       "example": "breeze.Table(c, &app.list, columns, len(app.rows), func(row, col int) {\n\tui.Text(c, app.rows[row][col])\n})"
     },
     {
       "name": "Tabs",
       "category": "navigation",
       "look": "drawn",
-      "description": "Tabs choosing a page: macOS's tab view, Windows 11's SelectorBar, or GNOME's notebook tabs.",
+      "description": "Tabs choosing a page: macOS's tab view with the chosen tab on a raised platter, Windows 11's SelectorBar, or GNOME's notebook tabs.",
       "example": "breeze.Tabs(c, &app.tab, \"General\", \"Advanced\")"
+    },
+    {
+      "name": "Text",
+      "category": "text",
+      "look": "drawn",
+      "description": "A text in a step of the platform's type ramp: TextLargeTitle, TextTitle, TextSubtitle, TextHeading, TextBody or TextCaption, drawn in macOS's text styles (largeTitle 26 points, title1 22, title2 17, headline 13 bold, body 13, caption1 10), Windows 11's TextBlock styles (TitleLarge 40, Title 28, Subtitle 20 and BodyStrong 14 in semibold, Body 14, Caption 12) or libadwaita's classes (.title-1, .title-2, .title-4, .heading, a plain label, .caption), in the theme's font. TextSecondary added with | dims a step as secondaryLabelColor, TextFillColorSecondary or .dimmed do. The style comes after the text and can be left out: without one it is TextBody, which draws what ui.Text draws, so breeze.Text(c, s) replaces ui.Text(c, s); wrapping, selection and right-to-left text are ui.Text's.",
+      "example": "breeze.Text(c, \"Settings\", breeze.TextTitle)\nbreeze.Text(c, \"Applies to every window.\", breeze.TextCaption|breeze.TextSecondary)"
     },
     {
       "name": "TextArea",
@@ -442,11 +533,25 @@
       "example": "breeze.TextArea(c, &app.notes)"
     },
     {
+      "name": "TextAreaBuffer",
+      "category": "text",
+      "look": "drawn",
+      "description": "A multi-line text input editing a ui.TextBuffer, whose edits never copy the whole document, in the same text view as TextArea: a bezel-bordered view on macOS, a TextBox on Windows 11, a framed view on GNOME. Editing, undo, the selection, input methods and scrolling are MyGo's.",
+      "example": "breeze.TextAreaBuffer(c, app.document).Grow(1)"
+    },
+    {
       "name": "TextInput",
       "category": "text",
       "look": "drawn",
       "description": "A single-line text input in the platform's field: macOS's bezeled field with its focus ring, Windows 11's TextBox with the accent line, or GNOME's filled entry.",
       "example": "breeze.TextInput(c, &app.name).Placeholder(\"Name\")"
+    },
+    {
+      "name": "TextInputBuffer",
+      "category": "text",
+      "look": "drawn",
+      "description": "A single-line text input editing a ui.TextBuffer, in the same field as TextInput: macOS's bezeled field with its focus ring, Windows 11's TextBox with the accent line, or GNOME's filled entry. Editing, undo, the selection and input methods are MyGo's.",
+      "example": "breeze.TextInputBuffer(c, app.command).Placeholder(\"Command\")"
     },
     {
       "name": "TimeInput",
@@ -466,7 +571,7 @@
       "name": "Toggle",
       "category": "actions",
       "look": "drawn",
-      "description": "A button that stays pressed: macOS's push-on-push-off button, Windows 11's ToggleButton in the accent color, or GNOME's checked toggle button.",
+      "description": "A button that stays pressed: macOS's push-on-push-off button, in the accent color while on as a key window draws it, Windows 11's ToggleButton in the accent color, or GNOME's checked toggle button; in a Toolbar, the platform's toolbar item.",
       "example": "breeze.Toggle(c, &app.bold, \"Bold\")"
     },
     {
@@ -487,7 +592,7 @@
       "name": "Toolbar",
       "category": "actions",
       "look": "drawn",
-      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu: 52 points high with its items 8 apart as a macOS 26 window's toolbar, Windows 11's CommandBar, or GNOME's .toolbar.",
+      "description": "A row of controls along the top of a window, which the arrows move among and which puts those that do not fit in a menu, its buttons, toggles and menu buttons drawn as the platform's toolbar items: 52 points high with 36-point capsules 8 apart as a macOS window's toolbar, adjacent image items sharing a platter, Windows 11's CommandBar with AppBarButtons, or GNOME's .toolbar with flat image buttons.",
       "example": "breeze.Toolbar(c, func() {\n\tbreeze.BackButton(c, app.router)\n\tui.Spacer(c)\n\tbreeze.Button(c, \"Share\")\n}).Label(\"Actions\")"
     },
     {
@@ -500,15 +605,15 @@
     {
       "name": "Tree",
       "category": "data",
-      "look": "themed",
-      "description": "A tree of items that open and close: package ui's, in the platform's theme. MyGo has no tree base to draw the platform's rows on.",
+      "look": "drawn",
+      "description": "A tree of items that open and close, its rows drawn as the platform draws a tree's: an inset NSOutlineView's rounded selection, Windows 11's TreeView backplate, or GNOME's GtkListView rows. MyGo's TreeItem takes the platform's row colors from a theme the tree builds its items in; the keys and accessibility are MyGo's.",
       "example": "breeze.Tree(c, func() {\n\tbreeze.TreeItem(c, \"Folder\", &app.open, func() {})\n})"
     },
     {
       "name": "TreeItem",
       "category": "data",
-      "look": "themed",
-      "description": "An item of a Tree: package ui's, in the platform's theme.",
+      "look": "drawn",
+      "description": "An item of a Tree, at the platform's row height, insets, corners and indentation. MyGo's disclosure arrow stays, and WinUI's accent pill on the chosen item is not drawn.",
       "example": "breeze.TreeItem(c, \"Folder\", &app.open, func() {\n\tbreeze.TreeItem(c, \"File\", nil, nil)\n})"
     }
   ]

@@ -1,15 +1,25 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders two sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2), writes them as PNGs and prints, for every control, its frame and the gray values along its middle row and column as runs (value x count), from which the sizes and fills in ui/breeze/mac.go were read. Grays have the same values in Display P3, which AppKit writes, and in sRGB, which MyGo writes, so they compare directly.
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
-// AppKit renders the window offscreen and inactive, so accent controls (a checked box, an on switch, the default button) show gray here.
+// An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
-//	swift tools/appkit-reference/reference.swift <dir>
+// The window is offscreen and never key, so AppKit would draw it inactive, its accent controls (a checked box, an on switch, the default button, the chosen segment) gray. Its NSWindow subclass answers hasKeyAppearance (an NSWindow method outside the SDK's headers) with true, so they are drawn as in the active window, as Breeze UI draws them; -inactive leaves the window inactive. Materials (Liquid Glass, vibrancy), menus, popovers, tooltips and focus rings still do not render into the bitmap.
+//
+//	swift tools/appkit-reference/reference.swift [-inactive] <dir>
 import AppKit
+import SwiftUI
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
-let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
+let args = CommandLine.arguments.dropFirst()
+let inactive = args.contains("-inactive")
+let out = args.last(where: { $0 != "-inactive" }) ?? "."
+
+// A window that draws as the key window, unless -inactive.
+class KeyWindow: NSWindow {
+    @objc func hasKeyAppearance() -> Bool { !inactive }
+}
 
 struct Item {
     let name: String
@@ -19,7 +29,7 @@ struct Item {
     var size: NSSize? = nil
 }
 
-func runs(_ v: [Int]) -> String {
+func runs(_ v: [String]) -> String {
     var s: [String] = []
     var i = 0
     while i < v.count {
@@ -72,6 +82,134 @@ func secondSet() -> [Item] {
     ]
 }
 
+// Noop is the target of controls that draw disabled without an action.
+class Noop: NSObject {
+    @objc func act(_ sender: Any?) {}
+}
+
+let noop = Noop()
+
+// inputsSet lays out the controls of TestScreenshotsInputs (inputsView in ui/breeze/widgets_inputs_test.go): two NSSecureTextFields, empty with a placeholder and holding a password, an NSComboButton of style split, and bordered push buttons showing only an image, the second disabled.
+func inputsSet() -> [Item] {
+    let empty = NSSecureTextField(string: ""); empty.placeholderString = "Password"
+    let filled = NSSecureTextField(string: "hunter2")
+    let menu = NSMenu(); menu.addItem(withTitle: "Save As…", action: nil, keyEquivalent: ""); menu.addItem(withTitle: "Save All", action: nil, keyEquivalent: "")
+    // An NSComboButton without an action draws its title disabled.
+    let combo = NSComboButton(title: "Save", menu: menu, target: noop, action: #selector(Noop.act(_:))); combo.style = .split
+    let share = NSButton(image: NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Share")!, target: nil, action: nil); share.bezelStyle = .push
+    let trash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete")!, target: nil, action: nil); trash.bezelStyle = .push; trash.isEnabled = false
+    return [
+        Item(name: "secure-field-empty", view: empty, x: 16, y: 16, size: NSSize(width: 180, height: empty.fittingSize.height)),
+        Item(name: "secure-field", view: filled, x: 220, y: 16, size: NSSize(width: 180, height: filled.fittingSize.height)),
+        Item(name: "combo-button", view: combo, x: 16, y: 64), Item(name: "image-button", view: share, x: 160, y: 64), Item(name: "image-button-disabled", view: trash, x: 220, y: 64),
+    ]
+}
+
+// StatusBar is the closest macOS has to an inline message bar, which breeze.InfoBar draws there: a row of a grouped Form holding a Label of an SF Symbol in the severity's color over a bold title and a secondary message, and a borderless button showing xmark. The Form insets its section 20 points, which statusSet takes back by placing the view 20 points up and to the left.
+struct StatusBar: View {
+    let symbol: String, color: Color, title: String, closable: Bool
+    var body: some View {
+        Form {
+            Section {
+                HStack(alignment: .firstTextBaseline) {
+                    Label { VStack(alignment: .leading, spacing: 2) { Text(title).bold(); Text("Some message about it.").foregroundStyle(.secondary) } } icon: { Image(systemName: symbol).foregroundStyle(color) }
+                    Spacer()
+                    if closable { Button {} label: { Image(systemName: "xmark") }.buttonStyle(.borderless) }
+                }
+            }
+        }.formStyle(.grouped).scrollDisabled(true).scrollContentBackground(.hidden)
+    }
+}
+
+// statusSet is TestScreenshotsStatus's statusView: four message bars, one of each severity, the first and the last closable, 16 from the window's edges and 68 apart, and determinate spinning progress indicators of 0.25, 0.6, 1 and 0 at the regular size and one of 0.6 at the small size below them.
+func statusSet() -> [Item] {
+    var items: [Item] = []
+    let bars: [(String, Color, String)] = [("info.circle.fill", .accentColor, "Informational"), ("checkmark.circle.fill", .green, "Success"), ("exclamationmark.triangle.fill", .yellow, "Warning"), ("xmark.octagon.fill", .red, "Error")]
+    for (i, b) in bars.enumerated() {
+        let view = NSHostingView(rootView: StatusBar(symbol: b.0, color: b.1, title: b.2, closable: i == 0 || i == 3))
+        items.append(Item(name: "bar-\(b.2.lowercased())", view: view, x: -4, y: 16 + CGFloat(i) * 68 - 20, size: NSSize(width: 568, height: 94)))
+    }
+    for (i, v) in [0.25, 0.6, 1, 0].enumerated() {
+        let ring = NSProgressIndicator(); ring.style = .spinning; ring.isIndeterminate = false; ring.minValue = 0; ring.maxValue = 1; ring.doubleValue = v
+        items.append(Item(name: "ring-\(v)", view: ring, x: 16 + CGFloat(i) * 48, y: 300, size: NSSize(width: 32, height: 32)))
+    }
+    let small = NSProgressIndicator(); small.style = .spinning; small.isIndeterminate = false; small.controlSize = .small; small.minValue = 0; small.maxValue = 1; small.doubleValue = 0.6
+    items.append(Item(name: "ring-small", view: small, x: 208, y: 308, size: NSSize(width: 16, height: 16)))
+    return items
+}
+
+// statusPageSet is TestScreenshotsStatus's statusPageView: SwiftUI's ContentUnavailableView filling the window, with a magnifying glass, a title, a description and a button.
+func statusPageSet() -> [Item] {
+    let page = NSHostingView(rootView: ContentUnavailableView {
+        Label("No Results", systemImage: "magnifyingglass")
+    } description: {
+        Text("Check the spelling or try a new search.")
+    } actions: {
+        Button("Clear Search") {}
+    })
+    return [Item(name: "content-unavailable", view: page, x: 0, y: 0, size: NSSize(width: 560, height: 420))]
+}
+
+// A grouped Form of SwiftUI, as System Settings lays out its rows, padded 20 points around its sections, without the background it would lay over the items placed before it.
+struct RowsForm<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+    var body: some View { Form(content: content).formStyle(.grouped).scrollDisabled(true).scrollContentBackground(.hidden) }
+}
+
+// A SwiftUI view as an item whose top left corner is at x, y, w by h points.
+func hosted<V: View>(_ name: String, _ view: V, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) -> Item {
+    Item(name: name, view: NSHostingView(rootView: view), x: x, y: y, size: NSSize(width: w, height: h))
+}
+
+// rowsSet places SwiftUI's GroupBox and grouped Forms where ui/breeze/widgets_rows_test.go's rowsView places Breeze UI's cards and rows on macOS: a GroupBox of text at 16, 16, a section of a button row, a switch row with a subtitle and one without at 16, 57.5, a row with a value and a disabled switch row alone, and on the right a section under a header and a disclosure group of rows. The Forms are shifted by their padding of 20, so that their sections land where Breeze UI's do.
+func rowsSet() -> [Item] {
+    let card = GroupBox { Text("A card holds what belongs together.").frame(maxWidth: .infinity, alignment: .leading) }
+    let settings = RowsForm {
+        Section {
+            LabeledContent { Button("Open") {} } label: { Text("Wallpaper"); Text("Choose a picture") }
+            Toggle(isOn: .constant(true)) { Text("Dark mode"); Text("Use a dark appearance") }
+            Toggle("Notifications", isOn: .constant(false))
+        }
+    }
+    let storage = RowsForm { LabeledContent("Storage", value: "120 GB") }
+    let bluetooth = RowsForm { Toggle("Bluetooth", isOn: .constant(true)).disabled(true) }
+    let privacy = RowsForm {
+        Section("Privacy") {
+            Toggle(isOn: .constant(true)) { Text("Location"); Text("Apps may ask for it") }
+            LabeledContent { EmptyView() } label: { Text("Camera"); Text("2 apps") }
+        }
+    }
+    let network = RowsForm {
+        DisclosureGroup("Network", isExpanded: .constant(true)) {
+            LabeledContent { EmptyView() } label: { Text("Proxy"); Text("Automatic") }
+            Toggle("Metered", isOn: .constant(false))
+        }
+    }
+    return [
+        hosted("group-box", card.frame(width: 300), x: 16, y: 16, w: 300, h: 26),
+        hosted("form-rows", settings, x: -4, y: 37.5, w: 340, h: 200),
+        hosted("form-row-value", storage, x: -4, y: 196.5, w: 340, h: 80),
+        hosted("form-switch-disabled", bluetooth, x: -4, y: 249.5, w: 340, h: 77),
+        hosted("form-section-header", privacy, x: 320, y: -4.5, w: 340, h: 190),
+        hosted("form-disclosure-rows", network, x: 320, y: 143, w: 340, h: 166),
+    ]
+}
+
+// textSet: AppKit's text styles (NSFont.preferredFont(forTextStyle:)) in labels, two in secondaryLabelColor, where TestScreenshotsText's textView places Breeze UI's Text (textTops).
+func textSet() -> [Item] {
+    func label(_ s: String, _ style: NSFont.TextStyle, secondary: Bool = false) -> NSTextField {
+        let l = NSTextField(labelWithString: s)
+        l.font = NSFont.preferredFont(forTextStyle: style, options: [:])
+        if secondary { l.textColor = .secondaryLabelColor }
+        return l
+    }
+    let rows: [(String, NSFont.TextStyle, Bool, CGFloat)] = [
+        ("Large Title", .largeTitle, false, 16), ("Title", .title1, false, 76), ("Subtitle", .title2, false, 122), ("Heading", .headline, false, 160),
+        ("Body", .body, false, 188), ("Caption", .caption1, false, 214), ("Secondary body", .body, true, 240), ("Secondary caption", .caption1, true, 266),
+    ]
+    return rows.map { Item(name: $0.0, view: label($0.0, $0.1, secondary: $0.2), x: 16, y: $0.3) }
+}
+
 func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NSAppearance.Name, file: String) {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: W, height: H))
     root.appearance = NSAppearance(named: appearance)
@@ -82,14 +220,22 @@ func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NS
         it.view.frame = NSRect(x: it.x, y: H - it.y - s.height, width: s.width, height: s.height)
         root.addSubview(it.view)
     }
-    let win = NSWindow(contentRect: NSRect(x: -4000, y: -4000, width: W, height: H), styleMask: [.borderless], backing: .buffered, defer: false)
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: W, height: H), styleMask: [.borderless], backing: .buffered, defer: false)
     win.contentView = root
     root.layoutSubtreeIfNeeded()
+    // SwiftUI's hosting views lay out their content on the run loop.
+    RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+    root.layoutSubtreeIfNeeded()
     root.display()
-    let rep = root.bitmapImageRepForCachingDisplay(in: root.bounds)!
+    // An sRGB bitmap at 2x: cacheDisplay draws into the bitmap's own color space.
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = root.bounds.size
     root.cacheDisplay(in: root.bounds, to: rep)
     try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
-    func gray(_ x: Int, _ y: Int) -> Int { var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y); return p[0] }
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
     print("== \(file)")
     for it in items {
         let f = it.view.frame
@@ -100,7 +246,63 @@ func render(_ items: [Item], width W: CGFloat, height H: CGFloat, appearance: NS
     }
 }
 
+// ToolbarItems fills the toolbar of renderToolbar: an NSComboButton as an item's view, then two bordered image items, which share one platter.
+class ToolbarItems: NSObject, NSToolbarDelegate {
+    func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { [.init("combo"), .init("share"), .init("trash")] }
+    func toolbarAllowedItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(t) }
+    func toolbar(_ t: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar f: Bool) -> NSToolbarItem? {
+        let it = NSToolbarItem(itemIdentifier: id)
+        switch id.rawValue {
+        case "combo":
+            let menu = NSMenu(); menu.addItem(withTitle: "Save As…", action: nil, keyEquivalent: "")
+            it.view = NSComboButton(title: "New", menu: menu, target: noop, action: #selector(Noop.act(_:))); it.label = "New"
+        case "share":
+            it.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Share"); it.label = "Share"
+        default:
+            it.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete"); it.label = "Delete"
+        }
+        if it.view == nil { it.target = noop; it.action = #selector(Noop.act(_:)); it.isBordered = true }
+        return it
+    }
+}
+
+let toolbarItems = ToolbarItems()
+
+// renderToolbar renders a titled window's unified toolbar holding ToolbarItems' items, the window's frame view at 2x into an sRGB bitmap, and prints the frames of the items' views and platters. It renders offscreen with the items' platters, 36 points high as a live capture shows them though lighter: the sizes inside them compare, and their fills as shares of the platter.
+func renderToolbar(appearance: NSAppearance.Name, file: String) {
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: 520, height: 120), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+    win.appearance = NSAppearance(named: appearance)
+    win.titleVisibility = .hidden
+    let bar = NSToolbar(identifier: "inputs"); bar.delegate = toolbarItems; bar.displayMode = .iconOnly
+    win.toolbar = bar; win.toolbarStyle = .unified
+    win.orderFront(nil)
+    let frame = win.contentView!.superview!
+    frame.layoutSubtreeIfNeeded(); frame.display()
+    let W = frame.bounds.width, H = frame.bounds.height
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = frame.bounds.size
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    print("== \(file)")
+    func walk(_ v: NSView) {
+        let name = String(describing: type(of: v))
+        if name.contains("Platter") || v is NSComboButton || name == "NSToolbarButton" {
+            let f = v.convert(v.bounds, to: frame)
+            print("\(name) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+        v.subviews.forEach(walk)
+    }
+    walk(frame)
+    win.orderOut(nil)
+}
+
 for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
     render(firstSet(), width: 360, height: 200, appearance: appearance, file: "appkit-\(mode).png")
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
+    render(inputsSet(), width: 520, height: 180, appearance: appearance, file: "appkit-inputs-\(mode).png")
+    renderToolbar(appearance: appearance, file: "appkit-inputs-toolbar-\(mode).png")
+    render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
+    render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
+    render(rowsSet(), width: 672, height: 520, appearance: appearance, file: "appkit-rows-\(mode).png")
+    render(textSet(), width: 360, height: 300, appearance: appearance, file: "appkit-text-\(mode).png")
 }
