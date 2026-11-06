@@ -444,6 +444,10 @@ func navHistoryButton(c *ui.Context, r *ui.Router, d int) ui.Element {
 			face = hover
 		}
 		b.Size(40, 36).Padding(0).Radius(4).Border(0, ui.Color{}).Background(face)
+		if tb != nil && tb.header > 0 {
+			// TitleBarBackButtonStyle in a HeaderBar: as tall as the bar less its margin of 2 (headerFluentButton).
+			b.Height(tb.header - 4).MarginY(2)
+		}
 		glyph = func(pt *ui.Painter, rc ui.Rect) {
 			// AnimatedBackVisualSource, the back arrow of a 16-DIP AnimatedIcon (its 48-unit visual scaled by 2.25 and a third): a shaft 12 DIPs long ending round and a head reaching 5.1 back and 4.9 to either side, strokes 0.75 DIP wide; ForwardButton mirrors it (inferred: NavigationView has no forward button).
 			cx, cy := rc.X+rc.W/2, rc.Y+rc.H/2
