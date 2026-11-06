@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://yldm-tech.github.io/mygo-breeze-ui/</loc>
+    <loc>https://breeze-ui.yldm.ai/</loc>
   </url>
   <url>
-    <loc>https://yldm-tech.github.io/mygo-breeze-ui/api</loc>
+    <loc>https://breeze-ui.yldm.ai/api/</loc>
   </url>
   <url>
-    <loc>https://yldm-tech.github.io/mygo-breeze-ui/cli-mcp</loc>
+    <loc>https://breeze-ui.yldm.ai/cli-mcp/</loc>
   </url>
 </urlset>

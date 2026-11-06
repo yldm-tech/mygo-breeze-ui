@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/yldm-tech/mygo-breeze-ui)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/mygo-breeze-ui)](https://github.com/yldm-tech/mygo-breeze-ui/stargazers)
 
-[Website](https://yldm-tech.github.io/mygo-breeze-ui/) · [English](README.md) · [简体中文](README.zh-CN.md)
+[Website](https://breeze-ui.yldm.ai/) · [English](README.md) · [简体中文](README.zh-CN.md)
 
 Breeze UI draws [MyGo](https://github.com/egoist/mygo)'s native UI widgets as the desktop the app runs on draws its own: macOS's controls on a Mac, Windows 11's on Windows and GNOME's libadwaita controls on Linux. The widgets have the names and signatures of MyGo's package `ui`, so a view swaps `ui.Button` for `breeze.Button` and keeps everything else.
 
@@ -55,7 +55,7 @@ The pointer, the keyboard, the focus and accessibility come from MyGo's widget b
 
 ## Storybook
 
-Every widget, on every platform, light and dark, with controls that change its arguments and the Go that builds it: **[the storybook](https://yldm-tech.github.io/mygo-breeze-ui/storybook/)** runs in the browser, compiled to WebAssembly, and the same program opens as a window:
+Every widget, on every platform, light and dark, with controls that change its arguments and the Go that builds it: **[the storybook](https://breeze-ui.yldm.ai/storybook/)** runs in the browser, compiled to WebAssembly, and the same program opens as a window:
 
 ```sh
 go run ./examples/storybook
