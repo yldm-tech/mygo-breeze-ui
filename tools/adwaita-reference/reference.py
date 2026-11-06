@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -739,6 +739,24 @@ def datepicker_set(open_popover=False, arrow=True):
     return scene
 
 
+def datepicker_focus_set():
+    """The datepicker set after a click on the calendar's 20th, the click of TestAdwCalendarAsStyled and TestAdwCalendarAsRendered: GtkCalendar chooses the day, takes the focus and sets GTK_STATE_FLAG_FOCUSED on its label, which shows libadwaita's focus ring. The click is the calendar's GtkGestureClick's pressed signal at the label's middle, which GtkCalendar handles as a click; the window does not show focus rings for the keyboard (focus-visible false), as after a click."""
+    scene = datepicker_set()
+    calendar = scene.named["calendar"]
+
+    def click(window):
+        day = descendants(calendar.get_last_child())
+        label = next(w for w in day if isinstance(w, Gtk.Label) and w.get_label() == "20" and not w.has_css_class("other-month"))
+        ok, point = label.compute_point(calendar, Graphene.Point().init(label.get_width() / 2, label.get_height() / 2))
+        for controller in calendar.observe_controllers():
+            if isinstance(controller, Gtk.GestureClick):
+                controller.emit("pressed", 1, point.x, point.y)
+        window.set_focus_visible(False)
+
+    scene.shown = lambda window: GLib.timeout_add(300, lambda: (click(window), False)[1])
+    return scene
+
+
 def over_card_set():
     """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
     box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -794,6 +812,7 @@ SETS = [
     ("datepicker", "adwaita-datepicker", datepicker_set),
     ("datepickeropen", "adwaita-datepicker-open", lambda: datepicker_set(True)),
     ("datepickernoarrow", "adwaita-datepicker-noarrow", lambda: datepicker_set(True, False)),
+    ("datepickerfocus", "adwaita-datepicker-focus", datepicker_focus_set),
     ("text", "adwaita-text", text_set),
 ]
 

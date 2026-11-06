@@ -431,7 +431,7 @@ func TestAdwPlusEvenWhenDisabled(t *testing.T) {
 	}
 }
 
-// TestAdwCalendarAsRendered checks CalendarView on GNOME against GtkCalendar as libadwaita 1.10.0 renders it (tools/adwaita-reference's datepicker set), whatever the font: GtkGridLayout counts the hidden week-number column in the homogeneous grid's request, so the grid asks for 3 and 8 columns of its widest label (a day name, or a day number padded 3 at either side, its margin of 3 included, in whole pixels), which the 7 shown columns share: 283 pixels and columns of 40 in Adwaita Sans, the calendar 285 wide with its border; and the border, outside the background, is 15% of currentColor over the window's background, 220 in the light theme and 67 in the dark one, where the header's line over the view is 224 and 63.
+// TestAdwCalendarAsRendered checks CalendarView on GNOME against GtkCalendar as libadwaita 1.10.0 renders it (tools/adwaita-reference's datepicker set), whatever the font: GtkGridLayout counts the hidden week-number column in the homogeneous grid's request, so the grid asks for 3 and 8 columns of its widest label (a day name, or a day number padded 3 at either side, its margin of 3 included, in whole pixels), which the 7 shown columns share: 283 pixels and columns of 40 in Adwaita Sans, the calendar 285 wide with its border; and the border, outside the background, is 15% of currentColor over the window's background, 220 in the light theme and 67 in the dark one, where the header's line over the view is 224 and 63; and the focus ring over the chosen day after a click is GTK's mix of accent_color. It writes datePickerView after a click on the 20th, light and dark, to the directory BREEZE_SCREENSHOTS names, to compare with the datepickerfocus set's render.
 func TestAdwCalendarAsRendered(t *testing.T) {
 	fixToday(t, datePickerToday)
 	for _, dark := range []bool{false, true} {
@@ -474,6 +474,28 @@ func TestAdwCalendarAsRendered(t *testing.T) {
 		}
 		if !samePixel(edge, wantEdge, 2) || !samePixel(line, wantLine, 2) {
 			t.Errorf("dark %v: the border is %v and the header's line %v, want libadwaita's %v and %v", dark, edge, line, wantEdge, wantLine)
+		}
+		// datePickerView after a click on the 20th, to compare with the datepickerfocus set's render.
+		shot := ui.NewTester(datePickerView(Linux), 560, 400)
+		shot.SetLocale("en-US")
+		shot.SetScale(2)
+		shot.SetDark(dark)
+		shot.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		shot.Frame()
+		if err := shot.Click(dayName(time.November, 20)); err != nil {
+			t.Fatal(err)
+		}
+		shot.Frame()
+		shot.Frame()
+		writeShot(t, os.Getenv("BREEZE_SCREENSHOTS"), fmt.Sprintf("breeze-datepicker-linux-focus-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), shot)
+		// The ring over the chosen day's accent, 2 pixels inside its label's edge: (28, 114, 209) in the light theme and (90, 170, 255) in the dark one, where GTK mixes the dark accent_color, outside sRGB, at 50% and clamps it after (the datepickerfocus set's render).
+		twenty, _ := shot.Find(dayName(time.November, 20))
+		ring, want := shotPixel(shot, twenty.X+0.75, twenty.Y+twenty.H/2), [3]int{28, 114, 209}
+		if dark {
+			want = [3]int{90, 170, 255}
+		}
+		if !samePixel(ring, want, 2) {
+			t.Errorf("dark %v: the focus ring over the chosen day is %v, want libadwaita's %v", dark, ring, want)
 		}
 	}
 }

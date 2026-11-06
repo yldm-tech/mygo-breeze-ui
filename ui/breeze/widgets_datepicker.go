@@ -729,6 +729,15 @@ func adwCalendarArrow(t *ui.Theme, btn ui.Element, under, fg ui.Color, back bool
 	})
 }
 
+// adwCalendarRing returns the color of the focus ring over the opaque fill under: $focus_border_color, accent_color at 50%. In the dark theme with the default accent, accent_color lies outside sRGB, (128.6, 208.4, 310.8) (see adwTheme), and GTK 4.24 clamps the mix only once made, so over the chosen day's accent the ring reads (90, 170, 255) in libadwaita 1.10.0's render of tools/adwaita-reference's datepickerfocus set, where the theme's Focus, fitted to GTK's ring over an entry's and a button's faces, would give (91, 160, 245); the ring is that mix here. Otherwise it is the theme's Focus over under, (28, 114, 209) over the accent in the light theme, as in the render.
+func adwCalendarRing(t *ui.Theme, under ui.Color) ui.Color {
+	if !t.Dark || t.Accent != adwAccent {
+		return t.Focus.Over(under)
+	}
+	mix := func(wide float32, u uint8) uint8 { return uint8(min(255, (wide+float32(u))/2+0.5)) }
+	return ui.RGB(mix(128.6, under.R), mix(208.4, under.G), mix(310.8, under.B))
+}
+
 // adwCalendarDay draws GtkCalendar's day-number label e of day d over under (adwCalendar).
 func adwCalendarDay(c *ui.Context, b *calendarBuild, under, fg, border ui.Color, e ui.Element, d time.Time, ringed bool) {
 	t := b.t
@@ -747,7 +756,7 @@ func adwCalendarDay(c *ui.Context, b *calendarBuild, under, fg, border ui.Color,
 			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, border, 0)
 		}
 		if ringed {
-			p.Stroke(r, t.Focus, pick(chosen, float32(0), 9), 2)
+			p.Stroke(r, adwCalendarRing(t, pick(chosen, under, t.Accent)), pick(chosen, float32(0), 9), 2)
 		}
 	})
 	e.Children(func() {
