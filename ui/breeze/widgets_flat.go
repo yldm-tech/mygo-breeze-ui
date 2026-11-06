@@ -4,11 +4,11 @@ import "github.com/egoist/mygo/ui"
 
 // Buttons without a face at rest, which every platform has beside its push buttons: macOS's NSButton that shows its bezel only while the pointer is inside it (showsBorderOnlyWhileMouseInside, of bezel style accessoryBarAction, or accessoryBar for a toggle), WinUI 3's SubtleButtonStyle and libadwaita's .flat button. They are ui.ButtonBase's (ui.ToggleBase's for FlatToggle), so Clicked, Menu, PopoverMenuButton, the focus, the keys and Disabled are MyGo's, and they show what is behind them: their fills are translucent layers, as the platforms' are, so a flat button over a card, a sidebar or a dark player's controls takes its colors from what it is laid over.
 //
-// Inside a Toolbar or a HeaderBar they are the toolbar's own items, as Button, IconButton and Toggle draw them there.
+// Inside a Toolbar or a HeaderBar they are the bar's own items, as Button, IconButton and Toggle draw them there, where those are the platform's flat bar items; where the bar's own would be raised, a text button on GNOME and a text button or a toggle in a HeaderBar on Windows, they stay flat, as libadwaita's .flat and WinUI's SubtleButtonStyle keep them (flatBarItem).
 
-// FlatButton creates a button showing label without a face at rest, as the platform draws a borderless text button: on macOS an NSButton of bezel style accessoryBarAction showing its bezel only while the pointer is inside it, 24 points high and padded 12 either side of its title, the title in secondaryLabelColor at rest and labelColor over the bezel; on Windows a Button of SubtleButtonStyle, a Button's size (32 DIPs high, ButtonPadding 11,5,11,6 inside its 1-DIP border) with no fill or border at rest; on GNOME a .flat text button, 34 pixels high, padded 5px 17px, bold (flatStyle). Inside a Toolbar it is Button. Ask Clicked whether it was clicked; Menu and PopoverMenuButton open a menu from it.
+// FlatButton creates a button showing label without a face at rest, as the platform draws a borderless text button: on macOS an NSButton of bezel style accessoryBarAction showing its bezel only while the pointer is inside it, 24 points high and padded 12 either side of its title, the title in secondaryLabelColor at rest and labelColor over the bezel; on Windows a Button of SubtleButtonStyle, a Button's size (32 DIPs high, ButtonPadding 11,5,11,6 inside its 1-DIP border) with no fill or border at rest; on GNOME a .flat text button, 34 pixels high, padded 5px 17px, bold (flatStyle). Inside a Toolbar or a HeaderBar it is Button on macOS and in a Toolbar on Windows, and stays flat on GNOME and in a HeaderBar on Windows, where Button would be raised (flatBarItem). Ask Clicked whether it was clicked; Menu and PopoverMenuButton open a menu from it.
 func FlatButton(c *ui.Context, label string) ui.Element {
-	if _, bar := idiomToolbars.Load(c); bar {
+	if flatBarItem(c, false, false) {
 		return Button(c, label)
 	}
 	b := ui.ButtonBase(c)
@@ -17,11 +17,11 @@ func FlatButton(c *ui.Context, label string) ui.Element {
 	return b
 }
 
-// FlatIconButton creates a button showing only icon without a face at rest, as the platform draws a borderless image button: on macOS an NSButton of bezel style accessoryBarAction in a 24-point square that shows its bezel only while the pointer is inside it; on Windows a Button of SubtleButtonStyle holding a 16-DIP icon, 40 by 29 as IconButton; on GNOME a .flat image button, 34 pixels square (flatStyle). The icon is the caller's SVG drawn 16 by 16 in the color of the button's text, whatever colors the SVG has: secondaryLabelColor at rest and labelColor over the bezel on macOS, TextFillColorPrimary on Windows (Secondary pressed), window_fg_color on GNOME. Inside a Toolbar it is IconButton, the toolbar's image item.
+// FlatIconButton creates a button showing only icon without a face at rest, as the platform draws a borderless image button: on macOS an NSButton of bezel style accessoryBarAction in a 24-point square that shows its bezel only while the pointer is inside it; on Windows a Button of SubtleButtonStyle holding a 16-DIP icon, 40 by 29 as IconButton; on GNOME a .flat image button, 34 pixels square (flatStyle). The icon is the caller's SVG drawn 16 by 16 in the color of the button's text, whatever colors the SVG has: secondaryLabelColor at rest and labelColor over the bezel on macOS, TextFillColorPrimary on Windows (Secondary pressed), window_fg_color on GNOME. Inside a Toolbar or a HeaderBar it is IconButton, the bar's image item.
 //
 // label names the button for assistive technology and shows as its tooltip, the platform's, as IconButton's does. Ask Clicked whether it was clicked; Menu and PopoverMenuButton open a menu from it, as from a ⋯ button.
 func FlatIconButton(c *ui.Context, icon *ui.SVG, label string) ui.Element {
-	if _, bar := idiomToolbars.Load(c); bar {
+	if flatBarItem(c, true, false) {
 		return IconButton(c, icon, label)
 	}
 	b := ui.ButtonBase(c).Label(label)
@@ -33,11 +33,11 @@ func FlatIconButton(c *ui.Context, icon *ui.SVG, label string) ui.Element {
 	return b
 }
 
-// FlatToggle creates a button that stays pressed while *on, showing icon without a face while off, as the platform draws a borderless toggle: on macOS an NSButton of bezel style accessoryBar and type pushOnPushOff in a 24-point square, which shows its bezel only while the pointer is inside it and, on but away from the pointer, a gray fill (black at 12.5% in Aqua, white in Dark Aqua) under its image in labelColor, the accent under the pointer; on Windows a ToggleButton of SubtleButtonStyle's look while off and a checked ToggleButton's, the accent, while on (WinUI has no subtle toggle; inferred); on GNOME a .flat image toggle, currentColor at 10% while checked (flatStyle). A nil icon shows label as its text instead, at the size of FlatButton. Inside a Toolbar it is Toggle, the toolbar's image toggle.
+// FlatToggle creates a button that stays pressed while *on, showing icon without a face while off, as the platform draws a borderless toggle: on macOS an NSButton of bezel style accessoryBar and type pushOnPushOff in a 24-point square, which shows its bezel only while the pointer is inside it and, on but away from the pointer, a gray fill (black at 12.5% in Aqua, white in Dark Aqua) under its image in labelColor, the accent under the pointer; on Windows a ToggleButton of SubtleButtonStyle's look while off and a checked ToggleButton's, the accent, while on (WinUI has no subtle toggle; inferred); on GNOME a .flat image toggle, currentColor at 10% while checked (flatStyle). A nil icon shows label as its text instead, at the size of FlatButton. Inside a Toolbar or a HeaderBar it is Toggle, the bar's toggle, but where Toggle would be raised it stays flat: with text on GNOME, and in a HeaderBar on Windows, where Toggle is a ToggleButton (flatBarItem).
 //
 // label names it for assistive technology and, with an icon, shows as its tooltip. A click or Space while it has the focus turns *on over and Changed reports it; assistive technology hears a toggle button, pressed while *on, as ui.ToggleBase tells it.
 func FlatToggle(c *ui.Context, on *bool, icon *ui.SVG, label string) ui.Element {
-	if _, bar := idiomToolbars.Load(c); bar {
+	if flatBarItem(c, icon != nil, true) {
 		if icon == nil {
 			return Toggle(c, on, label)
 		}
@@ -59,6 +59,21 @@ func FlatToggle(c *ui.Context, on *bool, icon *ui.SVG, label string) ui.Element 
 		platformTooltip(c, b, label)
 	}
 	return b
+}
+
+// flatBarItem reports whether a flat button showing an image, or text when not image, a toggle when toggle, is drawn as an item of the Toolbar or HeaderBar being built, as Button, IconButton and Toggle draw them there, rather than with flatStyle. On macOS and in a Toolbar on Windows it always is: the toolbar's items are a bordered NSToolbarItem on its platter, the toolbar's look, and an AppBarButton or AppBarToggleButton, which has no face at rest. On GNOME only an image one is, a flat image button of the bar, as a header bar's and a .toolbar's text buttons are raised and only .flat keeps one flat (_toolbars.scss). In a HeaderBar on Windows only an image button is, the TitleBar's subtle button (headerFluentButton): its other controls are drawn as outside a toolbar (idiomToolbarItem), a text button a push button and a toggle a ToggleButton, where SubtleButtonStyle keeps a flat one subtle.
+func flatBarItem(c *ui.Context, image, toggle bool) bool {
+	v, bar := idiomToolbars.Load(c)
+	if !bar {
+		return false
+	}
+	switch PlatformOf(c) {
+	case Linux:
+		return image
+	case Windows:
+		return v.(*idiomToolbar).header == 0 || image && !toggle
+	}
+	return true
 }
 
 // flatStyle draws b, a flat button showing an icon (image) or text, toggled on when on, as the platform draws it.

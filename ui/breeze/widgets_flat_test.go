@@ -502,3 +502,53 @@ func TestFlatToggleText(t *testing.T) {
 		}
 	}
 }
+
+// TestFlatButtonsInBars checks on Windows and GNOME that the flat buttons and toggles, text and image, have no face at rest in a Toolbar and in a HeaderBar, light and dark: the point of each where the face would be reads as the bar beside it. A text one stays flat where a bar's text buttons are raised, as libadwaita's .flat keeps a text button flat in a header bar and a .toolbar and WinUI's SubtleButtonStyle keeps one subtle in a TitleBar. On macOS the bar's items are bordered NSToolbarItems on their platters, the toolbar's look, so it is left out.
+func TestFlatButtonsInBars(t *testing.T) {
+	for _, p := range []Platform{Windows, Linux} {
+		for _, header := range []bool{false, true} {
+			for _, dark := range []bool{false, true} {
+				name := fmt.Sprintf("%v header %v dark %v", p, header, dark)
+				var textOff, imageOff bool
+				var bar, skip ui.Rect
+				tester := layoutTester(p, 560, 160, func(c *ui.Context) {
+					Use(c)
+					build := func() {
+						skip = FlatButton(c, "Skip").Bounds()
+						FlatIconButton(c, idiomTestShareIcon, "Share")
+						FlatToggle(c, &textOff, nil, "Wrap")
+						FlatToggle(c, &imageOff, idiomTestSidebarIcon, "Sidebar")
+					}
+					ui.Column(c).Fill().Children(func() {
+						if header {
+							bar = HeaderBar(c, "Notes", "", build, nil).Bounds()
+						} else {
+							bar = Toolbar(c, build).Bounds()
+						}
+					})
+				})
+				if header {
+					tester.SetTitleBar(headerTestRoom(p, ui.LeftToRight))
+				}
+				tester.SetScale(2)
+				tester.SetDark(dark)
+				tester.Frame()
+				tester.Frame()
+				for _, n := range []string{"Skip", "Share", "Wrap", "Sidebar"} {
+					// FlatButton has no label of its own to find it by, only its text.
+					b, ok := skip, true
+					if n != "Skip" {
+						b, ok = tester.Find(n)
+					}
+					if !ok {
+						t.Fatalf("%s: %s is missing", name, n)
+					}
+					want := flatPixel(tester, b.X+3, bar.Y+1)
+					if got := flatPixel(tester, b.X+3, b.Y+b.H/2); !flatClose(got, want, 2) {
+						t.Errorf("%s: %s at rest reads %v, the bar %v", name, n, got, want)
+					}
+				}
+			}
+		}
+	}
+}

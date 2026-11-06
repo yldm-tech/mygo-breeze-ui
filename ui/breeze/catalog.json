@@ -235,21 +235,21 @@
       "name": "FlatButton",
       "category": "actions",
       "look": "drawn",
-      "description": "A text button without a face at rest, a translucent fill under the pointer and pressed that shows what is behind it: macOS's accessory bar button that shows its bezel only while the pointer is inside it (24 points high, its title in secondary gray at rest), Windows 11's Button of SubtleButtonStyle, or GNOME's .flat button; in a Toolbar, the toolbar's Button.",
+      "description": "A text button without a face at rest, a translucent fill under the pointer and pressed that shows what is behind it: macOS's accessory bar button that shows its bezel only while the pointer is inside it (24 points high, its title in secondary gray at rest), Windows 11's Button of SubtleButtonStyle, or GNOME's .flat button; in a Toolbar or a HeaderBar, the bar's Button on macOS and in a Windows Toolbar, and flat where Button would be raised (GNOME, a Windows HeaderBar).",
       "example": "if breeze.FlatButton(c, \"Skip\").Clicked() {\n\tapp.skip()\n}"
     },
     {
       "name": "FlatIconButton",
       "category": "actions",
       "look": "drawn",
-      "description": "A button showing only an icon without a face at rest, its label naming it and showing as its tooltip, for row accessories, close buttons, ⋯ menus and a player's controls: macOS's accessory bar button in a 24-point square (the icon secondary gray at rest, labelColor over the bezel under the pointer), Windows 11's Button of SubtleButtonStyle (40 by 29), or GNOME's 34-pixel .flat image button; in a Toolbar, IconButton's image item.",
+      "description": "A button showing only an icon without a face at rest, its label naming it and showing as its tooltip, for row accessories, close buttons, ⋯ menus and a player's controls: macOS's accessory bar button in a 24-point square (the icon secondary gray at rest, labelColor over the bezel under the pointer), Windows 11's Button of SubtleButtonStyle (40 by 29), or GNOME's 34-pixel .flat image button; in a Toolbar or a HeaderBar, IconButton's image item.",
       "example": "breeze.FlatIconButton(c, moreIcon, \"More\").Menu(app.cardMenu)"
     },
     {
       "name": "FlatToggle",
       "category": "actions",
       "look": "drawn",
-      "description": "A toggle showing an icon without a face while off, its label naming it and showing as its tooltip: macOS's accessory bar toggle in a 24-point square (gray while on, the accent under the pointer), on Windows 11 a subtle button off and a checked ToggleButton's accent on (inferred: WinUI has no subtle toggle), or GNOME's .flat image toggle (currentColor at 10% while checked); in a Toolbar, the toolbar's image toggle.",
+      "description": "A toggle showing an icon without a face while off, its label naming it and showing as its tooltip: macOS's accessory bar toggle in a 24-point square (gray while on, the accent under the pointer), on Windows 11 a subtle button off and a checked ToggleButton's accent on (inferred: WinUI has no subtle toggle), or GNOME's .flat image toggle (currentColor at 10% while checked); in a Toolbar or a HeaderBar, the bar's toggle, and flat where Toggle would be raised (a text one on GNOME, any in a Windows HeaderBar).",
       "example": "breeze.FlatToggle(c, &app.showPanel, panelIcon, \"Panel\")"
     },
     {
