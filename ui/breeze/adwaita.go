@@ -35,7 +35,8 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.SurfaceHover = t.Background.Mix(white, 0.15)
 		t.SurfacePressed = t.Background.Mix(white, 0.30)
 		t.Danger, t.Warning, t.Success = ui.Hex("#c01c28"), ui.Hex("#cd9309"), ui.Hex("#26a269")
-		t.Focus = ui.RGBA(129, 208, 255, 0.5) // accent_color at 50%
+		// accent_color at 50%. The dark theme's accent_color is the accent with its Oklab lightness raised to 0.85, which for #3584e4 is outside sRGB (128.6, 208.4, 310.8: its blue past 255), and GTK 4.24 mixes it at 50% unclamped: libadwaita 1.10.0's focus ring reads (92, 132, 185) over an entry's (57, 57, 60) (measured by tools/adwaita-reference), where the clamped #81d0ff at 50% gives (93, 132, 158). The blue's 185 needs 64.3% of 255; these values give GTK's ring over the entry's and a button's faces, and come within 3 levels of it over the window.
+		t.Focus = ui.RGBA(112, 175, 255, 0.643)
 	} else {
 		t.Background = ui.Hex("#fafafb")
 		t.Text = t.Background.Mix(adwInk, 0.8)

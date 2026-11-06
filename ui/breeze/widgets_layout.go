@@ -39,6 +39,14 @@ func adwBoxedListCard(t *ui.Theme) (fill, shade ui.Color) {
 	return white, white.Mix(adwInk, 0.07)
 }
 
+// adwNestedRowLine is the line of card_shade_color (the shade at 7% in the light theme, 36% in the dark one) between two rows of an expander row's nested list, laid over the list's background under.
+func adwNestedRowLine(t *ui.Theme, under ui.Color) ui.Color {
+	return under.Mix(adwInk, pick(t.Dark, float32(0.07), 0.36))
+}
+
+// adwGroupHeader is the least height of an AdwPreferencesGroup's header when it has a title and no description (preferencesgroup > box > box.single-line in libadwaita 1.10.0's stylesheet).
+const adwGroupHeader = 34
+
 // adwBoxedListShadow casts .card's box-shadow: a 1-pixel ring of the shade at 3%, and two soft shadows at 7% and 3%.
 func adwBoxedListShadow(e ui.Element) {
 	e.Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 6, 0.03)).Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
@@ -238,7 +246,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	return item
 }
 
-// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. Rows built in fn (ActionRow, SwitchRow) join as a settings page joins them: one section on macOS and a boxed list on GNOME, without the padding, and on Windows SettingsCards 4 DIPs apart. It is ui.Fieldset's counterpart.
+// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 6 pixels below a 34-pixel header with its title centered. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. Rows built in fn (ActionRow, SwitchRow) join as a settings page joins them: one section on macOS and a boxed list on GNOME, without the padding, and on Windows SettingsCards 4 DIPs apart. It is ui.Fieldset's counterpart.
 func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -272,10 +280,13 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 		// WinUI Gallery's SettingsPage.xaml: SettingsSectionHeaderTextBlockStyle (BodyStrongTextBlockStyle) has a bottom margin of 6, and SettingsCardSpacing puts 4 more before the first card.
 		g.Gap(10)
 	case Linux:
-		g.Gap(12) // preferencesgroup > box: border-spacing 6px, and 6px below the header
+		// A group with a title and no description has a header of class single-line, at least 34 pixels high with the title centered in it (preferencesgroup > box > box.single-line), and the list 6 below it (preferencesgroup > box: border-spacing 6px), 40 below the group's top: libadwaita 1.10.0 (GTK 4.24.1) lays the 18-pixel title 8 below the group's top and the boxed list 40 below it (measured by tools/adwaita-reference). The legend's line, whatever the font, is centered in those 34 pixels.
+		_, line := c.MeasureText(0, ui.Span{Text: legend, Size: t.FontSize, Weight: 600})
+		top := max((adwGroupHeader-line)/2, 0)
+		g.Padding(top, 0, 0, 0).Gap(top + 6)
 		rtl := c.Direction() == ui.RightToLeft
 		g.TextColor(ui.Transparent).DrawOver(func(p *ui.Painter, r ui.Rect) {
-			formsLabelOver(p, r, legend, 700, t.FontSize, t.Text, rtl)
+			formsLabelOver(p, ui.Rect{X: r.X, Y: r.Y + top, W: r.W, H: r.H - top}, legend, 700, t.FontSize, t.Text, rtl)
 		})
 	default:
 		// The header's baseline is 13 points above the section: about 10 below its line. In a Form the section reaches back instead, keeping the legend 10 in from its edge.

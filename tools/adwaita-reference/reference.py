@@ -552,10 +552,10 @@ def inputs_set():
 
 
 def status_set():
-    """TestScreenshotsStatus's statusView: four banners, 16 from the window's edges and 68 apart, the first and the last with a Dismiss button (banners have no severity, so the four differ only in their titles), and AdwSpinners where the determinate rings are, as libadwaita has no determinate ring."""
+    """TestScreenshotsStatus's statusView: four banners, 16 from the window's edges and 68 apart, the first and the last with a Dismiss button (banners have no severity, so the four differ only in their titles), and AdwSpinners where the determinate rings are, as libadwaita has no determinate ring. A banner has only a title: Breeze UI's message follows it in the same label at regular weight, which markup gives the bold title here."""
     items, named = [], {}
     for i, title in enumerate(["Informational", "Success", "Warning", "Error"]):
-        banner = Adw.Banner(title=title + " Some message about it.", revealed=True)
+        banner = Adw.Banner(title=title + ' <span weight="normal">Some message about it.</span>', use_markup=True, revealed=True)
         if i in (0, 3):
             banner.set_button_label("Dismiss")
         banner.set_size_request(528, -1)
@@ -575,7 +575,25 @@ def status_page_set():
     """TestScreenshotsStatus's statusPageView: an AdwStatusPage filling the window with system-search-symbolic, a title, a description and a button."""
     button = Gtk.Button(label="Clear Search", halign=Gtk.Align.CENTER)
     page = Adw.StatusPage(icon_name="system-search-symbolic", title="No Results", description="Check the spelling or try a new search.", child=button)
-    return Scene(560, 420, page, named={"statuspage": page, "button": button})
+    named = {"statuspage": page, "button": button}
+    # The page's icon, title and description, which it does not expose, by their types and style classes (adw-status-page.ui).
+    for w in descendants(page):
+        if isinstance(w, Gtk.Image):
+            named["icon"] = w
+        elif isinstance(w, Gtk.Label) and w.has_css_class("title"):
+            named["title"] = w
+        elif isinstance(w, Gtk.Label) and w.has_css_class("description"):
+            named["description"] = w
+    return Scene(560, 420, page, named=named)
+
+
+def descendants(widget):
+    """Every widget inside widget, depth first."""
+    child = widget.get_first_child()
+    while child is not None:
+        yield child
+        yield from descendants(child)
+        child = child.get_next_sibling()
 
 
 def rows_set():
@@ -614,6 +632,8 @@ def rows_set():
     network.add_row(switch_row("Metered", False))
     accordion = boxed(network)
     right = vbox(16, privacy, accordion, width=300)
+    # The rows ask to expand, which would widen the column past the test's 300 to the window's end.
+    right.set_hexpand(False)
     root = hbox(24, left, right, padding=16)
     return Scene(672, 520, root, named={"card": card, "rows": settings, "storage": storage, "privacy": privacy, "network": network})
 
@@ -694,6 +714,8 @@ def main():
         Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK if dark else Adw.ColorScheme.FORCE_LIGHT)
         scene = build()
         window = Adw.Window()
+        # AdwWindow asks for at least 360 by 200 pixels, frame included; a scene less than 190 high (the inputs set) would get a taller window, which the snapshot below then squeezes into the scene's height.
+        window.set_size_request(-1, -1)
         window.set_content(scene.root)
         window.set_default_size(scene.width + 2 * FRAME, scene.height + 2 * FRAME)
         window.present()
