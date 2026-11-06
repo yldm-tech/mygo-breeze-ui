@@ -20,6 +20,12 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		return anchor
 	}
 	anchor.Description(text)
+	platformTooltip(c, anchor, text)
+	return anchor
+}
+
+// platformTooltip shows text as anchor's tooltip in the platform's look, on ui.TooltipBase, without touching anchor's Description: Tooltip gives it one, IconButton does not, as its tooltip is its name.
+func platformTooltip(c *ui.Context, anchor ui.Element, text string) {
 	p := PlatformOf(c)
 	ui.TooltipBase(c, anchor, func(tip ui.Element) {
 		switch p {
@@ -32,7 +38,6 @@ func Tooltip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 		}
 		tip.Children(func() { ui.Text(c, text) })
 	})
-	return anchor
 }
 
 // macTooltip draws an AppKit tooltip: text in NSFont.toolTipsFont (11 points, read from AppKit), in a light or dark panel with a hairline edge, below the element. AppKit draws tooltips in a window of its own, which does not render offscreen: the panel's colors, padding, corners and shadow are inferred, following the menus of mac.go.
@@ -156,7 +161,7 @@ func fluentToastColors(t *ui.Theme, accent ui.Color, severity int) (bg, icon ui.
 	return pick(t.Dark, ui.Hex("#f7f7f7"), ui.Hex("#2e2e2e")), pick(t.Dark, accent, t.Accent)
 }
 
-// fluentToast draws a toast as an InfoBar: at least 48 DIPs high, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border, InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon with InfoBarIconMargin 0,16,14,16; the title semibold and the message 12 after it, both 14 DIPs and 14 from the top; the action button 16 after them and 8 from the top; and the close button, 38 DIPs with a margin of 5, drawn as an AppBarButton. The shadow, as the toast floats over the window, is a flyout's, inferred.
+// fluentToast draws a toast as an InfoBar: at least 48 DIPs high, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border, InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon with InfoBarIconMargin 0,16,14,16; the title semibold and the message 12 after it, both 14 DIPs and 14 from the top; the action button 16 after them and 8 from the top; and the close button (fluentInfoBarClose). The shadow, as the toast floats over the window, is a flyout's, inferred.
 func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 	t := c.Theme()
 	w, _ := c.Size()
@@ -180,17 +185,7 @@ func fluentToast(c *ui.Context, parts ui.ToastParts, ts ui.Toast) {
 				b.Margin(8, 0, 0, 0).MarginStart(16).Children(func() { ui.Text(c, ts.Action).SingleLine() })
 			}
 		})
-		dismiss := parts.CloseButton().Label("Close").Size(38, 38).Margin(5).Shrink(0).Radius(4).Center()
-		hover, pressed := fluentSubtle(t)
-		switch {
-		case dismiss.Pressed():
-			dismiss.Background(pressed)
-		case dismiss.Hovered():
-			dismiss.Background(hover)
-		}
-		dismiss.Children(func() {
-			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.22, 1, t.Text) })
-		})
+		fluentInfoBarClose(c, parts.CloseButton().Label("Close"))
 	})
 }
 

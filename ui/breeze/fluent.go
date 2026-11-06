@@ -308,7 +308,24 @@ func fluentUnderHalf(want, under ui.Color) ui.Color {
 // fluentSwitch draws a ToggleSwitch: a 40 by 20 track, a 1-DIP stroke while off, and a round knob of 12 DIPs that grows to 14 under the pointer and stretches to 17 wide while pressed, moving in 83 milliseconds.
 func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 	t := c.Theme()
-	hovered, pressed := sw.Hovered(), sw.Pressed()
+	fluentSwitchTrack(c, t, sw, sw.Hovered(), sw.Pressed(), on)
+	// The focus target is SwitchAreaGrid: every column of the switch's grid, the 40-DIP track, the 12-DIP gap and the On or Off content, which Breeze's switch does not show, so 52 DIPs, and its rows, 10 + 20 + 10 less its Margin 0,5, so 30 DIPs around the track; grown by FocusVisualMargin -7,-3,-7,-3 with corners of ControlCornerRadius (ToggleSwitch_themeresources.xaml).
+	sw.FocusRing(false)
+	rtl := c.Direction() == ui.RightToLeft
+	sw.DrawOver(func(p *ui.Painter, r ui.Rect) {
+		if !sw.FocusVisible() {
+			return
+		}
+		area := ui.Rect{X: r.X, Y: r.Y - 5, W: r.W + 12, H: r.H + 10}
+		if rtl {
+			area.X -= 12
+		}
+		fluentFocusRing(p, t, area, 7, 3, 7, 3, 4)
+	})
+}
+
+// fluentSwitchTrack draws a ToggleSwitch's track and knob on sw, laid over t's Background, under the pointer if hovered and pressed if pressed: the look of fluentSwitch without its focus visual, for a switch whose state is another element's, as SwitchRow's.
+func fluentSwitchTrack(c *ui.Context, t *ui.Theme, sw ui.Element, hovered, pressed, on bool) {
 	pos := knob(sw, on, 83*time.Millisecond)
 	at := along(c, pos)
 	offFill, offStroke, offInner := fluentUnchecked(t, hovered, pressed)
@@ -335,19 +352,6 @@ func fluentSwitch(c *ui.Context, sw ui.Element, on bool) {
 		cx := r.X + r.H/2 + at*(r.W-r.H)
 		x := cx - h/2 - at*(w-h)
 		p.Fill(ui.Rect{X: x, Y: r.Y + (r.H-h)/2, W: w, H: h}, knobFill, h/2)
-	})
-	// The focus target is SwitchAreaGrid: every column of the switch's grid, the 40-DIP track, the 12-DIP gap and the On or Off content, which Breeze's switch does not show, so 52 DIPs, and its rows, 10 + 20 + 10 less its Margin 0,5, so 30 DIPs around the track; grown by FocusVisualMargin -7,-3,-7,-3 with corners of ControlCornerRadius (ToggleSwitch_themeresources.xaml).
-	sw.FocusRing(false)
-	rtl := c.Direction() == ui.RightToLeft
-	sw.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		if !sw.FocusVisible() {
-			return
-		}
-		area := ui.Rect{X: r.X, Y: r.Y - 5, W: r.W + 12, H: r.H + 10}
-		if rtl {
-			area.X -= 12
-		}
-		fluentFocusRing(p, t, area, 7, 3, 7, 3, 4)
 	})
 }
 
@@ -442,12 +446,16 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	fill := t.Surface
 	switch {
 	case focused:
-		fill = pick(t.Dark, white, t.Background.Mix(ui.Hex("#1e1e1e"), 0.7))
+		fill = fluentFieldFocusedFill(t)
 	case f.Hovered():
 		fill = t.SurfaceHover
 	}
 	// The 1-DIP border, drawn over the box here, is inside the template's BorderElement, and TextControlThemePadding 10,5,6,6 inside it: the text starts 11 DIPs in and 6 down (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the text box at 27,56 in a TextBox at 16,50). The template mirrors right to left, so the sides are the start and the end.
 	f.Padding(6, 0, 7, 0).PaddingStart(11).PaddingEnd(7).Radius(4).Background(fill).Border(0, ui.Color{})
+	if !focused {
+		// TextControlPlaceholderForeground, TextFillColorSecondary, over the box's fill rather than the window's: 95 over 251 in the light theme and 207 over 45 in the dark one (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: an empty PasswordBox's placeholder in winui-inputs). Focused, the placeholder keeps the theme's TextMuted (not compared).
+		f.PlaceholderColor(fluentSecondaryOver(t, fill))
+	}
 	if kind != multiLine {
 		f.MinHeight(32)
 	}
@@ -462,6 +470,11 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 			}
 		})
 	})
+}
+
+// fluentFieldFocusedFill is the fill of a TextBox while it has the focus: white, darker in the dark theme.
+func fluentFieldFocusedFill(t *ui.Theme) ui.Color {
+	return pick(t.Dark, white, t.Background.Mix(ui.Hex("#1e1e1e"), 0.7))
 }
 
 // fluentSelect draws a closed ComboBox: a button's face and elevation border, 32 DIPs high and at least ComboBoxThemeMinWidth (64) wide with padding 12,5,0,7, a 12-DIP chevron 14 DIPs from its end in TextFillColorSecondary. Its keyboard focus is drawn by its template, not by the system focus visual, which DefaultComboBoxStyle turns off (UseSystemFocusVisuals is IsApplicationFocusVisualKindReveal, False): in the Focused and FocusedPressed states, which ComboBox_Partial.cpp picks for focus other than the pointer's, HighlightBackground shows 4 DIPs around the box (Margin -4) with a 2-DIP ComboBoxBackgroundBorderBrushFocused edge (FocusStrokeColorOuter, the theme's Focus), ComboBoxHiglightBorderCornerRadius 7 and ComboBoxBackgroundFocused (ControlFillColorDefault) behind the box, and the 3 by 16 accent Pill (ComboBoxItemPill, AccentFillColorDefault, corners of 1.5) shows 1 DIP in from the box's start (ComboBox_themeresources.xaml).

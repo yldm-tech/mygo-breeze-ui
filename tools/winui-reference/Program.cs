@@ -1,13 +1,15 @@
 // WinUI 3's own controls, for comparing Breeze UI's Windows look with them.
 //
-// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert), and a fifth set of the same controls held in their PointerOver and Pressed visual states, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
+// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView) and wider ones that keep their content at the end, in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
 //
 // Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and the flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene. ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
 //
 // It is an unpackaged app (WindowsPackageType None) that carries the Windows App SDK with it (WindowsAppSDKSelfContained), built with the .NET 8 SDK or later on Windows 10 version 2004 (build 19041) or later, x64:
 //
 //	dotnet build -c Release -m:4 tools/winui-reference/WinUIReference.csproj
-//	tools\winui-reference\bin\Release\net8.0-windows10.0.26100.0\win-x64\winui-reference.exe <dir>
+//	tools\winui-reference\bin\Release\net8.0-windows10.0.26100.0\win-x64\winui-reference.exe <dir> [scene,...]
+//
+// With a second argument it renders only the scenes named there, by their file names without the theme (winui-rows,winui-text).
 //
 // It must run in an interactive desktop session (not over SSH, which cannot show windows); started from a remote shell, a scheduled task with /IT runs it in the signed-in user's session:
 //
@@ -46,7 +48,7 @@ public static class Program
         Application.Start(p =>
         {
             SynchronizationContext.SetSynchronizationContext(new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
-            _ = new App(args.Length > 0 ? args[0] : ".");
+            _ = new App(args.Length > 0 ? args[0] : ".", args.Length > 1 ? args[1].Split(',') : []);
         });
         return App.ExitCode;
     }
@@ -60,14 +62,39 @@ public sealed class App : Application, IXamlMetadataProvider
     public static int ExitCode;
     const int Scale = 2;
     readonly string outDir;
+    readonly string[] only;
     readonly StringBuilder report = new();
-    readonly XamlControlsXamlMetaDataProvider provider = new();
+    readonly List<IXamlMetadataProvider> providers = [new XamlControlsXamlMetaDataProvider()];
 
-    public App(string dir) { outDir = dir; }
+    // App renders the scenes into dir, only those whose file names are in only when it is not empty. The XAML type providers of the CommunityToolkit assemblies next to the program (SettingsControls and what it uses) answer for their types after WinUI's own.
+    public App(string dir, string[] only)
+    {
+        outDir = dir;
+        this.only = only;
+        foreach (var path in Directory.GetFiles(AppContext.BaseDirectory, "CommunityToolkit.WinUI*.dll"))
+        {
+            Type?[] types;
+            try
+            {
+                types = System.Reflection.Assembly.LoadFrom(path).GetTypes();
+            }
+            catch (System.Reflection.ReflectionTypeLoadException ex)
+            {
+                types = ex.Types;
+            }
+            foreach (var t in types)
+            {
+                if (t != null && typeof(IXamlMetadataProvider).IsAssignableFrom(t) && t.IsClass && !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null)
+                {
+                    providers.Add((IXamlMetadataProvider)Activator.CreateInstance(t)!);
+                }
+            }
+        }
+    }
 
-    public IXamlType GetXamlType(Type type) => provider.GetXamlType(type);
-    public IXamlType GetXamlType(string fullName) => provider.GetXamlType(fullName);
-    public XmlnsDefinition[] GetXmlnsDefinitions() => provider.GetXmlnsDefinitions();
+    public IXamlType GetXamlType(Type type) => providers.Select(p => p.GetXamlType(type)).FirstOrDefault(x => x != null)!;
+    public IXamlType GetXamlType(string fullName) => providers.Select(p => p.GetXamlType(fullName)).FirstOrDefault(x => x != null)!;
+    public XmlnsDefinition[] GetXmlnsDefinitions() => providers.SelectMany(p => p.GetXmlnsDefinitions()).ToArray();
 
     // Windows's default accent and the shades Windows derives from it.
     static readonly (string Key, string Hex)[] Accent =
@@ -93,7 +120,7 @@ public sealed class App : Application, IXamlMetadataProvider
             var sdk = System.Diagnostics.FileVersionInfo.GetVersionInfo(typeof(Microsoft.Windows.ApplicationModel.WindowsAppRuntime.RuntimeInfo).Assembly.Location);
             report.AppendLine($"Windows App SDK {sdk.ProductVersion}, Microsoft.UI.Xaml.dll {xaml.FileVersion}, Windows {Environment.OSVersion.Version}");
             var window = MakeWindow();
-            foreach (var scene in Scenes())
+            foreach (var scene in Scenes().Where(s => only.Length == 0 || only.Contains(s.File)))
             {
                 foreach (var theme in new[] { ElementTheme.Light, ElementTheme.Dark })
                 {
@@ -111,7 +138,7 @@ public sealed class App : Application, IXamlMetadataProvider
         Exit();
     }
 
-    const string Ns = "xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"";
+    const string Ns = "xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:tk=\"using:CommunityToolkit.WinUI.Controls\"";
 
     static string Canvas(int w, int h, string body) =>
         $"<Canvas {Ns} Width=\"{w}\" Height=\"{h}\" Background=\"{{ThemeResource SolidBackgroundFillColorBaseBrush}}\">{body}</Canvas>";
@@ -191,6 +218,110 @@ public sealed class App : Application, IXamlMetadataProvider
             <Slider x:Name="slider-hover" Tag="PointerOver" Canvas.Left="16" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
             <Slider x:Name="slider-pressed" Tag="Pressed" Canvas.Left="220" Canvas.Top="194" Width="180" Minimum="0" Maximum="100" Value="40"/>
             """), ["button-hover", "button-pressed", "accent-hover", "accent-pressed", "checkbox-off-hover", "checkbox-off-pressed", "checkbox-on-hover", "checkbox-on-pressed", "switch-off-hover", "switch-off-pressed", "switch-on-hover", "switch-on-pressed", "radio-off-pressed", "radio-on-hover", "radio-on-pressed", "slider-hover", "slider-pressed"], HoldStates);
+
+        // inputsView of ui/breeze/widgets_inputs_test.go (TestScreenshotsInputs): two PasswordBoxes, empty with a placeholder and holding a password with its RevealButton showing (ShowRevealButton, as the window never takes the focus that shows it), a SplitButton, Buttons holding a 16-DIP FontIcon, the second disabled, and below them a CommandBar holding a SplitButton of SplitButtonCommandBarStyle and two icon-only AppBarButtons, as wide as they need, which puts them at its start as Breeze UI's Toolbar puts its items (a wider CommandBar puts its primary commands at its end).
+        yield return new Scene("winui-inputs", 520, 180, Canvas(520, 180, """
+            <PasswordBox x:Name="password-empty" Canvas.Left="16" Canvas.Top="16" Width="180" PlaceholderText="Password"/>
+            <PasswordBox x:Name="password" Canvas.Left="220" Canvas.Top="16" Width="180" Password="hunter2"/>
+            <SplitButton x:Name="split-button" Canvas.Left="16" Canvas.Top="64" Content="Save">
+              <SplitButton.Flyout><MenuFlyout><MenuFlyoutItem Text="Save As…"/><MenuFlyoutItem Text="Save All"/></MenuFlyout></SplitButton.Flyout>
+            </SplitButton>
+            <Button x:Name="icon-button" Canvas.Left="160" Canvas.Top="64" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
+            <Button x:Name="icon-button-disabled" Canvas.Left="220" Canvas.Top="64" AutomationProperties.Name="Delete" IsEnabled="False"><FontIcon Glyph="&#xE74D;" FontSize="16"/></Button>
+            <CommandBar x:Name="toolbar" Canvas.Left="0" Canvas.Top="110" DefaultLabelPosition="Collapsed" OverflowButtonVisibility="Collapsed" IsDynamicOverflowEnabled="False">
+              <AppBarElementContainer>
+                <SplitButton x:Name="toolbar-split-button" Content="New" Style="{StaticResource SplitButtonCommandBarStyle}">
+                  <SplitButton.Flyout><MenuFlyout><MenuFlyoutItem Text="Save As…"/></MenuFlyout></SplitButton.Flyout>
+                </SplitButton>
+              </AppBarElementContainer>
+              <AppBarButton x:Name="toolbar-share" Label="Share" Icon="Share"/>
+              <AppBarButton x:Name="toolbar-delete" Label="Delete" Icon="Delete"/>
+            </CommandBar>
+            """), ["password-empty", "password", "split-button", "icon-button", "icon-button-disabled", "toolbar", "toolbar-split-button", "toolbar-share", "toolbar-delete"], ShowRevealButton);
+
+        // widgets_status_test.go's statusView: four InfoBars, one of each severity, the first and the last closable, 16 DIPs from the window's edges and 68 apart, and determinate ProgressRings of 25, 60, 100 and 0 percent below them and one of 60 percent at 16 DIPs. Breeze UI's StatusPage has no WinUI counterpart.
+        yield return new Scene("winui-status", 560, 360, Canvas(560, 360, """
+            <InfoBar x:Name="bar-informational" Canvas.Left="16" Canvas.Top="16" Width="528" IsOpen="True" Severity="Informational" Title="Informational" Message="Some message about it."/>
+            <InfoBar x:Name="bar-success" Canvas.Left="16" Canvas.Top="84" Width="528" IsOpen="True" IsClosable="False" Severity="Success" Title="Success" Message="Some message about it."/>
+            <InfoBar x:Name="bar-warning" Canvas.Left="16" Canvas.Top="152" Width="528" IsOpen="True" IsClosable="False" Severity="Warning" Title="Warning" Message="Some message about it."/>
+            <InfoBar x:Name="bar-error" Canvas.Left="16" Canvas.Top="220" Width="528" IsOpen="True" Severity="Error" Title="Error" Message="Some message about it."/>
+            <ProgressRing x:Name="ring-25" Canvas.Left="16" Canvas.Top="300" IsIndeterminate="False" Value="25"/>
+            <ProgressRing x:Name="ring-60" Canvas.Left="64" Canvas.Top="300" IsIndeterminate="False" Value="60"/>
+            <ProgressRing x:Name="ring-100" Canvas.Left="112" Canvas.Top="300" IsIndeterminate="False" Value="100"/>
+            <ProgressRing x:Name="ring-0" Canvas.Left="160" Canvas.Top="300" IsIndeterminate="False" Value="0"/>
+            <ProgressRing x:Name="ring-small" Canvas.Left="208" Canvas.Top="308" Width="16" Height="16" IsIndeterminate="False" Value="60"/>
+            """), ["bar-informational", "bar-success", "bar-warning", "bar-error", "ring-25", "ring-60", "ring-100", "ring-0", "ring-small"]);
+
+        // widgets_status_test.go's statusTitlesView: the four InfoBars of statusView with a title and no message, which InfoBarPanel lays out as it lays a message below the title.
+        yield return new Scene("winui-status-titles", 560, 300, Canvas(560, 300, """
+            <InfoBar x:Name="title-informational" Canvas.Left="16" Canvas.Top="16" Width="528" IsOpen="True" Severity="Informational" Title="Informational"/>
+            <InfoBar x:Name="title-success" Canvas.Left="16" Canvas.Top="84" Width="528" IsOpen="True" IsClosable="False" Severity="Success" Title="Success"/>
+            <InfoBar x:Name="title-warning" Canvas.Left="16" Canvas.Top="152" Width="528" IsOpen="True" IsClosable="False" Severity="Warning" Title="Warning"/>
+            <InfoBar x:Name="title-error" Canvas.Left="16" Canvas.Top="220" Width="528" IsOpen="True" Severity="Error" Title="Error"/>
+            """), ["title-informational", "title-success", "title-warning", "title-error"]);
+
+        // widgets_rows_test.go's rowsView on Windows, laid out as it lays Breeze UI's rows out, in two columns 300 wide, 16 from the window's edges and 24 apart, their parts 16 apart: a card of text (a Border with the card's resources, as an Expander's content and a SettingsCard draw it), a card of rows (SettingsCards with DefaultSettingsExpanderItemStyle's setters over the card's fill, padded 16 at the sides where the style's 58,8,44,8 makes room for an expander's icon and chevron, the first without its line), a SettingsCard holding a secondary text and a disabled one holding a ToggleSwitch; beside them a section header (BodyStrongTextBlockStyle) 10 above two SettingsCards 4 apart, as Windows Settings stacks them, and a SettingsExpander holding two items. The ToggleSwitches take the card's RightAlignedCompactToggleSwitchStyle. The cards are 300 wide, which SettingsCard's ContentAlignmentStates wrap (RightWrapped, between SettingsCardWrapNoIconThreshold 286 and SettingsCardWrapThreshold 476).
+        yield return new Scene("winui-rows", 672, 600, Canvas(672, 600, """
+            <StackPanel Canvas.Left="16" Canvas.Top="16" Width="300" Spacing="16">
+              <Border x:Name="card-text" Padding="16" CornerRadius="{ThemeResource ControlCornerRadius}" BorderThickness="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <TextBlock Text="A card holds what belongs together."/>
+              </Border>
+              <Border x:Name="card-rows" CornerRadius="{ThemeResource ControlCornerRadius}" BorderThickness="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <StackPanel>
+                  <tk:SettingsCard x:Name="row-wallpaper" Header="Wallpaper" Description="Choose a picture" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0" Background="Transparent"><Button Content="Open"/></tk:SettingsCard>
+                  <tk:SettingsCard x:Name="row-dark" Header="Dark mode" Description="Use a dark appearance" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><ToggleSwitch IsOn="True"/></tk:SettingsCard>
+                  <tk:SettingsCard x:Name="row-notifications" Header="Notifications" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><ToggleSwitch/></tk:SettingsCard>
+                </StackPanel>
+              </Border>
+              <tk:SettingsCard x:Name="row-storage" Header="Storage"><TextBlock Text="120 GB" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></tk:SettingsCard>
+              <tk:SettingsCard x:Name="row-bluetooth" Header="Bluetooth" IsEnabled="False"><ToggleSwitch IsOn="True"/></tk:SettingsCard>
+            </StackPanel>
+            <StackPanel Canvas.Left="340" Canvas.Top="16" Width="300" Spacing="16">
+              <StackPanel>
+                <TextBlock x:Name="privacy" Text="Privacy" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,10"/>
+                <StackPanel x:Name="privacy-cards" Spacing="4">
+                  <tk:SettingsCard x:Name="row-location" Header="Location" Description="Apps may ask for it"><ToggleSwitch IsOn="True"/></tk:SettingsCard>
+                  <tk:SettingsCard x:Name="row-camera" Header="Camera" Description="2 apps"/>
+                </StackPanel>
+              </StackPanel>
+              <tk:SettingsExpander x:Name="expander" Header="Network" IsExpanded="True">
+                <tk:SettingsExpander.Items>
+                  <tk:SettingsCard x:Name="row-proxy" Header="Proxy" Description="Automatic"/>
+                  <tk:SettingsCard x:Name="row-metered" Header="Metered"><ToggleSwitch/></tk:SettingsCard>
+                </tk:SettingsExpander.Items>
+              </tk:SettingsExpander>
+            </StackPanel>
+            """), ["card-text", "card-rows", "row-wallpaper", "row-dark", "row-notifications", "row-storage", "row-bluetooth", "privacy", "privacy-cards", "row-location", "row-camera", "expander", "row-proxy", "row-metered"]);
+
+        // SettingsCards wider than SettingsCardWrapThreshold (476), which keep their content at the end: one with a header, a description and a button, one with a ToggleSwitch that is on, and one with a header alone and a ToggleSwitch that is off, 4 apart as Windows Settings stacks them; Breeze UI's tests read the same layout from rows this wide.
+        yield return new Scene("winui-rows-wide", 560, 260, Canvas(560, 260, """
+            <StackPanel x:Name="wide-cards" Canvas.Left="16" Canvas.Top="16" Width="528" Spacing="4">
+              <tk:SettingsCard x:Name="wide-action" Header="Wallpaper" Description="Choose a picture"><Button Content="Open"/></tk:SettingsCard>
+              <tk:SettingsCard x:Name="wide-switch-on" Header="Dark mode" Description="Use a dark appearance"><ToggleSwitch IsOn="True"/></tk:SettingsCard>
+              <tk:SettingsCard x:Name="wide-switch-off" Header="Notifications"><ToggleSwitch/></tk:SettingsCard>
+            </StackPanel>
+            """), ["wide-cards", "wide-action", "wide-switch-on", "wide-switch-off"]);
+
+        // TestScreenshotsText's textView: the TextBlock styles of Breeze UI's Text steps where textTops places them, the last two in TextFillColorSecondaryBrush.
+        yield return new Scene("winui-text", 360, 300, Canvas(360, 300, """
+            <TextBlock x:Name="large-title" Canvas.Left="16" Canvas.Top="16" Text="Large Title" Style="{StaticResource TitleLargeTextBlockStyle}"/>
+            <TextBlock x:Name="title" Canvas.Left="16" Canvas.Top="76" Text="Title" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock x:Name="subtitle" Canvas.Left="16" Canvas.Top="122" Text="Subtitle" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock x:Name="heading" Canvas.Left="16" Canvas.Top="160" Text="Heading" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+            <TextBlock x:Name="body" Canvas.Left="16" Canvas.Top="188" Text="Body" Style="{StaticResource BodyTextBlockStyle}"/>
+            <TextBlock x:Name="caption" Canvas.Left="16" Canvas.Top="214" Text="Caption" Style="{StaticResource CaptionTextBlockStyle}"/>
+            <TextBlock x:Name="secondary-body" Canvas.Left="16" Canvas.Top="240" Text="Secondary body" Style="{StaticResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <TextBlock x:Name="secondary-caption" Canvas.Left="16" Canvas.Top="266" Text="Secondary caption" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            """), ["large-title", "title", "subtitle", "heading", "body", "caption", "secondary-body", "secondary-caption"]);
+    }
+
+    // ShowRevealButton puts the PasswordBox named password into its Focused and ButtonVisible states, which draw it as focused and show its RevealButton: WinUI shows the button once text is typed into the focused box, as TestScreenshotsInputs types into Breeze UI's, and the scene's window never takes the focus.
+    static async Task ShowRevealButton(FrameworkElement root, ElementTheme theme)
+    {
+        var box = (Control)root.FindName("password");
+        VisualStateManager.GoToState(box, "Focused", false);
+        VisualStateManager.GoToState(box, "ButtonVisible", false);
+        await Task.Delay(500);
     }
 
     // OpenFlyout opens the button's Flyout below it, aligned to its start, as Breeze UI's popover is, to read where WinUI places the FlyoutPresenter, then closes it and puts a FlyoutPresenter with the same content there in the scene, as RenderTargetBitmap does not draw popups and the scene's scale does not reach them.
@@ -285,7 +416,7 @@ public sealed class App : Application, IXamlMetadataProvider
             presenter.IsMinimizable = false;
         }
         appWindow.IsShownInSwitchers = false;
-        appWindow.MoveAndResize(new RectInt32(-8000, -8000, 1200, 760));
+        appWindow.MoveAndResize(new RectInt32(-8000, -8000, 1400, 1300));
         appWindow.Show(false);
         return window;
     }
@@ -320,7 +451,11 @@ public sealed class App : Application, IXamlMetadataProvider
         }
         foreach (var name in items)
         {
-            var e = (FrameworkElement)root.FindName(name);
+            if (root.FindName(name) is not FrameworkElement e)
+            {
+                report.AppendLine($"{name} not found");
+                continue;
+            }
             var p = e.TransformToVisual(root).TransformPoint(new Point(0, 0));
             report.AppendLine($"{name} x={p.X} top={p.Y} w={e.ActualWidth} h={e.ActualHeight}");
             int x0 = (int)Math.Round(p.X * Scale), y0 = (int)Math.Round(p.Y * Scale), w = (int)Math.Round(e.ActualWidth * Scale), h = (int)Math.Round(e.ActualHeight * Scale);
