@@ -410,7 +410,7 @@
       "name": "PipsPager",
       "category": "navigation",
       "look": "drawn",
-      "description": "A row of page indicators choosing a page: on macOS 7-point dots 19 apart as UIKit for Mac draws its UIPageControl (inferred, as macOS has no page indicator), on Windows 11 WinUI's PipsPager (12 by 24 pips, the chosen dot larger, at most 5 shown, scrolling to keep the chosen one in the middle), or on GNOME AdwCarouselIndicatorDots (the chosen dot larger and darker). A click on a pip or the arrows choose a page; it is one Tab stop, a radio group named Pager whose pips are named Page 1, Page 2. Use Carousel for pages with dots below them.",
+      "description": "A row of page indicators choosing a page: on macOS 6-point dots 19 apart as UIKit for Mac draws its UIPageControl (inferred, as macOS has no page indicator), on Windows 11 WinUI's PipsPager (12 by 24 pips, the chosen dot larger, at most 5 shown, scrolling to keep the chosen one in the middle), or on GNOME AdwCarouselIndicatorDots (the chosen dot larger and darker). A click on a pip or the arrows choose a page; it is one Tab stop, a radio group named Pager whose pips are named Page 1, Page 2. Use Carousel for pages with dots below them.",
       "example": "breeze.PipsPager(c, &app.page, 5)"
     },
     {
