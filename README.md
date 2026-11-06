@@ -95,6 +95,8 @@ bun run typecheck
 bun run build
 ```
 
+Pull request titles and commit messages are [Conventional Commits](https://www.conventionalcommits.org/) (`feat(breeze): ...`, `fix: ...`); the Labels workflow checks titles and labels each pull request by type, size, area and platform, and the Conflicts workflow labels those that conflict with their base branch. Once CI passes on `main`, the Release workflow tags it and publishes a GitHub release when the commits since the last tag call for one: `feat` bumps the minor version, `fix`, `perf` and `revert` the patch version, a breaking change (`feat!:` or a `BREAKING CHANGE:` footer) the major one, or the minor one while the version is 0.x. Run the Release workflow by hand to force a bump.
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=yldm-tech/mygo-breeze-ui&type=Date)](https://star-history.com/#yldm-tech/mygo-breeze-ui&Date)
