@@ -74,6 +74,8 @@ Or install the Go command:
 go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest
 ```
 
+or download it for Linux, macOS or Windows from the [releases](https://github.com/yldm-tech/mygo-breeze-ui/releases). `breeze-ui version` prints the version it was built as.
+
 ## MCP server
 
 ```sh
@@ -95,7 +97,7 @@ bun run typecheck
 bun run build
 ```
 
-Pull request titles and commit messages are [Conventional Commits](https://www.conventionalcommits.org/) (`feat(breeze): ...`, `fix: ...`); the Labels workflow checks titles and labels each pull request by type, size, area and platform, and the Conflicts workflow labels those that conflict with their base branch. Once CI passes on `main`, the Release workflow tags it and publishes a GitHub release when the commits since the last tag call for one: `feat` bumps the minor version, `fix`, `perf` and `revert` the patch version, a breaking change (`feat!:` or a `BREAKING CHANGE:` footer) the major one, or the minor one while the version is 0.x. Run the Release workflow by hand to force a bump.
+Pull request titles and commit messages are [Conventional Commits](https://www.conventionalcommits.org/) (`feat(breeze): ...`, `fix: ...`); the Labels workflow checks titles and labels each pull request by type, size, area and platform, and the Conflicts workflow labels those that conflict with their base branch. Once CI passes on `main`, the Release workflow releases it when the commits since the last tag call for a new version: it writes the version into the npm packages and the MCP server, commits that to `main` as `chore(release)`, tags the commit and publishes a GitHub release with the `breeze-ui` command built for Linux, macOS and Windows. For the version, `feat` bumps the minor one, `fix`, `perf` and `revert` the patch one, a breaking change (`feat!:` or a `BREAKING CHANGE:` footer) the major one, or the minor one while the version is 0.x. Run the Release workflow by hand to force a bump.
 
 ## Star History
 
