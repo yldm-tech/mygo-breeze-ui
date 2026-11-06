@@ -333,7 +333,7 @@ func formsFluentTextBox(c *ui.Context, row ui.Element, focused bool) {
 	})
 }
 
-// formsAdwNumberInput draws NumberInput as a horizontal GtkSpinButton (_spin-button.scss): an entry (%entry: 34 pixels high, corners of 9, currentColor at 10%, its 2-pixel focus ring inside its edge while the text has the focus) without padding, its text padded 6 (at least 28 wide; MyGo's 80 here, keeping that width where a GtkSpinButton would fill a vertical GtkBox, as ui.NumberInput keeps its own), then the − and + buttons, in that order (GTK 4's spin button, inferred from GTK, not libadwaita), each a flat image button (%button_basic_flat, .image-button: min-width 22 under _spin-button.scss and 5 of padding at either side, 32 with the 16-pixel icon centered) as high as the entry, with a 1-pixel border of currentColor at 10% on its start side, $hover_color (currentColor at 7%) under the pointer and $active_color (16%) pressed, the last one's end corners of 9 ($button_radius), which the entry's clip gives. Their icons are adwaita-icon-theme 51.0's value-decrease-symbolic (a bar from 3 to 13 across, 7 to 9 down) and value-increase-symbolic (that bar crossed by one from 3 to 13 down, 7 to 9 across) in the text color. GTK's spin buttons are not focusable; MyGo's are, so a button shows libadwaita's focus ring inside its edge while it has the focus from the keyboard.
+// formsAdwNumberInput draws NumberInput as a horizontal GtkSpinButton (_spin-button.scss): an entry (%entry: 34 pixels high, corners of 9, currentColor at 10%, its 2-pixel focus ring inside its edge while the text has the focus) without padding, its text in tabular digits (.numeric, font-variant-numeric: tabular-nums) and padded 6 (at least 28 wide; MyGo's 80 here, keeping that width where a GtkSpinButton would fill a vertical GtkBox, as ui.NumberInput keeps its own), then the − and + buttons, in that order (GTK 4's spin button, inferred from GTK, not libadwaita), each a flat image button (%button_basic_flat, .image-button: min-width 22 under _spin-button.scss and 5 of padding at either side, 32 with the 16-pixel icon centered) as high as the entry, with a 1-pixel border of currentColor at 10% on its start side, $hover_color (currentColor at 7%) under the pointer and $active_color (16%) pressed, the last one's end corners of 9 ($button_radius), which the entry's clip gives. Their icons are adwaita-icon-theme 51.0's value-decrease-symbolic (a bar from 3 to 13 across, 7 to 9 down) and value-increase-symbolic (that bar crossed by one from 3 to 13 down, 7 to 9 across) in the text color. GTK's spin buttons are not focusable; MyGo's are, so a button shows libadwaita's focus ring inside its edge while it has the focus from the keyboard.
 func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	t := c.Theme()
 	fill := adwInkAlpha(t, t.Background, 0.10)
@@ -341,7 +341,8 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 	rtl := c.Direction() == ui.RightToLeft
 	var in ui.Element
 	row, box := formsNumberInput(c, value, lo, hi, step, "", true, func(text *string) ui.Element {
-		in = ui.TextInputBase(c, text).Width(80).Padding(6)
+		// Tabular digits, as GtkSpinButton is .numeric: libadwaita 1.10.0 draws the "1" of "10" 2.5 pixels further from the "0" than Adwaita Sans's proportional digits put it (tools/adwaita-reference's forms set).
+		in = ui.TextInputBase(c, text).Width(80).Padding(6).FontFeatures("tnum")
 		return in
 	}, func(stepBy func(sign float64) ui.Element) {
 		for _, sign := range []float64{-1, 1} {
@@ -360,7 +361,9 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 				}
 				p.Fill(ui.Rect{X: x + 3, Y: y + 7, W: 10, H: 2}, ink, 0)
 				if sign > 0 {
-					p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 10}, ink, 0)
+					// The bar down in two pieces, above and below the bar across, not over it: a disabled button is drawn at half opacity fill by fill, which would darken the crossing where libadwaita 1.10.0 draws the icon even (175 over 230 at the upper limit in tools/adwaita-reference's forms set).
+					p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 4}, ink, 0)
+					p.Fill(ui.Rect{X: x + 7, Y: y + 9, W: 2, H: 4}, ink, 0)
 				}
 			})
 			adwFocusRing(t, b, 0, nil)

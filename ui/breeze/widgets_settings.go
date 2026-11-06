@@ -178,18 +178,20 @@ func adwEntryRow(c *ui.Context, title string, value *string) ui.Element {
 			target = 1
 		}
 		filled := area.Animate("breeze-entry-row-filled", target, 150*time.Millisecond)
-		dim, big, sub := ink.sub, t.FontSize, ink.subSize
+		dim, big, sub, family := ink.sub, t.FontSize, ink.subSize, t.Font
 		area.DrawOver(func(p *ui.Painter, r ui.Rect) {
 			size := big + (sub-big)*filled
-			w, _ := p.MeasureText(0, ui.Span{Text: title, Size: size})
-			_, hb := p.MeasureText(0, ui.Span{Text: title, Size: big})
+			// The title is shaped at its own size, so that its line is that size's, as the small text's is: a span of RichText sits on the baseline of a line of the theme's size, which drew the filled row's title about 2 pixels below the small text's place (the ink of "Name" 3.5 pixels below libadwaita 1.10.0's in tools/adwaita-reference's settings set, the text below it 1.5).
+			l := ui.ShapeText(title, ui.Font{Family: family, Size: size}, 0)
+			w, _ := l.Size()
+			_, hb := ui.ShapeText(title, ui.Font{Family: family, Size: big}, 0).Size()
 			y := r.Y + (r.H-hb)/2
 			y += (small.Bounds().Y - y) * filled
 			x := r.X
 			if rtl {
 				x = r.X + r.W - w
 			}
-			p.RichText(x, y, max(w, r.W), ui.Span{Text: title, Size: size, Color: dim})
+			p.TextLayout(l, x, y, dim)
 		})
 		// The pencil while the row is not being edited, its room given back to the text while it is (gtk_widget_set_child_visible in update_empty).
 		pen := ink.title
@@ -220,10 +222,10 @@ func adwEditIcon(p *ui.Painter, x, y float32, col ui.Color) {
 	p.StrokePath(&path, 2, col)
 }
 
-// SpinRow creates a settings row setting *value between lo and hi in steps of step: the title, the subtitle below it (an empty subtitle shows none) and at its end the value with the platform's stepping buttons, which joins a Card, a Fieldset or an AccordionItem as ActionRow does. Typing a number in range sets it, Up and Down step it, and the buttons step it and are disabled at the limits, as NumberInput's; Changed reports a new value. The text is the row's one focus stop, named by the title for assistive technology (on GNOME described by the subtitle too, as AdwSpinRow's spin button is; on macOS and Windows the row, a group as ActionRow's, is); the buttons are not stops, as WinUI's NumberBox and GTK's spin buttons are not, and leave the focus where it is while pressed.
+// SpinRow creates a settings row setting *value between lo and hi in steps of step: the title, the subtitle below it (an empty subtitle shows none) and at its end the value with the platform's stepping buttons, which joins a Card, a Fieldset or an AccordionItem as ActionRow does. Typing a number in range sets it, Up and Down step it, and the buttons step it and are disabled at the limits, as NumberInput's; Changed reports a new value. The text is the row's one focus stop, named by the title for assistive technology (on GNOME described by the subtitle too, as AdwSpinRow's spin button is; on macOS and Windows the row, a group as ActionRow's, is); the buttons are not stops, as WinUI's NumberBox and GTK's spin buttons are not; on macOS and Windows they leave the focus where it is while pressed, and on GNOME a press on them moves it into the text, as GtkSpinButton's does.
 //   - macOS: a SwiftUI Stepper with a format in a grouped Form: at the row's trailing edge, 9 points from the section's, a text field's bezel (macField's, its line laid over the section), 80 points wide, its value at the trailing edge 10 points before an NSStepper without a face inside the field's end, 20 by 24 points, its chevrons those of NumberInput's stepper (formsMacNumberInput) in labelColor over the field and the line between them black at 12.5% (white at 13.8% in Dark Aqua: 223 over 255, 55 over 23); a row of one line is 40.5 points high, taller than a row of text for the field (measured on macOS 27.2).
 //   - Windows: a SettingsCard holding a NumberBox with its spin buttons inline (NumberInput's look, formsFluentNumberInput).
-//   - GNOME: AdwSpinRow, an action row with a GtkSpinButton at its end (row.spin): no entry around the text, which ends at the buttons, 6 pixels before them (the text's padding of 6), then the − and + buttons as circular buttons, 30 pixels, margin 10px 2px and 6 apart (border-spacing), filled as libadwaita's buttons are (currentColor at 10%, 15% under the pointer and 30% pressed) with value-decrease-symbolic and value-increase-symbolic. A click on the row focuses the text (adw_spin_row_grab_focus); the row draws its focus ring while the text has the focus and is not lit under the pointer then (row.spin's focus ring on .focused). The text is 64 pixels wide, its value at its end, where GtkSpinButton fills the room the title leaves (inferred: what shows is the same).
+//   - GNOME: AdwSpinRow, an action row with a GtkSpinButton at its end (row.spin): no entry around the text, which is in tabular digits (the spin button is .numeric) and ends at the buttons, 6 pixels before them (the text's padding of 6), then the − and + buttons as circular buttons, 30 pixels, margin 10px 2px and 6 apart (border-spacing), filled as libadwaita's buttons are (currentColor at 10%, 15% under the pointer and 30% pressed) with value-decrease-symbolic and value-increase-symbolic in the button's color over that face. A click on the row focuses the text (adw_spin_row_grab_focus), and so does a press on a button, wherever the focus was (button_pressed_cb in gtkspinbutton.c grabs it for the spin button); the row draws its focus ring while the text has the focus and is not lit under the pointer then (row.spin's focus ring on .focused). The text is 64 pixels wide, its value at its end, where GtkSpinButton fills the room the title leaves (inferred: what shows is the same).
 func SpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, step float64) ui.Element {
 	p := PlatformOf(c)
 	if p == Linux {
@@ -311,7 +313,8 @@ func adwSpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, s
 	rowsStyle(c, row, item, in, first, title, subtitle, look, func(under ui.Color, _, _ bool) {
 		var box ui.Element
 		spin, box = formsNumberInput(c, value, lo, hi, step, title, false, func(text *string) ui.Element {
-			input = ui.TextInputBase(c, text).Width(64).Padding(6).TextAlign(ui.End).TextColor(adwTextOn(t, under))
+			// Tabular digits, as GtkSpinButton is .numeric (font-variant-numeric: tabular-nums in libadwaita 1.10.0's _labels.scss): libadwaita 1.10.0 draws the "1" of "12" 3 pixels further from the "2" than Adwaita Sans's proportional digits put it (tools/adwaita-reference's settings set).
+			input = ui.TextInputBase(c, text).Width(64).Padding(6).TextAlign(ui.End).TextColor(adwTextOn(t, under)).FontFeatures("tnum")
 			if subtitle != "" {
 				input.Description(subtitle)
 			}
@@ -326,14 +329,22 @@ func adwSpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, s
 				case b.Hovered():
 					share = 0.15
 				}
-				b.Background(adwInkAlpha(t, under, share))
-				icon := adwTextOn(t, under)
+				face := adwInkAlpha(t, under, share)
+				b.Background(face)
+				// The icon is the button's color, window_fg_color (black at 80% in the light theme), over its face rather than over the row: 47 over the light face of 235, where over the card it would read 51, as libadwaita 1.10.0 renders it (tools/adwaita-reference's settings set).
+				icon := adwTextOn(t, face)
+				if b.Pressed() {
+					// GtkSpinButton's button_pressed_cb grabs the focus for the spin button, which gives it to its text, whatever had it (gtkspinbutton.c of GTK 4.24.1).
+					input.Focus()
+				}
 				b.Draw(func(p *ui.Painter, r ui.Rect) {
 					// value-decrease-symbolic and value-increase-symbolic of adwaita-icon-theme 51.0, centered (formsAdwNumberInput's).
 					x, y := r.X+(r.W-16)/2, r.Y+(r.H-16)/2
 					p.Fill(ui.Rect{X: x + 3, Y: y + 7, W: 10, H: 2}, icon, 0)
 					if sign > 0 {
-						p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 10}, icon, 0)
+						// The bar down in two pieces, above and below the bar across, not over it: a disabled button is drawn at half opacity fill by fill, which would darken the crossing where libadwaita 1.10.0 draws the icon even (151 over the face of 245, 153 over 61 dark, in tools/adwaita-reference's spinlimit set).
+						p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 4}, icon, 0)
+						p.Fill(ui.Rect{X: x + 7, Y: y + 9, W: 2, H: 4}, icon, 0)
 					}
 				})
 			}

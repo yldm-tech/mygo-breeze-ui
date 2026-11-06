@@ -16,7 +16,7 @@ func init() {
 // headerTestBackIcon is a chevron pointing back, for the image button at the start of the test bars.
 var headerTestBackIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M10.5 2.5 5 8l5.5 5.5" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
 
-// headerTestRoom is the room the window controls take in a window with a hidden title bar on p, as MyGo reports it (c.TitleBar), left to right or mirrored right to left: on macOS the traffic lights moved to 19, 19 (mygo.WindowOptions.TrafficLightPosition), as AppKit places them in a unified toolbar, the zoom button ending 79 points in and the band 52 high; on Windows MyGo's three 46-DIP caption buttons in a 48-DIP title bar (TitleBarHeight 48); on GNOME GTK's close button in a GTK 3 header bar of its own, padded 6 either side of the 34-pixel button and 46 high (inferred).
+// headerTestRoom is the room the window controls take in a window with a hidden title bar on p, as MyGo reports it (c.TitleBar), left to right or mirrored right to left: on macOS the traffic lights moved to 19, 19 (mygo.WindowOptions.TrafficLightPosition), as AppKit places them in a unified toolbar, the zoom button ending 79 points in and the band 52 high; on Windows MyGo's three 46-DIP caption buttons in a 48-DIP title bar (TitleBarHeight 48); on GNOME GTK's close button in a GTK 3 header bar of its own, padded 6 either side of the 34-pixel button and 46 high (inferred from MyGo's title bar; the end controls it leaves end at 514 in a 560-pixel window, where libadwaita 1.10.0 ends them, 6 before its close button at 520 to 554, in tools/adwaita-reference's headerbar set).
 func headerTestRoom(p Platform, dir ui.Direction) ui.TitleBar {
 	var bar ui.TitleBar
 	switch p {
@@ -151,12 +151,12 @@ func TestHeaderBarKeepsClearOfWindowControls(t *testing.T) {
 					t.Errorf("%v %v: the title starts %v after the start controls, want %v", p, dir, got, want)
 				}
 			}
-			// The start controls begin where the platform begins them: 17 points after the traffic lights on macOS, 2 DIPs in on Windows (the LeftPaddingColumn is as wide as the caption buttons at the start, none here, and the back button keeps its Margin of 2), 7 pixels in on GNOME (the bar's padding).
+			// The start controls begin where the platform begins them: 17 points after the traffic lights on macOS, 2 DIPs in on Windows (the LeftPaddingColumn is as wide as the caption buttons at the start, none here, and the back button keeps its Margin of 2), 6 pixels in on GNOME (the bar's padding of 7 less its margin of -1px, the back button at 6 in libadwaita 1.10.0's render, tools/adwaita-reference's headerbar set).
 			begin := back.X
 			if dir == ui.RightToLeft {
 				begin = w - (back.X + back.W)
 			}
-			if wantBegin := map[Platform]float32{Mac: 79 + 17, Windows: 2, Linux: 7}[p]; begin < wantBegin-0.5 || begin > wantBegin+0.5 {
+			if wantBegin := map[Platform]float32{Mac: 79 + 17, Windows: 2, Linux: 6}[p]; begin < wantBegin-0.5 || begin > wantBegin+0.5 {
 				t.Errorf("%v %v: the start controls begin %v from the window's edge, want %v", p, dir, begin, wantBegin)
 			}
 			if after(edit, title) <= 0 || after(share, edit) <= 0 {
@@ -351,7 +351,7 @@ func TestHeaderBarHistoryButtons(t *testing.T) {
 		if back.W < want[0]-0.5 || back.W > want[0]+0.5 || back.H != want[1] {
 			t.Errorf("%v: Back is %v by %v, want %v by %v", p, back.W, back.H, want[0], want[1])
 		}
-		if begin := map[Platform]float32{Mac: 79 + 17, Windows: 2, Linux: 7}[p]; back.X < begin-0.5 || back.X > begin+0.5 {
+		if begin := map[Platform]float32{Mac: 79 + 17, Windows: 2, Linux: 6}[p]; back.X < begin-0.5 || back.X > begin+0.5 {
 			t.Errorf("%v: Back begins at %v, want %v", p, back.X, begin)
 		}
 		if err := tester.Click("Back"); err != nil {

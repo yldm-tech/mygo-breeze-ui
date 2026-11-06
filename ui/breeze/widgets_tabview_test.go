@@ -261,7 +261,7 @@ func TestTabViewDisabled(t *testing.T) {
 	}
 }
 
-// TestTabViewSharesTheWidth checks the tabs' sizes on every platform: they are as high as the platform's (24 points, 32 and 34 DIPs) and equal in width; on Windows each is at most 240 wide and the add button follows the last 7 DIPs after it (the footer's 4 and the container's 3), where on macOS and GNOME the tabs fill the bar and the button is at its end, 8 points from it and 6 pixels (the end action's 5 and the bar's 1).
+// TestTabViewSharesTheWidth checks the tabs' sizes on every platform: they are as high as the platform's (24 points, 32 and 34 DIPs) and equal in width, on GNOME in whole pixels with the first ones a pixel narrower where the width does not divide evenly, as AdwTabBox shares it; on Windows each is at most 240 wide and the add button follows the last 7 DIPs after it (the footer's 4 and the container's 3), where on macOS and GNOME the tabs fill the bar and the button is at its end, 8 points from it and 6 pixels (the end action's 5 and the bar's 1).
 func TestTabViewSharesTheWidth(t *testing.T) {
 	for _, p := range Platforms {
 		for _, width := range []int{400, 1200} {
@@ -280,7 +280,12 @@ func TestTabViewSharesTheWidth(t *testing.T) {
 				t.Errorf("%v %d: a tab is %v high, want %v", p, width, tabs[0].H, want)
 			}
 			for i := 1; i < 3; i++ {
-				if d := tabs[i].W - tabs[0].W; d < -0.01 || d > 0.01 {
+				d := tabs[i].W - tabs[i-1].W
+				if p == Linux {
+					if tabs[i].W != float32(int(tabs[i].W)) || d < 0 || d > 1 {
+						t.Errorf("%v %d: tabs %v and %v are not whole pixels wide, the later one as wide or a pixel wider", p, width, tabs[i-1], tabs[i])
+					}
+				} else if d < -0.01 || d > 0.01 {
 					t.Errorf("%v %d: tabs %v and %v differ in width", p, width, tabs[0], tabs[i])
 				}
 			}

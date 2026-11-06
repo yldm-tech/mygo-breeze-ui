@@ -1,10 +1,10 @@
 # libadwaita's own controls, for comparing Breeze UI's GNOME look with them.
 #
-# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows, TestScreenshotsSettings, TestScreenshotsTabView and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections, TestScreenshotsInputs and TestScreenshotsText, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
+# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows, TestScreenshotsSettings, TestScreenshotsTabView, TestScreenshotsHeaderBar and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections, TestScreenshotsInputs and TestScreenshotsText, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, settings, tabview and text; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -724,6 +724,19 @@ def over_card_set():
     return Scene(332, 160, start(root), named={"split": split, "password": entry})
 
 
+def spin_limit_set():
+    """The spin row of TestAdwPlusEvenWhenDisabled: in a boxed list 300 wide, 16 from the window's edges, an AdwSpinRow Copies at the upper limit of 1 to 9, its + button insensitive, to read the icon of a disabled button. Nothing keeps the focus, which the row would take as the window's only focusable widget."""
+    box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+    box.add_css_class("boxed-list")
+    row = Adw.SpinRow.new_with_range(1, 9, 1)
+    row.set_title("Copies")
+    row.set_value(9)
+    box.append(row)
+    root = vbox(0, box, padding=16, width=300)
+    root.set_hexpand(False)
+    return Scene(332, 120, start(root), named={"row": row}, shown=lambda window: window.set_focus(None))
+
+
 def text_set():
     """TestScreenshotsText's textView: labels in the style classes of Breeze UI's Text steps (.title-1, .title-2, .title-4, .heading, a plain label, .caption), the last two .dimmed, where textTops places them."""
     rows = [("Large Title", ["title-1"], 16), ("Title", ["title-2"], 76), ("Subtitle", ["title-4"], 122), ("Heading", ["heading"], 160), ("Body", [], 188), ("Caption", ["caption"], 214), ("Secondary body", ["dimmed"], 240), ("Secondary caption", ["caption", "dimmed"], 266)]
@@ -742,7 +755,7 @@ SETS = [
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
     ("inputs", "adwaita-inputs", inputs_set),
     ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
-    ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set),
+    ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set), ("spinlimit", "adwaita-spinlimit", spin_limit_set),
     ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
     ("text", "adwaita-text", text_set),
 ]
