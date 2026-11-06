@@ -383,7 +383,7 @@ func Carousel(c *ui.Context, selected *int, count int, page func(i int)) ui.Elem
 	}
 	root.Children(func() {
 		area = ui.Column(c).Grow(1).AlignItems(ui.Stretch).Focusable().FocusRing(false).Clip().Role(ui.RoleGroup)
-		st = ui.Local(area, carouselAnimationKey, func() carouselState { return carouselState{target: *selected} })
+		st = ui.Local(area, "breeze-carousel-state", func() carouselState { return carouselState{target: *selected} })
 		if b := area.LayoutBounds(); b.W != st.w || b.H != st.h {
 			st.w, st.h = b.W, b.H
 			c.Invalidate()
