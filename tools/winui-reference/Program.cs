@@ -349,6 +349,20 @@ public sealed class App : Application, IXamlMetadataProvider
             </TabView>
             """), ["tabview-docs", "tab-documents", "tab-downloads", "tab-pictures", "tab-content", "tabview-prefs", "tab-general", "tab-advanced"]);
 
+        // widgets_datepicker_test.go's datePickerView on Windows: a CalendarView at 16, 16 showing November 2026 with the 18th chosen, and at 360, 16 a CalendarDatePicker of the same day, closed, both in American English with weeks starting on Sunday. XAML cannot set a CalendarView's chosen dates or the month it shows, so the scene's hook adds the 18th to SelectedDates, shows its month with SetDisplayDate and sets the picker's Date. WinUI marks the machine's today, which TestScreenshotsDatePicker fixes as the 6th of November 2026.
+        yield return new Scene("winui-datepicker", 560, 400, Canvas(560, 400, """
+            <CalendarView x:Name="calendar" Canvas.Left="16" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday" SelectionMode="Single"/>
+            <CalendarDatePicker x:Name="date-picker" Canvas.Left="360" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday"/>
+            """), ["calendar", "date-picker"], async (root, theme) =>
+        {
+            var day = new DateTimeOffset(2026, 11, 18, 10, 0, 0, TimeSpan.Zero);
+            var calendar = (CalendarView)root.FindName("calendar");
+            calendar.SelectedDates.Add(day);
+            calendar.SetDisplayDate(day);
+            ((CalendarDatePicker)root.FindName("date-picker")).Date = day;
+            await Task.Delay(800);
+        });
+
         // fluent_native_test.go's TestFluentTabViewAsMeasured, its third TabView: 528 wide at 16, 16, five tabs that do not close (A1 chosen), without the add button, so that the tabs fill the strip.
         yield return new Scene("winui-tabview-fill", 560, 80, Canvas(560, 80, """
             <TabView x:Name="tabview-fill" Canvas.Left="16" Canvas.Top="16" Width="528" SelectedIndex="0" IsAddTabButtonVisible="False">
