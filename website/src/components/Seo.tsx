@@ -51,7 +51,7 @@ export function Seo({ title, description, path, locale }: SeoProps) {
       name: title,
       description,
       url,
-      isPartOf: { "@type": "WebSite", name: "Breeze UI", url: `${siteUrl}/` },
+      isPartOf: { "@type": "WebSite", name: "MyGo Breeze", url: `${siteUrl}/` },
       image: imageUrl,
     });
   }, [description, locale, path, title]);

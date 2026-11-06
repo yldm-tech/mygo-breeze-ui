@@ -21,7 +21,7 @@ function ApiPage() {
   const { data: catalog } = useQuery({ queryKey: ["catalog"], queryFn: getCatalog });
   return (
     <main className="px-0 pb-[120px] pt-12 max-[680px]:pb-20 max-[680px]:pt-12">
-      <Seo title={locale === "zh" ? "Breeze UI API 文档" : "Breeze UI API reference"} description={locale === "zh" ? "查询 Breeze UI 的版本化组件和平台目录。" : "Query the versioned Breeze UI component and platform catalog."} path="/api" locale={locale} />
+      <Seo title={locale === "zh" ? "MyGo Breeze API 文档" : "MyGo Breeze API reference"} description={locale === "zh" ? "查询 MyGo Breeze 的版本化组件和平台目录。" : "Query the versioned MyGo Breeze component and platform catalog."} path="/api" locale={locale} />
       <div className="mx-auto w-[calc(100%-48px)] max-w-[1160px] max-[680px]:w-[calc(100%-34px)]">
         <motion.div
           className="mb-14 max-w-[760px]"
