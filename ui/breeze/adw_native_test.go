@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows, overcard, settings, tabview and headerbar sets, against TestScreenshotsInputs, TestScreenshotsRows, TestAdwControlsOverCard, TestScreenshotsSettings, TestScreenshotsTabView and TestScreenshotsHeaderBar.
+// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows, overcard, settings, tabview, headerbar, forms and spinlimit sets, against TestScreenshotsInputs, TestScreenshotsRows, TestAdwControlsOverCard, TestScreenshotsSettings, TestScreenshotsTabView, TestScreenshotsHeaderBar, TestScreenshotsWave2Forms and TestAdwPlusEvenWhenDisabled.
 
 // TestAdwPasswordFocusRingDark checks the focus ring of a GtkPasswordEntry in the dark theme, which libadwaita 1.10.0 renders (92, 132, 185) over the entry's fill: GTK mixes the dark theme's accent_color, outside sRGB, at 50% without clamping it, bluer than the clamped #81d0ff at 50% (93, 132, 158).
 func TestAdwPasswordFocusRingDark(t *testing.T) {
