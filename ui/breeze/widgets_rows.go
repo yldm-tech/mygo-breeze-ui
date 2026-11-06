@@ -241,6 +241,8 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 	}
 	var under ui.Color
 	var titleColor, subColor ui.Color
+	// over is the theme the trailing controls build in, where the platform lays their translucent colors over the row (Windows); nil keeps the window's.
+	var over *ui.Theme
 	var subSize, lineGap, endGap, suffixGap float32
 	wrapped := false
 	switch p {
@@ -260,12 +262,16 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 		}
 		if joined {
 			if !first || in == rowsInAccordion {
-				row.BorderWidth(1, 0, 0, 0).BorderColor(stroke)
+				line := stroke
+				if in == rowsInCard {
+					// In a Card the line lies over the card's fill, CardStrokeColorDefault reading 236 and 39 (measured from WinUI 3 3.3 by tools/winui-reference's winui-rows and winui-settings: the line between two SettingsCards on a Border with the card's fill), where a SettingsExpander's items lay it over the expander's content, without a fill of its own under the line, 229 and 29.
+					_, _, line = fluentExpanderCard(fluentOver(t, fill))
+				}
+				row.BorderWidth(1, 0, 0, 0).BorderColor(line)
 			}
 		} else {
 			row.MinHeight(68).Padding(16).Radius(4).Background(fill).Border(1, stroke)
 		}
-		titleColor, subColor = t.Text, t.TextMuted
 		if toggle && (hovered || pressed) {
 			under = fluentFace(t, pressed, hovered)
 			row.Background(under)
@@ -277,9 +283,12 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 					row.Border(1, ui.Color{}).BorderLinearGradient(fluentElevation(t, h))
 				}
 			}
-			if pressed {
-				titleColor = t.TextMuted
-			}
+		}
+		// What a SettingsCard holds is drawn over its fill: its header, its description and its content take their translucent colors over it (fluentOver).
+		over = fluentOver(t, under)
+		titleColor, subColor = over.Text, over.TextMuted
+		if pressed && toggle {
+			titleColor = over.TextMuted
 		}
 		// SettingsCardDescriptionFontSize, 12 where ControlContentThemeFontSize is 14, following the text size the user chose as the header does.
 		subSize, lineGap, endGap, suffixGap = t.FontSize*12/14, 0, 24, 8
@@ -402,7 +411,13 @@ func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first b
 			}
 		})
 		if trailing != nil {
-			end := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
+			var end ui.Element
+			if over != nil {
+				end = ui.Themed(c, over).Background(ui.Transparent).Row()
+			} else {
+				end = ui.Row(c)
+			}
+			end.Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
 			if wrapped {
 				end.AlignSelf(ui.Start)
 			}

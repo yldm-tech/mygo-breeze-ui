@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests check were measured from WinUI 3 3.3 (Windows App SDK 2.6.5, and CommunityToolkit.WinUI.Controls.SettingsControls 8.2.251219 for the SettingsCards) on Windows 11 26H2 by tools/winui-reference, at 2x, in the scenes winui-inputs, winui-status, winui-status-titles, winui-rows and winui-rows-wide. They read positions from Find and element bounds and colors from pixels away from text, so that they do not depend on the host's font.
+// The values these tests check were measured from WinUI 3 3.3 (Windows App SDK 2.6.5, and CommunityToolkit.WinUI.Controls.SettingsControls 8.2.251219 for the SettingsCards) on Windows 11 26H2 by tools/winui-reference, at 2x, in the scenes winui-inputs, winui-status, winui-status-titles, winui-rows, winui-rows-wide and winui-settings. They read positions from Find and element bounds and colors from pixels away from text, so that they do not depend on the host's font.
 
 // fluentNativeTester renders view on Windows at 2x, light or dark, after two frames.
 func fluentNativeTester(w, h int, dark bool, view func(c *ui.Context)) *ui.Tester {
@@ -280,5 +280,69 @@ func TestSettingsCardWraps(t *testing.T) {
 	// The track, 40 wide, 12 after the Off column, ends 44 before the row's end.
 	if d := sw.X + sw.W - (offText.X + offText.W + 12 + 40); d < 43.5 || d > 44.5 {
 		t.Errorf("an AccordionItem's switch row ends its switch %v before its end, want 44", d)
+	}
+}
+
+// TestFluentSettingsRowsOverTheCard checks what a card of settings rows holds against WinUI's render, light and dark: SettingsCards on a card lay their translucent colors over the card's fill, not over the window. The line between two rows is CardStrokeColorDefault over the card, 236 and 39; a TextBox reads 254 and 55 inside a border of 236 and 58 with a bottom edge of 139 and 159, a ComboBox 254 and 55, and the description TextFillColorSecondary over the card, 95 and 207 (where over the window they read 229 and 29, 251 and 45, 229 and 48, 134 and 154, 92 and 204). A disabled TextBox's or NumberBox's bottom edge is its border's color, without the strong line (measured from WinUI 3 3.3 with CommunityToolkit's SettingsControls 8.2.251219 by tools/winui-reference's winui-settings). The controls are found from the rows' bounds: in a card 300 wide they sit 8 above the row's end at its start, 16 in, and alone 17 inside the card's edge.
+func TestFluentSettingsRowsOverTheCard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		appearance, name, email, size, copies := "Auto", "Evan", "", 12.0, 3.0
+		var combo, entry, spin, disabled, disabledEntry ui.Rect
+		tester := fluentNativeTester(400, 600, dark, func(c *ui.Context) {
+			ui.Column(c).Padding(16).Width(332).Gap(16).Children(func() {
+				Card(c, func() {
+					combo = ComboRow(c, "Appearance", "Light or dark", &appearance, []string{"Light", "Dark", "Auto"}).Bounds()
+					entry = EntryRow(c, "Name", &name).Bounds()
+					spin = SpinRow(c, "Font size", "Points", &size, 6, 72, 1).Bounds()
+				})
+				disabled = SpinRow(c, "Copies", "", &copies, 1, 9, 1).Disabled(true).Bounds()
+				disabledEntry = EntryRow(c, "Email", &email).Disabled(true).Bounds()
+			})
+		})
+		img := tester.Image()
+		at := func(x, y float32) int { return gray(img, int(2*x), int(2*y)) }
+		pickv := func(l, d int) int {
+			if dark {
+				return d
+			}
+			return l
+		}
+		check := func(what string, got, wantv int) {
+			t.Helper()
+			if got != wantv {
+				t.Errorf("dark %v: %s reads %d, want %d", dark, what, got, wantv)
+			}
+		}
+		check("the line above the entry row", at(entry.X+150, entry.Y), pickv(236, 39))
+		check("the line above the spin row", at(spin.X+150, spin.Y), pickv(236, 39))
+		// The TextBox: 120 wide, its top 40 above the row's end.
+		fx, fy := entry.X+16, entry.Y+entry.H-8-32
+		check("the TextBox's fill", at(fx+100, fy+4), pickv(254, 55))
+		check("the TextBox's top edge", gray(img, int(2*(fx+100)), int(2*fy+0.5)), pickv(236, 58))
+		check("the TextBox's bottom edge", gray(img, int(2*(fx+100)), int(2*(fy+32)+0.5)-1), pickv(139, 159))
+		check("the ComboBox's face", at(combo.X+16+60, combo.Y+combo.H-8-32+4), pickv(254, 55))
+		check("the NumberBox's fill", at(spin.X+16+60, spin.Y+spin.H-8-32+4), pickv(254, 55))
+		// "Points", below "Font size", which has no descenders to reach into its box.
+		sub, _ := tester.Find("Points")
+		ink := pickv(255, 0)
+		for y := int(2 * sub.Y); y < int(2*(sub.Y+sub.H)); y++ {
+			for x := int(2 * sub.X); x < int(2*(sub.X+sub.W)); x++ {
+				if v := gray(img, x, y); (!dark && v < ink) || (dark && v > ink) {
+					ink = v
+				}
+			}
+		}
+		check("the description's ink", ink, pickv(95, 207))
+		// The disabled NumberBox and TextBox alone: 17 inside the card, their bottom 17 above the card's end. The rows' heights follow the font's line, so the box's edges are found at the nearest pixel.
+		near := func(v float32) int { return int(2*v + 0.5) }
+		for _, d := range []struct {
+			name string
+			row  ui.Rect
+		}{{"NumberBox", disabled}, {"TextBox", disabledEntry}} {
+			bx, by := d.row.X+17+60, d.row.Y+d.row.H-17-32
+			if top, bottom := gray(img, int(2*bx), near(by)), gray(img, int(2*bx), near(by+32)-1); top != bottom {
+				t.Errorf("dark %v: the disabled %s's edges read %d at the top and %d at the bottom, want the same", dark, d.name, top, bottom)
+			}
+		}
 	}
 }
