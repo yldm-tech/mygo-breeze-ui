@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -648,5 +650,105 @@ func TestAdwHeaderBarTitleWidthChars(t *testing.T) {
 	// The title's label ends 6 before the end box and its text is centered in it.
 	if mid, want := title.X+title.W/2, switcher.X-6-least/2; mid < want-0.5 || mid > want+0.5 {
 		t.Errorf("the title's middle is at %v, want %v: the middle of a label %v wide ending 6 before the switcher at %v", mid, want, least, switcher.X)
+	}
+}
+
+// TestAdwCarouselDragAsRendered drags Carousel on GNOME as tools/adwaita-reference's carouseldrag and carouseldragrtl sets drag AdwCarousel, and checks the pages and the dots against libadwaita 1.10.0's render: the mouse pressed in the view's middle and moved 10 times by 10 DIPs toward the next page, 100 ms apart, the first move lost below the 16-DIP threshold and the others applied, so the pages stand 90 DIPs on, at 1.28125 pages, as libadwaita prints; the dots of the page shown, the 2nd, and of the next one (centered at 171.5 and 186.5, 272 down, mirrored right to left) at radii 3.72 and 3.28 and opacities 73% and 47%, their centers (104 and 156, 195 and 138 in the dark theme) as libadwaita's, and the pixel their rims cross on the side away from each other partly covered, as GTK draws them, where dots rounded to whole pixels left the 2nd one's background and filled the 3rd one's. Before the drag, the chosen dot, of radius 4, is drawn as GTK draws it to the level: its rim's pixel 3.5 DIPs right of its middle and half a DIP below it reads (97, 97, 101), (203, 203, 204) in the dark theme, where the dot drawn as a path read (109, 109, 113) and (190, 190, 191); this is checked off macOS, where MyGo rounds a rectangle's corners as Apple does (continuousCorners), as GNOME's dots are drawn on Linux. It does so light and dark, left to right and right to left, and writes carouselShotView after the drag to the directory BREEZE_SCREENSHOTS names.
+func TestAdwCarouselDragAsRendered(t *testing.T) {
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, mode := range []string{"light", "dark", "rtl-light", "rtl-dark"} {
+		tester := ui.NewTester(carouselShotView(Linux, false), 352, 312)
+		tester.SetScale(2)
+		dark, rtl := strings.HasSuffix(mode, "dark"), strings.HasPrefix(mode, "rtl")
+		tester.SetDark(dark)
+		step := float32(-10)
+		// The dot of the page shown, the 2nd, and the 3rd's, and the pixels their outer rims cross, in DIPs.
+		first, second, firstRim, secondRim := float32(171.5), float32(186.5), float32(175), float32(189.5)
+		if rtl {
+			tester.SetDirection(ui.RightToLeft)
+			step = 10
+			first, second, firstRim, secondRim = 186.5, 171.5, 182.5, 168
+		}
+		tester.Frame()
+		tester.Frame()
+		rest, rim := [3]int{97, 97, 101}, first+3.5
+		if dark {
+			rest = [3]int{203, 203, 204}
+		}
+		if got := shotPixel(tester, rim, 272.5); runtime.GOOS != "darwin" && !samePixel(got, rest, 2) {
+			t.Errorf("%s: the chosen dot's rim at rest is %v, want libadwaita's %v", mode, got, rest)
+		}
+		at, _ := tester.Find("Slide 2")
+		x, y := float32(352)/2, carouselShotPlaces[2].Y+carouselTestPageHeight/2
+		tester.Press(x, y)
+		tester.Frame()
+		for k := 1; k <= 10; k++ {
+			tester.Advance(100 * time.Millisecond)
+			tester.Move(x+step*float32(k), y)
+			tester.Frame()
+		}
+		now, _ := tester.Find("Slide 2")
+		if d := now.X - at.X; math.Abs(float64(d-9*step)) > 0.01 {
+			t.Errorf("%s: 10 moves of 10 DIPs moved the page %v, want %v", mode, d, 9*step)
+		}
+		bg, inks := 250, [2][3]int{{104, 104, 108}, {156, 156, 159}}
+		if dark {
+			bg, inks = 34, [2][3]int{{195, 195, 196}, {138, 138, 140}}
+		}
+		for k, cx := range []float32{first, second} {
+			if got := shotPixel(tester, cx, 272); !samePixel(got, inks[k], 2) {
+				t.Errorf("%s: page %d's dot is %v in its middle, want libadwaita's %v", mode, k+2, got, inks[k])
+			}
+		}
+		for k, rx := range []float32{firstRim, secondRim} {
+			got, lo, hi := shotPixel(tester, rx, 271.5)[0], min(bg, inks[k][0])+15, max(bg, inks[k][0])-15
+			if got < lo || got > hi {
+				t.Errorf("%s: page %d's dot's rim at %v is %d, want it partly covered, between %d and %d", mode, k+2, rx, got, lo, hi)
+			}
+		}
+		writeShot(t, dir, fmt.Sprintf("breeze-carousel-drag-linux-%s.png", mode), tester)
+		tester.Release(x+step*10, y)
+		tester.Frame()
+	}
+}
+
+// TestAdwCarouselDotsWidth checks that a GNOME Carousel of many small pages is as wide as its dots, as tools/adwaita-reference's carouselmany set renders libadwaita 1.10.0's: a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number centered, over AdwCarouselIndicatorDots with a margin of 6, is 399 pixels wide, the dots 387 (adw_carousel_indicator_dots_measure gives their natural width, 15 a page and 6 at either end, as their minimum), and the first, chosen, dot is centered 16.5 into them, where Breeze UI's dots, which asked for no width, left the carousel as wide as its margins. It writes the view, light and dark, to the directory BREEZE_SCREENSHOTS names.
+func TestAdwCarouselDotsWidth(t *testing.T) {
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, dark := range []bool{false, true} {
+		shown := 0
+		var box ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Box(c).Fill().Children(func() {
+					ui.Box(c).Absolute().Left(16).Top(16).Children(func() {
+						box = Carousel(c, &shown, 25, func(i int) {
+							ui.Column(c).AlignItems(ui.Center).Children(func() { ui.Text(c, fmt.Sprint(i+1)).SingleLine() })
+						}).Bounds()
+					})
+				})
+			})
+		}, 432, 96)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		mode := map[bool]string{false: "light", true: "dark"}[dark]
+		dots, ok := tester.Find("Pager")
+		if !ok {
+			t.Fatalf("%s: no pager", mode)
+		}
+		if box.W != 399 || dots.X != 22 || dots.W != 387 {
+			t.Errorf("%s: the carousel is %v wide and its dots %v from %v, want libadwaita's 399, and 387 from 22", mode, box.W, dots.W, dots.X)
+		}
+		ink := [3]int{70, 70, 74}
+		if dark {
+			ink = [3]int{233, 233, 234}
+		}
+		if got := shotPixel(tester, dots.X+16.5, dots.Y+10); !samePixel(got, ink, 2) {
+			t.Errorf("%s: the chosen dot's middle is %v, want libadwaita's %v", mode, got, ink)
+		}
+		writeShot(t, dir, fmt.Sprintf("breeze-carousel-many-linux-%s.png", mode), tester)
 	}
 }

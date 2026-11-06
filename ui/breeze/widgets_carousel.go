@@ -13,7 +13,7 @@ import (
 //
 // Windows 11: WinUI's PipsPager of microsoft/microsoft-ui-xaml main at b1b6306 (controls/dev/PipsPager): PipsPager.xaml (a horizontal StackPanel of the previous button, a ScrollViewer around an ItemsRepeater of pip buttons and the next button), PipsPager_themeresources.xaml (each pip 12 by 24 DIPs, its EA3B glyph at 4 DIPs and the chosen one's at 6, ControlStrongFillColorDefault, TextFillColorSecondary under the pointer and pressed, the pointer growing a pip to 6 and a press shrinking it to 4, the buttons' styles), PipsPager.idl and PipsPager.properties.cpp (MaxVisiblePips 5, the buttons collapsed by default, Orientation horizontal), PipsPager.cpp (the ScrollViewer as wide as MaxVisiblePips pips, the chosen pip brought to its middle, the names, the arrows moving the focus) and Strings/en-us/Resources.resw (Pager, Page). The carousel is WinUI's FlipView: FlipView_themeresources.xaml (the background, the corners, the previous and next buttons 16 by 38 DIPs at the sides with a margin of 1, the in-app acrylic behind CaretLeftSolid8 and CaretRightSolid8 at 8 DIPs, not Tab stops), FlipView_Partial.cpp and FlipView_Partial.h (the buttons shown while a mouse moves over the view and hidden 3 seconds after it stops, never at the first or last page; a wheel's notch flipping one page, 200 ms apart; the move animated to an adjacent page only), Selector_Partial.cpp (the keys) and docs/api-specs/PipsPager/PipsPager.md (a PipsPager centered 10 DIPs below a FlipView).
 //
-// GNOME: libadwaita 1.10.0's AdwCarouselIndicatorDots (adw-carousel-indicator-dots.c: DOTS_RADIUS 3 and DOTS_RADIUS_SELECTED 4, DOTS_OPACITY 0.3 and DOTS_OPACITY_SELECTED 0.9 of the widget's color, DOTS_SPACING 7, DOTS_MARGIN 6, the radius and the opacity following the carousel's position) and AdwCarousel (adw-carousel.c: the keys, the mouse wheel one page per notch and 150 ms apart, the spring of damping ratio 1, mass 0.5 and stiffness 500; adw-swipe-tracker.c: a touchpad's 400 pixels to a page, a drag of 16 pixels before it starts, and where a swipe ends), with the dots below the carousel as libadwaita's demo lays them out (adw-demo-page-carousel.ui: a margin of 6 around them).
+// GNOME: libadwaita 1.10.0's AdwCarouselIndicatorDots (adw-carousel-indicator-dots.c: DOTS_RADIUS 3 and DOTS_RADIUS_SELECTED 4, DOTS_OPACITY 0.3 and DOTS_OPACITY_SELECTED 0.9 of the widget's color, DOTS_SPACING 7, DOTS_MARGIN 6, the radius and the opacity following the carousel's position) and AdwCarousel (adw-carousel.c: the keys, the mouse wheel one page per notch and 150 ms apart, the spring of damping ratio 1, mass 0.5 and stiffness 500; adw-swipe-tracker.c: a touchpad's 400 pixels to a page, a drag of 16 pixels before it starts, and where a swipe ends), with the dots below the carousel as libadwaita's demo lays them out (adw-demo-page-carousel.ui: a margin of 6 around them). tools/adwaita-reference's carousel, carouselrtl, carouseldrag, carouseldragrtl and carouselmany sets render them with GTK 4.24.1 where TestScreenshotsCarousel, TestAdwCarouselDragAsRendered and TestAdwCarouselDotsWidth place Breeze UI's, which match them at rest, in a drag and in width.
 
 // pipsMacDot, pipsMacPitch, pipsMacHeight and pipsMacInset are UIPageControl's sizes in UIKit for Mac, measured on macOS 27.2 by tools/appkit-reference/pagecontrol.swift: its indicator views are 7 points square, 19 apart, centered in a control 23 points high, 14 points from either end to the first and the last, and each draws a circle 6 points across in its middle (at 2x, 10 opaque pixels and an antialiased one at either side); each dot is the middle of a cell 19 points wide, so the cells leave 8 at either end (a control of 5 dots is 111 points wide, of 9 dots 187). pipsMacOthers is the opacity of the dots not chosen, 45% (white reads 115 over black, 185 over 128 and 131 over the dark window's 30).
 const (
@@ -307,14 +307,15 @@ func dotsAdwShare(n, i int, position float32) float32 {
 	return 0
 }
 
-// dotsAdw draws the pager as AdwCarouselIndicatorDots (see PipsPager) at position, in pages: each dot's radius from 3 to 4 and its opacity from 30% to 90% of the widget's color as it is chosen, mirrored right to left. Each page's cell, a dot's room 20 pixels high around its dot, takes a click, which libadwaita's dots do not (inferred); alone, the focus ring goes inside the widget's edge, round at its ends (inferred). In a carousel the dots are as wide as it, as GtkBox gives them its width.
+// dotsAdw draws the pager as AdwCarouselIndicatorDots (see PipsPager) at position, in pages: each dot's radius from 3 to 4 and its opacity from 30% to 90% of the widget's color as it is chosen, mirrored right to left. Each page's cell, a dot's room 20 pixels high around its dot, takes a click, which libadwaita's dots do not (inferred); alone, the focus ring goes inside the widget's edge, round at its ends (inferred). In a carousel the dots are as wide as it, as GtkBox gives them its width, and it is at least as wide as they ask, so that a carousel of many small pages is as wide as its dots (tools/adwaita-reference's carouselmany set).
 func dotsAdw(c *ui.Context, root ui.Element, n int, position float32, pip func(int) ui.Element, focused, inCarousel bool) {
 	t := c.Theme()
 	rtl := c.Direction() == ui.RightToLeft
 	root.Height(dotsAdwHeight).FocusRing(false)
 	w := dotsAdwWidth(n)
 	if inCarousel {
-		root.AlignSelf(ui.Stretch)
+		// adw_carousel_indicator_dots_measure gives the dots' natural width as their minimum, so the carousel's box is at least as wide as they and their margins.
+		root.AlignSelf(ui.Stretch).MinWidth(w)
 		if b := root.LayoutBounds(); b.W > 0 {
 			w = b.W
 		}
@@ -342,7 +343,7 @@ func dotsAdw(c *ui.Context, root ui.Element, n int, position float32, pip func(i
 			radius := dotsAdwRadius + (dotsAdwRadiusSelected-dotsAdwRadius)*share
 			opacity := dotsAdwOpacity + (dotsAdwOpacitySelected-dotsAdwOpacity)*share
 			cx, cy := r.X+dotsAdwCenter(r.W, n, slot(i)), r.Y+float32(int(r.H)/2)
-			p.Fill(ui.Rect{X: cx - radius, Y: cy - radius, W: 2 * radius, H: 2 * radius}, adwInkLayer(t, opacity), radius)
+			dotsAdwDot(p, cx, cy, radius, adwInkLayer(t, opacity))
 		}
 	})
 	root.DrawOver(func(p *ui.Painter, r ui.Rect) {
@@ -350,6 +351,19 @@ func dotsAdw(c *ui.Context, root ui.Element, n int, position float32, pip func(i
 			p.Stroke(r, t.Focus, r.H/2, 2)
 		}
 	})
+}
+
+// dotsAdwDot draws a dot of radius around cx, cy, as snapshot_dots scales its circle to any radius: as a rounded rectangle when its edges fall on whole device pixels, which MyGo then draws on Linux as GTK does to the level (a dot at rest, of radius 3 or 4 at a whole or half pixel), else as a path, as Fill rounds a rectangle's edges to whole pixels, which drew dots of radius 3.72 and 3.28, between two pages, both as 3.5 (measured against tools/adwaita-reference's carouseldrag set).
+func dotsAdwDot(p *ui.Painter, cx, cy, radius float32, ink ui.Color) {
+	r := ui.Rect{X: cx - radius, Y: cy - radius, W: 2 * radius, H: 2 * radius}
+	s := p.Scale()
+	whole := func(v float32) bool { return v*s == float32(math.Round(float64(v*s))) }
+	if whole(r.X) && whole(r.Y) && whole(r.X+r.W) && whole(r.Y+r.H) {
+		p.Fill(r, ink, radius)
+		return
+	}
+	var dot ui.Path
+	p.FillPath(dot.Circle(cx, cy, radius), ink)
 }
 
 // ---- the carousel ----
