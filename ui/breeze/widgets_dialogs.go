@@ -45,8 +45,11 @@ func DestructiveButton(c *ui.Context, label string) ui.Element {
 	return b
 }
 
-// DestructiveAlertDialog shows an alert as AlertDialog does, with buttons[destructive] drawn as the platform draws a destructive button and never the default: the default, which has the focus and which Enter clicks, is the last of the other buttons, so Enter never destroys anything. The buttons keep AlertDialog's places. macOS's NSAlert, which then has no default button, draws the default in the plain face, as do GNOME's AdwAlertDialog, where it is only the default response; Windows's ContentDialog draws it in the accent, as its DefaultButton, and the destructive button plain. It returns what AlertDialog returns: the index of the button clicked, ui.AlertDismissed when Escape closes the alert, and -1 otherwise.
+// DestructiveAlertDialog shows an alert as AlertDialog does, with buttons[destructive] drawn as the platform draws a destructive button and never the default: the default, which has the focus and which Enter clicks, is the last of the other buttons, so Enter never destroys anything. With the destructive button alone there is no default: the alert itself has the focus and Enter clicks nothing. The buttons keep AlertDialog's places. macOS's NSAlert, which then has no default button, draws the default in the plain face, as do GNOME's AdwAlertDialog, where it is only the default response; Windows's ContentDialog draws it in the accent, as its DefaultButton, and the destructive button plain. A destructive that is not the index of a button draws none destructive, and the alert is AlertDialog's. It returns what AlertDialog returns: the index of the button clicked, ui.AlertDismissed when Escape closes the alert, and -1 otherwise.
 func DestructiveAlertDialog(c *ui.Context, open *bool, title, message string, destructive int, buttons ...string) int {
+	if destructive >= len(buttons) {
+		destructive = -1
+	}
 	return alertDialog(c, open, title, message, destructive, buttons)
 }
 
@@ -73,6 +76,10 @@ func alertDialog(c *ui.Context, open *bool, title, message string, destructive i
 		dismissed = back.OverlayShortcut(0, ui.KeyEscape)
 		back.Children(func() {
 			panel := ui.Column(c).MaxWidth(w - 40).Role(ui.RoleAlertDialog).Label(title).Description(message)
+			if def < 0 && n > 0 {
+				// The destructive button is alone, so no button is the default: the panel takes the focus the dialog would give its first button, the destructive one, so Enter clicks nothing.
+				panel.Focusable().FocusRing(false).AutoFocus()
+			}
 			// button builds button i of the alert.
 			button := func(i int) ui.Element {
 				var b ui.Element

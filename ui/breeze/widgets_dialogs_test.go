@@ -1,6 +1,7 @@
 package breeze
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -313,6 +314,54 @@ func TestDestructiveAlertDialogKeepsTheDefaultSafe(t *testing.T) {
 					t.Fatalf("%v %v %s: got %d, open %v; want %d, closed", p, tc.buttons, act.name, got, open, act.want)
 				}
 			}
+		}
+		// With the destructive button alone there is no default: Enter clicks nothing and leaves the alert open, while a click and Escape still answer.
+		for _, act := range []struct {
+			name string
+			do   func(tester *ui.Tester)
+			want int
+		}{
+			{"Enter", func(tester *ui.Tester) { tester.Key(0, ui.KeyEnter) }, -1},
+			{"Escape", func(tester *ui.Tester) { tester.Key(0, ui.KeyEscape) }, ui.AlertDismissed},
+			{"click Delete", func(tester *ui.Tester) { _ = tester.Click("Delete") }, 0},
+		} {
+			open, got := true, -1
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					if r := DestructiveAlertDialog(c, &open, "Delete Notes?", "You can't undo this.", 0, "Delete"); r != -1 {
+						got = r
+					}
+				})
+			}, 600, 400)
+			tester.Frame()
+			act.do(tester)
+			tester.Frame()
+			if got != act.want || open != (act.want == -1) {
+				t.Fatalf("%v [Delete] %s: got %d, open %v; want %d, open %v", p, act.name, got, open, act.want, act.want == -1)
+			}
+		}
+		// A destructive index that is not a button's draws none destructive: the alert is AlertDialog's, drawn alike, and Enter clicks its default, the last button.
+		open, got := true, -1
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() {
+				if r := DestructiveAlertDialog(c, &open, "Delete Notes?", "You can't undo this.", 5, "Cancel", "Delete"); r != -1 {
+					got = r
+				}
+			})
+		}, 600, 400)
+		tester.Frame()
+		plainOpen := true
+		plain := ui.NewTester(func(c *ui.Context) {
+			Preview(c, p, func() { AlertDialog(c, &plainOpen, "Delete Notes?", "You can't undo this.", "Cancel", "Delete") })
+		}, 600, 400)
+		plain.Frame()
+		if !bytes.Equal(tester.Image().Pix, plain.Image().Pix) {
+			t.Fatalf("%v: the alert with destructive 5 of [Cancel Delete] is not drawn as AlertDialog's", p)
+		}
+		tester.Key(0, ui.KeyEnter)
+		tester.Frame()
+		if got != 1 || open {
+			t.Fatalf("%v destructive 5 of [Cancel Delete] Enter: got %d, open %v; want 1, closed", p, got, open)
 		}
 	}
 }
