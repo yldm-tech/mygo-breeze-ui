@@ -258,6 +258,24 @@ func TestPipsPagerSizes(t *testing.T) {
 	}
 }
 
+// inkArea returns how much ink of color ink over bg tester painted in r, in DIPs, at scale, in square DIPs: each pixel's share of the way from bg to ink, by its green, summed.
+func inkArea(tester *ui.Tester, scale float32, r ui.Rect, bg, ink ui.Color) float32 {
+	img := tester.Image()
+	sum := float32(0)
+	for y := int(r.Y * scale); y < int((r.Y+r.H)*scale); y++ {
+		for x := int(r.X * scale); x < int((r.X+r.W)*scale); x++ {
+			share := (float32(bg.G) - float32(img.RGBAAt(x, y).G)) / (float32(bg.G) - float32(ink.G))
+			sum += max(0, min(share, 1))
+		}
+	}
+	return sum / (scale * scale)
+}
+
+// inkDiameter returns the diameter of a circle as large as the ink inkArea reads in r.
+func inkDiameter(tester *ui.Tester, scale float32, r ui.Rect, bg, ink ui.Color) float32 {
+	return 2 * float32(math.Sqrt(float64(inkArea(tester, scale, r, bg, ink))/math.Pi))
+}
+
 // pagerPixel returns the color tester painted at x, y in DIPs, at scale.
 func pagerPixel(tester *ui.Tester, scale, x, y float32) ui.Color {
 	px := tester.Image().RGBAAt(int(x*scale), int(y*scale))
@@ -364,13 +382,17 @@ func TestPipsPagerFluentPips(t *testing.T) {
 			if got := pagerPixel(tester, 2, cx+out, cy); !macNear(got, th.Background, 3) {
 				t.Errorf("dark %v: %s's dot is wider than %v (%v at %v)", dark, label, d, got, out)
 			}
+			// The ink is as large as a circle d across, its center in the pip's middle: the glyph's circle fills 15/16 of its font size, which winui-carousel measured as 3.74 and 5.63 DIPs across in the light theme.
+			if got := inkDiameter(tester, 2, r, th.Background, want); got < d-0.08 || got > d+0.08 {
+				t.Errorf("dark %v: %s's dot is %v DIPs across by its ink, want %v", dark, label, got, d)
+			}
 		}
-		dot("Page 2", strong, 6)
-		dot("Page 4", strong, 4)
+		dot("Page 2", strong, 5.625)
+		dot("Page 4", strong, 3.75)
 		r, _ := tester.Find("Page 4")
 		tester.Move(r.X+r.W/2, r.Y+r.H/2)
 		tester.Frame()
-		dot("Page 4", secondary, 6)
+		dot("Page 4", secondary, 5.625)
 		tester.Move(300, 180)
 		tester.Frame()
 		if err := tester.Click("Before"); err != nil {
@@ -385,7 +407,7 @@ func TestPipsPagerFluentPips(t *testing.T) {
 	}
 }
 
-// TestPipsPagerFluentScrollsItsPips checks how WinUI's ScrollViewer scrolls the pips (ScrollToCenterOfViewport), as pipsFluentScroll gives it and as the pager shows it: 5 pips at most, the chosen one in the middle, held at the ends.
+// TestPipsPagerFluentScrollsItsPips checks how WinUI's ScrollViewer scrolls the pips (ScrollToCenterOfViewport), as pipsFluentScroll gives it and as the pager shows it: 5 pips at most, the chosen one in the middle, held at the ends; tools/winui-reference's winui-carousel scene measured the pager of 9 with the 7th chosen scrolled by 48 DIPs.
 func TestPipsPagerFluentScrollsItsPips(t *testing.T) {
 	for _, c := range []struct {
 		n, sel int
@@ -934,6 +956,18 @@ func TestCarouselFlipButtonsDrawn(t *testing.T) {
 			}
 			if got := pagerPixel(tester, 2, cx+flat*3.5/2.25, cy); !macNear(got, face, 3) {
 				t.Errorf("%s: the caret is wider than 6 DIPs (%v)", name, got)
+			}
+			// CaretLeftSolid8's outline, rounded at its corners and its tip, covers 32.2 square DIPs, where a sharp triangle 6 by 8 would cover 24; winui-carousel-buttons measured its ink as 32.3.
+			if got := inkArea(tester, 2, ui.Rect{X: cx - 4, Y: cy - 5, W: 8, H: 10}, face, strong); got < 31.2 || got > 33.2 {
+				t.Errorf("%s: the caret covers %v square DIPs, want 32.2", name, got)
+			}
+			// Its rounded tip, blunt where a sharp one comes to a point: on the middle row, the pixel of the first half DIP of the 6-DIP box reads mostly ink (WinUI's 144 of 138 to 249 in the light theme, a sharp tip's 212).
+			tip := cx - 2.75
+			if dir == ui.RightToLeft {
+				tip = cx + 2.75
+			}
+			if got := pagerPixel(tester, 2, tip, cy); int(got.G) > (int(face.G)+int(strong.G))/2 == !dark {
+				t.Errorf("%s: the caret's tip reads %v in its first half DIP, want it blunt", name, got)
 			}
 		}
 	}
