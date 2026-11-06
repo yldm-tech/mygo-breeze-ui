@@ -45,6 +45,8 @@ type headerTestState struct {
 	sidebar           float32 // in headerPaneView, the width of the sidebar at the window's start, none at 0
 	sidebarAtEnd      bool    // in headerPaneView, the sidebar is at the window's end
 	above             float32 // in headerPaneView, the height of a box above the bar, none at 0
+	backRef, editRef  ui.Handle
+	shareRef          ui.Handle // bound to the Back, Edit and Share buttons
 }
 
 // headerView builds a window with a header bar at its top on platform p: the title Documents, s's subtitle, an image button Back at its start and a text button Edit and an image button Share at its end, then the window's content.
@@ -60,19 +62,19 @@ func headerView(p Platform, s *headerTestState) func(c *ui.Context) {
 // headerBarAndContent builds the bar of headerView and the window's content under it, in the column it is called in.
 func headerBarAndContent(c *ui.Context, s *headerTestState) {
 	start := func() {
-		if IconButton(c, headerTestBackIcon, "Back").Clicked() {
+		if IconButton(c, headerTestBackIcon, "Back").Bind(&s.backRef).Clicked() {
 			s.back++
 		}
 	}
 	end := func() {
-		edit := Button(c, "Edit")
+		edit := Button(c, "Edit").Bind(&s.editRef)
 		if s.editName != "" {
 			edit.Label(s.editName)
 		}
 		if edit.Clicked() {
 			s.edit++
 		}
-		if IconButton(c, idiomTestShareIcon, "Share").Disabled(s.shareOff).Clicked() {
+		if IconButton(c, idiomTestShareIcon, "Share").Disabled(s.shareOff).Bind(&s.shareRef).Clicked() {
 			s.share++
 		}
 	}
@@ -600,6 +602,50 @@ func TestHeaderBarFollowsItsPane(t *testing.T) {
 	}
 }
 
+// TestHeaderBarFollowsTheWindowInAFrameBuiltTwice checks on every platform, left to right and right to left, that a bar across the window keeps clear of the window controls in the frame the window grows in when that frame is built more than once, as MyGo builds a frame again after an event handled while building it (here a focus request the view makes as it sees the new width): every frame laid out at the new width, the first included, keeps the start and end controls clear of the controls' room.
+func TestHeaderBarFollowsTheWindowInAFrameBuiltTwice(t *testing.T) {
+	const from, to = 720, 820
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			s := &headerTestState{name: "Window"}
+			room := headerTestRoom(p, dir)
+			seen := float32(from)
+			var laid []ui.Rect
+			view := headerPaneView(p, room, s)
+			tester := layoutTester(p, from, 160, func(c *ui.Context) {
+				w, _ := c.Size()
+				if w != seen {
+					// Focusing Edit is handled while this pass builds, so MyGo builds the frame a second time before laying it out.
+					seen = w
+					s.editRef.Focus(c)
+				}
+				if w == to {
+					// What the frames laid out since the window grew put Back and Share at; the frame it grew in reads the last frame laid out at the old width, whose controls are farther from the controls' room at the new width.
+					laid = append(laid, s.backRef.Bounds(c), s.shareRef.Bounds(c))
+				}
+				view(c)
+			})
+			tester.SetDirection(dir)
+			tester.SetTitleBar(room)
+			tester.Frame()
+			tester.SetSize(to, 160)
+			tester.Frame()
+			if !tester.Focused("Edit") {
+				t.Fatalf("%v %v: Edit did not take the focus, so the frame was not built twice", p, dir)
+			}
+			left := ui.Rect{X: 0, Y: 0, W: room.Left, H: room.Height}
+			right := ui.Rect{X: to - room.Right, Y: 0, W: room.Right, H: room.Height}
+			for _, r := range laid {
+				// Half a DIP in from each edge, for the rounding of a control that ends where the room begins.
+				in := ui.Rect{X: r.X + 0.5, Y: r.Y + 0.5, W: r.W - 1, H: r.H - 1}
+				if overlaps(in, left) || overlaps(in, right) {
+					t.Errorf("%v %v: a frame laid out at the width of %v put a control at %+v, over the window controls' room %+v %+v", p, dir, to, r, left, right)
+				}
+			}
+		}
+	}
+}
+
 // TestHeaderBarInPaneLook checks the pixels of the bar over a content pane on every platform, light and dark, at 2x: the bar is drawn pixel for pixel as a bar across a window as wide as the pane whose controls take only the room at its end, as AppKit draws a content pane's toolbar after a tracking separator as a window's own from the divider on (tools/appkit-reference's split header bar scenes); and its line along its bottom runs under the pane alone, the sidebar beside it drawn as above the line's row.
 func TestHeaderBarInPaneLook(t *testing.T) {
 	const w, h, scale = 720, 120, 2
@@ -645,14 +691,17 @@ func TestHeaderBarInPaneLook(t *testing.T) {
 	}
 }
 
-// TestScreenshotsHeaderBarInPane writes a window with a sidebar and a header bar over its content pane on every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names, once without a subtitle and once with one, the window controls' room as headerTestRoom gives it, as tools/appkit-reference's split header bar scenes draw AppKit's. Without it the test only builds the frames.
+// TestScreenshotsHeaderBarInPane writes a window with a sidebar and a header bar over its content pane on every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names, once without a subtitle and once with one, the window controls' room as headerTestRoom gives it, as tools/appkit-reference's split header bar scenes draw AppKit's; and once more without a subtitle with the sidebar at the window's end, where the pane stops short of the window controls at the end on Windows and GNOME. Without it the test only builds the frames.
 func TestScreenshotsHeaderBarInPane(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	for _, p := range Platforms {
 		for _, dark := range []bool{false, true} {
-			for _, subtitle := range []string{"", "12 items"} {
+			for _, shot := range []struct {
+				subtitle string
+				atEnd    bool
+			}{{"", false}, {"12 items", false}, {"", true}} {
 				room := headerTestRoom(p, ui.LeftToRight)
-				tester := ui.NewTester(headerPaneView(p, room, &headerTestState{subtitle: subtitle, sidebar: headerPaneSidebar}), 720, 120)
+				tester := ui.NewTester(headerPaneView(p, room, &headerTestState{subtitle: shot.subtitle, sidebar: headerPaneSidebar, sidebarAtEnd: shot.atEnd}), 720, 120)
 				tester.SetScale(2)
 				tester.SetDark(dark)
 				tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
@@ -664,8 +713,11 @@ func TestScreenshotsHeaderBarInPane(t *testing.T) {
 				}
 				mode := map[bool]string{false: "light", true: "dark"}[dark]
 				name := "headerbar-pane"
-				if subtitle != "" {
+				if shot.subtitle != "" {
 					name += "-subtitle"
+				}
+				if shot.atEnd {
+					name += "-sidebar-end"
 				}
 				writeShot(t, dir, fmt.Sprintf("breeze-%s-%s-%s.png", name, strings.ToLower(p.String()), mode), tester)
 			}

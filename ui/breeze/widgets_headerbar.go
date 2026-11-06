@@ -110,19 +110,19 @@ func HeaderBar(c *ui.Context, title, subtitle string, start, end func()) ui.Elem
 	return bar
 }
 
-// headerRoom returns the room the window controls in room take at the left and at the right of bar: the part of each that bar lies under, all of it at the ends of a bar along the window's top from edge to edge, less or none at the end of a bar over a pane that stops short of the window's edge, as a bar over the content beside a sidebar does, and none for a bar below the controls' band. It reads where the previous frame laid bar out, against the window's width in that frame, and takes a bar that frame lacked to run from edge to edge. The frame being built may lay bar out elsewhere, as when a sidebar beside it comes or goes, so the bar asks for another frame when it is drawn somewhere it lies under other room than it kept clear of, and keeps clear of that room in the next frame.
+// headerRoom returns the room the window controls in room take at the left and at the right of bar: the part of each that bar lies under, all of it at the ends of a bar along the window's top from edge to edge, less or none at the end of a bar over a pane that stops short of the window's edge, as a bar over the content beside a sidebar does, and none for a bar below the controls' band. It reads where the previous frame laid bar out, against the window's width that frame was laid out at, which the bar notes as it is drawn, and takes a bar that frame lacked to run from edge to edge. The frame being built may lay bar out elsewhere, as when a sidebar beside it comes or goes, so the bar asks for another frame when it is drawn somewhere it lies under other room than it kept clear of, and keeps clear of that room in the next frame.
 func headerRoom(c *ui.Context, bar ui.Element, room ui.TitleBar) (left, right float32) {
 	w, _ := c.Size()
 	last := ui.Local(bar, "breeze-header-window", func() float32 { return w })
-	prev := *last
-	*last = w
 	left, right = room.Left, room.Right
 	// LayoutBounds is the box before transforms and zoom, in the DIPs the layout and c.TitleBar() work in; a bar the previous frame laid out is never empty, as its MinHeight makes it high.
 	if r := bar.LayoutBounds(); r.W > 0 || r.H > 0 {
-		left, right = headerRoomOver(room, r, prev)
+		left, right = headerRoomOver(room, r, *last)
 	}
 	s := c.Services()
 	bar.DrawOver(func(_ *ui.Painter, r ui.Rect) {
+		// The width is noted once the frame is laid out rather than as it is built: MyGo builds a frame again after an event handled while building it, and every pass reads the previous frame's LayoutBounds, so each must read them against the width they were laid out at.
+		*last = w
 		if l, rr := headerRoomOver(room, r, w); l != left || rr != right {
 			s.Invalidate()
 		}
