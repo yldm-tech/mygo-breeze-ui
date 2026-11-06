@@ -107,7 +107,7 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 		return
 	}
 	adwFocusRing(t, b, 9, nil)
-	// $button_color, $button_hover_color and $button_active_color are currentColor at 10%, 15% and 30%, translucent, so a button shows what is behind it: over a boxed list's card its face is the card's color mixed, 235 in the light theme and 72 in the dark one where over the window it is 230 and 56 (measured from libadwaita 1.10.0 by tools/adwaita-reference, an AdwActionRow's suffix). The text takes its color over the face as it is over the window.
+	// $button_color, $button_hover_color and $button_active_color are currentColor at 10%, 15% and 30%, translucent, so a button shows what is behind it: over a boxed list's card its face is the card's color mixed, 235 in the light theme and 72 in the dark one where over the window it is 230 and 57 (measured from libadwaita 1.10.0 by tools/adwaita-reference, an AdwActionRow's suffix and the inputs set's buttons). The text takes its color over the face as it is over the window.
 	share := float32(0.10)
 	switch {
 	case pressed:

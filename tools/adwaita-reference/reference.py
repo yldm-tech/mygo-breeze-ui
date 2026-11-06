@@ -641,7 +641,7 @@ def rows_set():
 
 
 def over_card_set():
-    """TestAdwControlsOverCard's view: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
+    """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
     box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
     box.add_css_class("boxed-list")
     share = Adw.ActionRow(title="Share")
