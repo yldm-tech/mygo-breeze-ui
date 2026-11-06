@@ -138,3 +138,18 @@ MyGo v0.7.4 is the latest release. These additions to it, in the style of its ex
 - **MyGo's own strings.** An exported way to read the strings of its controls in the window's language, with an app's `mygo.*` overrides (its internal `l10n` package): with it, `DecimalInput`, `FindBar` and `ColorPicker` could be rebuilt from the bases MyGo already exports, and `Calendar` too but for `Browse`.
 - **Paths.** `Path.ArcTo`, to stroke GTK's icons exactly.
 - **Windows.** Whether the window is active (it is kept internally, `windowFocused` in `runtime.go`, but not exported), for the inactive looks of AppKit's controls and of the title bars; and a way for `ui.Tester` to report a window drag and a title bar double click, so that tests can check `DragWindow`.
+
+## Adding a widget
+
+Each group of widgets keeps its own files, so that pull requests adding widgets to different groups do not touch the same files. A new group `foo` is new files only:
+
+- `ui/breeze/widgets_foo.go`: the widgets.
+- `ui/breeze/widgets_foo_test.go`: its tests, with an `init` function adding the widgets Breeze UI draws to `drawnWidgets`, and `TestScreenshotsFoo` writing their screenshots.
+- `ui/breeze/catalog/foo.json`: `{"components": [...]}`, an entry for each exported function of `widgets_foo.go`, with an example calling it (`TestCatalogMatchesWidgets` checks the two against each other).
+- `docs/widgets/foo.md`: the page of the group, with its sections Looks, Sources, Limits and, if it has any, What MyGo would need, naming each widget (`TestWidgetDocs`).
+- `examples/storybook/stories_foo.go`: the stories, added to `storyGroups` in an `init` function.
+- `tools/appkit-reference/Sources/appkit-reference/Scenes/foo.swift`: a `SceneGroup` subclass rendering AppKit's counterparts, with the delegates only it uses.
+- `tools/winui-reference/Scenes/foo.cs`: a method of `App` marked `[Scenes]` returning WinUI's, with the hooks only it uses.
+- `tools/adwaita-reference/scenes/foo.py`: the group's `SETS` of libadwaita's.
+
+Adding widgets to an existing group changes only that group's files. The code the groups share, `widgets.go`'s helpers, `mac.go`, `fluent.go`, `adwaita.go` and the `drawn_*.go` files, changes only to generalize a helper or take one out of a group's file; such a change goes first in a pull request of its own. `ui/breeze/catalog/platforms.json`, the reference tools' own files (`main.swift` and `Support.swift`, `Program.cs`, `reference.py` and `common.py`) and the sections of this page do not change for a widget. The catalog is merged from its files where it is used: `packages/breeze-mcp/catalog.json` is built, not committed.
