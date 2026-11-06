@@ -424,49 +424,7 @@ func Modal(c *ui.Context, open *bool, fn func()) ui.Element {
 
 // AlertDialog shows an alert over the window while *open, as the platform draws its alerts: title, message, and buttons, the last of which is the default, in the accent color, with the focus, which Enter clicks. Each platform places the buttons its own way: macOS and GNOME put the default last, Windows first, while the index returned is the same everywhere. Escape closes the alert choosing no button; a click outside it does nothing. It returns the index of the button clicked, in the frame it is, which closes the alert, ui.AlertDismissed in the frame Escape closes it, and -1 otherwise. It is ui.AlertDialog's counterpart.
 func AlertDialog(c *ui.Context, open *bool, title, message string, buttons ...string) int {
-	if !*open {
-		return -1
-	}
-	p := PlatformOf(c)
-	w, _ := c.Size()
-	chosen, dismissed := -1, false
-	ui.Overlay(c, func() {
-		back := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().Modal()
-		dismissed = back.OverlayShortcut(0, ui.KeyEscape)
-		back.Children(func() {
-			panel := ui.Column(c).MaxWidth(w - 40).Role(ui.RoleAlertDialog).Label(title).Description(message)
-			// button builds button i of the alert, the last as the default.
-			button := func(i int) ui.Element {
-				var b ui.Element
-				if i == len(buttons)-1 {
-					b = PrimaryButton(c, buttons[i]).AutoFocus()
-				} else {
-					b = Button(c, buttons[i])
-				}
-				if b.Clicked() {
-					chosen = i
-				}
-				return b
-			}
-			Preview(c, p, func() {
-				switch p {
-				case Windows:
-					fluentAlert(c, back, panel, title, message, len(buttons), button)
-				case Linux:
-					adwAlert(c, back, panel, title, message, len(buttons), button)
-				default:
-					macAlert(c, back, panel, title, message, len(buttons), button)
-				}
-			})
-		})
-	})
-	if dismissed && chosen < 0 {
-		chosen = ui.AlertDismissed
-	}
-	if chosen != -1 {
-		*open = false
-	}
-	return chosen
+	return alertDialog(c, open, title, message, -1, buttons)
 }
 
 // Table creates a table of n rows in columns, whose cells cell builds, as package ui's Table does, its rows drawn as the platform draws them: an inset NSTableView's rounded selection, accent while the table has the focus and gray otherwise (macOS); ListView's items, with their backplate and the accent pill on the chosen one, as WinUI 3 has no table (Windows); a GtkColumnView's rows with the accent-tinted row (GNOME). The choice, the sort, the columns' widths and order, the keys, the focus and accessibility are MyGo's, as are the header, in the platform's theme, the cells' padding and the rows' least height of Space(8). A table choosing cells (ListState.CellSelect) keeps MyGo's cells in the platform's theme, and so does the room a row leaves after its last column when every column is narrower than the table. It is ui.Table's counterpart.

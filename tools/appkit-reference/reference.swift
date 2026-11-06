@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), and a source list for Sidebar's icons (renderSidebar), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the buttons of TestScreenshotsIconLabel (iconLabelSet, with a window's toolbar holding items showing an image and a title), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), and a source list for Sidebar's icons (renderSidebar), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), and a sheet and an alert with a destructive button (renderDialogs, which only -live captures), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -711,6 +711,61 @@ func renderHeaderBar(appearance: NSAppearance.Name, subtitle: String, back: Bool
     win.orderOut(nil)
 }
 
+// renderDialogs shows, over a titled window of 560 by 340 points as TestScreenshotsDialogs's, an NSWindow sheet of 300 by 150 holding a push button with hasDestructiveAction and a default push button, then an NSAlert whose first button, Delete, has hasDestructiveAction, as breeze.Sheet and breeze.DestructiveAlertDialog draw them, and prints the frames of the sheet and the alert against the window's and the alert's buttons with their key equivalents. Sheets and alerts do not render offscreen: with -live the window is put on the screen and captured with screencapture -l, which shows the sheet over its window, and the capture is converted from the display's profile to sRGB and printed along its middle row and the sheet's middle column, from which the dimming, the sheet's fill and corners and the destructive button's face in ui/breeze/widgets_dialogs.go were read.
+func renderDialogs(appearance: NSAppearance.Name, file: String) {
+    let live = args.contains("-live")
+    let win = KeyWindow(contentRect: NSRect(x: live ? 200 : -4000, y: live ? 200 : -4000, width: 560, height: 340), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    win.appearance = NSAppearance(named: appearance)
+    win.title = "Window content"
+    win.orderFrontRegardless()
+    RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+    print("== \(file)")
+    func capture(_ name: String) {
+        guard live else { return }
+        let path = out + "/" + file.replacingOccurrences(of: ".png", with: "-\(name)-live.png")
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        p.arguments = ["-x", "-o", "-l\(win.windowNumber)", path]
+        try! p.run(); p.waitUntilExit()
+        let rep = (NSImageRep(contentsOfFile: path) as! NSBitmapImageRep).converting(to: .sRGB, renderingIntent: .default)!
+        func gray(_ x: Int, _ y: Int) -> String {
+            var px = [Int](repeating: 0, count: 4); rep.getPixel(&px, atX: x, y: y)
+            return px[0] == px[1] && px[1] == px[2] ? "\(px[0])" : String(format: "#%02x%02x%02x", px[0], px[1], px[2])
+        }
+        print("  \(name) capture \(rep.pixelsWide)x\(rep.pixelsHigh)")
+        print("  row: " + runs((0..<rep.pixelsWide).map { gray($0, rep.pixelsHigh / 2) }))
+        print("  col: " + runs((0..<rep.pixelsHigh).map { gray(rep.pixelsWide / 2, $0) }))
+    }
+    let sheet = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 150), styleMask: [.titled], backing: .buffered, defer: false)
+    let delete = NSButton(title: "Delete", target: nil, action: nil); delete.bezelStyle = .push; delete.hasDestructiveAction = true
+    delete.frame = NSRect(x: 20, y: 20, width: 100, height: 30); sheet.contentView!.addSubview(delete)
+    let cancel = NSButton(title: "Cancel", target: nil, action: nil); cancel.bezelStyle = .push; cancel.keyEquivalent = "\r"
+    cancel.frame = NSRect(x: 180, y: 20, width: 100, height: 30); sheet.contentView!.addSubview(cancel)
+    win.beginSheet(sheet, completionHandler: nil)
+    RunLoop.current.run(until: Date().addingTimeInterval(1.2))
+    let w = win.frame, s = sheet.frame
+    print("window \(w.width)x\(w.height) title bar \(w.height - win.contentLayoutRect.maxY) sheet x=\(s.minX - w.minX) top=\(w.maxY - s.maxY) w=\(s.width) h=\(s.height)")
+    capture("sheet")
+    win.endSheet(sheet)
+    RunLoop.current.run(until: Date().addingTimeInterval(0.8))
+    let alert = NSAlert()
+    alert.messageText = "Delete “Notes”?"
+    alert.informativeText = "You can’t undo this action."
+    alert.addButton(withTitle: "Delete")
+    alert.addButton(withTitle: "Cancel")
+    alert.buttons[0].hasDestructiveAction = true
+    alert.beginSheetModal(for: win, completionHandler: nil)
+    RunLoop.current.run(until: Date().addingTimeInterval(1.2))
+    let a = alert.window.frame
+    print("alert x=\(a.minX - w.minX) top=\(w.maxY - a.maxY) w=\(a.width) h=\(a.height)")
+    for b in alert.buttons {
+        print("  button \"\(b.title)\" x=\(b.frame.minX) w=\(b.frame.width) h=\(b.frame.height) key=\(b.keyEquivalent.debugDescription) destructive=\(b.hasDestructiveAction)")
+    }
+    capture("alert")
+    win.endSheet(alert.window)
+    win.orderOut(nil)
+}
+
 // SourceList fills the outline view of renderSidebar as a sidebar: a group row, Mailboxes, holding Inbox, Sent and Drafts, each a cell of a template SF Symbol and a title, and Flagged, whose image is not a template, a red square, as breeze.SidebarItemImage shows a colored image.
 class SourceList: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
     let group = "Mailboxes"
@@ -875,6 +930,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     renderHeaderBar(appearance: appearance, subtitle: "", file: "appkit-headerbar-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-subtitle-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-noback-\(mode).png")
+    renderDialogs(appearance: appearance, file: "appkit-dialogs-\(mode).png")
     renderSidebar(appearance: appearance, focused: false, file: "appkit-sidebar-\(mode).png")
     renderSidebar(appearance: appearance, focused: true, file: "appkit-sidebar-\(mode)-focused.png")
     renderSidebar(appearance: appearance, focused: true, chosen: "Flagged", file: "appkit-sidebar-image-\(mode)-focused.png")
