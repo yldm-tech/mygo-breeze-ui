@@ -102,12 +102,12 @@ func TestPasswordBoxRevealButton(t *testing.T) {
 		if !ok {
 			t.Fatalf("rtl %v: no reveal button once text was typed", rtl)
 		}
-		// 26 by 24, 4 DIPs in from the field's end and centered on it.
+		// 28 by 24, 4 DIPs in from the field's end and centered on it, as measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference.
 		inset := f.X + f.W - (b.X + b.W)
 		if rtl {
 			inset = b.X - f.X
 		}
-		if b.W != 26 || b.H != 24 || inset < 3.5 || inset > 4.5 || b.Y+b.H/2-(f.Y+f.H/2) > 0.5 || f.Y+f.H/2-(b.Y+b.H/2) > 0.5 {
+		if b.W != 28 || b.H != 24 || inset < 3.5 || inset > 4.5 || b.Y+b.H/2-(f.Y+f.H/2) > 0.5 || f.Y+f.H/2-(b.Y+b.H/2) > 0.5 {
 			t.Errorf("rtl %v: the reveal button is %v in the field %v", rtl, b, f)
 		}
 		tester.Key(ui.Cmd, ui.KeyA)
@@ -144,12 +144,11 @@ func TestPasswordBoxRevealButton(t *testing.T) {
 			t.Errorf("rtl %v: emptying the field and typing again did not show the button (%q)", rtl, pw)
 		}
 		if !rtl {
-			// A password longer than the field scrolls, its end stopping 6 DIPs before the button's 30-DIP column (TextControlThemePadding's end inside the border).
+			// A password longer than the field scrolls, its end stopping 39 DIPs before the field's end, as WinUI's text stops before the RevealButton's column (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference).
 			tester.Type(strings.Repeat("x", 40))
 			tester.Frame()
-			b, _ = tester.Find("Show Password")
-			if caret, ok := tester.TextCaret(); !ok || caret.X+caret.W > b.X+b.W+4-30-6+0.5 {
-				t.Errorf("the caret at the end of a long password is at %v, past the reveal button's column at %v", caret, b.X+b.W+4-30)
+			if caret, ok := tester.TextCaret(); !ok || caret.X > f.X+f.W-39+0.5 || caret.X < f.X+f.W-39-1 {
+				t.Errorf("the caret at the end of a long password is at %v, want it at the text's end, 39 before the field's end at %v", caret, f.X+f.W)
 			}
 		}
 		if err := tester.Click("PIN"); err != nil {
@@ -486,7 +485,7 @@ func TestSplitButtonDisabled(t *testing.T) {
 func TestIconButton(t *testing.T) {
 	sizes := map[Platform][2][2]float32{
 		Mac:     {{40, 24}, {36, 36}},
-		Windows: {{40, 32}, {64, 36}},
+		Windows: {{40, 29}, {64, 36}},
 		Linux:   {{34, 34}, {34, 34}},
 	}
 	for _, p := range Platforms {

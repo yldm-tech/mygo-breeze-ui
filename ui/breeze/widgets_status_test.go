@@ -356,6 +356,25 @@ func statusView(p Platform, open *[4]bool) func(c *ui.Context) {
 	}
 }
 
+// statusTitlesView lays out statusView's four message bars with their titles and no message, where tools/winui-reference places WinUI's InfoBars without a message (winui-status-titles).
+func statusTitlesView(p Platform, open *[4]bool) func(c *ui.Context) {
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Box(c).Fill().Children(func() {
+				for i, kind := range []string{"info", "success", "warning", "error"} {
+					var o *bool
+					if i == 0 || i == 3 {
+						o = &open[i]
+					}
+					title := []string{"Informational", "Success", "Warning", "Error"}[i]
+					ui.Column(c).Absolute().Left(16).Top(16 + float32(i)*68).Right(16).AlignItems(ui.Start).Children(func() { InfoBar(c, kind, title, "", o) })
+				}
+			})
+		})
+	}
+}
+
 // statusPageView lays out a status page filling the window, with an icon, a title, a description and an action, as reference.swift places SwiftUI's ContentUnavailableView.
 func statusPageView(p Platform) func(c *ui.Context) {
 	return func(c *ui.Context) {
@@ -368,7 +387,7 @@ func statusPageView(p Platform) func(c *ui.Context) {
 	}
 }
 
-// TestScreenshotsStatus writes statusView and statusPageView on every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames.
+// TestScreenshotsStatus writes statusView, statusTitlesView and statusPageView on every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames.
 func TestScreenshotsStatus(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	for _, p := range Platforms {
@@ -385,6 +404,17 @@ func TestScreenshotsStatus(t *testing.T) {
 				}
 			}
 			writeShot(t, dir, fmt.Sprintf("breeze-status-%s-%s.png", strings.ToLower(p.String()), mode), tester)
+			titles := ui.NewTester(statusTitlesView(p, &open), 560, 300)
+			titles.SetScale(2)
+			titles.SetDark(dark)
+			titles.Frame()
+			titles.Frame()
+			for _, s := range []string{"Informational", "Success", "Warning", "Error"} {
+				if _, ok := titles.Find(s); !ok {
+					t.Fatalf("%v: the bar %q without a message is missing: %q", p, s, titles.Texts())
+				}
+			}
+			writeShot(t, dir, fmt.Sprintf("breeze-statustitles-%s-%s.png", strings.ToLower(p.String()), mode), titles)
 			page := ui.NewTester(statusPageView(p), 560, 420)
 			page.SetScale(2)
 			page.SetDark(dark)

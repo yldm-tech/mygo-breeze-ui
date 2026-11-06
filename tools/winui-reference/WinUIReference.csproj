@@ -17,5 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
+    <!-- Only for rendering CommunityToolkit's SettingsCard and SettingsExpander, the counterparts of Breeze UI's settings rows. -->
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
   </ItemGroup>
 </Project>
