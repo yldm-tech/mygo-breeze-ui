@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests check were measured from WinUI 3 3.3 (Windows App SDK 2.6.5, and CommunityToolkit.WinUI.Controls.SettingsControls 8.2.251219 for the SettingsCards) on Windows 11 26H2 by tools/winui-reference, at 2x, in the scenes winui-inputs, winui-status, winui-status-titles, winui-rows and winui-rows-wide. They read positions from Find and element bounds and colors from pixels away from text, so that they do not depend on the host's font.
+// The values these tests check were measured from WinUI 3 3.3 (Windows App SDK 2.6.5, and CommunityToolkit.WinUI.Controls.SettingsControls 8.2.251219 for the SettingsCards) on Windows 11 26H2 by tools/winui-reference, at 2x, in the scenes winui-inputs, winui-status, winui-status-titles, winui-rows, winui-rows-wide and winui-settings. They read positions from Find and element bounds and colors from pixels away from text, so that they do not depend on the host's font.
 
 // fluentNativeTester renders view on Windows at 2x, light or dark, after two frames.
 func fluentNativeTester(w, h int, dark bool, view func(c *ui.Context)) *ui.Tester {
@@ -280,5 +280,150 @@ func TestSettingsCardWraps(t *testing.T) {
 	// The track, 40 wide, 12 after the Off column, ends 44 before the row's end.
 	if d := sw.X + sw.W - (offText.X + offText.W + 12 + 40); d < 43.5 || d > 44.5 {
 		t.Errorf("an AccordionItem's switch row ends its switch %v before its end, want 44", d)
+	}
+}
+
+// TestFluentSettingsRowsOverTheCard checks what a card of settings rows holds against WinUI's render, light and dark: SettingsCards on a card lay their translucent colors over the card's fill, not over the window. The line between two rows is CardStrokeColorDefault over the card, 236 and 39; a TextBox reads 254 and 55 inside a border of 236 and 58 with a bottom edge of 139 and 159, a ComboBox 254 and 55, and the description TextFillColorSecondary over the card, 95 and 207 (where over the window they read 229 and 29, 251 and 45, 229 and 48, 134 and 154, 92 and 204). A disabled TextBox's or NumberBox's bottom edge is its border's color, without the strong line (measured from WinUI 3 3.3 with CommunityToolkit's SettingsControls 8.2.251219 by tools/winui-reference's winui-settings). The controls are found from the rows' bounds: in a card 300 wide they sit 8 above the row's end at its start, 16 in, and alone 17 inside the card's edge.
+func TestFluentSettingsRowsOverTheCard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		appearance, name, email, size, copies := "Auto", "Evan", "", 12.0, 3.0
+		var combo, entry, spin, disabled, disabledEntry ui.Rect
+		tester := fluentNativeTester(400, 600, dark, func(c *ui.Context) {
+			ui.Column(c).Padding(16).Width(332).Gap(16).Children(func() {
+				Card(c, func() {
+					combo = ComboRow(c, "Appearance", "Light or dark", &appearance, []string{"Light", "Dark", "Auto"}).Bounds()
+					entry = EntryRow(c, "Name", &name).Bounds()
+					spin = SpinRow(c, "Font size", "Points", &size, 6, 72, 1).Bounds()
+				})
+				disabled = SpinRow(c, "Copies", "", &copies, 1, 9, 1).Disabled(true).Bounds()
+				disabledEntry = EntryRow(c, "Email", &email).Disabled(true).Bounds()
+			})
+		})
+		img := tester.Image()
+		at := func(x, y float32) int { return gray(img, int(2*x), int(2*y)) }
+		pickv := func(l, d int) int {
+			if dark {
+				return d
+			}
+			return l
+		}
+		check := func(what string, got, wantv int) {
+			t.Helper()
+			if got != wantv {
+				t.Errorf("dark %v: %s reads %d, want %d", dark, what, got, wantv)
+			}
+		}
+		check("the line above the entry row", at(entry.X+150, entry.Y), pickv(236, 39))
+		check("the line above the spin row", at(spin.X+150, spin.Y), pickv(236, 39))
+		// The TextBox: 120 wide, its top 40 above the row's end.
+		fx, fy := entry.X+16, entry.Y+entry.H-8-32
+		check("the TextBox's fill", at(fx+100, fy+4), pickv(254, 55))
+		check("the TextBox's top edge", gray(img, int(2*(fx+100)), int(2*fy+0.5)), pickv(236, 58))
+		check("the TextBox's bottom edge", gray(img, int(2*(fx+100)), int(2*(fy+32)+0.5)-1), pickv(139, 159))
+		check("the ComboBox's face", at(combo.X+16+60, combo.Y+combo.H-8-32+4), pickv(254, 55))
+		check("the NumberBox's fill", at(spin.X+16+60, spin.Y+spin.H-8-32+4), pickv(254, 55))
+		// "Points", below "Font size", which has no descenders to reach into its box.
+		sub, _ := tester.Find("Points")
+		ink := pickv(255, 0)
+		for y := int(2 * sub.Y); y < int(2*(sub.Y+sub.H)); y++ {
+			for x := int(2 * sub.X); x < int(2*(sub.X+sub.W)); x++ {
+				if v := gray(img, x, y); (!dark && v < ink) || (dark && v > ink) {
+					ink = v
+				}
+			}
+		}
+		check("the description's ink", ink, pickv(95, 207))
+		// The disabled NumberBox and TextBox alone: 17 inside the card, their bottom 17 above the card's end. The rows' heights follow the font's line, so the box's edges are found at the nearest pixel.
+		near := func(v float32) int { return int(2*v + 0.5) }
+		for _, d := range []struct {
+			name string
+			row  ui.Rect
+		}{{"NumberBox", disabled}, {"TextBox", disabledEntry}} {
+			bx, by := d.row.X+17+60, d.row.Y+d.row.H-17-32
+			if top, bottom := gray(img, int(2*bx), near(by)), gray(img, int(2*bx), near(by+32)-1); top != bottom {
+				t.Errorf("dark %v: the disabled %s's edges read %d at the top and %d at the bottom, want the same", dark, d.name, top, bottom)
+			}
+		}
+	}
+}
+
+// TestFluentTabViewAsMeasured checks a TabView against WinUI's render (winui-tabview and winui-tabview-fill), light and dark. A TabView 528 wide puts its three closable tabs at 24, 185 and 346, 161 wide, and its add button at 514, 2 DIPs past its end, where the strip's line stops at the strip's end, not under the button's last 2 DIPs; two tabs that do not close, without the add button, are 240 wide at 24 and 264; and five, without it, share the width less 10, running 2 past the end, the strip's line stopping at its end there too (WinUI's five are 104 wide, as the scene's layout rounds to whole DIPs, and its line ends at 544). The chosen tab's outline reads over its fill along its top, 234 and 36, and over the window at its sides, 229 and 29, and its radius arcs leave the strip's line as it is, 229 and 29. The close button's × has its ink 8 DIPs square, centered half a DIP above and before the button's middle, 62 pixels of it at 2x; the add button's + 10 DIPs square, centered the same, 55 pixels of it.
+func TestFluentTabViewAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		docs := &tabViewApp{labels: []string{"Documents", "Downloads", "Pictures"}, closable: true, addable: true}
+		prefs := &tabViewApp{labels: []string{"General", "Advanced"}, selected: 1}
+		many := &tabViewApp{labels: []string{"A1", "B2", "C3", "D4", "E5"}}
+		var strip ui.Rect
+		tester := fluentNativeTester(560, 300, dark, func(c *ui.Context) {
+			ui.Column(c).Padding(16).Gap(24).Children(func() {
+				strip = TabView(c, &docs.selected, docs.labels, docs.close, docs.add).Bounds()
+				TabView(c, &prefs.selected, prefs.labels, nil, nil)
+				TabView(c, &many.selected, many.labels, nil, nil)
+			})
+		})
+		near := func(a, b float32) bool { return a > b-0.01 && a < b+0.01 }
+		for i, x := range []float32{24, 185, 346} {
+			if r, _ := tester.Find(docs.labels[i]); !near(r.X, x) || !near(r.W, 161) {
+				t.Errorf("dark %v: tab %d is %v, want 161 wide at %v", dark, i, r, x)
+			}
+		}
+		add, _ := tester.Find("Add New Tab")
+		if !near(add.X, 514) || !near(add.X+add.W, strip.X+strip.W+2) {
+			t.Errorf("dark %v: the add button is %v in the strip %v, want it at 514, ending 2 past the strip", dark, add, strip)
+		}
+		for i, x := range []float32{24, 264} {
+			if r, _ := tester.Find(prefs.labels[i]); !near(r.X, x) || !near(r.W, 240) {
+				t.Errorf("dark %v: tab %s is %v, want 240 wide at %v", dark, prefs.labels[i], r, x)
+			}
+		}
+		first, _ := tester.Find("A1")
+		last, _ := tester.Find("E5")
+		if !near(first.X, 24) || !near(first.W, (528-10)/5.0) || !near(last.X+last.W, 16+528+2-4) {
+			t.Errorf("dark %v: five tabs run from %v to %v, want %v wide from 24, ending 4 before 2 past the strip's end", dark, first, last, (528-10)/5.0)
+		}
+		img := tester.Image()
+		tab, _ := tester.Find("Documents")
+		if got, want := gray(img, int(2*(tab.X+tab.W/2)), int(2*tab.Y)), pick(dark, 234, 36); got != want {
+			t.Errorf("dark %v: the chosen tab's top edge reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*tab.X)-1, int(2*(tab.Y+16))), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the chosen tab's side reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*tab.X)-6, int(2*(tab.Y+tab.H))-2), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the strip's line under the chosen tab's radius arc reads %d, want %d", dark, got, want)
+		}
+		lineY := int(2*(add.Y+add.H+3)) - 1
+		if got, want := gray(img, int(2*(strip.X+strip.W))-1, lineY), pick(dark, 229, 29); got != want {
+			t.Errorf("dark %v: the strip's line at the strip's end reads %d, want %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*(add.X+add.W))-1, lineY), pick(dark, 243, 32); got != want {
+			t.Errorf("dark %v: under the add button's end, past the strip, reads %d, want the window's %d", dark, got, want)
+		}
+		if got, want := gray(img, int(2*(strip.X+strip.W))+1, int(2*(last.Y+last.H))-1), pick(dark, 243, 32); got != want {
+			t.Errorf("dark %v: past the end of the strip of five tabs reads %d, want the window's %d", dark, got, want)
+		}
+		x, _ := tester.Find("Close Tab")
+		for _, g := range []struct {
+			name      string
+			r         ui.Rect
+			size, ink float32
+		}{{"close button's ×", x, 8, 62}, {"add button's +", add, 10, 55}} {
+			bg := gray(img, int(2*g.r.X)+1, int(2*g.r.Y)+1)
+			box, ok := fluentInkBox(img, g.r, func(x, y int) bool { return absDiff(uint8(gray(img, x, y)), uint8(bg)) > 60 })
+			cx, cy := 2*(g.r.X+g.r.W/2-0.5), 2*(g.r.Y+g.r.H/2-0.5)
+			if !ok || float32(box.Dx()) != 2*g.size || float32(box.Dy()) != 2*g.size || float32(box.Min.X+box.Max.X)/2 != cx || float32(box.Min.Y+box.Max.Y)/2 != cy {
+				t.Errorf("dark %v: the %s ink covers %v at 2x, want %v pixels square centered on %v, %v", dark, g.name, box, 2*g.size, cx, cy)
+			}
+			fg := float64(pick(dark, 26, 255))
+			area := 0.0
+			for y := int(2 * g.r.Y); y < int(2*(g.r.Y+g.r.H)); y++ {
+				for x := int(2 * g.r.X); x < int(2*(g.r.X+g.r.W)); x++ {
+					area += (float64(gray(img, x, y)) - float64(bg)) / (fg - float64(bg))
+				}
+			}
+			if area < float64(g.ink)-5 || area > float64(g.ink)+5 {
+				t.Errorf("dark %v: the %s ink sums to %.1f pixels at 2x, want %v", dark, g.name, area, g.ink)
+			}
+		}
 	}
 }

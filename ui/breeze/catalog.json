@@ -141,6 +141,13 @@
       "example": "breeze.ColorWell(c, &app.tint).Label(\"Tint\")"
     },
     {
+      "name": "ComboRow",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A settings row choosing one of a list, the choice at its end: a grouped form's Picker on macOS (the choice before a circle with up and down chevrons), a SettingsCard holding a ComboBox on Windows 11, or AdwComboRow on GNOME, where the whole row opens the list. It joins a Card, a Fieldset or an AccordionItem as ActionRow does.",
+      "example": "breeze.ComboRow(c, \"Appearance\", \"Light or dark\", &app.appearance, []string{\"Light\", \"Dark\", \"Auto\"})"
+    },
+    {
       "name": "Combobox",
       "category": "choices",
       "look": "drawn",
@@ -174,6 +181,20 @@
       "look": "drawn",
       "description": "A text edited in place, as a file's name in Finder: package ui's, with MyGo's accent border around the input covered while it is edited and the platform's frame drawn there: AppKit's focus ring, a focused WinUI TextBox's edge and accent line, nothing around GTK's editable label. The input's fill and caret are MyGo's.",
       "example": "if breeze.EditableText(c, &app.name).Changed() {\n\tapp.rename()\n}"
+    },
+    {
+      "name": "EntryRow",
+      "category": "text",
+      "look": "drawn",
+      "description": "A settings row editing a text, named by its title: a grouped form's TextField with a label on macOS (the text at the trailing edge, no bezel), a SettingsCard holding a TextBox on Windows 11, or AdwEntryRow on GNOME, its title shrinking above the text as the row is focused or filled. It joins a Card, a Fieldset or an AccordionItem as ActionRow does.",
+      "example": "breeze.EntryRow(c, \"Name\", &app.name)"
+    },
+    {
+      "name": "ExpanderRow",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A settings row that opens to show the rows built in it: a grouped form's DisclosureGroup on macOS, CommunityToolkit's SettingsExpander on Windows 11, or AdwExpanderRow on GNOME, each with the platform's own header and arrow. Alone it is a group of its own; in a Card, a Fieldset or an AccordionItem it joins as a row does.",
+      "example": "breeze.ExpanderRow(c, \"Network\", \"Wi-Fi and proxies\", &app.network, func() {\n\tbreeze.SwitchRow(c, \"Metered\", \"\", &app.metered)\n})"
     },
     {
       "name": "Field",
@@ -216,6 +237,13 @@
       "look": "drawn",
       "description": "A scrolling grid of items built as they show, each drawn as the platform draws its own: Windows 11's GridViewItem with its 2-DIP accent border, GNOME's GtkGridView child with its accent-tinted fill, and on macOS, where NSCollectionView draws no selection, an inset table's rounded selection (inferred). The choice, the keys and accessibility are MyGo's, as are the items' gap and size.",
       "example": "breeze.GridView(c, &app.photos, len(app.thumbs), 140, 120, func(i int) {\n\tui.Image(c, app.thumbs[i])\n})"
+    },
+    {
+      "name": "HeaderBar",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "The title bar a view draws in a window whose title bar is hidden (mygo.WindowOptions.TitleBarStyle): a title, an optional subtitle and controls before and after it, keeping clear of the window controls in c.TitleBar()'s room and moving the window when dragged outside its controls. It is drawn as a macOS window's unified toolbar showing its title (52 points high, the title after the start controls), Windows 11's TitleBar control (48 DIPs high with controls, the title in the caption style after them), or GNOME's AdwHeaderBar (47 pixels high, the title centered); breeze's buttons inside take the title bar's look.",
+      "example": "breeze.HeaderBar(c, \"Documents\", \"12 items\", func() {\n\tbreeze.BackButton(c, app.router)\n}, func() {\n\tbreeze.IconButton(c, shareIcon, \"Share\")\n})"
     },
     {
       "name": "IconButton",
@@ -428,6 +456,13 @@
       "example": "breeze.Slider(c, &app.volume, 0, 100)"
     },
     {
+      "name": "SpinRow",
+      "category": "text",
+      "look": "drawn",
+      "description": "A settings row setting a number between limits with stepping buttons, its text the one focus stop: a grouped form's Stepper with its value in a text field on macOS, a SettingsCard holding a NumberBox on Windows 11, or AdwSpinRow on GNOME, with circular − and + buttons. It joins a Card, a Fieldset or an AccordionItem as ActionRow does.",
+      "example": "breeze.SpinRow(c, \"Font size\", \"Points\", &app.size, 6, 72, 1)"
+    },
+    {
       "name": "Spinner",
       "category": "feedback",
       "look": "drawn",
@@ -503,6 +538,13 @@
       "look": "drawn",
       "description": "A settings row with a switch at its end that a click anywhere on the row toggles, one switch for assistive technology named by its title: a grouped form's Toggle with its mini switch on macOS, a SettingsCard with a ToggleSwitch and its On or Off text on Windows 11, or AdwSwitchRow on GNOME.",
       "example": "breeze.SwitchRow(c, \"Dark mode\", \"Use a dark appearance\", &app.dark)"
+    },
+    {
+      "name": "TabView",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "Document tabs that close, with a button adding one; build the chosen tab's content after it: the tab bar of a window's tabs on macOS (a capsule track, the chosen tab raised, the close button under the pointer at the leading edge, the + button after it), WinUI's TabView on Windows 11 (the chosen tab joined to the strip's line by curved corners, close buttons on every tab, the add button after the tabs), or AdwTabBar on GNOME (tabs sharing the bar, the close button on the chosen tab and under the pointer, the new tab button at its end). Ctrl+Tab and Ctrl+Shift+Tab switch tabs, Ctrl+F4 closes one on Windows, and GNOME's Ctrl+Page Up, Ctrl+Page Down and Alt+digits choose one.",
+      "example": "breeze.TabView(c, &app.tab, app.titles, func(i int) {\n\tapp.titles = slices.Delete(app.titles, i, i+1)\n}, func() {\n\tapp.titles = append(app.titles, \"Untitled\")\n\tapp.tab = len(app.titles) - 1\n})"
     },
     {
       "name": "Table",

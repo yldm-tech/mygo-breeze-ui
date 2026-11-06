@@ -193,13 +193,32 @@ func macMiniSwitch(c *ui.Context, t *ui.Theme, sw ui.Element, on, focused bool) 
 
 // rowsBuild styles row as the platform's settings row where it is built (rowsJoin) and builds in it the title and the subtitle, in a column that takes the room left, and after them what trailing builds, given the color under the row's end and whether the row is under the pointer and pressed; toggle says the row toggles a switch, reacting to the pointer and showing the focus.
 func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle bool, trailing func(under ui.Color, hovered, pressed bool)) {
+	item, in, first := rowsJoin(c, row)
+	look := rowsLook{lit: toggle}
+	if toggle {
+		look.hovered, look.pressed, look.focused = row.Hovered(), row.Pressed(), row.FocusVisible()
+	}
+	rowsStyle(c, row, item, in, first, title, subtitle, look, trailing)
+}
+
+// rowsLook is how a row reacts: lit says it lights up under the pointer and pressed and shows a focus ring, as a row the user activates does, in the states hovered, pressed and focused; content, when set, builds the row's children in place of the title, the subtitle and the trailing controls, given the colors rowsStyle picks.
+type rowsLook struct {
+	lit                       bool
+	hovered, pressed, focused bool
+	content                   func(ink rowsInk)
+}
+
+// rowsInk holds the colors and the subtitle's size of a row as rowsStyle picks them: the color under the row, the title's and the subtitle's.
+type rowsInk struct {
+	under, title, sub ui.Color
+	subSize           float32
+}
+
+// rowsStyle styles row, item of a group of kind in (its first if first), as the platform's settings row and builds its children as rowsBuild describes.
+func rowsStyle(c *ui.Context, row ui.Element, item *rowsItem, in rowsIn, first bool, title, subtitle string, look rowsLook, trailing func(under ui.Color, hovered, pressed bool)) {
 	t := c.Theme()
 	p := PlatformOf(c)
-	item, in, first := rowsJoin(c, row)
-	hovered, pressed, focused := false, false, false
-	if toggle {
-		hovered, pressed, focused = row.Hovered(), row.Pressed(), row.FocusVisible()
-	}
+	toggle, hovered, pressed, focused := look.lit, look.hovered, look.pressed, look.focused
 	if p == Mac {
 		row.AlignItems(ui.Start)
 	} else {
@@ -222,6 +241,8 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 	}
 	var under ui.Color
 	var titleColor, subColor ui.Color
+	// over is the theme the trailing controls build in, where the platform lays their translucent colors over the row (Windows); nil keeps the window's.
+	var over *ui.Theme
 	var subSize, lineGap, endGap, suffixGap float32
 	wrapped := false
 	switch p {
@@ -241,12 +262,16 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		}
 		if joined {
 			if !first || in == rowsInAccordion {
-				row.BorderWidth(1, 0, 0, 0).BorderColor(stroke)
+				line := stroke
+				if in == rowsInCard {
+					// In a Card the line lies over the card's fill, CardStrokeColorDefault reading 236 and 39 (measured from WinUI 3 3.3 by tools/winui-reference's winui-rows and winui-settings: the line between two SettingsCards on a Border with the card's fill), where a SettingsExpander's items lay it over the expander's content, without a fill of its own under the line, 229 and 29.
+					_, _, line = fluentExpanderCard(fluentOver(t, fill))
+				}
+				row.BorderWidth(1, 0, 0, 0).BorderColor(line)
 			}
 		} else {
 			row.MinHeight(68).Padding(16).Radius(4).Background(fill).Border(1, stroke)
 		}
-		titleColor, subColor = t.Text, t.TextMuted
 		if toggle && (hovered || pressed) {
 			under = fluentFace(t, pressed, hovered)
 			row.Background(under)
@@ -258,9 +283,12 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 					row.Border(1, ui.Color{}).BorderLinearGradient(fluentElevation(t, h))
 				}
 			}
-			if pressed {
-				titleColor = t.TextMuted
-			}
+		}
+		// What a SettingsCard holds is drawn over its fill: its header, its description and its content take their translucent colors over it (fluentOver).
+		over = fluentOver(t, under)
+		titleColor, subColor = over.Text, over.TextMuted
+		if pressed && toggle {
+			titleColor = over.TextMuted
 		}
 		// SettingsCardDescriptionFontSize, 12 where ControlContentThemeFontSize is 14, following the text size the user chose as the header does.
 		subSize, lineGap, endGap, suffixGap = t.FontSize*12/14, 0, 24, 8
@@ -359,6 +387,10 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 		subSize, lineGap, endGap, suffixGap = t.FontSize*11/13, 2.5, 8, 8
 	}
 	row.Gap(endGap)
+	if look.content != nil {
+		row.Children(func() { look.content(rowsInk{under: under, title: titleColor, sub: subColor, subSize: subSize}) })
+		return
+	}
 	if wrapped {
 		// The header row takes the room MinHeight leaves, the header centered in it, and the content its own height below.
 		row.Column().AlignItems(ui.Stretch)
@@ -379,7 +411,13 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 			}
 		})
 		if trailing != nil {
-			end := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
+			var end ui.Element
+			if over != nil {
+				end = ui.Themed(c, over).Background(ui.Transparent).Row()
+			} else {
+				end = ui.Row(c)
+			}
+			end.Shrink(0).AlignItems(ui.Center).Gap(suffixGap)
 			if wrapped {
 				end.AlignSelf(ui.Start)
 			}

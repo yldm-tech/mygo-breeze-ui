@@ -67,33 +67,11 @@ func fluentTheme(dark bool, accent ui.Color) *ui.Theme {
 		accent = fluentAccent
 	}
 	t := pick(dark, ui.LightTheme(), ui.DarkTheme())
-	fill := fluentAccentFill(accent, dark)
-	t.Accent = fill
-	t.Radius, t.Spacing, t.FontSize = 4, 4, 14 // ControlCornerRadius, ControlContentThemeFontSize
-	if dark {
-		t.Background = ui.Hex("#202020") // SolidBackgroundFillColorBase
-		t.Text = white                   // TextFillColorPrimary
-		t.TextMuted = t.Background.Mix(white, 0.773)
-		t.Border = t.Background.Mix(white, 0.071) // ControlStrokeColorDefault
-		t.Surface = t.Background.Mix(white, 0.059)
-		t.SurfaceHover = t.Background.Mix(white, 0.082)
-		t.SurfacePressed = t.Background.Mix(white, 0.031)
-		t.AccentText = black // TextOnAccentFillColorPrimary
-		t.Focus = white      // FocusStrokeColorOuter
-	} else {
-		t.Background = ui.Hex("#f3f3f3")
-		t.Text = t.Background.Mix(black, 0.894)
-		t.TextMuted = t.Background.Mix(black, 0.62)
-		t.Border = t.Background.Mix(black, 0.059)
-		t.Surface = t.Background.Mix(white, 0.702)
-		t.SurfaceHover = t.Background.Mix(ui.Hex("#f9f9f9"), 0.5)
-		t.SurfacePressed = t.Background.Mix(ui.Hex("#f9f9f9"), 0.302)
-		t.AccentText = white
-		t.Focus = t.Background.Mix(black, 0.894)
-	}
-	// AccentFillColorSecondaryBrush and AccentFillColorTertiaryBrush are the fill at Opacity 0.9 and 0.8 (Common_themeresources_any.xaml), laid over the window's SolidBackgroundFillColorBase set above.
-	t.AccentHover = t.Background.Mix(fill, 0.9)
-	t.AccentPressed = t.Background.Mix(fill, 0.8)
+	t.Accent = fluentAccentFill(accent, dark)
+	t.Radius, t.Spacing, t.FontSize = 4, 4, 14                      // ControlCornerRadius, ControlContentThemeFontSize
+	t.Background = pick(dark, ui.Hex("#f3f3f3"), ui.Hex("#202020")) // SolidBackgroundFillColorBase
+	t.AccentText = pick(dark, white, black)                         // TextOnAccentFillColorPrimary
+	fluentLayer(t)
 	// SystemFillColorCritical, SystemFillColorCaution and SystemFillColorSuccess (Common_themeresources_any.xaml).
 	t.Danger = pick(dark, ui.Hex("#c42b1c"), ui.Hex("#ff99a4"))
 	t.Warning = pick(dark, ui.Hex("#9d5d00"), ui.Hex("#fce100"))
@@ -105,6 +83,38 @@ func fluentTheme(dark bool, accent ui.Color) *ui.Theme {
 	// ToolTip: the in-app acrylic's fallback color, not the theme turned over.
 	t.Inverse, t.InverseText = pick(dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c")), t.Text
 	return t
+}
+
+// fluentLayer sets the colors of t that WinUI draws translucent, laid over t's Background: TextFillColorPrimary and Secondary (Text, TextMuted), ControlStrokeColorDefault (Border), ControlFillColorDefault, Secondary and Tertiary (Surface, SurfaceHover, SurfacePressed), FocusStrokeColorOuter (Focus), and AccentFillColorSecondaryBrush and AccentFillColorTertiaryBrush, the accent fill at Opacity 0.9 and 0.8 (AccentHover, AccentPressed; Common_themeresources_any.xaml).
+func fluentLayer(t *ui.Theme) {
+	bg := t.Background
+	if t.Dark {
+		t.Text = white
+		t.TextMuted = bg.Mix(white, 0xc5/255.0)
+		t.Border = bg.Mix(white, 0x12/255.0)
+		t.Surface = bg.Mix(white, 0x0f/255.0)
+		t.SurfaceHover = bg.Mix(white, 0x15/255.0)
+		t.SurfacePressed = bg.Mix(white, 0x08/255.0)
+		t.Focus = white
+	} else {
+		t.Text = bg.Mix(black, 0.894)
+		t.TextMuted = bg.Mix(black, 0.62)
+		t.Border = bg.Mix(black, 0.059)
+		t.Surface = bg.Mix(white, 0.702)
+		t.SurfaceHover = bg.Mix(ui.Hex("#f9f9f9"), 0.5)
+		t.SurfacePressed = bg.Mix(ui.Hex("#f9f9f9"), 0.302)
+		t.Focus = bg.Mix(black, 0.894)
+	}
+	t.AccentHover = bg.Mix(t.Accent, 0.9)
+	t.AccentPressed = bg.Mix(t.Accent, 0.8)
+}
+
+// fluentOver returns t with its translucent colors (fluentLayer) laid over under rather than over the window: the theme of what WinUI draws on a card, whose controls' fills, strokes and text are translucent over the card's fill (measured from WinUI 3 3.3 with CommunityToolkit's SettingsControls 8.2.251219 on Windows 11 26H2 by tools/winui-reference's winui-settings and winui-rows: a TextBox in a SettingsCard reads 254 inside a 236 border with a 139 bottom edge over the card's 251, a ComboBox and a Button 254, the description 95, where over the window they read 251, 229, 134 and 92; in the dark theme 55, 58, 159 and 207 over the card's 43, where over the window 45, 48, 154 and 204).
+func fluentOver(t *ui.Theme, under ui.Color) *ui.Theme {
+	o := *t
+	o.Background = under
+	fluentLayer(&o)
+	return &o
 }
 
 // fluentElevation is ControlElevationBorderBrush for a control h DIPs high: ControlStrokeColorDefault, and ControlStrokeColorSecondary along the bottom edge in the light theme and along the top edge in the dark one, blending over 3 DIPs.
@@ -463,9 +473,11 @@ func fluentField(c *ui.Context, f ui.Element, kind fieldKind) {
 	f.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		p.Stroke(r, t.Border, 4, 1)
 		p.Clip(r, 4, func() {
-			if focused {
+			switch {
+			case focused:
 				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, t.Accent, 0)
-			} else {
+			case !f.IsDisabled():
+				// Disabled, the bottom edge is the border's ControlStrokeColorDefault like the rest of it, without the ControlStrongStrokeColorDefault line (measured from WinUI 3 3.3 by tools/winui-reference's winui-settings: a disabled NumberBox's border reads 236 all round over the card's 251, 58 over 43 in the dark theme).
 				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, strong, 0)
 			}
 		})

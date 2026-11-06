@@ -1,12 +1,12 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), and the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
 // The window is offscreen and never key, so AppKit would draw it inactive, its accent controls (a checked box, an on switch, the default button, the chosen segment) gray. Its NSWindow subclass answers hasKeyAppearance (an NSWindow method outside the SDK's headers) with true, so they are drawn as in the active window, as Breeze UI draws them; -inactive leaves the window inactive. Materials (Liquid Glass, vibrancy), menus, popovers, tooltips and focus rings still do not render into the bitmap.
 //
-//	swift tools/appkit-reference/reference.swift [-inactive] <dir>
+//	swift tools/appkit-reference/reference.swift [-inactive] [-live] <dir>
 import AppKit
 import SwiftUI
 
@@ -14,7 +14,7 @@ let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 let args = CommandLine.arguments.dropFirst()
 let inactive = args.contains("-inactive")
-let out = args.last(where: { $0 != "-inactive" }) ?? "."
+let out = args.last(where: { !$0.hasPrefix("-") }) ?? "."
 
 // A window that draws as the key window, unless -inactive.
 class KeyWindow: NSWindow {
@@ -195,6 +195,45 @@ func rowsSet() -> [Item] {
     ]
 }
 
+// A DisclosureGroup's label as ExpanderRow draws it on macOS: a title over a secondary subtitle, as LabeledContent lays out a row's label.
+struct TitleSubtitle: View {
+    let title: String, subtitle: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2.5) {
+            Text(title)
+            if !subtitle.isEmpty { Text(subtitle).font(.subheadline).foregroundStyle(.secondary) }
+        }
+    }
+}
+
+// settingsSet places SwiftUI's grouped Forms where ui/breeze/widgets_settings_test.go's settingsView places Breeze UI's settings rows on macOS: a section of a Picker of the menu style with a subtitle, a TextField with a label holding a name, an empty one and a Stepper with a format and a subtitle at 16, 16; a Picker alone and a disabled Stepper alone below it; on the right a DisclosureGroup, open, whose label is a title over a subtitle, holding a row with a subtitle and a switch, and a closed one. The Forms are shifted by their padding of 20, so that their sections land where Breeze UI's do.
+func settingsSet() -> [Item] {
+    let settings = RowsForm {
+        Section {
+            Picker(selection: .constant("Auto")) { ForEach(["Light", "Dark", "Auto"], id: \.self) { Text($0).tag($0) } } label: { Text("Appearance"); Text("Light or dark") }
+            TextField("Name", text: .constant("Evan"))
+            TextField("Email", text: .constant(""))
+            Stepper(value: .constant(12.0), in: 6...72, step: 1, format: .number) { Text("Font size"); Text("Points") }
+        }
+    }
+    let language = RowsForm { Picker("Language", selection: .constant("English")) { ForEach(["English", "Français"], id: \.self) { Text($0).tag($0) } } }
+    let copies = RowsForm { Stepper(value: .constant(3.0), in: 1...9, step: 1, format: .number) { Text("Copies") }.disabled(true) }
+    let network = RowsForm {
+        DisclosureGroup(isExpanded: .constant(true)) {
+            LabeledContent { EmptyView() } label: { Text("Proxy"); Text("Automatic") }
+            Toggle("Metered", isOn: .constant(false))
+        } label: { TitleSubtitle(title: "Network", subtitle: "Wi-Fi and proxies") }
+    }
+    let advanced = RowsForm { DisclosureGroup(isExpanded: .constant(false)) { Text("Logs") } label: { TitleSubtitle(title: "Advanced", subtitle: "") } }
+    return [
+        hosted("form-settings", settings, x: -4, y: -4, w: 340, h: 230),
+        hosted("form-language", language, x: -4, y: 193, w: 340, h: 80),
+        hosted("form-copies", copies, x: -4, y: 246, w: 340, h: 80),
+        hosted("form-network", network, x: 320, y: -4, w: 340, h: 170),
+        hosted("form-advanced", advanced, x: 320, y: 129, w: 340, h: 90),
+    ]
+}
+
 // textSet: AppKit's text styles (NSFont.preferredFont(forTextStyle:)) in labels, two in secondaryLabelColor, where TestScreenshotsText's textView places Breeze UI's Text (textTops).
 func textSet() -> [Item] {
     func label(_ s: String, _ style: NSFont.TextStyle, secondary: Bool = false) -> NSTextField {
@@ -296,6 +335,134 @@ func renderToolbar(appearance: NSAppearance.Name, file: String) {
     win.orderOut(nil)
 }
 
+// NewTabs answers newWindowForTab: at the end of the responder chain, as the app's delegate, which makes a tab bar show its + button.
+class NewTabs: NSObject, NSApplicationDelegate {
+    @objc func newWindowForTab(_ sender: Any?) {}
+}
+
+let newTabs = NewTabs()
+
+// renderTabs joins three titled windows, Documents, Downloads and Pictures, with addTabbedWindow, Documents chosen, as TestScreenshotsTabView's first TabView holds them, and prints the frames of the window tab bar's parts (NSTabBar, its track, the NSTabButtons, the separators between them and the NSTabBarNewTabButton) and of each tab's close button, which shows only under the pointer, by its accessibility frame, then renders the window's frame view at 2x into an sRGB bitmap. The bar's glass does not render offscreen: with -live the window is put on the screen, ordered front without activating the app, and captured with screencapture -l, which needs the Screen Recording permission. The app is not active then, so the capture shows the titles dimmed. The + button appears once the tabs are laid out, and AppKit keeps the widths the tabs had without it for all but the last tab: the equal widths are those of a bar without the button.
+func renderTabs(appearance: NSAppearance.Name, file: String) {
+    app.delegate = newTabs
+    let live = args.contains("-live")
+    let windows = ["Documents", "Downloads", "Pictures"].map { title -> KeyWindow in
+        let w = KeyWindow(contentRect: NSRect(x: live ? 200 : -4000, y: live ? 300 : -4000, width: 560, height: 120), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        w.title = title; w.tabbingMode = .preferred; w.tabbingIdentifier = "tabs"; w.isReleasedWhenClosed = false
+        w.appearance = NSAppearance(named: appearance)
+        return w
+    }
+    windows[0].orderFront(nil)
+    windows[0].addTabbedWindow(windows[1], ordered: .above)
+    windows[1].addTabbedWindow(windows[2], ordered: .above)
+    windows[0].tabGroup?.selectedWindow = windows[0]
+    // The tab bar lays out and animates its tabs in on the run loop.
+    RunLoop.current.run(until: Date().addingTimeInterval(2))
+    let frame = windows[0].contentView!.superview!
+    frame.layoutSubtreeIfNeeded(); frame.display()
+    let W = frame.bounds.width, H = frame.bounds.height
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = frame.bounds.size
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    print("== \(file)")
+    let screen = windows[0].frame
+    func walk(_ v: NSView) {
+        let name = String(describing: type(of: v))
+        if name == "NSTabBar" || name == "NSTabBarTrackView" || name == "NSTabButton" || name == "NSTabBarNewTabButton" || (name == "NSTabBarTrackInversionView" && v.frame.width < 2) {
+            let f = v.convert(v.bounds, to: frame)
+            print("\(name) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height) title=\(v.accessibilityTitle() ?? "") label=\(v.accessibilityLabel() ?? "")")
+            if name == "NSTabButton" {
+                for child in v.accessibilityChildren() ?? [] {
+                    if let e = child as? NSAccessibilityElementProtocol {
+                        let r = e.accessibilityFrame()
+                        print("  close x=\(r.minX - screen.minX) top=\(screen.maxY - r.maxY) w=\(r.width) h=\(r.height)")
+                    }
+                }
+            }
+        }
+        v.subviews.forEach(walk)
+    }
+    walk(frame)
+    if live {
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-o", "-l\(windows[0].windowNumber)", out + "/" + file.replacingOccurrences(of: ".png", with: "-live.png")]
+        try! capture.run(); capture.waitUntilExit()
+    }
+    windows.forEach { $0.orderOut(nil) }
+    app.delegate = nil
+}
+
+// HeaderItems fills the toolbar of renderHeaderBar as an app's window title bar: a navigational back item before the title, then after a flexible space a bordered text item and a bordered image item, as breeze.HeaderBar's start and end hold them in TestScreenshotsHeaderBar.
+class HeaderItems: NSObject, NSToolbarDelegate {
+    var back = true
+    func toolbarDefaultItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { (back ? [.init("back")] : []) + [.flexibleSpace, .init("edit"), .init("share")] }
+    func toolbarAllowedItemIdentifiers(_ t: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(t) }
+    func toolbar(_ t: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar f: Bool) -> NSToolbarItem? {
+        let it = NSToolbarItem(itemIdentifier: id)
+        switch id.rawValue {
+        case "back":
+            it.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back"); it.label = "Back"; it.isNavigational = true
+        case "edit":
+            it.title = "Edit"; it.label = "Edit"
+        default:
+            it.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Share"); it.label = "Share"
+        }
+        it.target = noop; it.action = #selector(Noop.act(_:)); it.isBordered = true
+        return it
+    }
+}
+
+let headerItems = HeaderItems()
+let headerItemsNoBack: HeaderItems = { let h = HeaderItems(); h.back = false; return h }()
+
+// renderHeaderBar renders a titled window with a unified toolbar showing its title, and its subtitle when given, with or without the back item, the window's frame view at 2x into an sRGB bitmap, as breeze.HeaderBar draws the bar on macOS, and prints the frames of the traffic lights, the title's text fields with their fonts and colors, the toolbar's view and the items' platters.
+func renderHeaderBar(appearance: NSAppearance.Name, subtitle: String, back: Bool = true, file: String) {
+    let win = KeyWindow(contentRect: NSRect(x: -4000, y: -4000, width: 560, height: 120), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    win.appearance = NSAppearance(named: appearance)
+    win.title = "Documents"; win.subtitle = subtitle
+    let bar = NSToolbar(identifier: back ? "header" : "header-noback"); bar.delegate = back ? headerItems : headerItemsNoBack; bar.displayMode = .iconOnly
+    win.toolbar = bar; win.toolbarStyle = .unified
+    win.orderFront(nil)
+    let frame = win.contentView!.superview!
+    frame.layoutSubtreeIfNeeded(); frame.display()
+    let W = frame.bounds.width, H = frame.bounds.height
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(W * 2), pixelsHigh: Int(H * 2), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0)!.retagging(with: .sRGB)!
+    rep.size = frame.bounds.size
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out + "/" + file))
+    print("== \(file) window \(W)x\(H) contentLayoutRect top=\(H - win.contentLayoutRect.maxY)")
+    for b in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+        if let v = win.standardWindowButton(b) {
+            let f = v.convert(v.bounds, to: frame)
+            print("button \(b.rawValue) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+    }
+    func walk(_ v: NSView) {
+        let name = String(describing: type(of: v))
+        let f = v.convert(v.bounds, to: frame)
+        if let t = v as? NSTextField, !t.stringValue.isEmpty {
+            let font = t.font!
+            let color = t.textColor?.usingColorSpace(.sRGB)
+            let size = t.attributedStringValue.size()
+            print("text \(name) \"\(t.stringValue)\" x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height) advance=\(size.width) font=\(font.fontName) \(font.pointSize) color=\(t.textColor?.description ?? "nil") srgb=\(color.map { "\($0.redComponent) \($0.greenComponent) \($0.blueComponent) \($0.alphaComponent)" } ?? "-")")
+        } else if name.contains("Platter") || name == "NSToolbarButton" || name == "NSToolbarView" || name.contains("TitlebarView") || name.contains("ToolbarTitle") {
+            print("\(name) x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
+        }
+        v.subviews.forEach(walk)
+    }
+    walk(frame)
+    func gray(_ x: Int, _ y: Int) -> String {
+        var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+        return p[0] == p[1] && p[1] == p[2] ? "\(p[0])" : String(format: "#%02x%02x%02x", p[0], p[1], p[2])
+    }
+    // The bar's background down a column clear of the items, and across it under the title's middle.
+    print("  col x=300: " + runs((0..<Int(H * 2)).map { gray(600, $0) }))
+    print("  row y=26: " + runs((0..<Int(W * 2)).map { gray($0, 52) }))
+    win.orderOut(nil)
+}
+
 for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
     render(firstSet(), width: 360, height: 200, appearance: appearance, file: "appkit-\(mode).png")
     render(secondSet(), width: 520, height: 330, appearance: appearance, file: "appkit2-\(mode).png")
@@ -304,5 +471,10 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
     render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
     render(rowsSet(), width: 672, height: 520, appearance: appearance, file: "appkit-rows-\(mode).png")
+    render(settingsSet(), width: 672, height: 480, appearance: appearance, file: "appkit-settings-\(mode).png")
     render(textSet(), width: 360, height: 300, appearance: appearance, file: "appkit-text-\(mode).png")
+    renderTabs(appearance: appearance, file: "appkit-tabs-\(mode).png")
+    renderHeaderBar(appearance: appearance, subtitle: "", file: "appkit-headerbar-\(mode).png")
+    renderHeaderBar(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-subtitle-\(mode).png")
+    renderHeaderBar(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-noback-\(mode).png")
 }

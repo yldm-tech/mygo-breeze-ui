@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows and overcard sets, against TestScreenshotsInputs, TestScreenshotsRows and TestAdwControlsOverCard.
+// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows, overcard, settings, tabview, headerbar, forms and spinlimit sets, against TestScreenshotsInputs, TestScreenshotsRows, TestAdwControlsOverCard, TestScreenshotsSettings, TestScreenshotsTabView, TestScreenshotsHeaderBar, TestScreenshotsWave2Forms and TestAdwPlusEvenWhenDisabled.
 
 // TestAdwPasswordFocusRingDark checks the focus ring of a GtkPasswordEntry in the dark theme, which libadwaita 1.10.0 renders (92, 132, 185) over the entry's fill: GTK mixes the dark theme's accent_color, outside sRGB, at 50% without clamping it, bluer than the clamped #81d0ff at 50% (93, 132, 158).
 func TestAdwPasswordFocusRingDark(t *testing.T) {
@@ -211,5 +211,218 @@ func TestAdwControlsOverCard(t *testing.T) {
 		send, arrow := find("Send"), find(inputsMoreOptions)
 		check("the split button's face over the card", at(send.X-4, send.Y+send.H/2), pick(dark, ui.RGB(235, 235, 235), ui.RGB(72, 72, 75)))
 		check("the split button's seam over the card", ink(arrow.X-1, arrow.Y+arrow.H/2, arrow.X+2, arrow.Y+arrow.H/2+0.5), pick(dark, ui.RGB(217, 217, 217), ui.RGB(91, 91, 93)))
+	}
+}
+
+// adwInkTop returns the first row, in device pixels of a frame at scale, of r (in DIPs) that holds ink darker than 200, or -1.
+func adwInkTop(tester *ui.Tester, r ui.Rect, scale float32) int {
+	img := tester.Image()
+	for y := int(r.Y * scale); y < int((r.Y+r.H)*scale); y++ {
+		for x := int(r.X * scale); x < int((r.X+r.W)*scale); x++ {
+			if img.RGBAAt(x, y).R < 200 {
+				return y
+			}
+		}
+	}
+	return -1
+}
+
+// TestAdwEntryRowTitleOverText checks on GNOME that a filled entry row draws its title in the box of the small text it is laid out as, its ink as far below the box's top as a row's subtitle's below its own: AdwEntryRow allocates the title label at the subtitle's size above the text (allocate_editable_area), and libadwaita 1.10.0 draws "Name" as high in its row as that (tools/adwaita-reference's settings set), where the title drawn as a small span on a line of the body's size sat about 2 pixels lower. It reads the ink from the frame against the elements' boxes, whatever the host's font.
+func TestAdwEntryRowTitleOverText(t *testing.T) {
+	const scale = 2
+	shoot := func(build func(c *ui.Context)) *ui.Tester {
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() { build(c) })
+			})
+		}, 400, 120)
+		tester.SetScale(scale)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		return tester
+	}
+	name := "Evan"
+	entry := shoot(func(c *ui.Context) { EntryRow(c, "Name", &name) })
+	row := shoot(func(c *ui.Context) { ActionRow(c, "Title", "Name", nil) })
+	// The first element showing "Name" in the entry row is its small text, laid out above the field and drawn over.
+	small, ok := entry.Find("Name")
+	sub, ok2 := row.Find("Name")
+	if !ok || !ok2 {
+		t.Fatal("the title or the subtitle is missing")
+	}
+	got, want := adwInkTop(entry, small, scale)-int(small.Y*scale), adwInkTop(row, sub, scale)-int(sub.Y*scale)
+	if got < want-1 || got > want+1 {
+		t.Fatalf("the title's ink starts %d device pixels below its box's top, the subtitle's %d", got, want)
+	}
+}
+
+// TestAdwSpinRowIconsOverTheirFace checks on GNOME, light and dark, that a spin row's − and + are drawn in the button's color over the button's own face, as libadwaita 1.10.0 renders them (tools/adwaita-reference's settings set): 47 over the light face of 235, where over the card they would read 51, and white over the dark face.
+func TestAdwSpinRowIconsOverTheirFace(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		size := 12.0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() { SpinRow(c, "Font size", "Points", &size, 6, 72, 1) })
+			})
+		}, 400, 120)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		for _, name := range []string{"Decrease", "Increase"} {
+			b, ok := tester.Find(name)
+			if !ok {
+				t.Fatalf("dark %v: %s is missing", dark, name)
+			}
+			// The middle of the bar across both icons, a whole device pixel inside its 2-pixel stroke.
+			px := tester.Image().RGBAAt(int((b.X+b.W/2)*2), int((b.Y+b.H/2)*2))
+			want := map[bool]uint8{false: 47, true: 255}[dark]
+			if d := int(px.R) - int(want); d < -2 || d > 2 {
+				t.Errorf("dark %v: %s's icon reads %d, want libadwaita's %d", dark, name, px.R, want)
+			}
+		}
+	}
+}
+
+// TestAdwTabBarAsRendered checks on GNOME, light and dark, the tab bars of TestScreenshotsTabView against libadwaita 1.10.0's AdwTabBars in tools/adwaita-reference's tabview set: each bar 47 pixels high with headerbar_shade_color in its last row (224 over 255 in the light theme, 29 over 46 in the dark one) and the window below it (250, 34); the tabs share the bar in whole pixels as AdwTabBox does, the first a pixel narrower, at 22, 182 and 343, 155, 156 and 156 wide beside the add button, and at 22 and 282, 255 and 256 wide without it; the separator before Pictures fills the pixel column at 340 (224, 77) from 25 to 52.5, 3 inside the tabs' 34 pixels.
+func TestAdwTabBarAsRendered(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		tester := ui.NewTester(tabViewView(Linux), 560, 260)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		want := map[string][2]float32{"Documents": {22, 155}, "Downloads": {182, 156}, "Pictures": {343, 156}, "General": {22, 255}, "Advanced": {282, 256}}
+		for name, xw := range want {
+			r, ok := tester.Find(name)
+			if !ok {
+				t.Fatalf("dark %v: the tab %s is missing", dark, name)
+			}
+			if r.X != xw[0] || r.W != xw[1] {
+				t.Errorf("dark %v: the tab %s is %v wide at %v, want %v wide at %v", dark, name, r.W, r.X, xw[1], xw[0])
+			}
+		}
+		img := tester.Image()
+		at := func(x, y int) uint8 { return img.RGBAAt(x, y).R }
+		bg, shade, window := map[bool]uint8{false: 255, true: 46}[dark], map[bool]uint8{false: 224, true: 29}[dark], map[bool]uint8{false: 250, true: 34}[dark]
+		near := func(got, want uint8) bool { return int(got)-int(want) <= 2 && int(want)-int(got) <= 2 }
+		// The bars start at 16 and 136; at x 100, 47 rows down, the window shows again.
+		for _, top := range []int{16, 136} {
+			for _, row := range []struct {
+				y    int
+				want uint8
+			}{{2 * (top + 45), bg}, {2*(top+46) + 1, shade}, {2 * (top + 46), shade}, {2 * (top + 47), window}} {
+				if got := at(200, row.y); !near(got, row.want) {
+					t.Errorf("dark %v: the bar at %d reads %d at device row %d, want %d", dark, top, got, row.y, row.want)
+				}
+			}
+		}
+		sep := map[bool]uint8{false: 224, true: 77}[dark]
+		if got := at(680, 2*38); !near(got, sep) || !near(at(681, 2*38), sep) || !near(at(682, 2*38), bg) {
+			t.Errorf("dark %v: the separator before Pictures reads %d, %d, %d across device columns 680 to 682, want %d, %d, %d", dark, got, at(681, 2*38), at(682, 2*38), sep, sep, bg)
+		}
+	}
+}
+
+// adwInkSpan returns the first and the last device column of r (in DIPs) holding ink darker than 160 in a frame at scale, or -1, -1.
+func adwInkSpan(tester *ui.Tester, r ui.Rect, scale float32) (int, int) {
+	img := tester.Image()
+	first, last := -1, -1
+	for x := int(r.X * scale); x < int((r.X+r.W)*scale); x++ {
+		for y := int(r.Y * scale); y < int((r.Y+r.H)*scale); y++ {
+			if img.RGBAAt(x, y).R < 160 {
+				if first < 0 {
+					first = x
+				}
+				last = x
+				break
+			}
+		}
+	}
+	return first, last
+}
+
+// TestAdwSpinDigitsTabular checks on GNOME that the spin row's value and NumberInput's are drawn in tabular digits, as GtkSpinButton is .numeric (font-variant-numeric: tabular-nums in libadwaita 1.10.0's _labels.scss): "11" spans as many device pixels as a label of it with the tnum feature, where libadwaita 1.10.0 draws the "1" of "12" 3 pixels further from the "2" than Adwaita Sans's proportional digits put it (tools/adwaita-reference's settings set). It compares the ink with the label's in the same font, so a font whose digits are tabular anyway passes as well.
+func TestAdwSpinDigitsTabular(t *testing.T) {
+	const scale = 2
+	for _, number := range []bool{false, true} {
+		v := 11.0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Gap(16).Width(332).AlignItems(ui.Start).Children(func() {
+					if number {
+						NumberInput(c, &v, 0, 99, 1)
+					} else {
+						ui.Column(c).Width(300).Children(func() { SpinRow(c, "Copies", "", &v, 0, 99, 1) })
+					}
+					ui.Text(c, "11").FontFeatures("tnum").Label("tabular")
+				})
+			})
+		}, 400, 200)
+		tester.SetScale(scale)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		dec, ok := tester.Find("Decrease")
+		label, ok2 := tester.Find("tabular")
+		if !ok || !ok2 {
+			t.Fatal("the buttons or the label are missing")
+		}
+		// The text before the buttons: NumberInput's 80 wide right before Decrease, the spin row's 64 ending 2 (the button's margin) and 6 (the box's gap) before it.
+		text := ui.Rect{X: dec.X - 80, Y: dec.Y, W: 80, H: dec.H}
+		if !number {
+			text = ui.Rect{X: dec.X - 8 - 64, Y: dec.Y, W: 64, H: dec.H}
+		}
+		a, b := adwInkSpan(tester, text, scale)
+		la, lb := adwInkSpan(tester, label, scale)
+		if a < 0 || la < 0 {
+			t.Fatalf("number input %v: no ink in the text (%d) or the label (%d)", number, a, la)
+		}
+		if got, want := b-a, lb-la; got < want-1 || got > want+1 {
+			t.Errorf("number input %v: \"11\" spans %d device pixels, a tabular label of it %d", number, got, want)
+		}
+	}
+}
+
+// TestAdwPlusEvenWhenDisabled checks on GNOME, light and dark, that the + of a disabled Increase is as light in its middle as along its arms, the spin row's at its upper limit and NumberInput's: libadwaita 1.10.0 draws the icon of a disabled button even (151 over the face of 245, 153 over 61 dark, in tools/adwaita-reference's spinlimit set; 175 over 230 in its forms set), where MyGo's half opacity, applied fill by fill, would darken the crossing of two bars drawn over each other.
+func TestAdwPlusEvenWhenDisabled(t *testing.T) {
+	for _, number := range []bool{false, true} {
+		for _, dark := range []bool{false, true} {
+			v := 9.0
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, Linux, func() {
+					Use(c)
+					ui.Column(c).Padding(16).Width(332).AlignItems(ui.Start).Children(func() {
+						if number {
+							NumberInput(c, &v, 1, 9, 1)
+						} else {
+							ui.Column(c).Width(300).Children(func() { SpinRow(c, "Copies", "", &v, 1, 9, 1) })
+						}
+					})
+				})
+			}, 400, 120)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+			tester.Frame()
+			b, ok := tester.Find("Increase")
+			if !ok {
+				t.Fatalf("number input %v, dark %v: Increase is missing", number, dark)
+			}
+			// The middle of the icon, and a device pixel inside its bar across, 4 pixels to the left.
+			img := tester.Image()
+			cx, cy := int((b.X+b.W/2)*2), int((b.Y+b.H/2)*2)
+			if !number {
+				cx = int((b.X+b.W/2)*2) - 1
+			}
+			mid, arm := img.RGBAAt(cx, cy).R, img.RGBAAt(cx-8, cy).R
+			if d := int(mid) - int(arm); d < -3 || d > 3 {
+				t.Errorf("number input %v, dark %v: the disabled +'s middle reads %d, its arm %d", number, dark, mid, arm)
+			}
+		}
 	}
 }

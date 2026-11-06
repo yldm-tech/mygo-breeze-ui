@@ -27,33 +27,43 @@ const (
 // idiomToolbars holds the Toolbar each window is building, which the controls built inside it read, as toggleGroups does for ToggleGroup.
 var idiomToolbars sync.Map // *ui.Context -> *idiomToolbar
 
-// idiomToolbar is a Toolbar being built: the kind and element of each control this package built in it, in order, and whether each shares one platter with the one before it (macOS only).
+// idiomToolbar is a Toolbar being built: the kind and element of each control this package built in it, in order, and whether each shares one platter with the one before it (macOS only). header is the height of the HeaderBar whose start or end it is, 0 in a Toolbar.
 type idiomToolbar struct {
 	kinds  []idiomItemKind
 	items  []ui.Element
 	joined []bool
+	header float32
 }
 
 // idiomBuildToolbar builds ui.Toolbar with fn's controls marked as a toolbar's, restoring the toolbar around it, if any, after.
 func idiomBuildToolbar(c *ui.Context, fn func()) ui.Element {
+	var tb ui.Element
+	idiomWithToolbar(c, &idiomToolbar{}, func() { tb = ui.Toolbar(c, fn) })
+	return tb
+}
+
+// idiomWithToolbar builds fn with the controls built in it noted in tb, restoring the toolbar around it, if any, after.
+func idiomWithToolbar(c *ui.Context, tb *idiomToolbar, fn func()) {
 	outer, nested := idiomToolbars.Load(c)
-	idiomToolbars.Store(c, &idiomToolbar{})
-	tb := ui.Toolbar(c, fn)
+	idiomToolbars.Store(c, tb)
+	fn()
 	if nested {
 		idiomToolbars.Store(c, outer)
 	} else {
 		idiomToolbars.Delete(c)
 	}
-	return tb
 }
 
-// idiomToolbarItem notes e, of kind, as the next control of the Toolbar being built, and returns the toolbar and e's place in it, or nil outside a toolbar.
+// idiomToolbarItem notes e, of kind, as the next control of the Toolbar being built, and returns the toolbar and e's place in it, or nil outside a toolbar. In a HeaderBar on Windows only image buttons are noted: WinUI's TitleBar gives the controls of its headers no look of their own, and only its back and pane toggle buttons are subtle (headerFluentButton), so the other controls are drawn as outside a toolbar.
 func idiomToolbarItem(c *ui.Context, e ui.Element, kind idiomItemKind) (*idiomToolbar, int) {
 	v, ok := idiomToolbars.Load(c)
 	if !ok {
 		return nil, 0
 	}
 	tb := v.(*idiomToolbar)
+	if tb.header > 0 && kind != idiomImage && PlatformOf(c) == Windows {
+		return nil, 0
+	}
 	tb.kinds = append(tb.kinds, kind)
 	tb.items = append(tb.items, e)
 	tb.joined = append(tb.joined, false)

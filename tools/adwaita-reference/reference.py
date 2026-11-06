@@ -1,10 +1,10 @@
 # libadwaita's own controls, for comparing Breeze UI's GNOME look with them.
 #
-# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections, TestScreenshotsInputs and TestScreenshotsText, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
+# It renders, with GTK 4 and libadwaita, the controls of Breeze UI's screenshot tests at the same places, light and dark, at 2x, and writes them as PNGs: the sets of ui/breeze/screenshot_test.go (referenceView, referenceView2, the alert and referenceView3) and libadwaita's counterparts of the widgets of TestScreenshotsFeedback, TestScreenshotsLayout, TestScreenshotsNavigation, TestScreenshotsValues, TestScreenshotsCollections, TestScreenshotsRows, TestScreenshotsSettings, TestScreenshotsTabView, TestScreenshotsHeaderBar and TestScreenshotsWave2Forms, Wave2Idioms, Wave2Collections, TestScreenshotsInputs and TestScreenshotsText, laid out in boxes with the paddings and gaps of those tests' rows and columns, so a control sits where Breeze UI's does when both are the same size. It prints every placed control's bounds in window DIPs, and writes popovers, which GTK draws in surfaces of their own, over the window at their places. Breeze UI follows libadwaita 1.10.0 on GTK 4.24 (GNOME 51); it was run with GTK 4.24.1, libadwaita 1.10.0, PyGObject 3.58.1 and the Adwaita Sans font on Arch Linux, under Xvfb:
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows and text; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -640,6 +640,72 @@ def rows_set():
     return Scene(672, 520, root, named={"card": card, "rows": settings, "storage": storage, "privacy": privacy, "network": network})
 
 
+def settings_set():
+    """TestScreenshotsSettings's settingsView: in a 300-pixel column, a boxed list of an AdwComboRow with a subtitle, an AdwEntryRow holding a name, an empty one and an AdwSpinRow with a subtitle, then an AdwComboRow and a disabled AdwSpinRow each alone in a boxed list; beside them an open AdwExpanderRow with a subtitle holding an action row and a switch row, and a closed one, each in a boxed list."""
+    def boxed(*rows):
+        box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        box.add_css_class("boxed-list")
+        for row in rows:
+            box.append(row)
+        return box
+
+    def combo(title, items, selected, subtitle=""):
+        return Adw.ComboRow(title=title, subtitle=subtitle, model=strings(items), selected=selected)
+
+    def entry(title, text):
+        row = Adw.EntryRow(title=title)
+        row.set_text(text)
+        return row
+
+    def spin(title, value, lower, upper, subtitle="", sensitive=True):
+        row = Adw.SpinRow.new_with_range(lower, upper, 1)
+        row.set_title(title)
+        row.set_subtitle(subtitle)
+        row.set_value(value)
+        row.set_sensitive(sensitive)
+        return row
+
+    settings = boxed(combo("Appearance", ["Light", "Dark", "Auto"], 2, "Light or dark"), entry("Name", "Evan"), entry("Email", ""), spin("Font size", 12, 6, 72, "Points"))
+    language = combo("Language", ["English", "Français"], 0)
+    copies = spin("Copies", 3, 1, 9, sensitive=False)
+    left = vbox(16, settings, boxed(language), boxed(copies), width=300)
+
+    network = Adw.ExpanderRow(title="Network", subtitle="Wi-Fi and proxies", expanded=True)
+    network.add_row(Adw.ActionRow(title="Proxy", subtitle="Automatic"))
+    network.add_row(Adw.SwitchRow(title="Metered"))
+    advanced = Adw.ExpanderRow(title="Advanced")
+    advanced.add_row(Adw.ActionRow(title="Logs"))
+    right = vbox(16, boxed(network), boxed(advanced), width=300)
+    # The rows ask to expand, which would widen the columns past the test's 300 to the window's end.
+    left.set_hexpand(False)
+    right.set_hexpand(False)
+    root = hbox(24, left, right, padding=16)
+    return Scene(672, 480, root, named={"settings": settings, "language": language, "copies": copies, "network": network, "advanced": advanced})
+
+
+def tabview_set():
+    """TestScreenshotsTabView's tabViewView: an AdwTabBar 528 wide at 16, 16 over an AdwTabView of Documents (chosen), Downloads and Pictures, a flat button with adw-tab-new-symbolic as its end action, the chosen tab's text 12 below the 47-pixel bar, and at 16, 136 a bar of General and Advanced (chosen) without the end action. The pages' close buttons show on the chosen tab and under the pointer, as AdwTab shows them; the second bar's tabs close too, as AdwTabBar has no tabs that do not, while Breeze UI's tab view built without close shows none. The views take no room: only their bars show."""
+    def tab_bar(titles, chosen, end_action):
+        view = Adw.TabView()
+        pages = [view.append(Gtk.Label(label=title)) for title in titles]
+        for page, title in zip(pages, titles):
+            page.set_title(title)
+        view.set_selected_page(pages[chosen])
+        view.set_visible(False)
+        bar = Adw.TabBar(view=view, autohide=False)
+        if end_action:
+            new_tab = Gtk.Button(icon_name="adw-tab-new-symbolic", tooltip_text="New Tab")
+            new_tab.add_css_class("flat")
+            bar.set_end_action_widget(new_tab)
+        bar.set_size_request(528, -1)
+        return vbox(0, bar, view), bar
+
+    docs, docs_bar = tab_bar(["Documents", "Downloads", "Pictures"], 0, True)
+    content = Gtk.Label(label="Showing Documents")
+    prefs, prefs_bar = tab_bar(["General", "Advanced"], 1, False)
+    return fixed(560, 260, [(docs, 16, 16), (content, 16, 75), (prefs, 16, 136)], named={"docs": docs_bar, "content": content, "prefs": prefs_bar})
+
+
 def over_card_set():
     """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
     box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -656,6 +722,19 @@ def over_card_set():
     root = vbox(0, box, padding=16, width=300)
     root.set_hexpand(False)
     return Scene(332, 160, start(root), named={"split": split, "password": entry})
+
+
+def spin_limit_set():
+    """The spin row of TestAdwPlusEvenWhenDisabled: in a boxed list 300 wide, 16 from the window's edges, an AdwSpinRow Copies at the upper limit of 1 to 9, its + button insensitive, to read the icon of a disabled button. Nothing keeps the focus, which the row would take as the window's only focusable widget."""
+    box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+    box.add_css_class("boxed-list")
+    row = Adw.SpinRow.new_with_range(1, 9, 1)
+    row.set_title("Copies")
+    row.set_value(9)
+    box.append(row)
+    root = vbox(0, box, padding=16, width=300)
+    root.set_hexpand(False)
+    return Scene(332, 120, start(root), named={"row": row}, shown=lambda window: window.set_focus(None))
 
 
 def text_set():
@@ -676,9 +755,27 @@ SETS = [
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
     ("inputs", "adwaita-inputs", inputs_set),
     ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
-    ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set),
+    ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set), ("spinlimit", "adwaita-spinlimit", spin_limit_set),
+    ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
     ("text", "adwaita-text", text_set),
 ]
+
+
+def headerbar_set(subtitle=""):
+    """TestScreenshotsHeaderBar's headerView, the sets headerbar and headerbarsub: an AdwHeaderBar at the top of the window's content, outside a window's titlebar slot and an AdwToolbarView as Breeze UI's HeaderBar is drawn, its title an AdwWindowTitle reading Documents (with the subtitle 12 items in headerbarsub), go-previous-symbolic packed at its start and Edit and send-to-symbolic at its end, GTK's close button after them (decoration-layout :close, the window controls headerTestRoom gives room for on GNOME), then the window's content padded 16."""
+    bar = Adw.HeaderBar(title_widget=Adw.WindowTitle(title="Documents", subtitle=subtitle), decoration_layout=":close")
+    back = Gtk.Button(icon_name="go-previous-symbolic")
+    edit = Gtk.Button(label="Edit")
+    share = Gtk.Button(icon_name="send-to-symbolic")
+    bar.pack_start(back)
+    bar.pack_end(share)
+    bar.pack_end(edit)
+    content = Gtk.Label(label="Content", xalign=0)
+    root = vbox(0, bar, pad(content, 16))
+    return Scene(560, 120, root, named={"headerbar": bar, "back": back, "edit": edit, "share": share})
+
+
+SETS += [("headerbar", "adwaita-headerbar", headerbar_set), ("headerbarsub", "adwaita-headerbar-subtitle", lambda: headerbar_set("12 items"))]
 
 
 def render(window, scene, path):

@@ -26,6 +26,9 @@ func button(c *ui.Context, label string, primary bool) ui.Element {
 	}
 	tb, i := idiomToolbarItem(c, b, kind)
 	switch p := PlatformOf(c); {
+	case p == Windows && tb != nil && tb.header > 0:
+		// Only image buttons are noted in a HeaderBar on Windows (idiomToolbarItem).
+		headerFluentButton(c, b, tb.header)
 	case p == Windows && tb != nil && !primary:
 		idiomFluentAppBarButton(c, b, label == "", false)
 	case p == Windows:
@@ -367,7 +370,7 @@ func Combobox(c *ui.Context, selected *string, options []string) ui.Element {
 func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	switch PlatformOf(c) {
 	case Windows:
-		return formsFluentNumberInput(c, value, lo, hi, step)
+		return formsFluentNumberInput(c, value, lo, hi, step, "", true)
 	case Linux:
 		return formsAdwNumberInput(c, value, lo, hi, step)
 	}
