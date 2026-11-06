@@ -1,7 +1,11 @@
 package breeze
 
 import (
+	"fmt"
+	"math"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -452,5 +456,225 @@ func TestAdwPopoverAtItsAnchor(t *testing.T) {
 		if got, want := panel.Y, anchor.Y+anchor.H; got < want-0.01 || got > want+0.01 {
 			t.Errorf("dark %v: the popover starts at %v, want the button's bottom edge %v", dark, got, want)
 		}
+	}
+}
+
+// TestAdwCalendarAsRendered checks CalendarView on GNOME against GtkCalendar as libadwaita 1.10.0 renders it (tools/adwaita-reference's datepicker set), whatever the font: GtkGridLayout counts the hidden week-number column in the homogeneous grid's request, so the grid asks for 3 and 8 columns of its widest label (a day name, or a day number padded 3 at either side, its margin of 3 included, in whole pixels), which the 7 shown columns share: 283 pixels and columns of 40 in Adwaita Sans, the calendar 285 wide with its border; and the border, outside the background, is 15% of currentColor over the window's background, 220 in the light theme and 67 in the dark one, where the header's line over the view is 224 and 63; and the focus ring over the chosen day after a click is GTK's mix of accent_color. It writes datePickerView after a click on the 20th, light and dark, to the directory BREEZE_SCREENSHOTS names, to compare with the datepickerfocus set's render.
+func TestAdwCalendarAsRendered(t *testing.T) {
+	fixToday(t, datePickerToday)
+	for _, dark := range []bool{false, true} {
+		day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+		var cal ui.Rect
+		widest := float32(0)
+		tester := dateTester(Linux, 640, 520, func(c *ui.Context) {
+			ui.Row(c).Padding(16).AlignItems(ui.Start).Children(func() {
+				cal = CalendarView(c, &day).Bounds()
+			})
+			th := c.Theme()
+			widest = 0
+			for _, s := range []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"} {
+				w, _ := c.MeasureText(0, ui.Span{Text: s, Size: th.FontSize})
+				widest = max(widest, float32(math.Ceil(float64(w)))+3)
+			}
+			for d := 1; d <= 31; d++ {
+				w, _ := c.MeasureText(0, ui.Span{Text: fmt.Sprint(d), Size: th.FontSize, Features: "tnum"})
+				widest = max(widest, float32(math.Ceil(float64(w)))+9)
+			}
+		})
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		if want := 2 + 3 + 8*widest; cal.W < want-0.01 || cal.W > want+0.01 {
+			t.Errorf("dark %v: the calendar is %v wide, want 2 + 3 + 8 × %v", dark, cal.W, widest)
+		}
+		label, ok := tester.Find(dayName(time.November, 18))
+		if !ok {
+			t.Fatal("the 18th is missing")
+		}
+		if want := 8 * widest / 7; label.W+3 < want-0.01 || label.W+3 > want+0.01 {
+			t.Errorf("dark %v: a column is %v wide, want 8/7 of %v", dark, label.W+3, widest)
+		}
+		edge, line := shotPixel(tester, cal.X+0.25, cal.Y+cal.H/2), shotPixel(tester, cal.X+cal.W/2, cal.Y+1+34+0.25)
+		wantEdge, wantLine := [3]int{220, 220, 221}, [3]int{224, 224, 225}
+		if dark {
+			wantEdge, wantLine = [3]int{67, 67, 70}, [3]int{63, 63, 65}
+		}
+		if !samePixel(edge, wantEdge, 2) || !samePixel(line, wantLine, 2) {
+			t.Errorf("dark %v: the border is %v and the header's line %v, want libadwaita's %v and %v", dark, edge, line, wantEdge, wantLine)
+		}
+		// datePickerView after a click on the 20th, to compare with the datepickerfocus set's render.
+		shot := ui.NewTester(datePickerView(Linux), 560, 400)
+		shot.SetLocale("en-US")
+		shot.SetScale(2)
+		shot.SetDark(dark)
+		shot.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		shot.Frame()
+		if err := shot.Click(dayName(time.November, 20)); err != nil {
+			t.Fatal(err)
+		}
+		shot.Frame()
+		shot.Frame()
+		writeShot(t, os.Getenv("BREEZE_SCREENSHOTS"), fmt.Sprintf("breeze-datepicker-linux-focus-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), shot)
+		// The ring over the chosen day's accent, 2 pixels inside its label's edge: (28, 114, 209) in the light theme and (90, 170, 255) in the dark one, where GTK mixes the dark accent_color, outside sRGB, at 50% and clamps it after (the datepickerfocus set's render).
+		twenty, _ := shot.Find(dayName(time.November, 20))
+		ring, want := shotPixel(shot, twenty.X+0.75, twenty.Y+twenty.H/2), [3]int{28, 114, 209}
+		if dark {
+			want = [3]int{90, 170, 255}
+		}
+		if !samePixel(ring, want, 2) {
+			t.Errorf("dark %v: the focus ring over the chosen day is %v, want libadwaita's %v", dark, ring, want)
+		}
+		// GtkCalendar sets GTK_STATE_FLAG_FOCUSED on the label at focus_row and focus_col whether it has the focus or not, so the ring stays once the focus has left the calendar: in the datepickeraway set's render the menu button has the focus and the 20th still shows the ring, flags 164 (focused, selected, left to right). Tab takes the focus to the date picker here.
+		shot.Key(0, ui.KeyTab)
+		shot.Frame()
+		shot.Frame()
+		if !shot.Focused("11/18/2026") {
+			t.Fatal("Tab did not take the focus from the calendar to the date picker")
+		}
+		writeShot(t, os.Getenv("BREEZE_SCREENSHOTS"), fmt.Sprintf("breeze-datepicker-linux-away-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), shot)
+		if ring := shotPixel(shot, twenty.X+0.75, twenty.Y+twenty.H/2); !samePixel(ring, want, 2) {
+			t.Errorf("dark %v: with the focus outside the calendar the 20th's edge is %v, want libadwaita's ring %v", dark, ring, want)
+		}
+		// The ring over a day not chosen, after a click on the 20th and Right (the datepickerkeys set's render): accent_color at 50% over view_bg_color, (129, 175, 222) in the light theme and (78, 118, 171) in the dark one, where accent_color's blue past 255 is mixed before it is clamped.
+		if err := shot.Click(dayName(time.November, 20)); err != nil {
+			t.Fatal(err)
+		}
+		shot.Frame()
+		shot.Key(0, ui.KeyRight)
+		shot.Frame()
+		shot.Frame()
+		writeShot(t, os.Getenv("BREEZE_SCREENSHOTS"), fmt.Sprintf("breeze-datepicker-linux-keys-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), shot)
+		next, _ := shot.Find(dayName(time.November, 21))
+		ring, want = shotPixel(shot, next.X+0.75, next.Y+next.H/2), [3]int{129, 175, 222}
+		if dark {
+			want = [3]int{78, 118, 171}
+		}
+		if !samePixel(ring, want, 2) {
+			t.Errorf("dark %v: the focus ring over the 21st is %v, want libadwaita's %v", dark, ring, want)
+		}
+	}
+}
+
+// TestAdwDatePickerPopover checks on GNOME that DatePicker's popover is placed as GtkPopover without its arrow places a GtkMenuButton's (tools/adwaita-reference's datepickernoarrow set, libadwaita 1.10.0): its contents start at the button's bottom edge, centered on it, padded 8 around the calendar. It writes the open picker of datePickerView, light and dark, to the directory BREEZE_SCREENSHOTS names, to compare with the set's render.
+func TestAdwDatePickerPopover(t *testing.T) {
+	fixToday(t, datePickerToday)
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, dark := range []bool{false, true} {
+		tester := ui.NewTester(datePickerView(Linux), 560, 400)
+		tester.SetLocale("en-US")
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		if err := tester.Click("11/18/2026"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		tester.Frame()
+		writeShot(t, dir, fmt.Sprintf("breeze-datepicker-linux-open-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), tester)
+	}
+	// The picker alone where datePickerView places it, in a window wide enough that MyGo need not move the popover inside it (GTK lets it run past the window's edge, as in the set's render), so that the popover's calendar is the only one: its header's first button is 8 inside the contents' start and top, its last 8 inside their end.
+	date := time.Date(2026, time.November, 18, 9, 0, 0, 0, time.UTC)
+	var button ui.Rect
+	tester := dateTester(Linux, 640, 400, func(c *ui.Context) {
+		ui.Row(c).Fill().Padding(16).AlignItems(ui.Start).Children(func() {
+			ui.Box(c).Width(344).Shrink(0)
+			button = DatePicker(c, &date).Bounds()
+		})
+	})
+	if err := tester.Click("11/18/2026"); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	prev, ok := tester.Find("Previous Month")
+	next, ok2 := tester.Find("Next Year")
+	if !ok || !ok2 {
+		t.Fatal("the popover's calendar is missing")
+	}
+	if top, want := prev.Y-8, button.Y+button.H; top < want-0.01 || top > want+0.01 {
+		t.Errorf("the popover's contents start at %v, want the button's bottom, %v", top, want)
+	}
+	if mid, want := (prev.X-8+next.X+next.W+8)/2, button.X+button.W/2; mid < want-0.5 || mid > want+0.5 {
+		t.Errorf("the popover's contents are centered at %v, the button at %v", mid, want)
+	}
+	// The calendar has the focus, but no day has the ring until a key moves among the days (GtkCalendar's focus_row is -1 until then): the chosen day's edge is its accent. After Right, the 19th has the ring, 2 pixels inside its edge.
+	tester.SetScale(2)
+	tester.Frame()
+	if !tester.Focused(dayName(time.November, 18)) {
+		t.Fatal("the open calendar does not have the focus")
+	}
+	label, _ := tester.Find(dayName(time.November, 18))
+	accent := shotPixel(tester, label.X+label.W/2, label.Y+4)
+	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); !samePixel(edge, accent, 10) {
+		t.Errorf("the chosen day shows a ring as the popover opens: %v at its edge, its accent %v", edge, accent)
+	}
+	tester.Key(0, ui.KeyRight)
+	tester.Frame()
+	tester.Frame()
+	label, _ = tester.Find(dayName(time.November, 19))
+	inside := shotPixel(tester, label.X+label.W/2, label.Y+label.H-4.5)
+	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); samePixel(edge, inside, 10) {
+		t.Errorf("no ring on the 19th after Right: %v at its edge, %v inside", edge, inside)
+	}
+	// A click on the 20th chooses it and closes the popover. GNOME's apps keep the GtkCalendar of their popover, which keeps the label it focused, so opened again it shows the ring on the 20th at once (the datepickerreopen set's render: the 20th's flags 164 as the popover opens again, 128 as it opened first).
+	if err := tester.Click(dayName(time.November, 20)); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	if _, open := tester.Find("Previous Month"); open {
+		t.Fatal("a click on a day did not close the popover")
+	}
+	if err := tester.Click("11/20/2026"); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	label, _ = tester.Find(dayName(time.November, 20))
+	accent = shotPixel(tester, label.X+label.W/2, label.Y+4)
+	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); samePixel(edge, accent, 10) {
+		t.Errorf("no ring on the 20th as the popover opens again: %v at its edge, its accent %v", edge, accent)
+	}
+}
+
+// TestAdwHeaderBarTitleWidthChars checks on GNOME that HeaderBar's title is at least as wide as AdwWindowTitle's title label, whose width-chars is 5 (adw-window-title.ui): GtkLabel asks for 5 of Pango's approximate character widths, the larger of the English sample string's width over its characters and the widest digit's, rounded to whole pixels, in the title's bold. It shows where the title is moved aside by an end box wider than half the room: in libadwaita 1.10.0's render of tools/adwaita-reference's switcher set, "Music" (43.6 pixels in Adwaita Sans Bold) is centered in a label 74 wide, 12 + 5 × 10 + 12, ending 6 before the switcher at 148, its ink from 84 to 126.
+func TestAdwHeaderBarTitleWidthChars(t *testing.T) {
+	var switcher ui.Rect
+	var least float32
+	tester := ui.NewTester(func(c *ui.Context) {
+		Preview(c, Linux, func() {
+			Use(c)
+			ui.Column(c).Fill().Children(func() {
+				bar := 1
+				// The bar is named otherwise, so that the title's text is what shows Music.
+				HeaderBar(c, "Music", "", nil, func() { switcher = ViewSwitcher(c, &bar, switcherTestItems(true)...).Bounds() }).Label("Window")
+			})
+			th := c.Theme()
+			sample, _ := c.MeasureText(0, ui.Span{Text: pangoSampleEnglish, Size: th.FontSize, Weight: 700})
+			char := sample / float32(len([]rune(pangoSampleEnglish)))
+			for _, d := range "0123456789" {
+				w, _ := c.MeasureText(0, ui.Span{Text: string(d), Size: th.FontSize, Weight: 700})
+				char = max(char, float32(math.Round(float64(w))))
+			}
+			least = 12 + 5*char + 12
+		})
+	}, 560, 140)
+	tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	tester.SetTitleBar(headerTestRoom(Linux, ui.LeftToRight))
+	tester.Frame()
+	tester.Frame()
+	tester.Frame()
+	title, ok := tester.Find("Music")
+	if !ok {
+		t.Fatal("the title is missing")
+	}
+	if title.W+24 >= least {
+		t.Fatalf("the title is %v wide, wider than 5 characters less their padding (%v): the test needs a shorter one", title.W, least-24)
+	}
+	// The title's label ends 6 before the end box and its text is centered in it.
+	if mid, want := title.X+title.W/2, switcher.X-6-least/2; mid < want-0.5 || mid > want+0.5 {
+		t.Errorf("the title's middle is at %v, want %v: the middle of a label %v wide ending 6 before the switcher at %v", mid, want, least, switcher.X)
 	}
 }
