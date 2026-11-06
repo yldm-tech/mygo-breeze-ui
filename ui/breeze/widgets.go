@@ -60,7 +60,7 @@ func Checkbox(c *ui.Context, checked *bool, label string) ui.Element {
 	})
 	switch PlatformOf(c) {
 	case Windows:
-		fluentCheckbox(c, row, box, on)
+		fluentCheckbox(c, row, box, on, false)
 	case Linux:
 		adwCheckbox(c, row, box, on)
 	default:
@@ -194,6 +194,16 @@ func TextInput(c *ui.Context, value *string) ui.Element {
 // TextArea creates a multi-line text input editing *value, in the box the platform draws around its text views. It is ui.TextArea's counterpart.
 func TextArea(c *ui.Context, value *string) ui.Element {
 	return styleField(c, ui.TextArea(c, value), multiLine)
+}
+
+// TextInputBuffer creates a single-line text input editing value, a ui.TextBuffer whose edits never copy the whole document, in the box TextInput draws: the same bezel, focus ring, fill, placeholder and disabled look on every platform. Editing, the selection, undo, input methods and assistive technology are MyGo's, as ui.TextInputBuffer gives them; MyGo styles a buffer input with the padding, background, border and corners of ui.TextInput (styledBufferInput in textbuffer_input.go), which styleField replaces as it does TextInput's. It is ui.TextInputBuffer's counterpart.
+func TextInputBuffer(c *ui.Context, value *ui.TextBuffer) ui.Element {
+	return styleField(c, ui.TextInputBuffer(c, value), singleLine)
+}
+
+// TextAreaBuffer creates a multi-line text input editing value, a ui.TextBuffer whose edits never copy the whole document and whose layout keeps only the paragraphs in view, in the box TextArea draws: the same text view frame, focus ring, fill and disabled look on every platform. Editing, the selection, undo, input methods, its scrolling and assistive technology are MyGo's, as ui.TextAreaBuffer gives them. It is ui.TextAreaBuffer's counterpart.
+func TextAreaBuffer(c *ui.Context, value *ui.TextBuffer) ui.Element {
+	return styleField(c, ui.TextAreaBuffer(c, value), multiLine)
 }
 
 // SearchField creates a field for a search query with a magnifying glass, and a button clearing it while it holds text, as the platform's search fields look. It is ui.SearchField's counterpart.
@@ -364,8 +374,11 @@ func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element
 	return formsMacNumberInput(c, value, lo, hi, step)
 }
 
-// RadioGroup creates the group that radio buttons built in fn choose within, which the arrows move through. It is package ui's.
-func RadioGroup(c *ui.Context, fn func()) ui.Element { return ui.RadioGroup(c, fn) }
+// RadioGroup creates the group that radio buttons built in fn choose within, a column of them, set as far apart as the platform sets its radio buttons: 6 points down the column and 8 across a row on macOS (SwiftUI's radio-group picker), RadioButtons' RowSpacing 8 and ColumnSpacing 7 on Windows, and on GNOME, which has no radio group, the padded check buttons next to each other. The group is ui.RadioGroup's own element, so Tab stops once at the chosen radio button, the arrows, Home and End choose among them, assistive technology sees a radio group named by Label, and Row lays it out across, as package ui's. It is ui.RadioGroup's counterpart.
+func RadioGroup(c *ui.Context, fn func()) ui.Element {
+	down, across := formsRadioGroupSpacing(PlatformOf(c))
+	return ui.RadioGroup(c, fn).GapY(down).GapX(across)
+}
 
 // Modal shows a dialog built by fn over the window while *open, as the platform draws its dialogs; clicking outside it or pressing Escape sets *open to false, which Dismissed reports. It is ui.Modal's counterpart.
 func Modal(c *ui.Context, open *bool, fn func()) ui.Element {

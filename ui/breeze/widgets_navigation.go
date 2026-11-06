@@ -57,8 +57,16 @@ func Sidebar(c *ui.Context, selected *string, fn func()) ui.Element {
 		// NavigationViewExpandedPaneBackground is SolidBackgroundFillColorTransparent: the window shows through the pane.
 		sb.Background(ui.Transparent).Padding(4)
 	case Linux:
-		// .sidebar-pane: sidebar_bg_color with a 1-pixel sidebar_border_color line along its end; the list is padded 6 pixels ($menu_margin).
-		sb.Background(adwSidebarBg(t)).Padding(6).BorderEndWidth(1).BorderColor(adwSidebarBorder(t))
+		// .sidebar-pane: sidebar_bg_color with a 1-pixel sidebar_border_color line along its end, an inset box-shadow that takes no room, so a row reaches 6 pixels from the end as from the start; the list is padded 6 pixels ($menu_margin). Measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference: in a 200-pixel sidebar a row spans 6 to 194.
+		line := adwSidebarBorder(t)
+		rtl := c.Direction() == ui.RightToLeft
+		sb.Background(adwSidebarBg(t)).Padding(6).DrawOver(func(p *ui.Painter, r ui.Rect) {
+			x := r.X + r.W - 1
+			if rtl {
+				x = r.X
+			}
+			p.Fill(ui.Rect{X: x, Y: r.Y, W: 1, H: r.H}, line, 0)
+		})
 	default:
 		// The selection is 10 points in from the source list's edges, measured.
 		sb.Background(macSidebarBg(t)).Padding(10)

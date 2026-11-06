@@ -7,7 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// GNOME: libadwaita 1.10.0 (GNOME 51, on GTK 4.24.0, with adwaita-icon-theme 51.0's symbolic icons), from its stylesheet (src/stylesheet/_colors.scss, which holds what _defaults.scss did before 1.10, _common.scss, _drawing.scss, widgets/_buttons.scss, _checks.scss and _switch.scss) and, for the accent and the switch's size, its C code and GTK's. Its colors are the same as libadwaita 1.7.6's. libadwaita colors controls with currentColor at an opacity; those are resolved here over window_bg_color.
+// GNOME: libadwaita 1.10.0 (GNOME 51, on GTK 4.24.0, with adwaita-icon-theme 51.0's symbolic icons), from its stylesheet (src/stylesheet/_colors.scss, which holds what _defaults.scss did before 1.10, _common.scss, _drawing.scss, widgets/_buttons.scss, _checks.scss and _switch.scss) and, for the accent and the switch's size, its C code and GTK's. Its colors are the same as libadwaita 1.7.6's. libadwaita colors controls with currentColor at an opacity; those are resolved here over window_bg_color. The controls were then compared pixel by pixel with libadwaita 1.10.0 itself, rendered with GTK 4.24.1 and Adwaita Sans by tools/adwaita-reference, whose values are cited as measured from it.
 
 // adwAccent is libadwaita's default blue accent, accent_bg_color.
 var adwAccent = ui.Hex("#3584e4")
@@ -35,7 +35,8 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.SurfaceHover = t.Background.Mix(white, 0.15)
 		t.SurfacePressed = t.Background.Mix(white, 0.30)
 		t.Danger, t.Warning, t.Success = ui.Hex("#c01c28"), ui.Hex("#cd9309"), ui.Hex("#26a269")
-		t.Focus = ui.RGBA(129, 208, 255, 0.5) // accent_color at 50%
+		// accent_color at 50%. The dark theme's accent_color is the accent with its Oklab lightness raised to 0.85, which for #3584e4 is outside sRGB (128.6, 208.4, 310.8: its blue past 255), and GTK 4.24 mixes it at 50% unclamped: libadwaita 1.10.0's focus ring reads (92, 132, 185) over an entry's (57, 57, 60) (measured by tools/adwaita-reference), where the clamped #81d0ff at 50% gives (93, 132, 158). The blue's 185 needs 64.3% of 255; these values give GTK's ring over the entry's and a button's faces, and come within 3 levels of it over the window.
+		t.Focus = ui.RGBA(112, 175, 255, 0.643)
 	} else {
 		t.Background = ui.Hex("#fafafb")
 		t.Text = t.Background.Mix(adwInk, 0.8)
@@ -106,14 +107,23 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 		return
 	}
 	adwFocusRing(t, b, 9, nil)
-	face := t.Surface
+	// $button_color, $button_hover_color and $button_active_color are currentColor at 10%, 15% and 30%, translucent, so a button shows what is behind it: over a boxed list's card its face is the card's color mixed, 235 in the light theme and 72 in the dark one where over the window it is 230 and 57 (measured from libadwaita 1.10.0 by tools/adwaita-reference, an AdwActionRow's suffix and the inputs set's buttons). The text takes its color over the face as it is over the window.
+	share := float32(0.10)
 	switch {
 	case pressed:
-		face = t.SurfacePressed
+		share = 0.30
 	case hovered:
-		face = t.SurfaceHover
+		share = 0.15
 	}
-	b.Background(face).TextColor(adwTextOn(t, face))
+	b.Background(adwInkLayer(t, share)).TextColor(adwTextOn(t, adwInkAlpha(t, t.Background, share)))
+}
+
+// adwInkLayer is currentColor at share as a translucent color, what adwInkAlpha lays over a background: white in the dark theme, and in the light one window_fg_color, the shade at 80%.
+func adwInkLayer(t *ui.Theme, share float32) ui.Color {
+	if t.Dark {
+		return white.Alpha(share)
+	}
+	return adwInk.Alpha(share * 0.8)
 }
 
 // adwCheckbox draws a GtkCheckButton: a 20-pixel indicator (14 and padding 3) with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 (.text-button) with corners of 9 that shows the focus ring inside its edge; checked, the accent with libadwaita's check mark in accent_fg_color.
@@ -143,23 +153,34 @@ func adwCheckbox(c *ui.Context, row, box ui.Element, on bool) {
 	})
 }
 
-// adwSwitch draws a GtkSwitch: 46 by 26 pixels, a capsule track padded by 3 around a 20-pixel round slider with a soft shadow, moving in 100 milliseconds.
+// adwSwitch draws a GtkSwitch: 46 by 26 pixels, a capsule track padded by 3 around a 20-pixel round slider with a soft shadow, moving in 100 milliseconds; the slider is adwSliderFill off and white when checked or under the pointer. Disabled, the slider casts no shadow (switch > slider:disabled), as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
 func adwSwitch(c *ui.Context, sw ui.Element, on bool) {
-	t := c.Theme()
-	hovered, pressed := sw.Hovered(), sw.Pressed()
+	adwSwitchTrack(c, c.Theme(), sw, sw.Hovered(), sw.Pressed(), on)
+}
+
+// adwSwitchTrack draws a GtkSwitch on sw, its trough laid over t's Background, under the pointer if hovered and pressed if pressed: adwSwitch's look for a switch whose state is another element's, as AdwSwitchRow's.
+func adwSwitchTrack(c *ui.Context, t *ui.Theme, sw ui.Element, hovered, pressed, on bool) {
 	pos := knob(sw, on, 100*time.Millisecond)
 	at := along(c, pos)
 	sw.Size(46, 26).Radius(13).Background(adwTrough(t, hovered, pressed).Mix(adwAccentFill(t, hovered, pressed), pos))
-	slider := white
-	if t.Dark && !on && !hovered && !pressed {
-		slider = t.Background.Mix(white, 0.8) // $slider_color, white over view_bg_color
+	slider := adwSliderFill(t)
+	if on || hovered || pressed {
+		// switch:checked > slider and switch:hover > slider: white, as libadwaita 1.10.0 (GTK 4.24.1) renders a checked switch's slider in the dark theme too (measured by tools/adwaita-reference).
+		slider = white
 	}
 	sw.Draw(func(p *ui.Painter, r ui.Rect) {
 		const in, d = 3, 20
 		k := ui.Rect{X: r.X + in + at*(r.W-d-2*in), Y: r.Y + (r.H-d)/2, W: d, H: d}
-		p.Shadow(k, d/2, 0, 2, 4, 0, ui.RGBA(0, 0, 6, 0.2))
+		if !sw.IsDisabled() {
+			p.Shadow(k, d/2, 0, 2, 4, 0, ui.RGBA(0, 0, 6, 0.2))
+		}
 		p.Fill(k, slider, d/2)
 	})
+}
+
+// adwSliderFill is the slider of a switch and a scale away from the pointer, color-mix(in srgb, white 80%, var(--view-bg-color)): white in the light theme and #d2d2d2 over the dark view_bg_color #1d1d20, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference; under the pointer it is white.
+func adwSliderFill(t *ui.Theme) ui.Color {
+	return adwListViewBg(t).Mix(white, 0.8)
 }
 
 // ---- more of libadwaita's controls, from the same stylesheet ----
@@ -202,18 +223,28 @@ func adwToggle(c *ui.Context, b ui.Element, on bool) {
 		return
 	}
 	t := c.Theme()
-	share := float32(0.30)
-	switch {
-	case b.Pressed():
-		share = 0.40
-	case b.Hovered():
-		share = 0.35
-	}
-	face := adwInkAlpha(t, t.Background, share)
+	face := adwInkAlpha(t, t.Background, adwToggleShare(b, true))
 	b.Background(face).TextColor(adwTextOn(t, face))
 }
 
-// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12.
+// adwToggleShare returns the share of currentColor a toggle button lays over what is behind it: 10%, 15% under the pointer and 30% pressed ($button_color and its hover and active shades), and checked 30%, 35% and 40%.
+func adwToggleShare(b ui.Element, on bool) float32 {
+	switch {
+	case on && b.Pressed():
+		return 0.40
+	case on && b.Hovered():
+		return 0.35
+	case on:
+		return 0.30
+	case b.Pressed():
+		return 0.30
+	case b.Hovered():
+		return 0.15
+	}
+	return 0.10
+}
+
+// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12. The fill is translucent, as libadwaita's is, so an entry shows what is behind it: over the window 230 in the light theme and 57 in the dark one, in an AdwActionRow over a boxed list's card 235 and 72 (measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference, its inputs and overcard sets). An entry's placeholder is .dimmed, window_fg_color at 55% over the fill: 129 and 166 over the window, 132 and 172 over the card, where MyGo's TextMuted, opaque over the window, read 140 and 156.
 func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 	t := c.Theme()
 	f.Border(0, ui.Color{})
@@ -222,7 +253,7 @@ func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 		radius = 12
 		f.Padding(8, 9).Background(pick(t.Dark, white, ui.Hex("#1d1d20")))
 	} else {
-		f.MinHeight(34).Padding(0, 9).Background(adwInkAlpha(t, t.Background, 0.10))
+		f.MinHeight(34).Padding(0, 9).Background(adwInkLayer(t, 0.10)).PlaceholderColor(adwInkLayer(t, 0.55))
 	}
 	f.Radius(radius)
 	focused := f.Focused()
@@ -236,11 +267,11 @@ func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 	})
 }
 
-// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, with its focus ring inside its edge, showing the choice and the 16-pixel pan-down arrow 6 pixels after it.
+// adwSelect draws a GtkDropDown's button: a regular button, darker while its list is open, with its focus ring inside its edge, showing the choice and the 16-pixel pan-down arrow 6 pixels after it, as wide as these need and no wider: GtkDropDown sets no least width (a "Medium" drop-down is 101 pixels wide in Adwaita Sans, measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference).
 func adwSelect(c *ui.Context, trigger ui.Element, selected string) {
 	t := c.Theme()
 	b := trigger
-	b.MinHeight(34).Padding(5, 10).Gap(6).Radius(9).FontWeight(700).Justify(ui.SpaceBetween).AlignItems(ui.Center).MinWidth(120).TextColor(t.Text)
+	b.MinHeight(34).Padding(5, 10).Gap(6).Radius(9).FontWeight(700).Justify(ui.SpaceBetween).AlignItems(ui.Center).TextColor(t.Text)
 	face := t.Surface
 	switch {
 	case b.Pressed():
@@ -294,16 +325,24 @@ func adwMenuItem(c *ui.Context, item ui.Element, label string, chosen bool) {
 	})
 }
 
-// adwSlider draws a GtkScale: padded 12 pixels, a 4-pixel trough of $trough_color filled with the accent, and a 20-pixel round slider with a hairline and a soft shadow, which turns white under the pointer.
+// adwScaleTravel is how far in from the trough's ends a scale's slider center stops: GtkRange moves the slider's allocation, 20 pixels with margins of -8 (_scale.scss), so 4 wide, along the trough, and its center stays 2 pixels in from the ends, where a scale's first and last marks are drawn, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
+const adwScaleTravel = 2
+
+// adwScaleSlider returns the center of a scale's slider at along (from 0 to 1, from the trough's start in the reading direction) over a trough from left, width wide: GtkRange allocates the slider at a whole pixel, the travel times along rounded down, so a 156-pixel trough puts it 62 pixels in at 40% and 78 at 50%, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
+func adwScaleSlider(left, width, along float32) float32 {
+	return left + adwScaleTravel + float32(math.Floor(float64(along*(width-2*adwScaleTravel))))
+}
+
+// adwSlider draws a GtkScale: 34 pixels high, padded 12 pixels around a 10-pixel range (min-height 10px), a 4-pixel trough of $trough_color centered in it and filled with the accent, and a 20-pixel round slider with a hairline (box-shadow 0 0 0 1px rgb(0 0 6 / 10%)) and a soft shadow, which turns white under the pointer; disabled, the slider casts no shadow. The sizes were measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference: GtkScale with draw-value off is 34 pixels high, the trough 15 pixels from its top.
 func adwSlider(c *ui.Context, s ui.Element, frac float32) {
 	t := c.Theme()
 	const d = 20
 	hovered, pressed := s.Hovered(), s.Pressed()
-	// The pointer and the slider's center both travel the trough, inside the scale's 12-pixel padding; the slider overhangs its ends, as GtkRange draws it (measured against libadwaita 1.7.6; 1.10.0's _scale.scss changes only its high-contrast colors).
-	s.Height(d + 24).PaddingX(12).MinWidth(60).FocusRing(false)
+	// The pointer and the slider's center both travel the trough but 2 pixels at each end (adwScaleTravel), inside the scale's padding; the slider overhangs its ends, as GtkRange draws it.
+	s.Height(12 + 10 + 12).PaddingX(12 + adwScaleTravel).MinWidth(60).FocusRing(false)
 	trough := adwTrough(t, false, false)
 	fill := t.Accent
-	knobFill := pick(t.Dark, white, t.Background.Mix(white, 0.8))
+	knobFill := adwSliderFill(t)
 	if hovered || pressed {
 		trough, fill, knobFill = adwTrough(t, true, false), t.AccentHover, white
 	}
@@ -313,15 +352,18 @@ func adwSlider(c *ui.Context, s ui.Element, frac float32) {
 		left := r.X + 12
 		width := r.W - 24
 		p.Fill(ui.Rect{X: left, Y: ty, W: width, H: 4}, trough, 2)
-		x := left + at*width
+		x := adwScaleSlider(left, width, at)
 		bar := ui.Rect{X: left, Y: ty, W: x - left, H: 4}
 		if c.Direction() == ui.RightToLeft {
 			bar = ui.Rect{X: x, Y: ty, W: left + width - x, H: 4}
 		}
 		p.Fill(bar, fill, 2)
 		k := ui.Rect{X: x - d/2, Y: r.Y + (r.H-d)/2, W: d, H: d}
-		p.Shadow(k, d/2, 0, 2, 4, 0, ui.RGBA(0, 0, 6, 0.2))
-		p.Fill(ui.Rect{X: k.X - 1, Y: k.Y - 1, W: d + 2, H: d + 2}, t.Background.Mix(adwInk, 0.1), d/2+1)
+		if !s.IsDisabled() {
+			p.Shadow(k, d/2, 0, 2, 4, 0, ui.RGBA(0, 0, 6, 0.2))
+		}
+		// The hairline is ---slider-border-color, rgb(0 0 6 / 10%) in both themes, over what lies under it: the accent fill, the trough or the window.
+		p.Fill(ui.Rect{X: k.X - 1, Y: k.Y - 1, W: d + 2, H: d + 2}, ui.RGBA(0, 0, 6, 0.1), d/2+1)
 		p.Fill(k, knobFill, d/2)
 		if s.FocusVisible() {
 			p.Stroke(ui.Rect{X: k.X - 2, Y: k.Y - 2, W: d + 4, H: d + 4}, t.Focus, d/2+2, 2)
@@ -511,7 +553,7 @@ func adwTextOn(t *ui.Theme, fill ui.Color) ui.Color {
 
 // ---- links, separators, badges, popovers and linked toggles ----
 
-// adwLinkColor is libadwaita's link color, accent_color: the accent darkened in the light theme and lightened in the dark one. For the default blue, the colors are measured from links libadwaita 1.7.6 rendered (tools/adwaita-reference), #357fca and #81d0ff; 1.10.0's _colors.scss keeps the same accent_color, whose Oklab clamp would give a darker light one.
+// adwLinkColor is libadwaita's link color, accent_color: the accent darkened in the light theme and lightened in the dark one. For the default blue, the colors are measured from links libadwaita 1.10.0 (GTK 4.24.1) rendered (tools/adwaita-reference), #357fca and #81d0ff, as 1.7.6 rendered them.
 func adwLinkColor(t *ui.Theme) ui.Color {
 	if t.Accent == adwAccent {
 		return pick(t.Dark, ui.Hex("#357fca"), ui.Hex("#81d0ff"))
@@ -546,15 +588,17 @@ func adwToggleGroup(c *ui.Context, g ui.Element) {
 	g.Gap(0).Padding(0).Radius(9).Background(ui.Transparent).Border(0, ui.Color{}).Clip()
 }
 
-// adwLinkedToggle draws a toggle button inside a box.linked: a toggle button whose corners the group rounds. Linked buttons overlap by a pixel, so a darker line shows where two meet: the button's fill over another's, drawn along the start of every button but the first.
+// adwLinkedToggle draws a toggle button inside a box.linked: a toggle button whose corners the group rounds. Linked buttons overlap by a pixel (margin-left: -1px), so a line shows where two meet: the button's translucent fill laid over the one before it, drawn along the start of every button but the first. Measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference: after a checked Bold, Italic's seam is #afafb1 in the light theme, darker than both, and #747476 in the dark one, lighter than both.
 func adwLinkedToggle(c *ui.Context, b ui.Element, on bool, first bool) {
 	adwToggle(c, b, on)
 	b.Radius(0)
+	t := c.Theme()
+	share := adwToggleShare(b, on)
+	prev := adwToggleGroupFace(c, adwInkAlpha(t, t.Background, share))
 	if first {
 		return
 	}
-	t := c.Theme()
-	seam := adwInkAlpha(t, t.Background, 0.19)
+	seam := adwInkAlpha(t, prev, share)
 	// The focus ring, inside the button's edge as on a toggle alone, keeps corners of 9 so that the group's rounded clip does not cut it at the group's corners; between two toggles libadwaita's are square (inferred: a toggle does not know whether it is the last).
 	adwFocusRing(t, b, 9, func(p *ui.Painter, r ui.Rect) {
 		x := r.X

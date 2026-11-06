@@ -39,6 +39,14 @@ func adwBoxedListCard(t *ui.Theme) (fill, shade ui.Color) {
 	return white, white.Mix(adwInk, 0.07)
 }
 
+// adwNestedRowLine is the line of card_shade_color (the shade at 7% in the light theme, 36% in the dark one) between two rows of an expander row's nested list, laid over the list's background under.
+func adwNestedRowLine(t *ui.Theme, under ui.Color) ui.Color {
+	return under.Mix(adwInk, pick(t.Dark, float32(0.07), 0.36))
+}
+
+// adwGroupHeader is the least height of an AdwPreferencesGroup's header when it has a title and no description (preferencesgroup > box > box.single-line in libadwaita 1.10.0's stylesheet).
+const adwGroupHeader = 34
+
 // adwBoxedListShadow casts .card's box-shadow: a 1-pixel ring of the shade at 3%, and two soft shadows at 7% and 3%.
 func adwBoxedListShadow(e ui.Element) {
 	e.Shadow(0, 0, 0, 1, ui.RGBA(0, 0, 6, 0.03)).Shadow(0, 1, 3, 1, ui.RGBA(0, 0, 6, 0.07)).Shadow(0, 2, 6, 2, ui.RGBA(0, 0, 6, 0.03))
@@ -200,7 +208,7 @@ func Accordion(c *ui.Context, fn func()) ui.Element {
 	return a
 }
 
-// AccordionItem creates a section of an Accordion: a header showing title, which a click opens and closes, as do Enter and Space, and below it what fn builds while *open. Changed reports a click. In an Accordion it is a row of the platform's box: below a separator inset 10 points on macOS, an Expander's card on Windows, below the separator of a boxed list's rows on GNOME. Its header is MyGo's. It is ui.AccordionItem's counterpart.
+// AccordionItem creates a section of an Accordion: a header showing title, which a click opens and closes, as do Enter and Space, and below it what fn builds while *open. Changed reports a click. In an Accordion it is a row of the platform's box: below a separator inset 10 points on macOS, an Expander's card on Windows, below the separator of a boxed list's rows on GNOME. Its header is MyGo's. Rows built in fn (ActionRow, SwitchRow) reach across its content to its edges, as a DisclosureGroup's rows in a grouped form, a SettingsExpander's items and AdwExpanderRow's nested rows do. It is ui.AccordionItem's counterpart.
 func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Element {
 	first, in := true, false
 	if v, ok := accordions.Load(c); ok {
@@ -210,7 +218,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 		first, in = g.built == 1, true
 	}
 	p := PlatformOf(c)
-	item := ui.AccordionItem(c, title, open, fn)
+	item := ui.AccordionItem(c, title, open, func() { rowsCollect(c, rowsInAccordion, fn) })
 	if !in {
 		return item
 	}
@@ -238,7 +246,7 @@ func AccordionItem(c *ui.Context, title string, open *bool, fn func()) ui.Elemen
 	return item
 }
 
-// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 12 pixels below its title. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. It is ui.Fieldset's counterpart.
+// Fieldset creates a group of the fields that fn builds under legend, which names the group for assistive technology; Disabled disables them all, and in a Form their labels line up with those of the other fields. The fields sit in the platform's group: on macOS a section of a grouped form (NSBox's fill, corners of 12) under the legend, inset 10 points as SwiftUI insets a section's header; on Windows, which has no group box, under the legend as a settings page puts its cards under a Body Strong header, 10 DIPs below it; on GNOME in a card under the legend, as an AdwPreferencesGroup puts its boxed list 6 pixels below a 34-pixel header with its title centered. In a Form the section or the card reaches past the fields by its padding on either side, so that the fields line up with the form's others. The legend is semibold on macOS (a grouped form's section header, measured as 13-point semibold on macOS 27.2) and Windows (BodyStrongTextBlockStyle, SemiBold), and bold on GNOME, as an AdwPreferencesGroup's title has the .heading class (adw-preferences-group.ui; _labels.scss: font-weight 700): there MyGo's semibold legend is left transparent, keeping its place, and the bold one drawn over it in the theme's text color. Rows built in fn (ActionRow, SwitchRow) join as a settings page joins them: one section on macOS and a boxed list on GNOME, without the padding, and on Windows SettingsCards 4 DIPs apart. It is ui.Fieldset's counterpart.
 func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -265,17 +273,20 @@ func Fieldset(c *ui.Context, legend string, fn func()) ui.Element {
 			// The labels of a form are as wide as the widest, so its fields line up only where they start and end alike.
 			box.MarginStart(-pad).MarginEnd(-pad)
 		}
-		box.Children(fn)
+		rowsFinish(c, box, rowsCollect(c, rowsInFieldset, func() { box.Children(fn) }))
 	})
 	switch p {
 	case Windows:
 		// WinUI Gallery's SettingsPage.xaml: SettingsSectionHeaderTextBlockStyle (BodyStrongTextBlockStyle) has a bottom margin of 6, and SettingsCardSpacing puts 4 more before the first card.
 		g.Gap(10)
 	case Linux:
-		g.Gap(12) // preferencesgroup > box: border-spacing 6px, and 6px below the header
+		// A group with a title and no description has a header of class single-line, at least 34 pixels high with the title centered in it (preferencesgroup > box > box.single-line), and the list 6 below it (preferencesgroup > box: border-spacing 6px), 40 below the group's top: libadwaita 1.10.0 (GTK 4.24.1) lays the 18-pixel title 8 below the group's top and the boxed list 40 below it (measured by tools/adwaita-reference). The legend's line, whatever the font, is centered in those 34 pixels.
+		_, line := c.MeasureText(0, ui.Span{Text: legend, Size: t.FontSize, Weight: 600})
+		top := max((adwGroupHeader-line)/2, 0)
+		g.Padding(top, 0, 0, 0).Gap(top + 6)
 		rtl := c.Direction() == ui.RightToLeft
 		g.TextColor(ui.Transparent).DrawOver(func(p *ui.Painter, r ui.Rect) {
-			formsLabelOver(p, r, legend, 700, t.FontSize, t.Text, rtl)
+			formsLabelOver(p, ui.Rect{X: r.X, Y: r.Y + top, W: r.W, H: r.H - top}, legend, 700, t.FontSize, t.Text, rtl)
 		})
 	default:
 		// The header's baseline is 13 points above the section: about 10 below its line. In a Form the section reaches back instead, keeping the legend 10 in from its edge.
@@ -380,3 +391,12 @@ func SplitPercent(c *ui.Context, p *float32, first func(), second func()) ui.Ele
 func SplitVerticalPercent(c *ui.Context, p *float32, first func(), second func()) ui.Element {
 	return formsSplit(c, func(a, b func()) ui.Element { return ui.SplitVerticalPercent(c, p, a, b) }, first, second)
 }
+
+// Scroll creates a container that scrolls its children vertically. Give it a size, or Grow it within its parent. It is package ui's: MyGo paints a scroll container's bar itself after its children (Painter.scrollbars in paint.go), from the theme's Scrollbar color and ScrollbarWidth alone, with a geometry of its own (the thumb 3 DIPs in from the edge, at least 24 long, 2 DIPs wider only while dragged) and only while the pointer is over the container or drags the thumb; no element can reach its thickness, track, outline, arrows or growth under the pointer, and hiding it (Scrollbars(false)) takes its pointer targets with it. With Use its thumb takes the platform's color and width: the overlay scroller's knob on macOS (black or white at 50%, 6 DIPs), WinUI's ScrollBarThumbFill (6 DIPs), and GNOME's overlay slider while the pointer is away from the bar (currentColor at 20%, 3 pixels). The wheel, the keys, the drag of the thumb, TrackScroll and ScrollbarInsets are MyGo's. It is ui.Scroll's counterpart.
+func Scroll(c *ui.Context) ui.Element { return ui.Scroll(c) }
+
+// ScrollBoth creates a container that scrolls its children both ways, as a canvas, a wide table or code does. Give it a size, or Grow it within its parent. It is package ui's, its two bars painted by MyGo in the platform's theme as Scroll's are. It is ui.ScrollBoth's counterpart.
+func ScrollBoth(c *ui.Context) ui.Element { return ui.ScrollBoth(c) }
+
+// ScrollHorizontal creates a row that scrolls its children horizontally. It is package ui's, its bar painted by MyGo in the platform's theme as Scroll's is. It is ui.ScrollHorizontal's counterpart.
+func ScrollHorizontal(c *ui.Context) ui.Element { return ui.ScrollHorizontal(c) }

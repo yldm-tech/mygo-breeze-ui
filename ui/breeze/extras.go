@@ -69,9 +69,11 @@ func styleMenuButton(c *ui.Context, b ui.Element, label string, tb *idiomToolbar
 			arrow = func() { idiomFluentSubItemChevron(c, color) }
 		} else {
 			fluentButton(c, b, false)
+			// The ChevronIcon is centered on the 32-DIP button, half a DIP below the middle of its padded content (5 above, 6 below), in TextFillColorSecondary over the face (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the 12-DIP icon 10 DIPs down, the chevron reading 95 on the face of 251).
+			chevron := fluentSecondaryOver(t, fluentFace(t, b.Pressed(), b.Hovered()))
 			arrow = func() {
 				ui.Box(c).Size(12, 12).Shrink(0).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
-					fluentChevronDown(p, r.X+r.W/2, r.Y+r.H/2, t.TextMuted)
+					fluentChevronDown(p, r.X+r.W/2, r.Y+r.H/2+0.5, chevron)
 				})
 			}
 		}
@@ -150,7 +152,22 @@ func Popover(c *ui.Context, anchor ui.Element, open *bool, fn func()) ui.Element
 // toggleGroups holds the windows building a ToggleGroup's toggles, which Toggle draws as segments of it, with how many it has built.
 var toggleGroups sync.Map // *ui.Context -> *toggleGroup
 
-type toggleGroup struct{ depth, built int }
+type toggleGroup struct {
+	depth, built int
+	// face is the fill of the toggle built last, over which GNOME's next linked toggle lays its own where the two overlap.
+	face ui.Color
+}
+
+// adwToggleGroupFace returns the fill of the toggle c's ToggleGroup built before the one being built, and records face as the fill of the one being built.
+func adwToggleGroupFace(c *ui.Context, face ui.Color) (prev ui.Color) {
+	v, ok := toggleGroups.Load(c)
+	if !ok {
+		return face
+	}
+	g := v.(*toggleGroup)
+	prev, g.face = g.face, face
+	return prev
+}
 
 // nextInToggleGroup reports whether a toggle being built is in a ToggleGroup, and whether it is the group's first.
 func nextInToggleGroup(c *ui.Context) (grouped, first bool) {

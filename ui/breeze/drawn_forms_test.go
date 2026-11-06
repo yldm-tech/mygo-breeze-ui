@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	for _, n := range []string{"CheckboxGroup", "NumberInput", "Split", "SplitVertical", "SplitPercent", "SplitVerticalPercent"} {
+	for _, n := range []string{"CheckboxGroup", "NumberInput", "RadioGroup", "Split", "SplitVertical", "SplitPercent", "SplitVerticalPercent"} {
 		drawnWidgets[n] = true
 	}
 }
@@ -223,19 +223,20 @@ func formsInkEdge(tester *ui.Tester, r ui.Rect, bg ui.Color, rtl bool) float32 {
 	return r.X + r.W
 }
 
-// formsCheckBoxAt returns the center of the box before the label at r of a check box on platform p: macCheckbox's 16-point box 6 before its label, fluentCheckbox's and adwCheckbox's 20 DIPs 8 and 4 before theirs, before it in the reading direction.
+// formsCheckBoxAt returns the center of the box before the label at r of a check box on platform p: macCheckbox's 16-point box 6 before its label, fluentCheckbox's and adwCheckbox's 20 DIPs 8 and 4 before theirs, before it in the reading direction. The box is centered on the label but on Windows, where fluentCheckbox puts the label 5 DIPs below the row's top and the box 6, so the box's middle 11 below the label's top whatever the font.
 func formsCheckBoxAt(p Platform, r ui.Rect, rtl bool) (x, y float32) {
 	size, gap := float32(16), float32(6)
+	y = r.Y + r.H/2
 	switch p {
 	case Windows:
-		size, gap = 20, 8
+		size, gap, y = 20, 8, r.Y-5+6+10
 	case Linux:
 		size, gap = 20, 4
 	}
 	if rtl {
-		return r.X + r.W + gap + size/2, r.Y + r.H/2
+		return r.X + r.W + gap + size/2, y
 	}
-	return r.X - gap - size/2, r.Y + r.H/2
+	return r.X - gap - size/2, y
 }
 
 // formsIconRect returns where MyGo's 14-DIP calendar icon is in a date field r padded pad at its ends.
@@ -668,8 +669,12 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 		for i, ours := range []bool{true, false} {
 			address := ""
 			var th *ui.Theme
+			var top float32
 			tester := formsTester(Linux, dir, 400, 300, func(c *ui.Context) {
 				th = c.Theme()
+				// The legend's line centered in the group's 34-pixel header, the fields 6 below it, as Fieldset lays them out on GNOME.
+				_, line := c.MeasureText(0, ui.Span{Text: "Shipping", Size: th.FontSize, Weight: 600})
+				top = (adwGroupHeader - line) / 2
 				ui.Column(c).Padding(16).Children(func() {
 					build := func() {
 						Field(c, "Address", func() { TextInput(c, &address).Label("Address input") })
@@ -677,12 +682,12 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 					if ours {
 						Fieldset(c, "Shipping", build)
 					} else {
-						ui.Fieldset(c, "Shipping", build).Gap(12)
+						ui.Fieldset(c, "Shipping", build).Padding(top, 0, 0, 0).Gap(top + 6)
 					}
 				})
 			})
 			legend := formsFind(t, tester, "Shipping")
-			box := ui.Rect{X: legend.X, Y: legend.Y, W: legend.W, H: 20}
+			box := ui.Rect{X: legend.X, Y: legend.Y + top, W: legend.W, H: 20}
 			legendRows[i][0], legendRows[i][1] = formsInkRows(tester, box, th.Background)
 			legendInk[i], _ = formsInk(tester, box, th.Background, th.Text)
 			legendEdge[i] = formsInkEdge(tester, box, th.Background, rtl)
@@ -1030,6 +1035,200 @@ func TestRebuiltWidgetsKeepUILayout(t *testing.T) {
 			}
 			if d := widths[1] - widths[0]; d > 1 || d < -1 {
 				t.Errorf("%v %s: grown to %v, ui's to %v", p, name, widths[1], widths[0])
+			}
+		}
+	}
+}
+
+// formsRadioShotView lays out two radio groups for screenshots: one down a column, as RadioGroup builds it, and one across a row (Row), its middle radio button chosen.
+func formsRadioShotView(p Platform, size, align *string) func(c *ui.Context) {
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Column(c).Fill().Padding(16).Gap(24).AlignItems(ui.Start).Children(func() {
+				RadioGroup(c, func() {
+					for _, s := range []string{"Small", "Medium", "Large"} {
+						Radio(c, size, s, s)
+					}
+				}).Label("Size")
+				RadioGroup(c, func() {
+					for _, s := range []string{"Left", "Center", "Right"} {
+						Radio(c, align, s, s)
+					}
+				}).Label("Alignment").Row()
+			})
+		})
+	}
+}
+
+// TestScreenshotsRadioGroup writes two radio groups of every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names: one down a column and one across a row. Without it the test only builds the frames.
+func TestScreenshotsRadioGroup(t *testing.T) {
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, p := range Platforms {
+		for _, dark := range []bool{false, true} {
+			size, align := "Small", "Center"
+			tester := ui.NewTester(formsRadioShotView(p, &size, &align), 480, 220)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+			tester.Frame()
+			tester.Frame()
+			for _, want := range []string{"Small", "Large", "Left", "Right"} {
+				if !tester.HasText(want) {
+					t.Fatalf("%v: %q is missing", p, want)
+				}
+			}
+			mode := map[bool]string{false: "light", true: "dark"}[dark]
+			writeShot(t, dir, fmt.Sprintf("breeze-radiogroup-%s-%s.png", strings.ToLower(p.String()), mode), tester)
+		}
+	}
+}
+
+// formsRadioGroupTrace builds a radio group of Small, Medium and Large named Size, RadioGroup's if mine, else ui.RadioGroup around the same radio buttons, on platform p in direction dir, across if row, disabled if off, and returns what keys and clicks do to it: the size chosen and how many choices its radio buttons' Changed has reported after each, and which radio button has the focus.
+func formsRadioGroupTrace(t *testing.T, p Platform, dir ui.Direction, mine, row, off bool) []string {
+	t.Helper()
+	size, changes := "Medium", 0
+	tester := formsTester(p, dir, 480, 300, func(c *ui.Context) {
+		ui.Column(c).Padding(16).AlignItems(ui.Start).Children(func() {
+			Button(c, "Before")
+			build := func() {
+				for _, s := range []string{"Small", "Medium", "Large"} {
+					if Radio(c, &size, s, s).Changed() {
+						changes++
+					}
+				}
+			}
+			var g ui.Element
+			if mine {
+				g = RadioGroup(c, build)
+			} else {
+				g = ui.RadioGroup(c, build)
+			}
+			g.Label("Size").Disabled(off)
+			if row {
+				g.Row()
+			}
+			Button(c, "After")
+		})
+	})
+	var trace []string
+	note := func(what string) {
+		focus := ""
+		for _, s := range []string{"Before", "Small", "Medium", "Large", "After"} {
+			if tester.Focused(s) {
+				focus = s
+			}
+		}
+		trace = append(trace, fmt.Sprintf("%s: %s, %d changes, focus %q", what, size, changes, focus))
+	}
+	if err := tester.Click("Before"); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	note("click Before")
+	for _, k := range []struct {
+		name string
+		mods ui.Modifiers
+		key  ui.Key
+	}{
+		{"Tab", 0, ui.KeyTab}, {"Down", 0, ui.KeyDown}, {"Down", 0, ui.KeyDown}, {"Up", 0, ui.KeyUp},
+		{"Right", 0, ui.KeyRight}, {"Left", 0, ui.KeyLeft}, {"Left", 0, ui.KeyLeft}, {"End", 0, ui.KeyEnd}, {"Home", 0, ui.KeyHome},
+		{"Space", 0, ui.KeySpace}, {"Tab", 0, ui.KeyTab}, {"Shift+Tab", ui.Shift, ui.KeyTab},
+	} {
+		tester.Key(k.mods, k.key)
+		tester.Frame()
+		note(k.name)
+	}
+	for _, s := range []string{"Large", "Small"} {
+		if err := tester.Click(s); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		note("click " + s)
+	}
+	return trace
+}
+
+// TestRadioGroupKeepsItsBehavior checks on every platform, left to right and right to left, down a column and across a row, enabled and disabled, that Tab, the arrows, Home, End, Space and clicks choose and move the focus in RadioGroup as they do in ui.RadioGroup, and that the radio buttons' Changed reports the same choices.
+func TestRadioGroupKeepsItsBehavior(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			for _, row := range []bool{false, true} {
+				for _, off := range []bool{false, true} {
+					want := formsRadioGroupTrace(t, p, dir, false, row, off)
+					got := formsRadioGroupTrace(t, p, dir, true, row, off)
+					if strings.Join(got, "\n") != strings.Join(want, "\n") {
+						t.Errorf("%v %v, row %v, disabled %v:\nRadioGroup:\n%s\nui.RadioGroup:\n%s", p, dir, row, off, strings.Join(got, "\n"), strings.Join(want, "\n"))
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestRadioGroupSpacingAndLayout checks on every platform, left to right and right to left, that RadioGroup sets its radio buttons the platform's spacing apart where ui.RadioGroup sets them its theme's two units apart, down a column and across a row (measured between the labels, so the text's size does not matter), and that it takes the same width as ui.RadioGroup grown in a row and stretched by a column, so a view swapping one for the other keeps its layout.
+func TestRadioGroupSpacingAndLayout(t *testing.T) {
+	type layout struct {
+		pitchDown, pitchAcross float32
+		grown, stretched       ui.Rect
+	}
+	measure := func(p Platform, dir ui.Direction, mine bool) (layout, float32) {
+		size, align := "Small", "Left"
+		var unit float32
+		tester := formsTester(p, dir, 700, 400, func(c *ui.Context) {
+			unit = c.Theme().Space(2)
+			group := func(value *string, labels ...string) ui.Element {
+				build := func() {
+					for _, s := range labels {
+						Radio(c, value, s, s)
+					}
+				}
+				if mine {
+					return RadioGroup(c, build)
+				}
+				return ui.RadioGroup(c, build)
+			}
+			ui.Column(c).Width(600).Padding(10).Gap(10).Children(func() {
+				group(&size, "Small", "Medium", "Large").Label("Size")
+				group(&align, "Left", "Center", "Right").Label("Alignment").Row().AlignSelf(ui.Start)
+				ui.Row(c).Gap(10).Children(func() {
+					ui.Text(c, "before")
+					var one string
+					group(&one, "One").Grow(1).Label("grown")
+					ui.Text(c, "after")
+				})
+				var two string
+				group(&two, "Two").Label("stretched")
+			})
+		})
+		var l layout
+		small, medium := formsFind(t, tester, "Small"), formsFind(t, tester, "Medium")
+		l.pitchDown = medium.Y - small.Y
+		left, center := formsFind(t, tester, "Left"), formsFind(t, tester, "Center")
+		l.pitchAcross = center.X - left.X
+		if dir == ui.RightToLeft {
+			l.pitchAcross = (left.X + left.W) - (center.X + center.W)
+		}
+		l.grown, l.stretched = formsFind(t, tester, "grown"), formsFind(t, tester, "stretched")
+		return l, unit
+	}
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			theirs, unit := measure(p, dir, false)
+			mine, _ := measure(p, dir, true)
+			down, across := formsRadioGroupSpacing(p)
+			near := func(a, b float32) bool { return a-b < 0.5 && b-a < 0.5 }
+			if !near(mine.pitchDown-theirs.pitchDown, down-unit) {
+				t.Errorf("%v %v: radio buttons %v apart down the column, ui's %v with a gap of %v; want a gap of %v", p, dir, mine.pitchDown, theirs.pitchDown, unit, down)
+			}
+			if !near(mine.pitchAcross-theirs.pitchAcross, across-unit) {
+				t.Errorf("%v %v: radio buttons %v apart across the row, ui's %v with a gap of %v; want a gap of %v", p, dir, mine.pitchAcross, theirs.pitchAcross, unit, across)
+			}
+			if !near(mine.grown.W, theirs.grown.W) || !near(mine.grown.X, theirs.grown.X) {
+				t.Errorf("%v %v: grown in a row, RadioGroup is at %v, ui.RadioGroup at %v", p, dir, mine.grown, theirs.grown)
+			}
+			if !near(mine.stretched.W, theirs.stretched.W) || !near(mine.stretched.X, theirs.stretched.X) || mine.stretched.W < 500 {
+				t.Errorf("%v %v: stretched by a column, RadioGroup is at %v, ui.RadioGroup at %v", p, dir, mine.stretched, theirs.stretched)
 			}
 		}
 	}

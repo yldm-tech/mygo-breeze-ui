@@ -44,12 +44,24 @@ func formsCheckGroupSpacing(p Platform) (indent, gap float32) {
 	return 22, 8
 }
 
+// formsRadioGroupSpacing returns how far apart a RadioGroup sets its radio buttons down a column, as it builds them, and across a row, as Row lays them out. macOS: SwiftUI's Picker of style radioGroup, rendered at 2x in a key window on macOS 27.2: its radio buttons' 16-point circles are 12 and 13 pixels apart down the column, so 6 points between rows 16 points high, and with horizontalRadioGroupLayout the buttons' frames are 8 points apart. Windows 11: RadioButtons, whose ColumnMajorUniformToLargestGridLayout takes RowSpacing from RadioButtonsRowSpacing, 8, and ColumnSpacing from RadioButtonsColumnSpacing, 7 (RadioButtons.xaml and RadioButtons_themeresources.xaml at cb1b8a6), between RadioButtons 32 high (fluentRadio). GNOME has no radio group: grouped check buttons sit in a GtkBox, whose spacing is 0 unless the app sets one, and each is padded already (adwRadio's 4), so none (inferred, as formsCheckGroupSpacing's gap).
+func formsRadioGroupSpacing(p Platform) (down, across float32) {
+	switch p {
+	case Windows:
+		return 8, 7
+	case Linux:
+		return 0, 0
+	}
+	return 6, 8
+}
+
 // formsDrawCheckbox draws a check box of the platform in state, as Checkbox draws one on or off; mixed, the box is drawn as checked and its check mark replaced with the platform's dash.
 func formsDrawCheckbox(c *ui.Context, p Platform, row, box ui.Element, state formsCheckState) {
 	on := state != formsCheckOff
 	switch p {
 	case Windows:
-		fluentCheckbox(c, row, box, on)
+		// fluentCheckbox paints the checked box as it draws its mark, so it draws the dash in place of the check itself.
+		fluentCheckbox(c, row, box, on, state == formsCheckMixed)
 	case Linux:
 		adwCheckbox(c, row, box, on)
 	default:
@@ -59,8 +71,6 @@ func formsDrawCheckbox(c *ui.Context, p Platform, row, box ui.Element, state for
 		return
 	}
 	switch p {
-	case Windows:
-		formsFluentDash(c, row, box)
 	case Linux:
 		formsAdwDash(c, box)
 	default:
@@ -90,19 +100,12 @@ func formsMacDash(c *ui.Context, row, box ui.Element) {
 	})
 }
 
-// formsFluentDash draws a CheckBox's indeterminate glyph over the box fluentCheckbox fills as checked (CheckBoxCheckBackgroundFillIndeterminate and its stroke are AccentFillColorDefault, Secondary under the pointer and Tertiary pressed, as checked): AnimatedAcceptVisualSource.cpp's Geometry_0, a line from (-11.75,-0.125) to (11.875,-0.125) stroked 4 with round caps in a shape scaled 0.7 at 24,24, in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box without the checked glyph's Margin (IndeterminateNormal sets CheckGlyph.Margin 0): x = 10 + 0.30625·px, y = 10 + 0.30625·py, so from (6.402, 9.962) to (13.637, 9.962), 1.225 DIPs wide. The glyph is TextOnAccentFillColorPrimary, Secondary pressed (CheckBoxCheckGlyphForegroundIndeterminatePressed), as fluentCheckbox's check mark.
-func formsFluentDash(c *ui.Context, row, box ui.Element) {
-	t := c.Theme()
-	mark := t.AccentText
-	if row.Pressed() {
-		mark = mark.Alpha(pick(t.Dark, float32(0.7), 0.5))
-	}
-	box.DrawOver(func(p *ui.Painter, r ui.Rect) {
-		s := r.W / 20
-		var path ui.Path
-		path.MoveTo(r.X+6.402*s, r.Y+9.962*s).LineTo(r.X+13.637*s, r.Y+9.962*s)
-		p.StrokePath(&path, 1.225*s, mark)
-	})
+// formsFluentDash draws a CheckBox's indeterminate glyph over the box fluentCheckbox fills as checked (CheckBoxCheckBackgroundFillIndeterminate and its stroke are AccentFillColorDefault, Secondary under the pointer and Tertiary pressed, as checked): AnimatedAcceptVisualSource.cpp's Geometry_0, a line from (-11.75,-0.125) to (11.875,-0.125) stroked 4 with round caps in a shape scaled 0.7 at 24,24, in a container scaled 1.05 about 24,24, its 48-unit visual fit to the 20-DIP box without the checked glyph's Margin (IndeterminateNormal sets CheckGlyph.Margin 0): x = 10 + 0.30625·px, y = 10 + 0.30625·py, so from (6.402, 9.962) to (13.637, 9.962), 1.225 DIPs wide. The glyph is TextOnAccentFillColorPrimary, Secondary pressed (CheckBoxCheckGlyphForegroundIndeterminatePressed), as fluentCheckbox's check mark, which passes mark, the color it draws the check mark in.
+func formsFluentDash(p *ui.Painter, r ui.Rect, mark ui.Color) {
+	s := r.W / 20
+	var path ui.Path
+	path.MoveTo(r.X+6.402*s, r.Y+9.962*s).LineTo(r.X+13.637*s, r.Y+9.962*s)
+	p.StrokePath(&path, 1.225*s, mark)
 }
 
 // formsAdwDash draws a GtkCheckButton's :indeterminate indicator over the box adwCheckbox fills as checked (_checks.scss styles :checked and :indeterminate alike, accent_bg_color under accent_fg_color): assets/dash.svg, a capsule from 1 to 13 across and 5 to 9 down with ends of radius 2 in the 14-pixel icon, which the indicator's padding of 3 puts at 4 to 16 and 8 to 12 of the 20-pixel box.
@@ -324,6 +327,7 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 	t := c.Theme()
 	fill := adwInkAlpha(t, t.Background, 0.10)
 	edge, ink := adwInkAlpha(t, fill, 0.10), adwInkAlpha(t, fill, 1)
+	rtl := c.Direction() == ui.RightToLeft
 	var in ui.Element
 	row, box := formsNumberInput(c, value, lo, hi, step, func(text *string) ui.Element {
 		in = ui.TextInputBase(c, text).Width(80).Padding(6)
@@ -338,8 +342,11 @@ func formsAdwNumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui
 				b.Background(adwInkAlpha(t, fill, 0.07))
 			}
 			b.Draw(func(p *ui.Painter, r ui.Rect) {
-				// The 16-pixel icon, centered in the button past its 1-pixel border.
-				x, y := r.X+(r.W-16)/2, r.Y+(r.H-16)/2
+				// The 16-pixel icon, centered in the button past its 1-pixel border on its start side: the bar 12 pixels after the border's start, as measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference.
+				x, y := r.X+1+(r.W-1-16)/2, r.Y+(r.H-16)/2
+				if rtl {
+					x = r.X + (r.W-1-16)/2
+				}
 				p.Fill(ui.Rect{X: x + 3, Y: y + 7, W: 10, H: 2}, ink, 0)
 				if sign > 0 {
 					p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 10}, ink, 0)
