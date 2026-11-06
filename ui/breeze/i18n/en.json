@@ -1,0 +1,19 @@
+{
+  "@@locale": "en",
+  "calendarPreviousMonth": "Previous Month",
+  "@calendarPreviousMonth": {"description": "The accessible name of the button showing the month before in a calendar: GtkCalendar's tooltip, and on macOS NSDatePicker's left arrow, which AppKit leaves unnamed."},
+  "calendarNextMonth": "Next Month",
+  "@calendarNextMonth": {"description": "The accessible name of the button showing the month after in a calendar: GtkCalendar's tooltip, and on macOS NSDatePicker's right arrow, which AppKit leaves unnamed."},
+  "calendarPreviousYear": "Previous Year",
+  "@calendarPreviousYear": {"description": "The accessible name of GtkCalendar's button showing the year before, its tooltip."},
+  "calendarNextYear": "Next Year",
+  "@calendarNextYear": {"description": "The accessible name of GtkCalendar's button showing the year after, its tooltip."},
+  "calendarToday": "Today",
+  "@calendarToday": {"description": "The accessible name of the dot between NSDatePicker's arrows on macOS, which goes to today and which AppKit leaves unnamed."},
+  "calendarPrevious": "Previous",
+  "@calendarPrevious": {"description": "The accessible name of WinUI's CalendarView PreviousButton (UIA_FLIPVIEW_PREVIOUS)."},
+  "calendarNext": "Next",
+  "@calendarNext": {"description": "The accessible name of WinUI's CalendarView NextButton (UIA_FLIPVIEW_NEXT)."},
+  "datePickerPlaceholder": "select a date",
+  "@datePickerPlaceholder": {"description": "What a date picker without a date shows: WinUI's CalendarDatePicker's default PlaceholderText (TEXT_CALENDARDATEPICKER_DEFAULT_PLACEHOLDER_TEXT)."}
+}

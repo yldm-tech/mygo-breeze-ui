@@ -13,7 +13,7 @@ Breeze UI draws [MyGo](https://github.com/egoist/mygo)'s native UI widgets as th
 
 ## What is included
 
-- `ui/breeze`: buttons, toggles and toggle groups, check boxes, radio buttons and radio groups, switches, text and search fields, text inputs and areas editing a `ui.TextBuffer`, combo boxes, drop-downs, sliders, steppers, progress bars, spinners, segmented controls, tabs, document tab bars whose tabs close with a button to add one, text in the platform's type ramp (titles, headings, body, captions and dimmed secondary text), links, dividers, badges, menu buttons, popovers, dialogs and alerts, tooltips and toasts, disclosures and accordions, fieldsets and forms, cards, settings rows and switch rows, combo, entry, spin and expander rows, sidebars, breadcrumbs, back and forward buttons and toolbars, header bars for windows whose title bar is hidden, meters, avatars and ratings, inline message bars, progress rings, empty-state pages, stepped sliders, number inputs, date and time fields, color wells, check box groups, split views, lists, tables, trees, outlines, grids, editable text, autocomplete and token fields, password fields, split buttons and icon buttons drawn as each platform draws them, following macOS 27, WinUI 3 and libadwaita 1.10 (GNOME 51), with sizes and colors measured from AppKit's and libadwaita's own rendering and taken from WinUI 3's theme resources; decimal inputs, range sliders, calendars, color pickers, find bars and scroll containers from package `ui` under the same names, in the platform's theme.
+- `ui/breeze`: buttons, toggles and toggle groups, check boxes, radio buttons and radio groups, switches, text and search fields, text inputs and areas editing a `ui.TextBuffer`, combo boxes, drop-downs, sliders, steppers, progress bars, spinners, segmented controls, tabs, document tab bars whose tabs close with a button to add one, text in the platform's type ramp (titles, headings, body, captions and dimmed secondary text), links, dividers, badges, menu buttons, popovers, dialogs and alerts, tooltips and toasts, disclosures and accordions, fieldsets and forms, cards, settings rows and switch rows, combo, entry, spin and expander rows, sidebars, breadcrumbs, back and forward buttons and toolbars, header bars for windows whose title bar is hidden, view switchers for an app's top-level views, meters, avatars and ratings, inline message bars, progress rings, empty-state pages, stepped sliders, number inputs, date and time fields, date pickers whose month calendar is drawn as the platform draws it (NSDatePicker's, WinUI's CalendarView, GtkCalendar) in the user's language and region, color wells, check box groups, split views, lists, tables, trees, outlines, grids, editable text, autocomplete and token fields, password fields, split buttons and icon buttons drawn as each platform draws them, following macOS 27, WinUI 3 and libadwaita 1.10 (GNOME 51), with sizes and colors measured from AppKit's and libadwaita's own rendering and taken from WinUI 3's theme resources; decimal inputs, range sliders, calendars, color pickers, find bars and scroll containers from package `ui` under the same names, in the platform's theme.
 - Themes of the three platforms, light and dark, that follow the accent color, contrast and text size the user chose.
 - `breeze-ui`, a CLI that lists the widgets and platforms and writes snippets.
 - `breeze-ui-mcp`, a read-only MCP server over the same catalog.
@@ -74,6 +74,8 @@ Or install the Go command:
 go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest
 ```
 
+or download it for Linux, macOS or Windows from the [releases](https://github.com/yldm-tech/mygo-breeze-ui/releases). `breeze-ui version` prints the version it was built as.
+
 ## MCP server
 
 ```sh
@@ -94,6 +96,8 @@ bun run test
 bun run typecheck
 bun run build
 ```
+
+Pull request titles and commit messages are [Conventional Commits](https://www.conventionalcommits.org/) (`feat(breeze): ...`, `fix: ...`); the Labels workflow checks titles and labels each pull request by type, size, area and platform, and the Conflicts workflow labels those that conflict with their base branch. Once CI passes on `main`, the Release workflow releases it when the commits since the last tag call for a new version: it writes the version into the npm packages and the MCP server, commits that to `main` as `chore(release)`, tags the commit and publishes a GitHub release with the `breeze-ui` command built for Linux, macOS and Windows. For the version, `feat` bumps the minor one, `fix`, `perf` and `revert` the patch one, a breaking change (`feat!:` or a `BREAKING CHANGE:` footer) the major one, or the minor one while the version is 0.x. Run the Release workflow by hand to force a bump.
 
 ## Star History
 
