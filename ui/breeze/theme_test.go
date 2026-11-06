@@ -343,9 +343,35 @@ func TestRemainingWidgetsKeepTheirBehavior(t *testing.T) {
 // themeOfAccent is the app accent the ThemeOf tests give: a purple no platform defaults to.
 var themeOfAccent = ui.Hex("#8e44ad")
 
-// TestThemeOfMatchesTheme checks that Theme is ThemeOf with the window's appearance and the system's accent, on every platform, light and dark, with and without the user's accent, higher contrast and text size.
+// themeBeforeThemeOf is the theme Theme returned before ThemeOf existed, written out from that code: the platform's theme of the window's appearance from the user's accent made opaque, with the higher contrast and text size adjustments laid on it.
+func themeBeforeThemeOf(p Platform, dark bool, prefs ui.Preferences) *ui.Theme {
+	accent := prefs.Accent
+	if accent.A > 0 {
+		accent.A = 255
+	}
+	var t *ui.Theme
+	switch p {
+	case Windows:
+		t = fluentTheme(dark, accent)
+	case Linux:
+		t = adwTheme(dark, accent)
+	default:
+		t = macTheme(dark, accent)
+	}
+	if prefs.HighContrast {
+		t.Border = t.Border.Mix(t.Text, 0.45)
+		t.TextMuted = t.TextMuted.Mix(t.Text, 0.4)
+		t.Focus.A = 255
+	}
+	if s := prefs.TextScale; s > 0 && s != 1 {
+		t.FontSize *= s
+	}
+	return t
+}
+
+// TestThemeOfMatchesTheme checks that Theme, and ThemeOf with the window's appearance and the zero accent, return what Theme returned before ThemeOf existed, on every platform, light and dark, without preferences, with a translucent user accent, higher contrast and text size, and with an opaque user accent.
 func TestThemeOfMatchesTheme(t *testing.T) {
-	for _, prefs := range []ui.Preferences{{TextScale: 1}, {Accent: ui.RGBA(255, 45, 85, 0.5), HighContrast: true, TextScale: 1.25}} {
+	for _, prefs := range []ui.Preferences{{TextScale: 1}, {Accent: ui.RGBA(255, 45, 85, 0.5), HighContrast: true, TextScale: 1.25}, {Accent: ui.Hex("#34c759"), TextScale: 0.9}} {
 		for _, p := range Platforms {
 			for _, dark := range []bool{false, true} {
 				var theme, of *ui.Theme
@@ -356,8 +382,12 @@ func TestThemeOfMatchesTheme(t *testing.T) {
 				tester.SetPreferences(prefs)
 				tester.SetDark(dark)
 				tester.Frame()
-				if !reflect.DeepEqual(theme, of) {
-					t.Errorf("%v dark %v, preferences %+v: ThemeOf %+v, Theme %+v", p, dark, prefs, *of, *theme)
+				want := themeBeforeThemeOf(p, dark, prefs)
+				if !reflect.DeepEqual(theme, want) {
+					t.Errorf("%v dark %v, preferences %+v: Theme %+v, want %+v", p, dark, prefs, *theme, *want)
+				}
+				if !reflect.DeepEqual(of, want) {
+					t.Errorf("%v dark %v, preferences %+v: ThemeOf %+v, want %+v", p, dark, prefs, *of, *want)
 				}
 			}
 		}
