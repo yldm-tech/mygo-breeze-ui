@@ -6,7 +6,7 @@ import (
 
 // ---- tab views: document tabs that close, and a button adding one ----
 //
-// macOS: the tab bar of NSWindow's tabbing (two or more NSWindows joined with addTabbedWindow, a delegate answering newWindowForTab: for the + button), laid out offscreen and captured live at 2x in Aqua and Dark Aqua on macOS 27.2 by tools/appkit-reference/reference.swift (its tabs scene): an NSTabBar 28 points high under the title bar, its NSTabBarTrackView 8 points in from the window's edges, NSTabButtons 24 high 2 points inside the track and a point apart, NSTabBarTrackInversionView separators 1 by 16 in those points, and an NSTabBarNewTabButton 28 points square 4 after the track. The capture's window is not the active app's, so its titles are drawn dimmed; the titles' colors are AppKit's label colors (inferred), the fills are measured. The close button, which shows under the pointer, never shows in a capture: its place, 18 points square 4 in from the tab's leading edge, is its accessibility frame, and its look is inferred.
+// macOS: the tab bar of NSWindow's tabbing (two or more NSWindows joined with addTabbedWindow, a delegate answering newWindowForTab: for the + button), laid out offscreen and captured live at 2x in Aqua and Dark Aqua on macOS 27.2 by tools/appkit-reference/reference.swift (its tabs scene): an NSTabBar 28 points high under the title bar, its NSTabBarTrackView 8 points in from the window's edges, NSTabButtons 24 high 2 points inside the track and a point apart, NSTabBarTrackInversionView separators 1 by 16 in those points, and an NSTabBarNewTabButton 28 points square 4 after the track. The capture's window is not the active app's, so its titles are drawn dimmed; the titles' colors are AppKit's label colors (inferred), the fills are measured. The close button shows only under the pointer: its place, 18 points square 4 in from the tab's leading edge, is its accessibility frame, and its xmark and the fill of the tab under the pointer were read from a live capture taken with the pointer over an unchosen tab; the close button's own fill under the pointer and the pressed tab are inferred.
 //
 // Windows 11: WinUI's TabView of microsoft/microsoft-ui-xaml main at 5ed8dd3: TabView_themeresources.xaml, TabView.xaml (its TabViewItem, TabViewCloseButtonStyle and TabViewButtonStyle templates), TabViewItem.cpp (UpdateTabGeometry's selected shape, UpdateCloseButton) and TabView.cpp (UpdateTabWidths with TabWidthMode Equal, SetTabSeparatorOpacity, its KeyboardAccelerators, the choice after a tab is removed), with the brushes of Common_themeresources_any.xaml.
 //
@@ -43,7 +43,7 @@ func tabViewAfterClose(selected, i, n int) int {
 
 // TabView creates the tab strip of a window's documents: tabs choosing *selected among labels, each with a close button when close is not nil, and after them a button adding a tab when add is not nil. Build the chosen tab's content after it, as with Tabs. A click on tab i's close button calls close(i) once the strip is built; TabView has moved *selected first, as the platforms move the choice (to the tab after a closed chosen one, or before it when it was the last), so close removes label i and whatever it keeps for the tab, and a caller keeping the tab sets *selected back. A click on the add button calls add, which appends a label and usually chooses it.
 //
-// The tabs are MyGo's TabsBase: a tab list for assistive technology, of tabs named by their labels, Tab stopping once at the chosen tab, the arrows, Home and End choosing among them. The close buttons are buttons named as the platform names them, which the pointer and assistive technology press but Tab does not stop at, as WinUI's (IsTabStop False) and GTK's (can-focus False) are not; the add button is a Tab stop after the tabs. The platform's keys switch tabs while the focus is in the strip, or anywhere in the window when no element around the focus takes them: Ctrl+Tab and Ctrl+Shift+Tab on every platform (AppKit's Window menu, WinUI's KeyboardAccelerators, AdwTabView's shortcuts), wrapping around; Ctrl+F4 closes the chosen tab on Windows; on GNOME Ctrl+Page Up and Ctrl+Page Down switch too, Alt+1 to Alt+9 and Alt+0 choose the first ten tabs, and Ctrl+Home and Ctrl+End the first and the last while the focus is in the strip (in the window they would take those keys from text fields). Closing the tab with Ctrl+W or Cmd+W is the app's, as GNOME and macOS leave it to the app's menus.
+// The tabs are MyGo's TabsBase: a tab list for assistive technology, of tabs named by their labels, Tab stopping once at the chosen tab, the arrows, Home and End choosing among them. The close buttons are buttons named as the platform names them, which the pointer and assistive technology press but Tab does not stop at, as WinUI's (IsTabStop False) and GTK's (can-focus False) are not; the add button is a Tab stop after the tabs. The platform's keys switch tabs while the focus is in the strip, or anywhere in the window when no element around the focus takes them: Ctrl+Tab and Ctrl+Shift+Tab on every platform (AppKit's Window menu, WinUI's KeyboardAccelerators, AdwTabView's shortcuts), wrapping around; Ctrl+F4 closes the chosen tab on Windows; on GNOME Ctrl+Page Up and Ctrl+Page Down switch too, Alt+1 to Alt+9 and Alt+0 choose the first ten tabs, and Ctrl+Home and Ctrl+End the first and the last while the focus is in the strip (in the window they would take those keys from text fields). A key it would not act on goes on to the window's other shortcuts, as WinUI's accelerators leave it unhandled and AdwTabView's shortcuts let it propagate: the switching keys with a single tab, Ctrl+F4 when the tabs do not close, an Alt+digit for a tab that is not there or is the chosen one. With the focus in the strip, the tab the keys choose, or the one chosen in place of a closed tab, takes the focus, as AdwTabBox gives it to the chosen tab and WinUI's TabView moves it from a closed tab to the one beside it. Closing the tab with Ctrl+W or Cmd+W is the app's, as GNOME and macOS leave it to the app's menus.
 //   - macOS: the tab bar of a window's tabs (NSWindow tabbing): a 28-point capsule track 8 points in from the strip's sides, 9% of the label color over the window, holding the tabs, equal in width, 24 points high 2 points inside it and a point apart, their titles centered in 13 points; the chosen tab a white capsule (white at 11.7% in Dark Aqua) in labelColor, the others in secondaryLabelColor; a separator 1 by 16 points, the label color at 12% over the track, between two tabs neither of which is chosen or under the pointer; the close button under the pointer at the tab's leading edge; the + button, a 28-point circle 4 points after the track; a separator line under the strip as under a title bar.
 //   - Windows: WinUI's TabView with TabWidthMode Equal and CloseButtonOverlayMode Auto: tabs 32 DIPs high, 8 below the strip's top, sharing the width up to 240 each, their 12-DIP headers in TextFillColorSecondary, semibold in TextFillColorPrimary on the chosen tab, which SolidBackgroundFillColorTertiary fills with corners of 8 at the top and 4-DIP curves joining CardStrokeColorDefault's line along the strip's bottom; DividerStrokeColorDefault separators 16 high at the ends of tabs neither chosen nor beside the chosen one, nor under the pointer; a 32 by 24 close button with the Cancel glyph on every closable tab, as Auto shows them (it maps to Always); the 32 by 24 add button 3 DIPs after the tabs and above the strip's bottom.
 //   - GNOME: AdwTabBar with expand-tabs: a bar of headerbar_bg_color with headerbar_shade_color along its bottom, the tabs 34 pixels high, 6 below its top, 5 apart and 5 from its ends, sharing its width, their titles centered; the chosen tab currentColor at 10% (13% under the pointer, 19% pressed), another one 7% under the pointer and 16% pressed, corners of 9, none of it with a single tab; a 1-pixel separator 28 high centered in the space before every tab neither it nor the tab before is chosen or under the pointer; a round 24-pixel flat close button with window-close-symbolic at the tab's end while it is chosen or under the pointer; the add button, a flat 34-pixel image button with adw-tab-new-symbolic, at the bar's end.
@@ -55,6 +55,8 @@ func TabView(c *ui.Context, selected *int, labels []string, close func(i int), a
 	strip := ui.Row(c).Shrink(0)
 	// Whether the strip was disabled as it was last painted: the caller disables what TabView returns after it, so its window-wide keys learn of it a frame later.
 	off := ui.Local(strip, "breeze-tabview-off", func() bool { return false })
+	// Whether the chosen tab takes the focus as it is built: the keys chose it, or closed a tab, with the focus in the strip, as AdwTabBox gives the chosen tab the focus and WinUI's TabView moves it from a closed tab to the one beside it.
+	follow := ui.Local(strip, "breeze-tabview-follow", func() bool { return false })
 	sel := *selected
 	hovered := make([]bool, n)
 	closing, adding := -1, false
@@ -76,6 +78,10 @@ func TabView(c *ui.Context, selected *int, labels []string, close func(i int), a
 				tab := parts.Tab(i).Label(label).Grow(1).Shrink(1).MinWidth(0).FocusRing(false)
 				hovered[i] = tab.Hovered()
 				chosen := i == sel
+				if chosen && *follow {
+					tab.Focus()
+					*follow = false
+				}
 				var x ui.Element
 				switch p {
 				case Windows:
@@ -104,26 +110,33 @@ func TabView(c *ui.Context, selected *int, labels []string, close func(i int), a
 			adding = true
 		}
 	})
-	if n > 0 {
-		choose := func(i int) { *selected = (i%n + n) % n }
-		key := func(mods ui.Modifiers, k ui.Key, window bool) bool {
-			// Both register their shortcut every frame, the strip's first: with the focus in the strip it takes the key, else the window does.
-			in := strip.Shortcut(mods, k)
-			out := window && c.Shortcut(mods, k) && !*off
-			return in || out
+	choose := func(i int) { *selected = (i%n + n) % n }
+	key := func(mods ui.Modifiers, k ui.Key, window bool) bool {
+		// Both register their shortcut every frame, the strip's first: with the focus in the strip it takes the key, else the window does, unless the strip is disabled. A key is registered only where it acts, so that one it would not act on goes on to the window's other shortcuts, as WinUI's accelerators report it unhandled and AdwTabView's shortcuts let it propagate.
+		in := strip.Shortcut(mods, k)
+		out := window && !*off && c.Shortcut(mods, k)
+		if in {
+			*follow = true
 		}
+		return in || out
+	}
+	// Switching needs two tabs: WinUI's MoveSelection and AdwTabView's select_page_cb leave the key alone with one.
+	if n > 1 {
 		if key(ui.Ctrl, ui.KeyTab, true) {
 			choose(*selected + 1)
 		}
 		if key(ui.Ctrl|ui.Shift, ui.KeyTab, true) {
 			choose(*selected - 1)
 		}
-		switch p {
-		case Windows:
-			if key(ui.Ctrl, ui.KeyF4, true) && close != nil && closing < 0 {
-				closing = *selected
-			}
-		case Linux:
+	}
+	switch p {
+	case Windows:
+		// RequestCloseCurrentTab handles Ctrl+F4 only for a tab that closes.
+		if n > 0 && close != nil && key(ui.Ctrl, ui.KeyF4, true) && closing < 0 {
+			closing = *selected
+		}
+	case Linux:
+		if n > 1 {
 			if key(ui.Ctrl, ui.KeyPageDown, true) {
 				choose(*selected + 1)
 			}
@@ -136,15 +149,18 @@ func TabView(c *ui.Context, selected *int, labels []string, close func(i int), a
 			if key(ui.Ctrl, ui.KeyEnd, false) {
 				choose(n - 1)
 			}
-			for i, k := range []ui.Key{ui.Key1, ui.Key2, ui.Key3, ui.Key4, ui.Key5, ui.Key6, ui.Key7, ui.Key8, ui.Key9, ui.Key0} {
-				// AdwTabView's select_nth_page_cb lets a key pass for a page that is not there.
-				if key(ui.Alt, k, true) && i < n {
-					choose(i)
-				}
+		}
+		for i, k := range []ui.Key{ui.Key1, ui.Key2, ui.Key3, ui.Key4, ui.Key5, ui.Key6, ui.Key7, ui.Key8, ui.Key9, ui.Key0} {
+			// AdwTabView's select_nth_page_cb lets the key pass for a page that is not there or is the chosen one.
+			if i < n && i != *selected && key(ui.Alt, k, true) {
+				choose(i)
 			}
 		}
 	}
 	if closing >= 0 && closing < n {
+		if strip.FocusWithin() {
+			*follow = true
+		}
 		*selected = tabViewAfterClose(*selected, closing, n)
 		close(closing)
 	}
@@ -173,7 +189,7 @@ func macTabViewStrip(c *ui.Context, strip, list ui.Element) {
 // macTabTrackAlpha is the share of the label color the tab bar's track lays over the window: 232 over white, 62 over 42 in Dark Aqua (measured on macOS 27.2).
 const macTabTrackAlpha = 0.09
 
-// macTabViewTab draws tab i of the window tab bar and builds its children, returning its close button: the chosen tab a capsule, white with a faint rim (254 inside 248 over the track in Aqua; white at 11.7% with a rim at 16% in Dark Aqua, 67 and 76 over 42), the title centered in labelColor, the others in secondaryLabelColor (inferred: the capture's window was not the active one, which dims them); under the pointer an unchosen tab shows a capsule of 5% and the close button, which takes 18 points 4 in from the leading edge, an xmark in secondaryLabelColor, darker under the pointer (inferred). The separator before tab i, 1 by 16 points 4 below the tab's top in the point between it and tab i-1, is the label color at 12% over the track (204 over 232, 85 over 62), hidden beside the chosen tab and one under the pointer. AppKit's focus ring goes around a tab with the focus (inferred from the segments').
+// macTabViewTab draws tab i of the window tab bar and builds its children, returning its close button: the chosen tab a capsule, white with a faint rim (254 inside 248 over the track in Aqua; white at 11.7% with a rim at 16% in Dark Aqua, 67 and 76 over 42), the title centered in labelColor, the others in secondaryLabelColor (inferred: the capture's window was not the active one, which dims them); under the pointer an unchosen tab shows a capsule of 5% (220 over the track's 232) and the close button, which takes 18 points 4 in from the leading edge: an xmark 6.85 points square in strokes of 0.9, centered on it (the capture's xmark, 15 pixels across at 2x with the ink of two such strokes), in secondaryLabelColor; under the pointer the button's circle and the darker xmark, and the pressed tab's 8%, are inferred. The separator before tab i, 1 by 16 points 4 below the tab's top in the point between it and tab i-1, is the label color at 12% over the track (204 over 232, 85 over 62), hidden beside the chosen tab and one under the pointer. AppKit's focus ring goes around a tab with the focus (inferred from the segments').
 func macTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closable bool, i int, hovered []bool, sel int, rtl bool) ui.Element {
 	t := c.Theme()
 	track := tint(t.Background, t.Dark, macTabTrackAlpha)
@@ -186,7 +202,8 @@ func macTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closable
 	case chosen:
 		under = pick(t.Dark, white, t.Background.Mix(white, 0.117))
 		edge := pick(t.Dark, track.Mix(black, 0.03), t.Background.Mix(white, 0.164))
-		tab.Background(under).Border(0.5, edge).TextColor(tint(under, t.Dark, 0.847))
+		// The rim takes half a point of the padding, so that the close button stays 4 points in and the tab as wide as the others.
+		tab.Background(under).Border(0.5, edge).Padding(0, 3.5).TextColor(tint(under, t.Dark, 0.847))
 	case pressed:
 		under = tint(track, t.Dark, 0.08)
 		tab.Background(under)
@@ -224,16 +241,16 @@ func macTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closable
 			ink = tint(under, t.Dark, 0.847)
 		}
 		x.Draw(func(p *ui.Painter, r ui.Rect) {
-			toastCross(p, ui.Rect{X: r.X + 5.5, Y: r.Y + 5.5, W: 7, H: 7}, 0, 1.25, ink)
+			toastCross(p, ui.Rect{X: r.X + 5.575, Y: r.Y + 5.575, W: 6.85, H: 6.85}, 0, 0.9, ink)
 		})
 		ui.Text(c, label).SingleLine().Grow(1).Shrink(1).MinWidth(0).TextAlign(ui.Center)
-		// As wide as the close button, so that the title stays centered on the tab.
-		ui.Box(c).Size(18, 18).Shrink(0).Role(ui.RoleNone)
+		// As wide as the close button, so that the title stays centered on the tab; hidden with it, which TabView hides when the tabs do not close.
+		ui.Box(c).Size(18, 18).Shrink(0).Role(ui.RoleNone).Hidden(!closable)
 	})
 	return x
 }
 
-// macTabViewAdd draws the tab bar's + button (NSTabBarNewTabButton): a 28-point circle of glass, near white with a half-point rim in Aqua (250 inside 226), white at 13.6% with a lighter rim in Dark Aqua (71 inside 126 over 42), and the plus, 10.5 points across in 1.3-point strokes, black or white (measured on macOS 27.2); darker pressed (inferred), with AppKit's focus ring around it.
+// macTabViewAdd draws the tab bar's + button (NSTabBarNewTabButton): a 28-point circle of glass, near white in Aqua (250 on average inside it), white at 13.6% in Dark Aqua (71 over 42), and the plus, 10.5 points across in 1.3-point strokes, black or white (measured on macOS 27.2). The glass's edge, a highlight at the top and bottom and a shadow at the sides (191 to 255 around the circle in Aqua, 15 to 126 in Dark Aqua), is drawn as a half-point rim of black at 11% and white at 30% (inferred); darker pressed (inferred), with AppKit's focus ring around it.
 func macTabViewAdd(c *ui.Context, b ui.Element) {
 	t := c.Theme()
 	face := pick(t.Dark, t.Background.Mix(black, 0.02), t.Background.Mix(white, 0.136))
@@ -264,13 +281,22 @@ func fluentTabViewStrip(c *ui.Context, strip, list ui.Element, n int) {
 	list.Padding(8, 0, 0, 0).PaddingStart(9).PaddingEnd(4).MaxWidth(13 + 240*float32(max(n, 1))).AlignItems(ui.Stretch)
 }
 
-// fluentTabViewTab draws TabViewItem i and builds its children, returning its close button. A tab is at least 32 DIPs high (TabViewItemMinHeight), its TabContainer padded 8,3,4,3 with the close button and 8,3,8,3 without (TabViewItemHeaderPaddingWithCloseButton and WithoutCloseButton), corners of OverlayCornerRadius (8) at the top, its 12-DIP header (TabViewItemHeaderFontSize, following the text size) at the start in TextFillColorSecondary, TextFillColorTertiary pressed; under the pointer LayerOnMicaBaseAltFillColorSecondary (black at 3.9%, white at 5.9% in the dark theme) and pressed LayerOnMicaBaseAltFillColorDefault (white at 70.2%, #3a3a3a at 45.1%). The chosen tab draws TabGeometry, SolidBackgroundFillColorTertiary (#f9f9f9, #282828) from 4 DIPs before its start to 4 after its end along the bottom, with 4-DIP concave curves there and corners of 8 at the top, and around it TabViewSelectedItemBorderBrush, CardStrokeColorDefault 1 DIP outside its sides and along its top (TabViewSelectedItemHeaderMargin -1,0,-1,1), which LeftRadiusRenderArc and RightRadiusRenderArc carry down into the strip's line; its header semibold in TextFillColorPrimary. TabSeparator, DividerStrokeColorDefault 1 DIP at the tab's end, 8 from its top and bottom (TabViewItemSeparatorMargin), shows unless the tab is chosen, before the chosen one, or it or the next is under the pointer (SetTabSeparatorOpacity, HideLeftAdjacentTabSeparator). The focus visual goes around the TabContainer (IsTemplateFocusTarget).
+// fluentTabViewTab draws TabViewItem i and builds its children, returning its close button. A tab is at least 32 DIPs high (TabViewItemMinHeight), its TabContainer padded 8,3,4,3 with the close button and 8,3,8,3 without (TabViewItemHeaderPaddingWithCloseButton and WithoutCloseButton) inside a transparent 1-DIP border (TabViewItemBorderThickness, TabViewItemBorderBrush), which the chosen tab's TabContainer, 1 DIP wider on either side, replaces with its outline, corners of OverlayCornerRadius (8) at the top, its 12-DIP header (TabViewItemHeaderFontSize, following the text size) at the start in TextFillColorSecondary, TextFillColorTertiary pressed; under the pointer LayerOnMicaBaseAltFillColorSecondary (black at 3.9%, white at 5.9% in the dark theme) and pressed LayerOnMicaBaseAltFillColorDefault (white at 70.2%, #3a3a3a at 45.1%). The chosen tab draws TabGeometry, SolidBackgroundFillColorTertiary (#f9f9f9, #282828) from 4 DIPs before its start to 4 after its end along the bottom, with 4-DIP concave curves there and corners of 8 at the top, and around it TabViewSelectedItemBorderBrush, CardStrokeColorDefault 1 DIP outside its sides and along its top (TabViewSelectedItemHeaderMargin -1,0,-1,1), which LeftRadiusRenderArc and RightRadiusRenderArc carry down into the strip's line; its header semibold in TextFillColorPrimary. TabSeparator, DividerStrokeColorDefault 1 DIP at the tab's end, 8 from its top and bottom (TabViewItemSeparatorMargin), shows unless the tab is chosen, before the chosen one, or it or the next is under the pointer (SetTabSeparatorOpacity, HideLeftAdjacentTabSeparator). The focus visual goes around the TabContainer (IsTemplateFocusTarget).
 func fluentTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closable bool, i int, hovered []bool, sel int, rtl bool) ui.Element {
 	t := c.Theme()
 	pressed := tab.Pressed()
 	over := hovered[i]
 	focused := tab.FocusVisible()
-	tab.MinHeight(32).Padding(3, 4, 3, 8).PaddingStart(8).PaddingEnd(pick(closable, float32(4), 8)).AlignItems(ui.Center).
+	// A tab's TabContainer has a transparent 1-DIP border (TabViewItemBorderThickness) around its padding; the chosen tab's reaches a DIP past the tab's sides with its outline there instead, so its header and close button sit a DIP further out. The border is a margin of the children: as padding it would make the tabs, which share the width past their padding, differ in width.
+	edge := float32(1)
+	if chosen {
+		edge = 0
+	}
+	end, textEnd := float32(8), edge // TabViewItemHeaderPaddingWithoutCloseButton, the border after the header
+	if closable {
+		end, textEnd = 4, 0 // WithCloseButton, the border after the close button
+	}
+	tab.MinHeight(32).Padding(3, end, 3, 8).PaddingStart(8).PaddingEnd(end).AlignItems(ui.Center).
 		Radius(8, 8, 0, 0).FontSize(t.FontSize * 12 / 14).TextColor(t.TextMuted)
 	under := t.Background
 	switch {
@@ -310,8 +336,8 @@ func fluentTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closa
 	})
 	var x ui.Element
 	tab.Children(func() {
-		ui.Text(c, label).SingleLine().Grow(1).Shrink(1).MinWidth(0)
-		x = ui.Box(c).Size(32, 24).Shrink(0).MarginStart(4).Radius(4).Center()
+		ui.Text(c, label).SingleLine().Grow(1).Shrink(1).MinWidth(0).MarginStart(edge).MarginEnd(textEnd)
+		x = ui.Box(c).Size(32, 24).Shrink(0).MarginStart(4).MarginEnd(edge).Radius(4).Center()
 		fluentTabViewButtonFace(t, x, under)
 		ink := t.Text
 		if x.Pressed() {
@@ -442,8 +468,8 @@ func adwTabViewTab(c *ui.Context, tab ui.Element, label string, chosen, closable
 	adwFocusRing(t, tab, 9, nil)
 	var x ui.Element
 	tab.Children(func() {
-		// As wide as the close button, so that the title stays centered on the tab.
-		ui.Box(c).Size(24, 24).Shrink(0).Role(ui.RoleNone)
+		// As wide as the close button, so that the title stays centered on the tab; hidden with it, which TabView hides when the tabs do not close.
+		ui.Box(c).Size(24, 24).Shrink(0).Role(ui.RoleNone).Hidden(!closable)
 		ui.Text(c, label).SingleLine().Grow(1).Shrink(1).MinWidth(0).MarginX(4).TextAlign(ui.Center)
 		x = ui.Box(c).Size(24, 24).Shrink(0).Radius(12).Center()
 		shown := closable && (chosen || over)

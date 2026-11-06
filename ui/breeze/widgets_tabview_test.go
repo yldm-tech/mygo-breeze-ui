@@ -178,20 +178,19 @@ func TestTabViewKeys(t *testing.T) {
 		if !tester.Focused("Two") {
 			t.Fatalf("%v: Shift+Tab from the button did not focus the chosen tab", p)
 		}
+		// On GNOME Ctrl+End chooses the last tab, which takes the focus; elsewhere it does nothing.
 		press(ui.Ctrl, ui.KeyEnd)
-		if want := map[bool]int{true: 3, false: 1}[p == Linux]; app.selected != want {
-			t.Errorf("%v: Ctrl+End in the strip chose %d, want %d", p, app.selected, want)
+		linux := p == Linux
+		if want, focus := map[bool]int{true: 3, false: 1}[linux], map[bool]string{true: "Four", false: "Two"}[linux]; app.selected != want || !tester.Focused(focus) {
+			t.Errorf("%v: Ctrl+End in the strip chose %d, want %d with the focus on %s", p, app.selected, want, focus)
 		}
-		app.selected = 1
-		tester.Frame()
-		tester.Frame()
 		press(0, ui.KeyRight)
-		if app.selected != 2 || !tester.Focused("Three") {
-			t.Errorf("%v: Right in the strip chose %d", p, app.selected)
+		if want, focus := map[bool]int{true: 0, false: 2}[linux], map[bool]string{true: "One", false: "Three"}[linux]; app.selected != want || !tester.Focused(focus) {
+			t.Errorf("%v: Right in the strip chose %d, want %d with the focus on %s", p, app.selected, want, focus)
 		}
 		press(ui.Ctrl, ui.KeyTab)
-		if app.selected != 3 {
-			t.Errorf("%v: Ctrl+Tab in the strip chose %d", p, app.selected)
+		if want := map[bool]int{true: 1, false: 3}[linux]; app.selected != want {
+			t.Errorf("%v: Ctrl+Tab in the strip chose %d, want %d", p, app.selected, want)
 		}
 	}
 }
@@ -281,7 +280,7 @@ func TestTabViewSharesTheWidth(t *testing.T) {
 				t.Errorf("%v %d: a tab is %v high, want %v", p, width, tabs[0].H, want)
 			}
 			for i := 1; i < 3; i++ {
-				if d := tabs[i].W - tabs[0].W; d < -1 || d > 1 {
+				if d := tabs[i].W - tabs[0].W; d < -0.01 || d > 0.01 {
 					t.Errorf("%v %d: tabs %v and %v differ in width", p, width, tabs[0], tabs[i])
 				}
 			}
@@ -338,6 +337,177 @@ func TestScreenshotsTabView(t *testing.T) {
 			}
 			mode := map[bool]string{false: "light", true: "dark"}[dark]
 			writeShot(t, dir, fmt.Sprintf("breeze-tabview-%s-%s.png", strings.ToLower(p.String()), mode), tester)
+		}
+	}
+}
+
+// TestTabViewLeavesKeysItDoesNotUse checks on every platform that the tab view takes a key only when it acts on it, as WinUI's accelerators report it unhandled and AdwTabView's shortcuts propagate it: Ctrl+Tab and Ctrl+Shift+Tab with a single tab, Ctrl+F4 when the tabs do not close, Ctrl+Page Down with a single tab on GNOME, and an Alt+digit there for a tab that is not there or is the chosen one, all reach a shortcut of the window built after it.
+func TestTabViewLeavesKeysItDoesNotUse(t *testing.T) {
+	type press struct {
+		mods ui.Modifiers
+		key  ui.Key
+	}
+	for _, p := range Platforms {
+		presses := []press{{ui.Ctrl, ui.KeyTab}, {ui.Ctrl | ui.Shift, ui.KeyTab}, {ui.Ctrl, ui.KeyF4}, {ui.Ctrl, ui.KeyPageDown}, {ui.Alt, ui.Key5}, {ui.Alt, ui.Key1}}
+		for _, labels := range [][]string{{"Only"}, {"One", "Two", "Three"}} {
+			selected := 0
+			got := map[press]bool{}
+			tester := layoutTester(p, 640, 300, func(c *ui.Context) {
+				TabView(c, &selected, labels, nil, nil)
+				Button(c, "Inside")
+				for _, k := range presses {
+					if c.Shortcut(k.mods, k.key) {
+						got[k] = true
+					}
+				}
+			})
+			if err := tester.Click("Inside"); err != nil {
+				t.Fatalf("%v: %v", p, err)
+			}
+			tester.Frame()
+			for _, k := range presses {
+				// With three tabs the switching keys act; Alt+5 and Alt+1 (the chosen tab) do not on GNOME.
+				acts := len(labels) > 1 && (k.key == ui.KeyTab || (p == Linux && k.key == ui.KeyPageDown))
+				tester.Key(k.mods, k.key)
+				tester.Frame()
+				tester.Frame()
+				if got[k] == acts {
+					t.Errorf("%v %d tabs: the window's shortcut got %v+%v: %v", p, len(labels), k.mods, k.key, got[k])
+				}
+				selected = 0
+				tester.Frame()
+			}
+		}
+	}
+}
+
+// TestTabViewFocusFollowsTheKeys checks on every platform that with the focus on a tab the keys switching tabs take it to the tab they choose, as AdwTabBox gives the newly chosen tab the focus and as MyGo's tabs follow the arrows, and on Windows that Ctrl+F4 closing the focused last tab leaves the focus on the tab chosen in its place, as WinUI's TabView moves it to an adjacent tab.
+func TestTabViewFocusFollowsTheKeys(t *testing.T) {
+	for _, p := range Platforms {
+		app := &tabViewApp{labels: []string{"One", "Two", "Three"}, closable: true}
+		tester := layoutTester(p, 640, 300, app.view)
+		if err := tester.Click("Inside"); err != nil {
+			t.Fatalf("%v: %v", p, err)
+		}
+		tester.Frame()
+		tester.Key(ui.Shift, ui.KeyTab)
+		tester.Frame()
+		if !tester.Focused("One") {
+			t.Fatalf("%v: Shift+Tab did not focus the chosen tab", p)
+		}
+		tester.Key(ui.Ctrl, ui.KeyTab)
+		tester.Frame()
+		tester.Frame()
+		if app.selected != 1 || !tester.Focused("Two") {
+			t.Errorf("%v: Ctrl+Tab in the strip chose %d and left the focus behind", p, app.selected)
+		}
+		tester.Key(ui.Ctrl|ui.Shift, ui.KeyTab)
+		tester.Key(ui.Ctrl|ui.Shift, ui.KeyTab)
+		tester.Frame()
+		tester.Frame()
+		tester.Frame()
+		if app.selected != 2 || !tester.Focused("Three") {
+			t.Errorf("%v: Ctrl+Shift+Tab twice in the strip chose %d and left the focus behind", p, app.selected)
+		}
+		if p != Windows {
+			continue
+		}
+		tester.Key(ui.Ctrl, ui.KeyF4)
+		tester.Frame()
+		tester.Frame()
+		if strings.Join(app.labels, ",") != "One,Two" || app.selected != 1 || !tester.Focused("Two") {
+			t.Errorf("%v: Ctrl+F4 on the focused last tab left %v, %d chosen, the focus elsewhere", p, app.labels, app.selected)
+		}
+	}
+}
+
+// TestTabViewDisabledLeavesKeysToAnother checks on every platform that a disabled tab view does not take the window's keys from an enabled one built after it.
+func TestTabViewDisabledLeavesKeysToAnother(t *testing.T) {
+	for _, p := range Platforms {
+		first, second := 0, 0
+		tester := layoutTester(p, 640, 300, func(c *ui.Context) {
+			TabView(c, &first, []string{"One", "Two"}, nil, nil).Disabled(true)
+			TabView(c, &second, []string{"Three", "Four"}, nil, nil)
+			Button(c, "Inside")
+		})
+		if err := tester.Click("Inside"); err != nil {
+			t.Fatalf("%v: %v", p, err)
+		}
+		tester.Frame()
+		tester.Key(ui.Ctrl, ui.KeyTab)
+		tester.Frame()
+		tester.Frame()
+		if first != 0 || second != 1 {
+			t.Errorf("%v: Ctrl+Tab chose %d in the disabled tab view and %d in the other", p, first, second)
+		}
+	}
+}
+
+// TestTabViewCentersTitlesWithoutClose checks on macOS and GNOME, which center a tab's title, that the title of a tab without a close button is centered on the tab, as AdwTab centers it across the whole tab and AppKit's tab bar on its tab, reading the title's ink from the frame rather than the host font's widths.
+func TestTabViewCentersTitlesWithoutClose(t *testing.T) {
+	for _, p := range []Platform{Mac, Linux} {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			selected := 1
+			tester := layoutTester(p, 640, 200, func(c *ui.Context) {
+				ui.Column(c).Padding(16).Children(func() {
+					TabView(c, &selected, []string{"General", "Advanced"}, nil, nil)
+				})
+			})
+			tester.SetDirection(dir)
+			tester.Frame()
+			img := tester.Image()
+			for _, s := range []string{"General", "Advanced"} {
+				r, _ := tester.Find(s)
+				y := int(r.Y + r.H/2)
+				bg := img.RGBAAt(int(r.X+r.W/2), int(r.Y+2))
+				lo, hi := -1, -1
+				for x := int(r.X) + 6; x < int(r.X+r.W)-6; x++ {
+					for dy := -4; dy <= 4; dy++ {
+						c := img.RGBAAt(x, y+dy)
+						if d := int(c.G) - int(bg.G); d > 48 || d < -48 {
+							if lo < 0 {
+								lo = x
+							}
+							hi = x
+							break
+						}
+					}
+				}
+				if lo < 0 {
+					t.Fatalf("%v %v: no ink in %q", p, dir, s)
+				}
+				if off := float32(lo+hi+1)/2 - (r.X + r.W/2); off < -2 || off > 2 {
+					t.Errorf("%v %v: the title of %q is %v off the tab's center", p, dir, s, off)
+				}
+			}
+		}
+	}
+}
+
+// TestTabViewCloseButtonInsets checks on every platform, left to right and right to left, where the first tab's close button is, chosen and not: 4 points in from the tab's leading edge on macOS (its accessibility frame on macOS 27.2, the chosen tab's rim inside those 4), 4 DIPs in from the end of the chosen tab on Windows (TabViewItemHeaderPaddingWithCloseButton) and 5 from another's, whose TabContainer keeps a transparent 1-DIP border where the chosen one's reaches past the tab, and 4 pixels in from the end on GNOME (the tab's padding).
+func TestTabViewCloseButtonInsets(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			for _, chosen := range []int{0, 1} {
+				app := &tabViewApp{labels: []string{"One", "Two"}, selected: chosen, closable: true}
+				tester := layoutTester(p, 640, 300, app.view)
+				tester.SetDirection(dir)
+				tester.Frame()
+				tab, _ := tester.Find("One")
+				x, _ := tester.Find(tabViewClose(p))
+				fromLeft, fromRight := x.X-tab.X, tab.X+tab.W-(x.X+x.W)
+				in := fromRight
+				if (p == Mac) != (dir == ui.RightToLeft) {
+					in = fromLeft
+				}
+				want := float32(4)
+				if p == Windows && chosen != 0 {
+					want = 5
+				}
+				if in < want-0.01 || in > want+0.01 {
+					t.Errorf("%v %v, tab %d chosen: the first tab's close button is %v inside it, want %v", p, dir, chosen, in, want)
+				}
+			}
 		}
 	}
 }
