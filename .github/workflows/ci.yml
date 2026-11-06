@@ -55,7 +55,7 @@ jobs:
             exit 1
           fi
       - name: Reference tools compile
-        run: python3 -m py_compile tools/adwaita-reference/reference.py
+        run: python3 -m compileall -q tools/adwaita-reference
 
   cross:
     name: Build (${{ matrix.goos }})
