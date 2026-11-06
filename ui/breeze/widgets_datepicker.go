@@ -477,7 +477,7 @@ func fluentCalendarBg(t *ui.Theme) ui.Color {
 	return pick(t.Dark, white, t.Background.Mix(ui.Hex("#1e1e1e"), 0.702))
 }
 
-// fluentCalendar builds a CalendarView into root, CalendarView's Windows look (CalendarView_themeresources.xaml): 300 DIPs wide, BorderThickness 1 of CalendarViewBorderBrush (ControlStrokeColorDefault), corners of ControlCornerRadius (4), CalendarViewBackground; the header 49 high, its HeaderButton's text (FontSize 14, SemiBold) placed by its Margin 7,6,3,7, its border of 1 and its Padding 8,7,8,8, 16 DIPs in and 14 down in a 19-DIP room, the PreviousButton and NextButton (NavigationButtonStyle) with Margins 3,6,3,7 and 3,6,7,7, 34 by 36 (Padding 12 each side of the 8-DIP glyph inside the border of 1; the header's buttons are 36 high, as Segoe UI Variable's 18.62-DIP line of 14 with the HeaderButton's padding and border rounds up, measured with WinUI 3 on Windows 11 26H2); a 1-DIP Border of the border brush, over the calendar's background; WeekDayNames with a Margin of 2,2,2,0 holding seven star columns of CaptionTextBlockStyle (12) SemiBold names with a Margin of 1 and a Padding of 12, 42 high, in CalendarItemForeground, sized as fluentWeekdayWidths gives them; and the MonthViewScrollViewer with a Margin of 2 holding six weeks of CalendarViewDayItems, 40 by 40 with a Margin of 1. The text colors are WinUI's translucent ones over the calendar's background.
+// fluentCalendar builds a CalendarView into root, CalendarView's Windows look (CalendarView_themeresources.xaml): 300 DIPs wide, BorderThickness 1 of CalendarViewBorderBrush (ControlStrokeColorDefault), corners of ControlCornerRadius (4), CalendarViewBackground; the header 49 high, its HeaderButton's text (FontSize 14, SemiBold) placed by its Margin 7,6,3,7, its border of 1 and its Padding 8,7,8,8, 16 DIPs in and 14 down in a 19-DIP room, the PreviousButton and NextButton (NavigationButtonStyle) with Margins 3,6,3,7 and 3,6,7,7, 34 by 36 (Padding 12 each side of the 8-DIP glyph inside the border of 1; the header's buttons are 36 high, as Segoe UI Variable's 18.62-DIP line of 14 with the HeaderButton's padding and border rounds up, measured with WinUI 3 on Windows 11 26H2); a 1-DIP Border of the border brush, over the calendar's background; WeekDayNames with a Margin of 2,2,2,0, CalendarViewBackground a second time, holding seven star columns of CaptionTextBlockStyle (12) SemiBold names with a Margin of 1 and a Padding of 12, 42 high, in CalendarItemForeground, sized as fluentWeekdayWidths gives them; and the MonthViewScrollViewer with a Margin of 2 holding six weeks of CalendarViewDayItems, 40 by 40 with a Margin of 1. The text colors are WinUI's translucent ones over the calendar's background.
 func fluentCalendar(b *calendarBuild, root ui.Element) {
 	c, t := b.c, b.t
 	// In CalendarDatePicker's flyout the CalendarView lies on the FlyoutPresenter's background, the in-app acrylic's fallback color (#f9f9f9, #2c2c2c), so its translucent background and border read over that rather than over the window: the background 34 and the border 59 in the dark theme, the border 234 in the light one (measured with WinUI 3 on Windows 11 26H2).
@@ -527,7 +527,8 @@ func fluentCalendar(b *calendarBuild, root ui.Element) {
 			}, func(week int, fn func()) ui.Element {
 				r := ui.Row(c).Shrink(0).Children(fn)
 				if week < 0 {
-					r.Margin(0, 0, 2, 0)
+					// WeekDayNames lays CalendarViewBackground over the calendar's a second time, which darkens the row of names in the dark theme: 30 over the calendar's 31, 31 over 34 in the picker's flyout (measured with WinUI 3 on Windows 11 26H2).
+					r.Margin(0, 0, 2, 0).Background(fluentCalendarBg(th))
 				}
 				return r
 			}, func(d time.Time) ui.Element {

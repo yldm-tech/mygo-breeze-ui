@@ -758,7 +758,7 @@ func TestFluentCalendarStatesAsMeasured(t *testing.T) {
 	}
 }
 
-// TestFluentCalendarAsRendered pins what WinUI 3's render on Windows 11 26H2 (tools/winui-reference's winui-datepicker and winui-datepicker-open scenes) shows of CalendarView and CalendarDatePicker beyond their sources: the Previous and Next buttons 34 by 36 DIPs, 218 and 258 DIPs in, with carets 6 DIPs high; the month's text 17 DIPs in and its middle 24.5 down, its room ending 12 DIPs before Previous's margin (the HeaderButton's margin of 3, its border and its padding of 8); the line under the header ControlStrokeColorDefault over the calendar's background (240, 47); the day names' columns widened to fit a name with its padding, the others sharing the rest; the picker's date 12 DIPs from its start and its calendar glyph, an outline 10 high with its band and five dots, its middle 16 DIPs before the picker's end; and in the picker's flyout the calendar's background and border over the presenter's in-app acrylic fallback (34 and 59 in the dark theme, the border 234 in the light one).
+// TestFluentCalendarAsRendered pins what WinUI 3's render on Windows 11 26H2 (tools/winui-reference's winui-datepicker and winui-datepicker-open scenes) shows of CalendarView and CalendarDatePicker beyond their sources: the Previous and Next buttons 34 by 36 DIPs, 218 and 258 DIPs in, with carets 6 DIPs high; the month's text 17 DIPs in and its middle 24.5 down, its room ending 12 DIPs before Previous's margin (the HeaderButton's margin of 3, its border and its padding of 8); the line under the header ControlStrokeColorDefault over the calendar's background (240, 47); the row of names under CalendarViewBackground a second time (30 over the calendar's 31 in the dark theme); the day names' columns widened to fit a name with its padding, the others sharing the rest; the picker's date 12 DIPs from its start and its calendar glyph, an outline 10 high with its band and five dots, its middle 16 DIPs before the picker's end; and in the picker's flyout the calendar's background and border over the presenter's in-app acrylic fallback (34 and 59 in the dark theme, the row of names 31, the border 234 in the light one).
 func TestFluentCalendarAsRendered(t *testing.T) {
 	fixToday(t, datePickerToday)
 	near := func(what string, got, want, by float32) {
@@ -797,6 +797,8 @@ func TestFluentCalendarAsRendered(t *testing.T) {
 		near("the month's room", month.W, 186, 0.01)
 		near("the month's middle", month.Y+month.H/2-box.Y, 24.5, 0.01)
 		near("the line under the header", float32(shotPixel(tester, box.X+150, box.Y+50.25)[0]), pick(dark, float32(240), 47), 1)
+		near("the row of names", float32(shotPixel(tester, box.X+4, box.Y+60)[0]), pick(dark, float32(255), 30), 0.5)
+		near("the month view", float32(shotPixel(tester, box.X+4, box.Y+120)[0]), pick(dark, float32(255), 31), 0.5)
 
 		// The columns' edges follow from the names' middles, the first starting 3 in (the border and the month view's margin of 2).
 		edge, wide := box.X+3, float32(0)
@@ -859,6 +861,7 @@ func TestFluentCalendarAsRendered(t *testing.T) {
 		x, y := prev.X-218, prev.Y-7
 		near("the flyout's border", float32(shotPixel(tester, x+0.25, y+100)[0]), pick(dark, float32(234), 59), 1)
 		near("the flyout's calendar", float32(shotPixel(tester, x+2.5, y+200)[0]), pick(dark, float32(255), 34), 1)
+		near("the flyout's row of names", float32(shotPixel(tester, x+4, y+60)[0]), pick(dark, float32(255), 31), 0.5)
 		tester.Key(0, ui.KeyEscape)
 		tester.Frame()
 		tester.Frame()
