@@ -29,7 +29,7 @@ type headerLayout struct {
 // headerLayoutOf returns p's layout of a title bar with controls (items) or without, in a window whose controls take bar's room: before, the room at the start of the bar (Left, or Right right to left), and after, at its end.
 //   - macOS: a unified toolbar is 52 points high, its items 8 apart, the first 17 after the traffic lights (8 from the window's edge without them, as the last is from the other edge: inferred from the trailing edge), and the title 12 after the item before it.
 //   - Windows: TitleBarExpandedHeight 48 with a LeftHeader, Content or RightHeader, TitleBarCompactHeight 32 without (TitleBar::UpdateHeight); the LeftPaddingColumn as wide as the caption buttons at the start, none without them (TitleBar::UpdatePadding replaces TitleBarLeftPaddingWidth's 2 with the window's AppWindowTitleBar.LeftInset, RightInset right to left); the RightHeader before the 48-DIP TitleBarMinDragRegionWidth column and the caption buttons' RightPaddingColumn; the title 14 after the LeftHeader (TitleBarLeftHeaderPaddingWidth), so 16 after the visible edge of an image button there, which keeps the back button's Margin of 2 (headerFluentButton). WinUI spaces no controls inside a header, which the app's own panel does: 4 apart, as a CommandBar's buttons (inferred).
-//   - GNOME: an AdwHeaderBar is at least 47 pixels high, its box padded 6 above, 7 below and 7 at either end, its start and end boxes 6 apart inside (border-spacing) and 6 from the title (_header-bar.scss); the window controls are the first child of the start box or the last of the end box, so the title is centered across the whole bar.
+//   - GNOME: an AdwHeaderBar is at least 47 pixels high, its box padded 6 above, 7 below and 7 at either end, its start and end boxes 6 apart inside (border-spacing) and 6 from the title (_header-bar.scss); the bar's margins of -1px at its sides put it a pixel past the window's edges, so its controls start and end 6 from them (the back button at 6 and GTK's close button ending 6 from the edge in libadwaita 1.10.0's render, tools/adwaita-reference's headerbar set); the window controls are the first child of the start box or the last of the end box, so the title is centered across the whole bar.
 func headerLayoutOf(p Platform, bar ui.TitleBar, before, after float32, items bool) headerLayout {
 	var l headerLayout
 	switch p {
@@ -39,7 +39,7 @@ func headerLayoutOf(p Platform, bar ui.TitleBar, before, after float32, items bo
 			l.height = 48
 		}
 	case Linux:
-		l = headerLayout{height: 47, start: 7, end: 7, top: 6, bottom: 7, gap: 6, titleGap: 6, before: before, after: after}
+		l = headerLayout{height: 47, start: 6, end: 6, top: 6, bottom: 7, gap: 6, titleGap: 6, before: before, after: after}
 	default:
 		l = headerLayout{height: 52, start: 8, end: 8, gap: idiomMacToolbarGap, titleGap: headerMacTitleGap}
 		if before > 0 {
@@ -191,7 +191,7 @@ func headerAdwContent(c *ui.Context, l headerLayout, title, subtitle string, sta
 	headerAdwSide(c, l, end, l.after, true).MarginStart(l.titleGap).Justify(ui.End)
 }
 
-// headerAdwSide builds the start box (or the end box, atEnd) of an AdwHeaderBar: fn's controls and, at the bar's edge, the room the window controls take there, which GTK draws in a GTK 3 header bar of its own, padded 6 at either end (MyGo's linux/titlebar.go): the room less the bar's padding of 7 and the box's spacing of 6, so that the controls end where that header bar starts, 6 from the window buttons inside it, as they are from an AdwHeaderBar's windowcontrols. The two boxes share the room the title leaves equally, so that the title is centered across the bar, but neither is narrower than what it holds, as GtkCenterBox moves its center child aside for a side that needs more than half: each box is at least as wide as its controls were in the previous frame, and a frame is asked for while that width changes.
+// headerAdwSide builds the start box (or the end box, atEnd) of an AdwHeaderBar: fn's controls and, at the bar's edge, the room the window controls take there, which GTK draws in a GTK 3 header bar of its own, padded 6 at either end (MyGo's linux/titlebar.go): the room less the 6 pixels the bar leaves at its edge and the box's spacing of 6, so that the controls end where that header bar starts, 6 from the window buttons inside it, as they are from an AdwHeaderBar's windowcontrols (in libadwaita 1.10.0's render the send-to button ends at 514 and the close button spans 520 to 554 in a 560-pixel window, where a room of 46 ends Breeze UI's controls at 514). The two boxes share the room the title leaves equally, so that the title is centered across the bar, but neither is narrower than what it holds, as GtkCenterBox moves its center child aside for a side that needs more than half: each box is at least as wide as its controls were in the previous frame, and a frame is asked for while that width changes.
 func headerAdwSide(c *ui.Context, l headerLayout, fn func(), room float32, atEnd bool) ui.Element {
 	side := ui.Row(c).Grow(1).Basis(0).AlignItems(ui.Center).Gap(l.gap)
 	// The window controls' room at the bar's edge, the same side in every frame, so that the siblings keep their places.
