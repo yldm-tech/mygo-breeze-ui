@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	for _, n := range []string{"InfoBar", "ProgressRing", "StatusPage"} {
+	for _, n := range []string{"InfoBar", "InfoBarActions", "ProgressRing", "StatusPage"} {
 		drawnWidgets[n] = true
 	}
 }
@@ -375,6 +375,42 @@ func statusTitlesView(p Platform, open *[4]bool) func(c *ui.Context) {
 	}
 }
 
+// statusActionsView lays out message bars with actions where tools/appkit-reference's statusActionsSet places SwiftUI's: 16 from the window's edges and 68 apart, a closable warning with a button, an informational bar with a primary button, a closable success bar without a message with a button, and a closable error bar 280 wide with a button, which Windows lays out vertically and GNOME with its button below the text.
+func statusActionsView(p Platform, open *[4]bool) func(c *ui.Context) {
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			ui.Box(c).Fill().Children(func() {
+				bars := []struct {
+					kind, title, message, action string
+					primary, closable            bool
+					width                        float32
+				}{
+					{"warning", "Warning", "Some message about it.", "Open Settings", false, true, 528},
+					{"info", "Informational", "Some message about it.", "Restart", true, false, 528},
+					{"success", "Success", "", "Undo", false, true, 528},
+					{"error", "Error", "Some message about it.", "Retry", false, true, 280},
+				}
+				for i, b := range bars {
+					var o *bool
+					if b.closable {
+						o = &open[i]
+					}
+					ui.Column(c).Absolute().Left(16).Top(16 + float32(i)*68).Width(b.width).AlignItems(ui.Start).Children(func() {
+						InfoBarActions(c, b.kind, b.title, b.message, o, func() {
+							if b.primary {
+								PrimaryButton(c, b.action)
+							} else {
+								Button(c, b.action)
+							}
+						})
+					})
+				}
+			})
+		})
+	}
+}
+
 // statusPageView lays out a status page filling the window, with an icon, a title, a description and an action, as reference.swift places SwiftUI's ContentUnavailableView.
 func statusPageView(p Platform) func(c *ui.Context) {
 	return func(c *ui.Context) {
@@ -387,7 +423,7 @@ func statusPageView(p Platform) func(c *ui.Context) {
 	}
 }
 
-// TestScreenshotsStatus writes statusView, statusTitlesView and statusPageView on every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames.
+// TestScreenshotsStatus writes statusView, statusTitlesView, statusActionsView and statusPageView on every platform, light and dark, at 2x to the directory BREEZE_SCREENSHOTS names. Without it the test only builds the frames.
 func TestScreenshotsStatus(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	for _, p := range Platforms {
@@ -415,6 +451,17 @@ func TestScreenshotsStatus(t *testing.T) {
 				}
 			}
 			writeShot(t, dir, fmt.Sprintf("breeze-statustitles-%s-%s.png", strings.ToLower(p.String()), mode), titles)
+			acts := ui.NewTester(statusActionsView(p, &open), 560, 380)
+			acts.SetScale(2)
+			acts.SetDark(dark)
+			acts.Frame()
+			acts.Frame()
+			for _, s := range []string{"Warning", "Open Settings", "Restart", "Undo", "Retry"} {
+				if _, ok := acts.Find(s); !ok {
+					t.Fatalf("%v: %q of the bars with actions is missing: %q", p, s, acts.Texts())
+				}
+			}
+			writeShot(t, dir, fmt.Sprintf("breeze-statusactions-%s-%s.png", strings.ToLower(p.String()), mode), acts)
 			page := ui.NewTester(statusPageView(p), 560, 420)
 			page.SetScale(2)
 			page.SetDark(dark)
@@ -497,6 +544,287 @@ func TestInfoBarArrangements(t *testing.T) {
 					t.Errorf("GNOME scale %v width %v: the button %v, the text %v", scale, width, b, text)
 				}
 			}
+		}
+	}
+}
+
+// indexOf returns the index of s in texts, -1 when it is not there.
+func indexOf(texts []string, s string) int {
+	for i, x := range texts {
+		if x == s {
+			return i
+		}
+	}
+	return -1
+}
+
+// TestInfoBarActionsKeepTheirBehavior checks a bar with actions on every platform, left to right and right to left: the action is inside the bar and takes clicks and the keyboard, assistive technology reads the title, the message, the action and then the close button, the action is before the close button in the reading direction, and on GNOME the action takes the place of the banner's Dismiss button; a bar without open shows its action too.
+func TestInfoBarActionsKeepTheirBehavior(t *testing.T) {
+	const title, message = "Model missing", "Download a model to transcribe."
+	for _, p := range Platforms {
+		for _, rtl := range []bool{false, true} {
+			open, opened, restarted := true, 0, 0
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Padding(16).Gap(12).Children(func() {
+						InfoBarActions(c, "warning", title, message, &open, func() {
+							if Button(c, "Open Settings").Clicked() {
+								opened++
+							}
+						})
+						InfoBarActions(c, "info", "Update ready", "", nil, func() {
+							if PrimaryButton(c, "Restart").Clicked() {
+								restarted++
+							}
+						})
+					})
+				})
+			}, 640, 360)
+			if rtl {
+				tester.SetDirection(ui.RightToLeft)
+			}
+			tester.Frame()
+			tester.Frame()
+			bar, _ := tester.Find(title)
+			b, ok := tester.Find("Open Settings")
+			if !ok {
+				t.Fatalf("%v rtl %v: no action: %q", p, rtl, tester.Texts())
+			}
+			if b.X < bar.X || b.Y < bar.Y || b.X+b.W > bar.X+bar.W || b.Y+b.H > bar.Y+bar.H {
+				t.Errorf("%v rtl %v: the action %v is outside the bar %v", p, rtl, b, bar)
+			}
+			if err := tester.Click("Open Settings"); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+			if opened != 1 || !open {
+				t.Fatalf("%v rtl %v: a click on the action ran it %d times, open %v", p, rtl, opened, open)
+			}
+			if err := tester.Click("Restart"); err != nil || restarted != 1 {
+				t.Fatalf("%v rtl %v: the action of a bar that cannot close: %v, ran %d times", p, rtl, err, restarted)
+			}
+			texts := tester.Texts()
+			// GNOME's banner shows the message in its title's label.
+			order := []string{title, message, "Open Settings", "Close"}
+			if p == Linux {
+				order = []string{title + " " + message, "Open Settings"}
+			}
+			for i := 1; i < len(order); i++ {
+				if a, z := indexOf(texts, order[i-1]), indexOf(texts, order[i]); a < 0 || z < a {
+					t.Errorf("%v rtl %v: %q is not read after %q: %q", p, rtl, order[i], order[i-1], texts)
+				}
+			}
+			if p == Linux {
+				if _, ok := tester.Find("Dismiss"); ok {
+					t.Errorf("GNOME rtl %v: the banner shows its Dismiss button beside its action", rtl)
+				}
+				continue
+			}
+			x, ok := tester.Find("Close")
+			if !ok {
+				t.Fatalf("%v rtl %v: no close button: %q", p, rtl, texts)
+			}
+			if before := b.X+b.W <= x.X; before == rtl {
+				t.Errorf("%v rtl %v: the action %v is not before the close button %v in the reading direction", p, rtl, b, x)
+			}
+			// The keyboard: Tab reaches the action, Space presses it, and the next Tab the close button.
+			for range 6 {
+				if tester.Focused("Open Settings") {
+					break
+				}
+				tester.Key(0, ui.KeyTab)
+				tester.Frame()
+			}
+			if !tester.Focused("Open Settings") {
+				t.Fatalf("%v rtl %v: Tab does not reach the action", p, rtl)
+			}
+			tester.Key(0, ui.KeySpace)
+			tester.Frame()
+			if opened != 2 {
+				t.Errorf("%v rtl %v: Space on the action ran it %d times in all", p, rtl, opened)
+			}
+			tester.Key(0, ui.KeyTab)
+			tester.Frame()
+			if !tester.Focused("Close") {
+				t.Errorf("%v rtl %v: Tab from the action does not reach the close button", p, rtl)
+			}
+		}
+	}
+}
+
+// TestInfoBarActionsWithoutActions checks that InfoBar is InfoBarActions with nil actions: the same frame, pixel for pixel, on every platform.
+func TestInfoBarActionsWithoutActions(t *testing.T) {
+	for _, p := range Platforms {
+		frame := func(bar func(c *ui.Context)) string {
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, p, func() {
+					Use(c)
+					ui.Column(c).Padding(16).Children(func() { bar(c) })
+				})
+			}, 500, 160)
+			tester.Frame()
+			tester.Frame()
+			return string(tester.Image().Pix)
+		}
+		open := true
+		a := frame(func(c *ui.Context) { InfoBar(c, "warning", "Title", "Message", &open) })
+		b := frame(func(c *ui.Context) { InfoBarActions(c, "warning", "Title", "Message", &open, nil) })
+		if a != b {
+			t.Errorf("%v: InfoBar and InfoBarActions without actions draw different frames", p)
+		}
+	}
+}
+
+// TestMacInfoBarActionsAsMeasured checks the actions of a bar on macOS against SwiftUI's buttons in that row of a grouped form, as tools/appkit-reference's statusActionsSet renders them on macOS 27.2, light and dark: a 24-point push button 10 points below the bar's top, the bar 4 points taller than without it as the title's line moves down to the button's middle, the close button's middle on the button's, 6.25 points between the button and the close button's box, the button 10 points from the bar's end without a close button, and the button's face laid over the bar's fill (228 over 247, 54 over 37).
+func TestMacInfoBarActionsAsMeasured(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		open := true
+		var line float32
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Mac, func() {
+				Use(c)
+				line = lineHeight(c, c.Theme().FontSize, 700)
+				ui.Column(c).Padding(16).Gap(16).Children(func() {
+					InfoBar(c, "warning", "Plain", "Some message about it.", nil)
+					// Labels other than the buttons' text let Find give the buttons rather than their text.
+					InfoBarActions(c, "warning", "Warning", "Some message about it.", &open, func() { Button(c, "Open Settings").Label("Settings button") })
+					InfoBarActions(c, "info", "Informational", "Some message about it.", nil, func() { Button(c, "Restart").Label("Restart button") })
+				})
+			})
+		}, 560, 300)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		plain, _ := tester.Find("Plain")
+		bar, _ := tester.Find("Warning")
+		b, _ := tester.Find("Settings button")
+		x, _ := tester.Find("Close")
+		if b.H != 24 || b.Y-bar.Y != 10 {
+			t.Errorf("dark %v: the button %v in the bar %v, want 24 high and 10 below its top", dark, b, bar)
+		}
+		// Half of what the button is taller than the title's line: 4 points with SF's line of 16, and as much with the host font's line here, which differs from host to host (17 on the Linux CI runner, where the bar grows 3.5).
+		if d, want := bar.H-plain.H, (24-line)/2; math.Abs(float64(d-want)) > 0.01 {
+			t.Errorf("dark %v: the bar with a button is %v taller than without, want %v, half of 24 less the title's line of %v", dark, d, want, line)
+		}
+		if mid, xmid := b.Y+b.H/2, x.Y+x.H/2; math.Abs(float64(mid-xmid)) > 0.01 {
+			t.Errorf("dark %v: the close button's middle %v, the button's %v", dark, xmid, mid)
+		}
+		if gap := x.X - (b.X + b.W); math.Abs(float64(gap-6.25)) > 0.01 {
+			t.Errorf("dark %v: %v between the button and the close button, want 6.25", dark, gap)
+		}
+		info, _ := tester.Find("Informational")
+		r, _ := tester.Find("Restart button")
+		if end := info.X + info.W - (r.X + r.W); math.Abs(float64(end-10)) > 0.01 {
+			t.Errorf("dark %v: the button is %v from the end of a bar without a close button, want 10", dark, end)
+		}
+		img := tester.Image()
+		face := img.RGBAAt(int(b.X+3), int(b.Y+b.H/2))
+		fill := img.RGBAAt(int(bar.X+bar.W/2), int(bar.Y+2))
+		levels := map[bool][2]uint8{false: {228, 247}, true: {54, 37}}[dark]
+		want, under := levels[0], levels[1]
+		if !nearColor(face, color.RGBA{want, want, want, 255}, 1) || !nearColor(fill, color.RGBA{under, under, under, 255}, 1) {
+			t.Errorf("dark %v: the button's face %v over the fill %v, want %d over %d", dark, face, fill, want, under)
+		}
+	}
+}
+
+// TestFluentInfoBarActions checks WinUI InfoBar's ActionButton: across a wide bar 16 DIPs after the message and 8 from the panel's top, the bar keeping its 48 DIPs inside the border; in a narrow bar 12 below the message at its start, the panel padded 18 below it; laid out vertically too when the action with its margin is taller than InfoBarMinHeight, and across beside a title without a message, as InfoBarPanel then has two items; and the button's face laid over the bar's color, as fluentOver lays it.
+func TestFluentInfoBarActions(t *testing.T) {
+	const message = "Some message about it."
+	for _, width := range []float32{600, 300} {
+		var theme *ui.Theme
+		var accent ui.Color
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Windows, func() {
+				Use(c)
+				theme, accent = c.Theme(), fluentSystemAccent(c)
+				ui.Column(c).Padding(16).Gap(16).Width(width + 32).Children(func() {
+					InfoBarActions(c, "success", "Saved", message, nil, func() { Button(c, "Undo").Label("Undo button") })
+					InfoBarActions(c, "info", "Tall", message, nil, func() { Button(c, "Tall action").MinHeight(44) })
+					InfoBarActions(c, "info", "Alone", "", nil, func() { Button(c, "Retry").Label("Retry button") })
+				})
+			})
+		}, 700, 600)
+		tester.Frame()
+		tester.Frame()
+		bar, _ := tester.Find("Saved")
+		m, _ := tester.Find(message)
+		b, ok := tester.Find("Undo button")
+		if !ok {
+			t.Fatalf("width %v: no action: %q", width, tester.Texts())
+		}
+		if width > 500 {
+			if bar.H != 50 || b.Y != bar.Y+1+8 || math.Abs(float64(b.X-(m.X+m.W+16))) > 0.01 || b.H != 32 {
+				t.Errorf("width %v: across, the action %v after the message %v in the bar %v", width, b, m, bar)
+			}
+			tall, _ := tester.Find("Tall")
+			if ta, _ := tester.Find("Tall action"); ta.Y < tall.Y+30 {
+				t.Errorf("an action taller than InfoBarMinHeight less its margin is at %v in the bar %v, not below the message", ta, tall)
+			}
+			alone, _ := tester.Find("Alone")
+			if r, _ := tester.Find("Retry button"); r.Y != alone.Y+1+8 || alone.H != 50 {
+				t.Errorf("a title and an action are not across: the action %v in the bar %v", r, alone)
+			}
+		} else {
+			if b.Y != m.Y+m.H+12 || b.X != m.X {
+				t.Errorf("width %v: the action %v is not 12 below the message %v at its start", width, b, m)
+			}
+			if end := bar.Y + bar.H - (b.Y + b.H); end != 18+1 {
+				t.Errorf("width %v: the panel ends %v below the action, want 18 and the border", width, end)
+			}
+		}
+		bg, _ := fluentToastColors(theme, accent, fluentToastSuccess)
+		want := fluentOver(theme, bg).Surface
+		got := tester.Image().RGBAAt(int(b.X+3), int(b.Y+b.H/2))
+		if !nearColor(got, color.RGBA{want.R, want.G, want.B, 255}, 1) {
+			t.Errorf("width %v: the action's face is %v, want %v over the bar's %v", width, got, want, bg)
+		}
+	}
+}
+
+// TestAdwBannerActions checks a banner with actions on GNOME: the action takes the Dismiss button's place, beside the text in a wide banner and below it in a narrow one, as AdwBanner places its button; a PrimaryButton shows as the suggested action, in the accent; and the button's face is the Dismiss button's, laid over the strip.
+func TestAdwBannerActions(t *testing.T) {
+	const message = "Some message about it."
+	for _, width := range []float32{600, 260} {
+		open := true
+		var theme *ui.Theme
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				theme = c.Theme()
+				ui.Column(c).Padding(16).Gap(16).Width(width + 32).Children(func() {
+					InfoBarActions(c, "", "Offline", message, &open, func() { Button(c, "Retry").Label("Retry button") })
+					InfoBarActions(c, "", "Update", message, nil, func() { PrimaryButton(c, "Restart").Label("Restart button") })
+				})
+			})
+		}, 700, 500)
+		tester.Frame()
+		tester.Frame()
+		if _, ok := tester.Find("Dismiss"); ok {
+			t.Fatalf("width %v: the banner shows Dismiss beside its action", width)
+		}
+		text, _ := tester.Find("Offline " + message)
+		b, ok := tester.Find("Retry button")
+		if !ok {
+			t.Fatalf("width %v: no action: %q", width, tester.Texts())
+		}
+		if below := b.Y >= text.Y+text.H; below != (width < 300) {
+			t.Errorf("width %v: the action %v, the text %v", width, b, text)
+		}
+		// Beside a narrow action, narrower than the Dismiss button's 84, the title stays centered across the whole strip, as AdwBanner keeps it.
+		if bar, _ := tester.Find("Offline"); width > 300 && math.Abs(float64(text.X+text.W/2-(bar.X+bar.W/2))) > 0.5 {
+			t.Errorf("width %v: the text %v is not centered across the banner %v beside the action %v", width, text, bar, b)
+		}
+		img := tester.Image()
+		bg := theme.Background.Mix(ui.Hex("#7d7d83"), 0.3)
+		want := bg.Mix(pick(theme.Dark, adwInk, white), adwBannerShares[0][0])
+		if got := img.RGBAAt(int(b.X+4), int(b.Y+b.H/2)); !nearColor(got, color.RGBA{want.R, want.G, want.B, 255}, 1) {
+			t.Errorf("width %v: the action's face is %v, want the Dismiss button's %v", width, got, want)
+		}
+		r, _ := tester.Find("Restart button")
+		if got, acc := img.RGBAAt(int(r.X+4), int(r.Y+r.H/2)), theme.Accent; !nearColor(got, color.RGBA{acc.R, acc.G, acc.B, 255}, 1) {
+			t.Errorf("width %v: the primary action's face is %v, want the accent %v", width, got, acc)
 		}
 	}
 }
