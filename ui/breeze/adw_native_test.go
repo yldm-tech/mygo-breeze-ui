@@ -1,7 +1,11 @@
 package breeze
 
 import (
+	"fmt"
+	"math"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -424,5 +428,116 @@ func TestAdwPlusEvenWhenDisabled(t *testing.T) {
 				t.Errorf("number input %v, dark %v: the disabled +'s middle reads %d, its arm %d", number, dark, mid, arm)
 			}
 		}
+	}
+}
+
+// TestAdwCalendarAsRendered checks CalendarView on GNOME against GtkCalendar as libadwaita 1.10.0 renders it (tools/adwaita-reference's datepicker set), whatever the font: GtkGridLayout counts the hidden week-number column in the homogeneous grid's request, so the grid asks for 3 and 8 columns of its widest label (a day name, or a day number padded 3 at either side, its margin of 3 included, in whole pixels), which the 7 shown columns share: 283 pixels and columns of 40 in Adwaita Sans, the calendar 285 wide with its border; and the border, outside the background, is 15% of currentColor over the window's background, 220 in the light theme and 67 in the dark one, where the header's line over the view is 224 and 63.
+func TestAdwCalendarAsRendered(t *testing.T) {
+	fixToday(t, datePickerToday)
+	for _, dark := range []bool{false, true} {
+		day := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+		var cal ui.Rect
+		widest := float32(0)
+		tester := dateTester(Linux, 640, 520, func(c *ui.Context) {
+			ui.Row(c).Padding(16).AlignItems(ui.Start).Children(func() {
+				cal = CalendarView(c, &day).Bounds()
+			})
+			th := c.Theme()
+			widest = 0
+			for _, s := range []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"} {
+				w, _ := c.MeasureText(0, ui.Span{Text: s, Size: th.FontSize})
+				widest = max(widest, float32(math.Ceil(float64(w)))+3)
+			}
+			for d := 1; d <= 31; d++ {
+				w, _ := c.MeasureText(0, ui.Span{Text: fmt.Sprint(d), Size: th.FontSize, Features: "tnum"})
+				widest = max(widest, float32(math.Ceil(float64(w)))+9)
+			}
+		})
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		if want := 2 + 3 + 8*widest; cal.W < want-0.01 || cal.W > want+0.01 {
+			t.Errorf("dark %v: the calendar is %v wide, want 2 + 3 + 8 × %v", dark, cal.W, widest)
+		}
+		label, ok := tester.Find(dayName(time.November, 18))
+		if !ok {
+			t.Fatal("the 18th is missing")
+		}
+		if want := 8 * widest / 7; label.W+3 < want-0.01 || label.W+3 > want+0.01 {
+			t.Errorf("dark %v: a column is %v wide, want 8/7 of %v", dark, label.W+3, widest)
+		}
+		edge, line := shotPixel(tester, cal.X+0.25, cal.Y+cal.H/2), shotPixel(tester, cal.X+cal.W/2, cal.Y+1+34+0.25)
+		wantEdge, wantLine := [3]int{220, 220, 221}, [3]int{224, 224, 225}
+		if dark {
+			wantEdge, wantLine = [3]int{67, 67, 70}, [3]int{63, 63, 65}
+		}
+		if !samePixel(edge, wantEdge, 2) || !samePixel(line, wantLine, 2) {
+			t.Errorf("dark %v: the border is %v and the header's line %v, want libadwaita's %v and %v", dark, edge, line, wantEdge, wantLine)
+		}
+	}
+}
+
+// TestAdwDatePickerPopover checks on GNOME that DatePicker's popover is placed as GtkPopover without its arrow places a GtkMenuButton's (tools/adwaita-reference's datepickernoarrow set, libadwaita 1.10.0): its contents start at the button's bottom edge, centered on it, padded 8 around the calendar. It writes the open picker of datePickerView, light and dark, to the directory BREEZE_SCREENSHOTS names, to compare with the set's render.
+func TestAdwDatePickerPopover(t *testing.T) {
+	fixToday(t, datePickerToday)
+	dir := os.Getenv("BREEZE_SCREENSHOTS")
+	for _, dark := range []bool{false, true} {
+		tester := ui.NewTester(datePickerView(Linux), 560, 400)
+		tester.SetLocale("en-US")
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		if err := tester.Click("11/18/2026"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		tester.Frame()
+		writeShot(t, dir, fmt.Sprintf("breeze-datepicker-linux-open-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), tester)
+	}
+	// The picker alone where datePickerView places it, in a window wide enough that MyGo need not move the popover inside it (GTK lets it run past the window's edge, as in the set's render), so that the popover's calendar is the only one: its header's first button is 8 inside the contents' start and top, its last 8 inside their end.
+	date := time.Date(2026, time.November, 18, 9, 0, 0, 0, time.UTC)
+	var button ui.Rect
+	tester := dateTester(Linux, 640, 400, func(c *ui.Context) {
+		ui.Row(c).Fill().Padding(16).AlignItems(ui.Start).Children(func() {
+			ui.Box(c).Width(344).Shrink(0)
+			button = DatePicker(c, &date).Bounds()
+		})
+	})
+	if err := tester.Click("11/18/2026"); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	prev, ok := tester.Find("Previous Month")
+	next, ok2 := tester.Find("Next Year")
+	if !ok || !ok2 {
+		t.Fatal("the popover's calendar is missing")
+	}
+	if top, want := prev.Y-8, button.Y+button.H; top < want-0.01 || top > want+0.01 {
+		t.Errorf("the popover's contents start at %v, want the button's bottom, %v", top, want)
+	}
+	if mid, want := (prev.X-8+next.X+next.W+8)/2, button.X+button.W/2; mid < want-0.5 || mid > want+0.5 {
+		t.Errorf("the popover's contents are centered at %v, the button at %v", mid, want)
+	}
+	// The calendar has the focus, but no day has the ring until a key moves among the days (GtkCalendar's focus_row is -1 until then): the chosen day's edge is its accent. After Right, the 19th has the ring, 2 pixels inside its edge.
+	tester.SetScale(2)
+	tester.Frame()
+	if !tester.Focused(dayName(time.November, 18)) {
+		t.Fatal("the open calendar does not have the focus")
+	}
+	label, _ := tester.Find(dayName(time.November, 18))
+	accent := shotPixel(tester, label.X+label.W/2, label.Y+4)
+	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); !samePixel(edge, accent, 10) {
+		t.Errorf("the chosen day shows a ring as the popover opens: %v at its edge, its accent %v", edge, accent)
+	}
+	tester.Key(0, ui.KeyRight)
+	tester.Frame()
+	tester.Frame()
+	label, _ = tester.Find(dayName(time.November, 19))
+	inside := shotPixel(tester, label.X+label.W/2, label.Y+label.H-4.5)
+	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); samePixel(edge, inside, 10) {
+		t.Errorf("no ring on the 19th after Right: %v at its edge, %v inside", edge, inside)
 	}
 }

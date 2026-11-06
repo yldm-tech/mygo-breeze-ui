@@ -3,6 +3,7 @@ package breeze
 import (
 	"embed"
 	"io/fs"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -139,10 +140,11 @@ func setDay(date *time.Time, d time.Time) bool {
 	return true
 }
 
-// calendarState is what a calendar keeps between frames: the day the keys are on, whose month it shows, and the date it last saw, which the cursor follows when the app sets another.
+// calendarState is what a calendar keeps between frames: the day the keys are on, whose month it shows, the date it last saw, which the cursor follows when the app sets another, and whether a click on a day or a key that moves among the days has put the keys on a day since the calendar was built (GtkCalendar's focus_row and focus_col, -1 until then).
 type calendarState struct {
 	cursor, seen time.Time
 	started      bool
+	placed       bool
 }
 
 // calendarBuild is what a calendar's parts are built from in a frame.
@@ -159,6 +161,7 @@ type calendarBuild struct {
 	bare    bool       // inside a date picker's popover
 	keys    ui.Element // the element that takes the keys and the focus
 	focused bool       // keys has the focus, from the keyboard or not
+	placed  bool       // a click on a day or a key among the days has put the keys on one (calendarState)
 	// move shows d, and chooses it with choose; pick chooses a day clicked.
 	move func(d time.Time, choose bool)
 	pick func(d time.Time)
@@ -198,7 +201,7 @@ func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
 			st.cursor = dayOf(*date)
 		}
 	}
-	b := &calendarBuild{c: c, t: c.Theme(), locale: locale, first: region.FirstWeekday, cursor: st.cursor, today: now, rtl: c.Direction() == ui.RightToLeft, bare: done != nil}
+	b := &calendarBuild{c: c, t: c.Theme(), locale: locale, first: region.FirstWeekday, cursor: st.cursor, today: now, rtl: c.Direction() == ui.RightToLeft, bare: done != nil, placed: st.placed}
 	b.month = time.Date(b.cursor.Year(), b.cursor.Month(), 1, 0, 0, 0, 0, time.UTC)
 	if !date.IsZero() {
 		b.chosen = dayOf(*date)
@@ -211,9 +214,14 @@ func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
 			chooseDay = &d
 		}
 	}
-	finish := false
+	finish, placed := false, false
 	b.pick = func(d time.Time) {
-		moveTo, chooseDay, finish = &d, &d, true
+		moveTo, chooseDay, finish, placed = &d, &d, true, true
+	}
+	// step moves the keys among the days, as the arrows, Page Up, Page Down, Home and End do, the header's buttons and Ctrl with the arrows not.
+	step := func(d time.Time, choose bool) {
+		b.move(d, choose)
+		placed = true
 	}
 	switch p {
 	case Windows:
@@ -244,26 +252,27 @@ func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
 	case p == Linux && keys.Shortcut(ui.Ctrl, ui.KeyDown):
 		b.move(addMonths(cur, 12), true)
 	case keys.Shortcut(0, back):
-		b.move(cur.AddDate(0, 0, -1), moves)
+		step(cur.AddDate(0, 0, -1), moves)
 	case keys.Shortcut(0, forth):
-		b.move(cur.AddDate(0, 0, 1), moves)
+		step(cur.AddDate(0, 0, 1), moves)
 	case keys.Shortcut(0, ui.KeyUp):
-		b.move(cur.AddDate(0, 0, -7), moves)
+		step(cur.AddDate(0, 0, -7), moves)
 	case keys.Shortcut(0, ui.KeyDown):
-		b.move(cur.AddDate(0, 0, 7), moves)
+		step(cur.AddDate(0, 0, 7), moves)
 	case keys.Shortcut(0, ui.KeyPageUp):
-		b.move(addMonths(cur, -1), moves)
+		step(addMonths(cur, -1), moves)
 	case keys.Shortcut(0, ui.KeyPageDown):
-		b.move(addMonths(cur, 1), moves)
+		step(addMonths(cur, 1), moves)
 	case keys.Shortcut(0, ui.KeyHome):
-		b.move(b.month, moves)
+		step(b.month, moves)
 	case keys.Shortcut(0, ui.KeyEnd):
-		b.move(b.month.AddDate(0, 1, -1), moves)
+		step(b.month.AddDate(0, 1, -1), moves)
 	case keys.Shortcut(0, ui.KeyEnter), keys.Shortcut(0, ui.KeySpace):
 		b.pick(cur)
 	}
 	if moveTo != nil {
 		st.cursor = *moveTo
+		st.placed = st.placed || placed
 		if chooseDay != nil && setDay(date, *chooseDay) {
 			root.SetChanged()
 		}
@@ -626,7 +635,8 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 	if b.bare {
 		under = pick(t.Dark, white, ui.Hex("#36363a")) // adwMenu's popover_bg_color
 	} else {
-		root.Background(under).Border(1, adwInkAlpha(t, under, 0.15))
+		// The border lies outside the background (background-clip: padding-box), so its 15% of currentColor falls on the window's background: 220 in the light theme and 67 in the dark one in libadwaita 1.10.0's render, where the header's line over view_bg_color is 224 and 63.
+		root.Background(under).Border(1, adwInkAlpha(t, t.Background, 0.15))
 	}
 	fg := adwTextOn(t, under)
 	border := adwInkAlpha(t, under, 0.15)
@@ -656,11 +666,11 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 			arrow("calendarNextYear", false, 12)
 		})
 		ui.Box(c).Height(1).Shrink(0).Background(border)
-		grid := ui.Column(c).Shrink(0).Padding(0, 0, 3, 3).Focusable().FocusRing(false)
+		grid := ui.Column(c).Shrink(0).Padding(0, 0, 3, 3).MinWidth(3 + 8*adwCalendarColumn(b)).Focusable().FocusRing(false)
 		b.keys = grid
 		b.focused = grid.Focused()
-		// The focus-ring mixin is included with $focus-state ':focus', and GtkCalendar sets the focused label's GTK_STATE_FLAG_FOCUSED itself whatever moved the focus there, a click too: the ring shows while the calendar has the focus, not only from the keyboard.
-		focusRing := b.focused
+		// The focus-ring mixin is included with $focus-state ':focus', and GtkCalendar sets GTK_STATE_FLAG_FOCUSED itself on the label at focus_row and focus_col whatever moved the focus there, a click too: the ring shows while the calendar has the focus, not only from the keyboard. Those are -1 until a click on a day (calendar_select_and_focus_day) or an arrow (move_focus) sets them, so a calendar that has just taken the focus, by Tab or as its popover opens, shows no ring: libadwaita 1.10.0's render of the datepickernoarrow set shows none in the open popover, whose calendar has the focus.
+		focusRing := b.focused && b.placed
 		grid.Children(func() {
 			calendarDays(b, Linux, func(name string) {
 				ui.Box(c).Grow(1).Basis(0).Padding(3, 3, 0, 0).Role(ui.RoleColumnHeader).Children(func() {
@@ -680,6 +690,22 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 			})
 		})
 	})
+}
+
+// adwCalendarColumn returns the natural width of the widest label of GtkCalendar's grid, its margin of 3 included: a day name's text, or a day number's in tabular digits with its padding of 3 at either side, in GTK's whole pixels (gtk_label_measure rounds up). The grid is homogeneous, and GtkGridLayout counts the hidden week-number column in its request (grid_request_homogeneous gives every line the widest child's width, the empty one too, and grid_request_sum adds them all), so the grid asks for 3 and 8 such columns, which the 7 shown ones share: in libadwaita 1.10.0's render, with Adwaita Sans's "Wed" 35 wide with its margin, the grid is 283 wide and its columns 40.
+func adwCalendarColumn(b *calendarBuild) float32 {
+	c, t := b.c, b.t
+	widest := float32(0)
+	for _, name := range weekdayNames(b.locale, Linux) {
+		w, _ := c.MeasureText(0, ui.Span{Text: name, Size: t.FontSize})
+		widest = max(widest, float32(math.Ceil(float64(w)))+3)
+	}
+	start := b.start(Linux)
+	for i := range 42 {
+		w, _ := c.MeasureText(0, ui.Span{Text: dateText(b.locale, "d#", start.AddDate(0, 0, i)), Size: t.FontSize, Features: "tnum"})
+		widest = max(widest, float32(math.Ceil(float64(w)))+9)
+	}
+	return widest
 }
 
 // adwCalendarArrow draws one of GtkCalendar's header buttons, btn, over under: flat and square (%button_basic_flat, border-radius 0), currentColor at 7% under the pointer and 16% pressed, its focus ring inside its edge, and the 16-pixel pan-start-symbolic (back) or pan-end-symbolic icon in fg: a 2-pixel round stroke along (9,4), (5,8), (9,12), or (7,4), (11,8), (7,12) (adwaita-icon-theme 51).
@@ -770,8 +796,9 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop).Margin(4, 0, 0, 0).Radius(8).Clip().
 					Shadow(0, 8, 17, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
 			case Linux:
+				// GtkPopover without its arrow (has-arrow false, as MyGo draws popovers) puts its contents right at the button's bottom edge, centered on it: in libadwaita 1.10.0's render (tools/adwaita-reference's datepickernoarrow set) the contents span 269 to 568 under a button spanning 360 to 476 and ending at 50, where they start. adwPopover's margin of 6 is a dropdown's.
 				adwPopover(c, panel)
-				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop)
+				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop).Margin(0)
 			default:
 				macMenu(c, panel)
 				panel.Padding(6)
