@@ -26,6 +26,9 @@ func button(c *ui.Context, label string, primary bool) ui.Element {
 	}
 	tb, i := idiomToolbarItem(c, b, kind)
 	switch p := PlatformOf(c); {
+	case p == Windows && tb != nil && tb.header > 0:
+		// Only image buttons are noted in a HeaderBar on Windows (idiomToolbarItem).
+		headerFluentButton(c, b, tb.header)
 	case p == Windows && tb != nil && !primary:
 		idiomFluentAppBarButton(c, b, label == "", false)
 	case p == Windows:
