@@ -152,4 +152,6 @@ Each group of widgets keeps its own files, so that pull requests adding widgets 
 - `tools/winui-reference/Scenes/foo.cs`: a method of `App` marked `[Scenes]` returning WinUI's, with the hooks only it uses.
 - `tools/adwaita-reference/scenes/foo.py`: the group's `SETS` of libadwaita's.
 
+A group may not be named `widgets`, `extras` or `platforms`: those names are taken by `widgets.go`, `extras.go` and `catalog/platforms.json`.
+
 Adding widgets to an existing group changes only that group's files. The code the groups share, `widgets.go`'s helpers, `mac.go`, `fluent.go`, `adwaita.go` and the `drawn_*.go` files, changes only to generalize a helper or take one out of a group's file; such a change goes first in a pull request of its own. `ui/breeze/catalog/platforms.json`, the reference tools' own files (`main.swift` and `Support.swift`, `Program.cs`, `reference.py` and `common.py`) and the sections of this page do not change for a widget. The catalog is merged from its files where it is used: `packages/breeze-mcp/catalog.json` is built, not committed.

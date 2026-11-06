@@ -61,6 +61,10 @@ func widgetGroups(t *testing.T) map[string][]string {
 			t.Fatal(err)
 		}
 		group := strings.TrimPrefix(strings.TrimSuffix(name, ".go"), "widgets_")
+		// Two files of one group would hide each other's widgets from the checks, and catalog/platforms.json is not a group's.
+		if _, taken := groups[group]; taken || group == "platforms" {
+			t.Fatalf("%s: the group name %s is taken (widgets.go, extras.go and catalog/platforms.json use widgets, extras and platforms)", name, group)
+		}
 		groups[group] = []string{}
 		for _, decl := range file.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.IsExported() {
