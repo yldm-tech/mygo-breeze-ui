@@ -71,7 +71,16 @@ const (
 	carouselMacFluentDuration = 250 * time.Millisecond
 )
 
-// carouselAdwSpring is AdwCarousel's scroll-params, adw_spring_params_new (1, 0.5, 500): a damping ratio of 1, a mass of 0.5 and a stiffness of 500, so a damping of 2 * sqrt(0.5 * 500); velocity is the page's velocity, in pages a second, which a swipe hands on.
+// carouselSwipeDecelTouchpad and carouselSwipeDecelTouch are adw-swipe-tracker.c's DECELERATION_TOUCHPAD and DECELERATION_TOUCH, carouselSwipeCurve its VELOCITY_CURVE_THRESHOLD and carouselSwipeParabola its DECELERATION_PARABOLA_MULTIPLIER, which project where a quick swipe glides to (get_end_progress); carouselSwipeEpsilon is its EPSILON, within which a swipe begins at a page rather than between two (get_bounds).
+const (
+	carouselSwipeDecelTouchpad = 0.997
+	carouselSwipeDecelTouch    = 0.998
+	carouselSwipeCurve         = 2
+	carouselSwipeParabola      = 0.35
+	carouselSwipeEpsilon       = 0.005
+)
+
+// carouselAdwSpring is AdwCarousel's scroll-params, adw_spring_params_new (1, 0.5, 500): a damping ratio of 1, a mass of 0.5 and a stiffness of 500, so a damping of 2 * sqrt(0.5 * 500); velocity is the velocity the spring starts with, in pages a second, which a swipe hands on (carouselSwipeEnd).
 func carouselAdwSpring(velocity float32) ui.Animation {
 	return ui.Animation{Spring: ui.SpringOptions{Mass: 0.5, Stiffness: 500, Damping: 2 * math.Sqrt(0.5*500), Velocity: velocity}}
 }
@@ -99,7 +108,8 @@ func pipsPager(c *ui.Context, selected *int, count int, inCarousel bool, positio
 	}
 	sel := *selected
 	root := ui.Row(c).Shrink(0).Role(ui.RoleRadioGroup).Label(say(c, "pipsPagerName"))
-	if !inCarousel {
+	// Without pages there is no pip to take the focus, as in WinUI.
+	if !inCarousel && count > 0 {
 		root.Focusable()
 	}
 	chosen := -1
@@ -160,7 +170,11 @@ func pipsMacInk(t *ui.Theme, chosen bool) ui.Color {
 // pipsMac draws the pager as UIPageControl in UIKit for Mac (see PipsPager): cells 19 points wide holding the dots in their middles, 8 points from the control's ends, 23 points high, and AppKit's focus ring around the control, round at its ends (inferred).
 func pipsMac(c *ui.Context, root ui.Element, n, sel int, pip func(int) ui.Element, focused bool) {
 	t := c.Theme()
-	root.Height(pipsMacHeight).PaddingX(pipsMacInset).AlignItems(ui.Stretch).FocusRing(false)
+	root.AlignItems(ui.Stretch).FocusRing(false)
+	// UIPageControl of no pages fits in no room (sizeThatFits gives 0 by 0).
+	if n > 0 {
+		root.Height(pipsMacHeight).PaddingX(pipsMacInset)
+	}
 	root.Children(func() {
 		for i := range n {
 			ink := pipsMacInk(t, i == sel)
@@ -215,10 +229,15 @@ func pipsFluent(c *ui.Context, root ui.Element, n, sel int, pip func(int) ui.Ele
 	if rtl {
 		shift = off
 	}
-	root.Height(pipsFluentHeight).FocusRing(false)
+	// A PipsPager of no pages is as small as its empty ItemsRepeater, 0 by 0, its buttons collapsed.
+	h := float32(pipsFluentHeight)
+	if n == 0 {
+		h = 0
+	}
+	root.Height(h).FocusRing(false)
 	root.Children(func() {
-		ui.Row(c).Width(view).Height(pipsFluentHeight).Shrink(0).ClipX().Children(func() {
-			ui.Row(c).Width(float32(pipsFluentWidth*n)).Height(pipsFluentHeight).Shrink(0).Translate(shift, 0).Children(func() {
+		ui.Row(c).Width(view).Height(h).Shrink(0).ClipX().Children(func() {
+			ui.Row(c).Width(float32(pipsFluentWidth*n)).Height(h).Shrink(0).Translate(shift, 0).Children(func() {
 				for i := range n {
 					e := pip(i).Size(pipsFluentWidth, pipsFluentHeight)
 					hovered, pressed := e.Hovered(), e.Pressed()
@@ -329,28 +348,32 @@ type carouselSample struct {
 
 // carouselState is what a carousel keeps between frames.
 type carouselState struct {
-	// swiping is whether a touchpad's swipe or the pointer's drag moves the pages; pos is where they show then, in pages, within a page of initial, the page shown as it began; dist is how far a page is, in DIPs, and fling the velocity, in DIPs a millisecond, past which the swipe goes on to the next page, or -1 for a move to initial as it is (a notch of the wheel); samples are its last moves.
+	// swiping is whether a touchpad's swipe or the pointer's drag moves the pages; pos is where they show then, in pages, between lo and hi, the pages it may reach (carouselSwipeBounds) from from, where the pages showed as it began, initial being the page nearest to from; dist is how far a page is, in DIPs, and fling the velocity, in DIPs a millisecond, past which the swipe goes on toward the next page, or -1 for a move to initial as it is (a notch of the wheel); touchpad tells a touchpad's swipe from a drag, which decelerate differently; samples are its last moves.
 	swiping     bool
 	pos         float32
 	initial     int
+	from        float32
+	lo, hi      float32
 	dist, fling float32
+	touchpad    bool
 	samples     []carouselSample
 	lastSwipe   time.Time
-	// endSwipe asks the next frame to end the swipe, or to go to initial; ended is the velocity a drag ended with, in DIPs a millisecond, when hasEnded; velocity is the velocity of the pages as a swipe ended, in pages a second, for the spring taking over.
+	// endSwipe asks the next frame to end the swipe, or to go to initial; ended is the velocity a drag ended with, in DIPs a millisecond, when hasEnded; velocity is the velocity a swipe ended with, which the spring taking over starts with (see carouselSwipeEnd).
 	endSwipe, hasEnded bool
 	ended, velocity    float32
 	// momentum is whether the touchpad's momentum after a swipe is the carousel's, to take and drop.
 	momentum bool
-	// dragged is how far the pointer pressing the view went before a drag began; dragging whether it drags the pages.
-	dragged  float32
-	dragging bool
+	// dragged and draggedY are how far the pointer pressing the view went, sideways and down, before a drag began; dragging whether it drags the pages, and dragRejected whether it went up or down rather than sideways, which leaves the pages until it lets go.
+	dragged, draggedY      float32
+	dragging, dragRejected bool
 	// wheelAt is the last delta of a wheel on Windows, and on GNOME when the wheel may move a page again; wheelDir is the direction of the last flip on Windows.
 	wheelAt  time.Time
 	wheelDir int
 	// pointerAt is when the mouse last moved over the view.
 	pointerAt time.Time
-	// target is the page the pages last went to; w and h the view's size in the last frame.
+	// target is the page the pages last went to, and shown where they showed in the last frame, in pages; w and h the view's size in the last frame.
 	target   int
+	shown    float32
 	w, h     float32
 	disabled bool
 }
@@ -382,24 +405,37 @@ func Carousel(c *ui.Context, selected *int, count int, page func(i int)) ui.Elem
 		}
 	}
 	root.Children(func() {
-		area = ui.Column(c).Grow(1).AlignItems(ui.Stretch).Focusable().FocusRing(false).Clip().Role(ui.RoleGroup)
-		st = ui.Local(area, "breeze-carousel-state", func() carouselState { return carouselState{target: *selected} })
+		area = ui.Column(c).Grow(1).AlignItems(ui.Stretch).FocusRing(false).Clip().Role(ui.RoleGroup)
+		// Without pages there is nothing to take the focus, as a FlipView without items and an AdwCarousel without children have none.
+		if count > 0 {
+			area.Focusable()
+		}
+		st = ui.Local(area, "breeze-carousel-state", func() carouselState {
+			return carouselState{target: *selected, shown: float32(*selected)}
+		})
 		if b := area.LayoutBounds(); b.W != st.w || b.H != st.h {
 			st.w, st.h = b.W, b.H
 			c.Invalidate()
 		}
 		carouselInput(c, pl, area, st, count, rtl)
-		// The keys: Left and Right mirrored right to left, Page Up and Page Down, Home and End, as AdwCarousel's bindings and WinUI's Selector::HandleNavigationKey take them, and Up and Down on Windows, where a horizontal FlipView takes them too.
+		// The keys: Left and Right mirrored right to left, Page Up and Page Down, Home and End, as AdwCarousel's bindings and WinUI's Selector::HandleNavigationKey take them, and Up and Down on Windows, where a horizontal FlipView takes them too. FlipView moves from its SelectedIndex, the page the pages go to; AdwCarousel's navigate_to_direction from the page nearest to where they show (round (self->position)), so that a key pressed again while they move toward the next page moves to it again, and none at the first or the last.
 		back, forth := ui.KeyLeft, ui.KeyRight
 		if rtl {
 			back, forth = forth, back
 		}
-		sel := *selected
+		base := *selected
+		if pl == Linux {
+			base = carouselNearest(st.shown, count)
+		}
 		switch {
 		case area.Shortcut(0, back), area.Shortcut(0, ui.KeyPageUp), pl == Windows && area.Shortcut(0, ui.KeyUp):
-			choose(sel - 1)
+			if base > 0 {
+				choose(base - 1)
+			}
 		case area.Shortcut(0, forth), area.Shortcut(0, ui.KeyPageDown), pl == Windows && area.Shortcut(0, ui.KeyDown):
-			choose(sel + 1)
+			if base < count-1 {
+				choose(base + 1)
+			}
 		case area.Shortcut(0, ui.KeyHome):
 			choose(0)
 		case area.Shortcut(0, ui.KeyEnd):
@@ -418,6 +454,7 @@ func Carousel(c *ui.Context, selected *int, count int, page func(i int)) ui.Elem
 			choose(carouselSwipeEnd(st, count))
 		}
 		pos := carouselPosition(pl, area, st, *selected)
+		st.shown = pos
 		area.Children(func() {
 			carouselStrip(c, st, count, pos, rtl, page)
 			if pl == Windows {
@@ -631,7 +668,7 @@ func carouselInput(c *ui.Context, pl Platform, area ui.Element, st *carouselStat
 				return false
 			}
 			if !st.swiping {
-				carouselSwipeBegin(st, carouselAdwTouchpadFling, dist)
+				carouselSwipeBegin(st, true, dist, count)
 			}
 			carouselSwipeMove(st, d, ev.Time, count)
 			return true
@@ -639,6 +676,8 @@ func carouselInput(c *ui.Context, pl Platform, area ui.Element, st *carouselStat
 			if ev.Time.Before(st.wheelAt) {
 				return false
 			}
+			// scroll_cb moves from the page nearest to where the pages show (get_page_at_position).
+			from := carouselNearest(st.shown, count)
 			dir := 0
 			switch {
 			case ev.DY != 0:
@@ -648,7 +687,7 @@ func carouselInput(c *ui.Context, pl Platform, area ui.Element, st *carouselStat
 			default:
 				return false
 			}
-			st.initial, st.fling, st.endSwipe = max(0, min(st.target+dir, count-1)), -1, true
+			st.initial, st.fling, st.endSwipe = max(0, min(from+dir, count-1)), -1, true
 			st.wheelAt = ev.Time.Add(carouselAdwWheelPause)
 			return true
 		}
@@ -657,23 +696,36 @@ func carouselInput(c *ui.Context, pl Platform, area ui.Element, st *carouselStat
 	if pl != Linux || st.disabled || count == 0 || st.w <= 0 {
 		return
 	}
-	if dx, _, ok := area.Dragged(); ok {
+	// Dragged reports the pointer pressing the view wherever it goes, where Pressed stops when it leaves the view: GTK's drag gesture keeps the pointer it took.
+	dx, dy, held := area.Dragged()
+	if held && !st.dragRejected {
 		if rtl {
 			dx = -dx
 		}
 		if !st.dragging {
+			// drag_update_cb: a drag going more up or down than sideways at its first move, or as it passes 16 DIPs from where it began, is not the carousel's; one going sideways starts the swipe there, with its last move, the way before it being lost.
+			first := st.dragged == 0 && st.draggedY == 0
 			st.dragged += dx
-			if math.Abs(float64(st.dragged)) >= carouselAdwDragStart {
+			st.draggedY += dy
+			vertical := math.Abs(float64(st.draggedY)) > math.Abs(float64(st.dragged))
+			switch {
+			case first && vertical:
+				st.dragRejected = true
+			case math.Hypot(float64(st.dragged), float64(st.draggedY)) >= carouselAdwDragStart:
+				if vertical {
+					st.dragRejected = true
+					break
+				}
 				st.dragging = true
-				carouselSwipeBegin(st, carouselAdwDragFling, st.w)
-				carouselSwipeMove(st, -st.dragged, c.Now(), count)
+				carouselSwipeBegin(st, false, st.w, count)
+				carouselSwipeMove(st, -dx, c.Now(), count)
 			}
 		} else {
 			carouselSwipeMove(st, -dx, c.Now(), count)
 		}
 	}
 	vx, _, ended := area.DragEnded()
-	if ended || (!area.Pressed() && (st.dragging || st.dragged != 0)) {
+	if ended || (!held && (st.dragging || st.dragged != 0 || st.draggedY != 0 || st.dragRejected)) {
 		if st.dragging {
 			if rtl {
 				vx = -vx
@@ -681,7 +733,7 @@ func carouselInput(c *ui.Context, pl Platform, area ui.Element, st *carouselStat
 			st.swiping, st.endSwipe = false, true
 			st.hasEnded, st.ended = ended, -vx/1000
 		}
-		st.dragging, st.dragged = false, 0
+		st.dragging, st.dragged, st.draggedY, st.dragRejected = false, 0, 0, false
 	}
 }
 
@@ -715,19 +767,38 @@ func carouselFlip(st *carouselState, ev ui.InputEvent, count int) bool {
 	return true
 }
 
-// carouselSwipeBegin starts a swipe from the page shown, fling being the velocity, in DIPs a millisecond, past which it goes on to the next page and dist the DIPs to a page.
-func carouselSwipeBegin(st *carouselState, fling, dist float32) {
+// carouselSwipeBegin starts a swipe from where the pages show, as begin_swipe_cb stops AdwCarousel's spring there: a touchpad's (touchpad) or a drag's, dist being the DIPs to a page.
+func carouselSwipeBegin(st *carouselState, touchpad bool, dist float32, count int) {
 	st.swiping, st.momentum, st.hasEnded = true, true, false
-	st.initial = st.target
-	st.pos = float32(st.target)
-	st.dist, st.fling = dist, fling
+	st.from = max(0, min(st.shown, float32(count-1)))
+	st.pos = st.from
+	st.initial = carouselNearest(st.from, count)
+	st.lo, st.hi = carouselSwipeBounds(st.from, count)
+	st.dist, st.touchpad = dist, touchpad
+	st.fling = carouselAdwDragFling
+	if touchpad {
+		st.fling = carouselAdwTouchpadFling
+	}
 	st.samples = st.samples[:0]
 }
 
-// carouselSwipeMove moves a swipe by d DIPs toward the later pages at time at, within a page of the page it began on, and records the move, keeping the last 150 ms as adw-swipe-tracker.c's history does.
+// carouselNearest returns the page nearest to pos, in pages, the first of two as near, as find_closest_point and get_closest_child_at take it.
+func carouselNearest(pos float32, count int) int {
+	return max(0, min(int(math.Ceil(float64(pos)-0.5)), count-1))
+}
+
+// carouselSwipeBounds returns the pages a swipe beginning at from, in pages, may reach without long swipes, as get_bounds gives them: from a page, the pages on either side of it; from between two pages, the page before the first and the page after the second; within the pages.
+func carouselSwipeBounds(from float32, count int) (lo, hi float32) {
+	prev, next := carouselNearest(from, count), carouselNearest(from, count)
+	if math.Abs(float64(from)-float64(prev)) >= carouselSwipeEpsilon {
+		prev, next = int(math.Floor(float64(from))), int(math.Ceil(float64(from)))
+	}
+	return float32(max(prev-1, 0)), float32(min(next+1, count-1))
+}
+
+// carouselSwipeMove moves a swipe by d DIPs toward the later pages at time at, within its bounds, as gesture_update does without overshoot, and records the move, keeping the last 150 ms as adw-swipe-tracker.c's history does.
 func carouselSwipeMove(st *carouselState, d float32, at time.Time, count int) {
-	lo, hi := float32(max(st.initial-1, 0)), float32(min(st.initial+1, count-1))
-	st.pos = max(lo, min(st.pos+d/st.dist, hi))
+	st.pos = max(st.lo, min(st.pos+d/st.dist, st.hi))
 	st.lastSwipe = at
 	st.samples = append(st.samples, carouselSample{d, at})
 	for len(st.samples) > 0 && at.Sub(st.samples[0].at) > carouselSwipeQuiet {
@@ -735,38 +806,60 @@ func carouselSwipeMove(st *carouselState, d float32, at time.Time, count int) {
 	}
 }
 
-// carouselSwipeVelocity returns a swipe's velocity in DIPs a millisecond, as calculate_velocity takes it: the moves after the first of the history over the time it spans; a drag's is the pointer's as it let go.
+// carouselSwipeVelocity returns a swipe's velocity in DIPs a millisecond, as calculate_velocity takes it: the moves after the first of the history over the time it spans; a drag's is the pointer's as it let go. At a bound, a velocity beyond it is none, as AdwCarousel allows no overshoot.
 func carouselSwipeVelocity(st *carouselState) float32 {
-	if st.hasEnded {
-		return st.ended
+	v := st.ended
+	if !st.hasEnded {
+		v = 0
+		if len(st.samples) >= 2 {
+			if ms := float32(st.samples[len(st.samples)-1].at.Sub(st.samples[0].at)) / float32(time.Millisecond); ms > 0 {
+				total := float32(0)
+				for _, s := range st.samples[1:] {
+					total += s.delta
+				}
+				v = total / ms
+			}
+		}
 	}
-	if len(st.samples) < 2 {
+	if (st.pos <= st.lo && v < 0) || (st.pos >= st.hi && v > 0) {
 		return 0
 	}
-	ms := float32(st.samples[len(st.samples)-1].at.Sub(st.samples[0].at)) / float32(time.Millisecond)
-	if ms <= 0 {
-		return 0
-	}
-	total := float32(0)
-	for _, s := range st.samples[1:] {
-		total += s.delta
-	}
-	return total / ms
+	return v
 }
 
-// carouselSwipeEnd returns the page a swipe that just ended goes to, as get_end_progress chooses it without long swipes: slower than its fling velocity, the page nearest to where it is; faster, the page after the one it began on in the direction it went, within the pages. A move of the wheel (fling -1) goes to its page as it is. The swipe's velocity is handed on to the spring, in pages a second.
+// carouselSwipeEnd returns the page a swipe that just ended goes to, as get_end_progress chooses it without long swipes: slower than its fling velocity, the page nearest to where it is; faster, where the pages would glide to, decelerating as a touchpad's swipe or a drag does (DECELERATION_TOUCHPAD 0.997, DECELERATION_TOUCH 0.998, past VELOCITY_CURVE_THRESHOLD 2 along DECELERATION_PARABOLA_MULTIPLIER's parabola), held within its bounds, then the page beyond it the swipe's way when the page before it is the one the swipe began at (find_point_for_projection), else the page nearest to it. A move of the wheel (fling -1) goes to its page as it is. The velocity, in DIPs a millisecond, is handed on to the spring as AdwCarousel's end_swipe_cb hands it on, the spring taking it as pages a second.
 func carouselSwipeEnd(st *carouselState, count int) int {
 	if st.fling < 0 {
 		return st.initial
 	}
 	v := carouselSwipeVelocity(st)
-	st.velocity = v * 1000 / st.dist
-	to := int(math.Round(float64(st.pos)))
-	if math.Abs(float64(v)) >= float64(st.fling) {
-		to = st.initial + 1
-		if v < 0 {
-			to = st.initial - 1
-		}
+	st.velocity = v
+	speed := math.Abs(float64(v))
+	if speed < float64(st.fling) {
+		return max(int(st.lo), min(carouselNearest(st.pos, count), int(st.hi)))
 	}
-	return max(0, min(to, count-1))
+	pos := max(float64(st.lo), min(float64(st.pos)+math.Copysign(carouselSwipeGlide(speed, st.touchpad), float64(v)), float64(st.hi)))
+	prev, next := int(math.Floor(pos)), int(math.Ceil(pos))
+	switch {
+	case v > 0 && prev == st.initial:
+		return next
+	case v < 0 && next == st.initial:
+		return prev
+	}
+	return carouselNearest(float32(pos), count)
+}
+
+// carouselSwipeGlide returns how far, in pages, a swipe ending at speed, in DIPs a millisecond, glides on as get_end_progress projects it: a touchpad's (touchpad) or a drag's deceleration taken as a slope, linear up to VELOCITY_CURVE_THRESHOLD and along a parabola past it.
+func carouselSwipeGlide(speed float64, touchpad bool) float64 {
+	decel := carouselSwipeDecelTouch
+	if touchpad {
+		decel = carouselSwipeDecelTouchpad
+	}
+	slope := decel / (1 - decel) / 1000
+	if speed <= carouselSwipeCurve {
+		return speed * slope
+	}
+	c := slope / 2 / carouselSwipeParabola
+	x := speed - carouselSwipeCurve + c
+	return carouselSwipeParabola*x*x - carouselSwipeParabola*c*c + slope*carouselSwipeCurve
 }

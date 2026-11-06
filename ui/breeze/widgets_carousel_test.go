@@ -2,6 +2,7 @@ package breeze
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -228,10 +229,10 @@ func TestPipsPagerDisabled(t *testing.T) {
 	}
 }
 
-// TestPipsPagerSizes checks the pager's size on every platform, for 1, 5 and 9 pages: on macOS UIPageControl's 23 points high and 19 a dot with 8 at either end (111 for 5 and 187 for 9, as UIKit for Mac lays it out); on Windows 24 high and 12 a pip, at most 5 (MaxVisiblePips); on GNOME 20 high and 15 a dot with 6 at either end (AdwCarouselIndicatorDots's measure).
+// TestPipsPagerSizes checks the pager's size on every platform, for 0, 1, 5 and 9 pages: on macOS UIPageControl's 23 points high and 19 a dot with 8 at either end (35 for 1, 111 for 5 and 187 for 9, as UIKit for Mac lays it out), and 0 by 0 without pages, as sizeThatFits gives it; on Windows 24 high and 12 a pip, at most 5 (MaxVisiblePips), and 0 by 0 without pages, as the empty ItemsRepeater is; on GNOME 20 high and 15 a dot with 6 at either end (AdwCarouselIndicatorDots's measure), 12 by 20 without pages.
 func TestPipsPagerSizes(t *testing.T) {
 	for _, p := range Platforms {
-		for _, n := range []int{1, 5, 9} {
+		for _, n := range []int{0, 1, 5, 9} {
 			s := &pagerTestState{count: n}
 			tester := layoutTester(p, 400, 200, s.view)
 			tester.Frame()
@@ -239,8 +240,14 @@ func TestPipsPagerSizes(t *testing.T) {
 			switch p {
 			case Mac:
 				w, h = float32(19*n+16), 23
+				if n == 0 {
+					w, h = 0, 0
+				}
 			case Windows:
 				w, h = float32(12*min(n, 5)), 24
+				if n == 0 {
+					h = 0
+				}
 			default:
 				w, h = float32(15*n+12), 20
 			}
@@ -1021,5 +1028,181 @@ func TestCarouselDisabled(t *testing.T) {
 		if s.shown != 1 {
 			t.Errorf("%v: a disabled carousel showed page %d", p, s.shown)
 		}
+	}
+}
+
+// TestPagersWithoutPagesOrOutOfRange checks on every platform that a pager or a carousel of no pages is no Tab stop, as a PipsPager without pips and a FlipView or an AdwCarousel without pages have nothing to focus, and builds no page; that a page chosen before the first or past the last is held to the pages, as PipsPager::OnSelectedPageIndexChanged holds SelectedPageIndex; and that a carousel whose pages become fewer than the page shown shows the last.
+func TestPagersWithoutPagesOrOutOfRange(t *testing.T) {
+	for _, p := range Platforms {
+		pager, shown, count := 3, 2, 0
+		built := map[int]int{}
+		tester := layoutTester(p, 400, 320, func(c *ui.Context) {
+			Use(c)
+			ui.Column(c).Padding(16).Gap(12).AlignItems(ui.Start).Children(func() {
+				Button(c, "Before")
+				PipsPager(c, &pager, count)
+				Carousel(c, &shown, count, carouselTestPage(c, built)).Width(320)
+				Button(c, "After")
+			})
+		})
+		tester.Frame()
+		tester.Frame()
+		if len(built) != 0 {
+			t.Errorf("%v: a carousel of no pages built %v", p, built)
+		}
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		carouselPress(tester, 0, ui.KeyTab)
+		if !tester.Focused("After") {
+			t.Errorf("%v: Tab from Before stopped before After with no pages", p)
+		}
+		pager, shown, count = 7, -2, 4
+		tester.Frame()
+		tester.Frame()
+		if pager != 3 || shown != 0 || !tester.HasText("Slide 1") {
+			t.Errorf("%v: page 7 of a pager of 4 became %d and page -2 of a carousel %d", p, pager, shown)
+		}
+		shown = 3
+		tester.Frame()
+		tester.Frame()
+		count = 2
+		tester.Advance(time1s)
+		tester.Frame()
+		tester.Frame()
+		if shown != 1 || !tester.HasText("Slide 2") || tester.HasText("Slide 4") {
+			t.Errorf("%v: page 4 of a carousel whose pages became 2 showed page %d", p, shown)
+		}
+	}
+}
+
+// TestCarouselKeysFromWhereThePagesShow checks on GNOME that the arrows move from the page nearest to where the pages show, as AdwCarousel's navigate_to_direction takes round (self->position), so that an arrow pressed again just after the first, the pages still near the page they leave, moves to the same page; on Windows and macOS from the page they go to, as FlipView moves from its SelectedIndex, two pages on; and on GNOME a notch of the wheel just after an arrow the same.
+func TestCarouselKeysFromWhereThePagesShow(t *testing.T) {
+	for _, p := range Platforms {
+		s := &carouselTestState{shown: 0}
+		tester := carouselMotionTester(p, s, ui.LeftToRight)
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		carouselPress(tester, 0, ui.KeyTab)
+		tester.Key(0, ui.KeyRight)
+		tester.Frame()
+		tester.Advance(10 * 1e6)
+		tester.Frame()
+		tester.Key(0, ui.KeyRight)
+		tester.Frame()
+		want := 2
+		if p == Linux {
+			want = 1
+		}
+		if s.shown != want {
+			t.Errorf("%v: Right twice 10 ms apart showed page %d, want %d", p, s.shown, want)
+		}
+		if p != Linux {
+			continue
+		}
+		// A notch of the wheel just after a key moves from the page nearest to where the pages show too (scroll_cb's get_page_at_position).
+		tester.Advance(time1s)
+		tester.Frame()
+		tester.Key(0, ui.KeyRight)
+		tester.Frame()
+		tester.Advance(10 * 1e6)
+		tester.Frame()
+		x, y := carouselMiddle(tester)
+		tester.Wheel(x, y, 0, 40)
+		tester.Frame()
+		if s.shown != 2 {
+			t.Errorf("%v: Right and a notch down 10 ms after from page 1 showed page %d, want 2", p, s.shown)
+		}
+	}
+}
+
+// TestCarouselSwipeEnd checks where a swipe ends, as adw-swipe-tracker.c's get_end_progress chooses without long swipes: a swipe from a page reaches the pages on either side, one from between two pages the page before the first and after the second (get_bounds, within EPSILON 0.005 of a page counting as at it); a slow one goes to the nearest page, the first of two as near; a quick one glides on, a touchpad's 0.997 and a drag's 0.998 a millisecond (0.3323 and 0.499 pages for each DIP a millisecond, along a parabola past 2), to the page beyond when the page before is the one it began at, else to the nearest, so that a swipe back flicked on lands on the page before rather than past the page it began at, and one on flicked back stays on the page after; and the velocity goes on to the spring as AdwCarousel hands it on, DIPs a millisecond taken as pages a second, and none at a bound.
+func TestCarouselSwipeEnd(t *testing.T) {
+	bounds := []struct {
+		from   float32
+		lo, hi float32
+	}{{1, 0, 2}, {1.5, 0, 3}, {1.004, 0, 2}, {1.006, 0, 3}, {0, 0, 1}, {3, 2, 3}}
+	for _, b := range bounds {
+		if lo, hi := carouselSwipeBounds(b.from, 4); lo != b.lo || hi != b.hi {
+			t.Errorf("a swipe from %v reaches %v to %v, want %v to %v", b.from, lo, hi, b.lo, b.hi)
+		}
+	}
+	glides := []struct {
+		speed    float64
+		touchpad bool
+		want     float64
+	}{{1, true, 0.33233}, {1, false, 0.499}, {3, true, 1.34698}, {3, false, 1.84700}}
+	for _, g := range glides {
+		if got := carouselSwipeGlide(g.speed, g.touchpad); math.Abs(got-g.want) > 1e-4 {
+			t.Errorf("a swipe at %v (touchpad %v) glides %v, want %v", g.speed, g.touchpad, got, g.want)
+		}
+	}
+	ends := []struct {
+		pos, v float32
+		want   int
+	}{
+		{1.45, 0.2, 1}, {1.5, 0.2, 1}, {1.55, 0.2, 2}, {0.6, -0.5, 1},
+		{1.2, 0.7, 2}, {1, -0.7, 0}, {0.2, 0.7, 0}, {0.6, 0.7, 1}, {1.9, -0.7, 2},
+	}
+	for _, e := range ends {
+		st := &carouselState{shown: 1, dist: 400}
+		carouselSwipeBegin(st, true, 400, 4)
+		st.pos = e.pos
+		st.hasEnded, st.ended = true, e.v
+		if got := carouselSwipeEnd(st, 4); got != e.want {
+			t.Errorf("a touchpad's swipe from 1 ending at %v at %v DIPs a millisecond goes to %d, want %d", e.pos, e.v, got, e.want)
+		}
+		if want := e.v; st.velocity != want {
+			t.Errorf("a swipe ending at %v DIPs a millisecond hands on %v, want %v", e.v, st.velocity, want)
+		}
+	}
+	st := &carouselState{shown: 1}
+	carouselSwipeBegin(st, false, 320, 4)
+	st.pos, st.hasEnded, st.ended = 2, true, 1
+	if got := carouselSwipeEnd(st, 4); got != 2 || st.velocity != 0 {
+		t.Errorf("a drag ending at its upper bound going on went to %d with %v, want 2 with none", got, st.velocity)
+	}
+}
+
+// TestCarouselDragStart checks on GNOME how a drag starts, as drag_update_cb does: the pages follow the pointer from the move that takes it 16 DIPs from where it pressed, the way before it lost (4-DIP moves to 40 DIPs move the pages 28), and a drag that goes more down than sideways at its first move leaves them.
+func TestCarouselDragStart(t *testing.T) {
+	for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+		s := &carouselTestState{shown: 1}
+		tester := carouselMotionTester(Linux, s, dir)
+		x, y := carouselMiddle(tester)
+		at, _ := tester.Find("Slide 2")
+		step := float32(-4)
+		if dir == ui.RightToLeft {
+			step = 4
+		}
+		tester.Press(x, y)
+		tester.Frame()
+		for k := 1; k <= 10; k++ {
+			tester.Advance(20 * 1e6)
+			tester.Move(x+step*float32(k), y)
+			tester.Frame()
+		}
+		now, _ := tester.Find("Slide 2")
+		if d := now.X - at.X; math.Abs(float64(d-7*step)) > 0.01 {
+			t.Errorf("%v: 10 moves of 4 DIPs moved the page %v, want %v", dir, d, 7*step)
+		}
+		tester.Release(x+step*10, y)
+		tester.Advance(time1s)
+		tester.Frame()
+		tester.Frame()
+		tester.Press(x, y)
+		tester.Frame()
+		// 4 sideways and 8 down at first, then only sideways, to 40 sideways.
+		for k := 1; k <= 10; k++ {
+			tester.Advance(20 * 1e6)
+			tester.Move(x+step*float32(k), y+8)
+			tester.Frame()
+		}
+		if now, _ := tester.Find("Slide 2"); now.X != at.X || tester.HasText("Slide 3") || tester.HasText("Slide 1") {
+			t.Errorf("%v: a drag first going down moved the pages", dir)
+		}
+		tester.Release(x+step*10, y+8)
+		tester.Frame()
 	}
 }
