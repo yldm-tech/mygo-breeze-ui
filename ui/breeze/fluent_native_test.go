@@ -120,9 +120,23 @@ func TestFluentCommandBarSplitButtonAsMeasured(t *testing.T) {
 	if mid := float32(box.Min.X+box.Max.X) / 4; !ok || mid < a.X+7.5 || mid > a.X+8.5 {
 		t.Errorf("the chevron's ink %v is centered at %v in the arrow part %v, want 8 into it", box, mid, a)
 	}
+	// U+E972's ink from half a DIP above the part's middle to 2.5 below it, 18 pixels of it at 2x (WinUI's render: rows 267 to 272 around the middle at 268, the ink summing to 18.0 pixels), its stroke two thirds of a DIP.
+	if mid := int(2 * (a.Y + a.H/2)); box.Min.Y != mid-1 || box.Max.Y != mid+5 {
+		t.Errorf("the chevron's ink rows %d to %d at 2x, want %d to %d", box.Min.Y, box.Max.Y, mid-1, mid+5)
+	}
+	bg, ink := float64(gray(img, int(2*a.X)+1, int(2*a.Y)+1)), float64(26)
+	area := 0.0
+	for y := int(2 * a.Y); y < int(2*(a.Y+a.H)); y++ {
+		for x := int(2 * a.X); x < int(2*(a.X+a.W)); x++ {
+			area += (bg - float64(gray(img, x, y))) / (bg - ink)
+		}
+	}
+	if area < 15 || area > 22 {
+		t.Errorf("the chevron's ink sums to %.1f pixels at 2x, want 18", area)
+	}
 }
 
-// TestFluentInfoBarAsMeasured checks an InfoBar against WinUI's render, light and dark: its border is CardStrokeColorDefault over the window, 229 and 29, around an informational and a success bar alike; the severity icon's circle is 15 DIPs across, flush with its 16-DIP box's start and a DIP below its top; the close button's × is 11 DIPs square, centered half a DIP above and before the button's middle.
+// TestFluentInfoBarAsMeasured checks an InfoBar against WinUI's render, light and dark: its border is CardStrokeColorDefault over the window, 229 and 29, around an informational and a success bar alike; the severity icon's circle is 15 DIPs across, flush with its 16-DIP box's start and a DIP below its top, and its marks' ink, from the circle's middle, from 3.5 above to 3 below for the i, 3 above to 3.5 below for the !, and 3.5 either side and 2.5 above and below for the check mark (half way from the circle's color to the mark's); the close button's × is 11 DIPs square, centered half a DIP above and before the button's middle.
 func TestFluentInfoBarAsMeasured(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		open := true

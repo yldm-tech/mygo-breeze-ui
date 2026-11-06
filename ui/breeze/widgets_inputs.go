@@ -370,9 +370,9 @@ func fluentSplitAppBar(c *ui.Context, primary, arrow ui.Element, start, end func
 	fg := part(arrow, end(4), ah, ap, ph || pp)
 	arrow.Width(23).PaddingStart(2).PaddingEnd(8).Justify(ui.Start)
 	arrow.Children(func() {
-		// The TextBlock: the 8-DIP glyph inside its padding of 2 at the sides and 1 above.
+		// The TextBlock: the 8-DIP glyph inside its padding of 2 at the sides and 1 above, centered in the part, its point 2.3 DIPs below the part's middle.
 		ui.Box(c).Size(12, 9).Shrink(0).Padding(1, 2, 0, 2).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
-			fluentChevronDown8(p, r.X+r.W/2, r.Y+1+4, fg)
+			fluentChevronDown8(p, r.X+r.W/2, r.Y+r.H/2+2.3, fg)
 		})
 	})
 }
@@ -382,11 +382,11 @@ func fluentTertiaryOver(t *ui.Theme, under ui.Color) ui.Color {
 	return under.Mix(pick(t.Dark, black, white), pick(t.Dark, float32(0x72)/255, 0x87/255.0))
 }
 
-// fluentChevronDown8 strokes U+E972 of Segoe Fluent Icons, ChevronDown, at FontSize 8 centered on cx, cy: idiomFluentSubItemChevron's chevron (U+E974 at 8) turned to point down, 4.6 DIPs wide and 2.3 high in a 1-DIP stroke (the shape is inferred: the font is not open).
-func fluentChevronDown8(p *ui.Painter, cx, cy float32, col ui.Color) {
+// fluentChevronDown8 strokes U+E972 of Segoe Fluent Icons, ChevronDown, at FontSize 8 with its point at cx, tip, as WinUI 3 3.3 renders it on Windows 11 26H2 (measured by tools/winui-reference at 2x in winui-inputs: the arrow part from 116 to 152, its TextBlock at 130, 9 high, and the glyph's ink from 133.5 to 136.5 and from 54 to 59.5, 18 pixels of ink at 2x, centered at 57): two arms at 45 degrees, 2.3 DIPs across, in a stroke two thirds of a DIP wide. The font is not open: the shape is drawn from the render.
+func fluentChevronDown8(p *ui.Painter, cx, tip float32, col ui.Color) {
 	var path ui.Path
-	path.MoveTo(cx-2.3, cy-1.15).LineTo(cx, cy+1.15).LineTo(cx+2.3, cy-1.15)
-	p.StrokePath(&path, 1, col)
+	path.MoveTo(cx-2.3, tip-2.3).LineTo(cx, tip).LineTo(cx+2.3, tip-2.3)
+	p.StrokePath(&path, 0.66, col)
 }
 
 // adwSplitButton draws an AdwSplitButton (adw-split-button.c and _buttons.scss of libadwaita 1.10.0): its button and its menu button's button side by side, the button padded 5px 10px (the inner button carries neither .text-button nor .image-button), at least 34 pixels high, bold, and the arrow's button padded 5px 4px around the 16-pixel pan-down-symbolic, 24 pixels wide; each has its own corners at the control's ends ($button_radius, 9), its own state and its focus ring inside its edge. The two overlap by a pixel (margin -1px on either side of the separator): raised, the separator's background is none, and the arrow's translucent face laid over the button's draws the seam where they meet, as linked buttons do (adwLinkedToggle): $button_color, $button_hover_color and $button_active_color (currentColor at 10%, 15% and 30%). Flat, as in a .toolbar (%flat_split_button, _toolbars.scss), the buttons are %button_basic_flat (transparent, $hover_color 7% and $active_color 16%) over the split button, which is $hover_color as a whole while the pointer is over it or a part is pressed, and the separator shows between them, currentColor at $dimmer_opacity (30%) with margins of 6px above and below, but while the pointer is over the split button or a part has the focus from the keyboard.
