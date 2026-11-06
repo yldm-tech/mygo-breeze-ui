@@ -24,9 +24,9 @@
     <circle cx="59" cy="45" r="2.5" fill="#fff" fill-opacity=".45"/>
     <text x="112" y="55" font-family="Arial" font-size="34" font-weight="700" fill="#15171c">MyGo Breeze</text>
   </g>
-  <text x="78" y="270" font-family="PingFang SC, Hiragino Sans, Arial" font-size="58" font-weight="700" fill="#15171c">让 MyGo 组件</text>
-  <text x="78" y="340" font-family="PingFang SC, Hiragino Sans, Arial" font-size="58" font-weight="700" fill="#15171c">长得像它所在的桌面。</text>
-  <text x="82" y="402" font-family="PingFang SC, Hiragino Sans, Arial" font-size="23" fill="#555c69">macOS · Windows 11 · GNOME</text>
+  <text x="78" y="270" font-family="Arial" font-size="58" font-weight="700" fill="#15171c">Native UI for MyGo.</text>
+  <text x="78" y="340" font-family="Arial" font-size="58" font-weight="700" fill="#15171c">Made for each desktop.</text>
+  <text x="82" y="402" font-family="Arial" font-size="23" fill="#555c69">macOS · Windows 11 · GNOME</text>
   <g transform="translate(78 500)">
     <rect width="1044" height="1" fill="#d0d7d4"/>
     <text y="44" font-family="Menlo" font-size="18" fill="#0b7a63">github.com/yldm-tech/mygo-breeze-ui</text>
