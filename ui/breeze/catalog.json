@@ -505,6 +505,13 @@
       "example": "breeze.SwitchRow(c, \"Dark mode\", \"Use a dark appearance\", &app.dark)"
     },
     {
+      "name": "TabView",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "Document tabs that close, with a button adding one; build the chosen tab's content after it: the tab bar of a window's tabs on macOS (a capsule track, the chosen tab raised, the close button under the pointer at the leading edge, the + button after it), WinUI's TabView on Windows 11 (the chosen tab joined to the strip's line by curved corners, close buttons on every tab, the add button after the tabs), or AdwTabBar on GNOME (tabs sharing the bar, the close button on the chosen tab and under the pointer, the new tab button at its end). Ctrl+Tab and Ctrl+Shift+Tab switch tabs, Ctrl+F4 closes one on Windows, and GNOME's Ctrl+Page Up, Ctrl+Page Down and Alt+digits choose one.",
+      "example": "breeze.TabView(c, &app.tab, app.titles, func(i int) {\n\tapp.titles = slices.Delete(app.titles, i, i+1)\n}, func() {\n\tapp.titles = append(app.titles, \"Untitled\")\n\tapp.tab = len(app.titles) - 1\n})"
+    },
+    {
       "name": "Table",
       "category": "data",
       "look": "drawn",
