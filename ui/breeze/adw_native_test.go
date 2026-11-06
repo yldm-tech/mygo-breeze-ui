@@ -326,3 +326,103 @@ func TestAdwTabBarAsRendered(t *testing.T) {
 		}
 	}
 }
+
+// adwInkSpan returns the first and the last device column of r (in DIPs) holding ink darker than 160 in a frame at scale, or -1, -1.
+func adwInkSpan(tester *ui.Tester, r ui.Rect, scale float32) (int, int) {
+	img := tester.Image()
+	first, last := -1, -1
+	for x := int(r.X * scale); x < int((r.X+r.W)*scale); x++ {
+		for y := int(r.Y * scale); y < int((r.Y+r.H)*scale); y++ {
+			if img.RGBAAt(x, y).R < 160 {
+				if first < 0 {
+					first = x
+				}
+				last = x
+				break
+			}
+		}
+	}
+	return first, last
+}
+
+// TestAdwSpinDigitsTabular checks on GNOME that the spin row's value and NumberInput's are drawn in tabular digits, as GtkSpinButton is .numeric (font-variant-numeric: tabular-nums in libadwaita 1.10.0's _labels.scss): "11" spans as many device pixels as a label of it with the tnum feature, where libadwaita 1.10.0 draws the "1" of "12" 3 pixels further from the "2" than Adwaita Sans's proportional digits put it (tools/adwaita-reference's settings set). It compares the ink with the label's in the same font, so a font whose digits are tabular anyway passes as well.
+func TestAdwSpinDigitsTabular(t *testing.T) {
+	const scale = 2
+	for _, number := range []bool{false, true} {
+		v := 11.0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Gap(16).Width(332).AlignItems(ui.Start).Children(func() {
+					if number {
+						NumberInput(c, &v, 0, 99, 1)
+					} else {
+						ui.Column(c).Width(300).Children(func() { SpinRow(c, "Copies", "", &v, 0, 99, 1) })
+					}
+					ui.Text(c, "11").FontFeatures("tnum").Label("tabular")
+				})
+			})
+		}, 400, 200)
+		tester.SetScale(scale)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		dec, ok := tester.Find("Decrease")
+		label, ok2 := tester.Find("tabular")
+		if !ok || !ok2 {
+			t.Fatal("the buttons or the label are missing")
+		}
+		// The text before the buttons: NumberInput's 80 wide right before Decrease, the spin row's 64 ending 2 (the button's margin) and 6 (the box's gap) before it.
+		text := ui.Rect{X: dec.X - 80, Y: dec.Y, W: 80, H: dec.H}
+		if !number {
+			text = ui.Rect{X: dec.X - 8 - 64, Y: dec.Y, W: 64, H: dec.H}
+		}
+		a, b := adwInkSpan(tester, text, scale)
+		la, lb := adwInkSpan(tester, label, scale)
+		if a < 0 || la < 0 {
+			t.Fatalf("number input %v: no ink in the text (%d) or the label (%d)", number, a, la)
+		}
+		if got, want := b-a, lb-la; got < want-1 || got > want+1 {
+			t.Errorf("number input %v: \"11\" spans %d device pixels, a tabular label of it %d", number, got, want)
+		}
+	}
+}
+
+// TestAdwPlusEvenWhenDisabled checks on GNOME, light and dark, that the + of a disabled Increase is as light in its middle as along its arms, the spin row's at its upper limit and NumberInput's: libadwaita 1.10.0 draws the icon of a disabled button even (151 over the face of 245, 153 over 61 dark, in tools/adwaita-reference's spinlimit set; 175 over 230 in its forms set), where MyGo's half opacity, applied fill by fill, would darken the crossing of two bars drawn over each other.
+func TestAdwPlusEvenWhenDisabled(t *testing.T) {
+	for _, number := range []bool{false, true} {
+		for _, dark := range []bool{false, true} {
+			v := 9.0
+			tester := ui.NewTester(func(c *ui.Context) {
+				Preview(c, Linux, func() {
+					Use(c)
+					ui.Column(c).Padding(16).Width(332).AlignItems(ui.Start).Children(func() {
+						if number {
+							NumberInput(c, &v, 1, 9, 1)
+						} else {
+							ui.Column(c).Width(300).Children(func() { SpinRow(c, "Copies", "", &v, 1, 9, 1) })
+						}
+					})
+				})
+			}, 400, 120)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+			tester.Frame()
+			b, ok := tester.Find("Increase")
+			if !ok {
+				t.Fatalf("number input %v, dark %v: Increase is missing", number, dark)
+			}
+			// The middle of the icon, and a device pixel inside its bar across, 4 pixels to the left.
+			img := tester.Image()
+			cx, cy := int((b.X+b.W/2)*2), int((b.Y+b.H/2)*2)
+			if !number {
+				cx = int((b.X+b.W/2)*2) - 1
+			}
+			mid, arm := img.RGBAAt(cx, cy).R, img.RGBAAt(cx-8, cy).R
+			if d := int(mid) - int(arm); d < -3 || d > 3 {
+				t.Errorf("number input %v, dark %v: the disabled +'s middle reads %d, its arm %d", number, dark, mid, arm)
+			}
+		}
+	}
+}

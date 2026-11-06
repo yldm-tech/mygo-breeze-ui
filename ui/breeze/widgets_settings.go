@@ -225,7 +225,7 @@ func adwEditIcon(p *ui.Painter, x, y float32, col ui.Color) {
 // SpinRow creates a settings row setting *value between lo and hi in steps of step: the title, the subtitle below it (an empty subtitle shows none) and at its end the value with the platform's stepping buttons, which joins a Card, a Fieldset or an AccordionItem as ActionRow does. Typing a number in range sets it, Up and Down step it, and the buttons step it and are disabled at the limits, as NumberInput's; Changed reports a new value. The text is the row's one focus stop, named by the title for assistive technology (on GNOME described by the subtitle too, as AdwSpinRow's spin button is; on macOS and Windows the row, a group as ActionRow's, is); the buttons are not stops, as WinUI's NumberBox and GTK's spin buttons are not; on macOS and Windows they leave the focus where it is while pressed, and on GNOME a press on them moves it into the text, as GtkSpinButton's does.
 //   - macOS: a SwiftUI Stepper with a format in a grouped Form: at the row's trailing edge, 9 points from the section's, a text field's bezel (macField's, its line laid over the section), 80 points wide, its value at the trailing edge 10 points before an NSStepper without a face inside the field's end, 20 by 24 points, its chevrons those of NumberInput's stepper (formsMacNumberInput) in labelColor over the field and the line between them black at 12.5% (white at 13.8% in Dark Aqua: 223 over 255, 55 over 23); a row of one line is 40.5 points high, taller than a row of text for the field (measured on macOS 27.2).
 //   - Windows: a SettingsCard holding a NumberBox with its spin buttons inline (NumberInput's look, formsFluentNumberInput).
-//   - GNOME: AdwSpinRow, an action row with a GtkSpinButton at its end (row.spin): no entry around the text, which ends at the buttons, 6 pixels before them (the text's padding of 6), then the − and + buttons as circular buttons, 30 pixels, margin 10px 2px and 6 apart (border-spacing), filled as libadwaita's buttons are (currentColor at 10%, 15% under the pointer and 30% pressed) with value-decrease-symbolic and value-increase-symbolic in the button's color over that face. A click on the row focuses the text (adw_spin_row_grab_focus), and so does a press on a button, wherever the focus was (button_pressed_cb in gtkspinbutton.c grabs it for the spin button); the row draws its focus ring while the text has the focus and is not lit under the pointer then (row.spin's focus ring on .focused). The text is 64 pixels wide, its value at its end, where GtkSpinButton fills the room the title leaves (inferred: what shows is the same).
+//   - GNOME: AdwSpinRow, an action row with a GtkSpinButton at its end (row.spin): no entry around the text, which is in tabular digits (the spin button is .numeric) and ends at the buttons, 6 pixels before them (the text's padding of 6), then the − and + buttons as circular buttons, 30 pixels, margin 10px 2px and 6 apart (border-spacing), filled as libadwaita's buttons are (currentColor at 10%, 15% under the pointer and 30% pressed) with value-decrease-symbolic and value-increase-symbolic in the button's color over that face. A click on the row focuses the text (adw_spin_row_grab_focus), and so does a press on a button, wherever the focus was (button_pressed_cb in gtkspinbutton.c grabs it for the spin button); the row draws its focus ring while the text has the focus and is not lit under the pointer then (row.spin's focus ring on .focused). The text is 64 pixels wide, its value at its end, where GtkSpinButton fills the room the title leaves (inferred: what shows is the same).
 func SpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, step float64) ui.Element {
 	p := PlatformOf(c)
 	if p == Linux {
@@ -313,7 +313,8 @@ func adwSpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, s
 	rowsStyle(c, row, item, in, first, title, subtitle, look, func(under ui.Color, _, _ bool) {
 		var box ui.Element
 		spin, box = formsNumberInput(c, value, lo, hi, step, title, false, func(text *string) ui.Element {
-			input = ui.TextInputBase(c, text).Width(64).Padding(6).TextAlign(ui.End).TextColor(adwTextOn(t, under))
+			// Tabular digits, as GtkSpinButton is .numeric (font-variant-numeric: tabular-nums in libadwaita 1.10.0's _labels.scss): libadwaita 1.10.0 draws the "1" of "12" 3 pixels further from the "2" than Adwaita Sans's proportional digits put it (tools/adwaita-reference's settings set).
+			input = ui.TextInputBase(c, text).Width(64).Padding(6).TextAlign(ui.End).TextColor(adwTextOn(t, under)).FontFeatures("tnum")
 			if subtitle != "" {
 				input.Description(subtitle)
 			}
@@ -341,7 +342,9 @@ func adwSpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, s
 					x, y := r.X+(r.W-16)/2, r.Y+(r.H-16)/2
 					p.Fill(ui.Rect{X: x + 3, Y: y + 7, W: 10, H: 2}, icon, 0)
 					if sign > 0 {
-						p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 10}, icon, 0)
+						// The bar down in two pieces, above and below the bar across, not over it: a disabled button is drawn at half opacity fill by fill, which would darken the crossing where libadwaita 1.10.0 draws the icon even (151 over the face of 245, 153 over 61 dark, in tools/adwaita-reference's spinlimit set).
+						p.Fill(ui.Rect{X: x + 7, Y: y + 3, W: 2, H: 4}, icon, 0)
+						p.Fill(ui.Rect{X: x + 7, Y: y + 9, W: 2, H: 4}, icon, 0)
 					}
 				})
 			}
