@@ -302,7 +302,7 @@ public sealed class App : Application, IXamlMetadataProvider
             </StackPanel>
             """), ["wide-cards", "wide-action", "wide-switch-on", "wide-switch-off"]);
 
-        // widgets_settings_test.go's settingsView on Windows (TestScreenshotsSettings), laid out as rowsView's scene is, in two columns 300 wide, 16 from the window's edges and 24 apart, their parts 16 apart: a card of rows (SettingsCards with DefaultSettingsExpanderItemStyle's setters over the card's fill, padded 16 at the sides, the first without its line) holding a ComboBox, a TextBox holding a name, an empty TextBox and a NumberBox with inline spin buttons, then a SettingsCard holding a ComboBox and a disabled one holding a NumberBox; beside them a SettingsExpander, open, with a description, holding two items, and a closed one. SettingsCard gives the ComboBox and the TextBox a MinWidth of 120; the NumberBox takes Breeze UI's 152.
+        // widgets_settings_test.go's settingsView on Windows (TestScreenshotsSettings), laid out as rowsView's scene is, in two columns 300 wide, 16 from the window's edges and 24 apart, their parts 16 apart: a card of rows (SettingsCards with DefaultSettingsExpanderItemStyle's setters over the card's fill, padded 16 at the sides, the first without its line) holding a ComboBox, a TextBox holding a name, an empty TextBox and a NumberBox with inline spin buttons, then a SettingsCard holding a ComboBox and a disabled one holding a NumberBox; beside them a SettingsExpander, open, with a description, holding two items, and a closed one. SettingsCard gives the ComboBox and the TextBox a MinWidth of 120; the NumberBox takes Breeze UI's 156, its 80-DIP text and the 76 DIPs of the spin buttons' column (NumberBox.xaml: UpSpinButton's Margin of 4 and DownSpinButton's 0,4,4,4 around two 32-DIP buttons).
         yield return new Scene("winui-settings", 672, 640, Canvas(672, 640, """
             <StackPanel Canvas.Left="16" Canvas.Top="16" Width="300" Spacing="16">
               <Border x:Name="settings-card" CornerRadius="{ThemeResource ControlCornerRadius}" BorderThickness="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
@@ -312,13 +312,13 @@ public sealed class App : Application, IXamlMetadataProvider
                   </tk:SettingsCard>
                   <tk:SettingsCard x:Name="entry-row" Header="Name" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><TextBox Text="Evan" Width="120"/></tk:SettingsCard>
                   <tk:SettingsCard x:Name="entry-row-empty" Header="Email" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><TextBox Width="120"/></tk:SettingsCard>
-                  <tk:SettingsCard x:Name="spin-row" Header="Font size" Description="Points" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><NumberBox Value="12" Minimum="6" Maximum="72" SpinButtonPlacementMode="Inline" Width="152"/></tk:SettingsCard>
+                  <tk:SettingsCard x:Name="spin-row" Header="Font size" Description="Points" MinHeight="52" Padding="16,8,16,8" CornerRadius="0" BorderThickness="0,1,0,0" Background="Transparent"><NumberBox Value="12" Minimum="6" Maximum="72" SpinButtonPlacementMode="Inline" Width="156"/></tk:SettingsCard>
                 </StackPanel>
               </Border>
               <tk:SettingsCard x:Name="combo-row-alone" Header="Language">
                 <ComboBox SelectedIndex="0"><x:String>English</x:String><x:String>Français</x:String></ComboBox>
               </tk:SettingsCard>
-              <tk:SettingsCard x:Name="spin-row-disabled" Header="Copies" IsEnabled="False"><NumberBox Value="3" Minimum="1" Maximum="9" SpinButtonPlacementMode="Inline" Width="152"/></tk:SettingsCard>
+              <tk:SettingsCard x:Name="spin-row-disabled" Header="Copies" IsEnabled="False"><NumberBox Value="3" Minimum="1" Maximum="9" SpinButtonPlacementMode="Inline" Width="156"/></tk:SettingsCard>
             </StackPanel>
             <StackPanel Canvas.Left="340" Canvas.Top="16" Width="300" Spacing="16">
               <tk:SettingsExpander x:Name="expander-row" Header="Network" Description="Wi-Fi and proxies" IsExpanded="True">
@@ -349,33 +349,29 @@ public sealed class App : Application, IXamlMetadataProvider
             </TabView>
             """), ["tabview-docs", "tab-documents", "tab-downloads", "tab-pictures", "tab-content", "tabview-prefs", "tab-general", "tab-advanced"]);
 
-        // widgets_headerbar_test.go's headerView (TestScreenshotsHeaderBar): a TitleBar along the top of the window titled Documents, with the Subtitle 12 items in the second scene, a Button of TitleBarBackButtonStyle as its LeftHeader, and as its RightHeader a Button reading Edit and a subtle 40-DIP Button holding the Share glyph with TitleBarBackButtonStyle's Margin of 2, 4 apart, where Breeze UI's HeaderBar holds an image button, a push button and an image button. The TitleBar is 422 DIPs wide, the window's 560 less the 138 that MyGo's three 46-DIP caption buttons take (headerTestRoom), as the scene's borderless window has no caption buttons of its own.
+        // widgets_headerbar_test.go's headerView (TestScreenshotsHeaderBar): a TitleBar along the top of the window titled Documents, with the Subtitle 12 items in the second scene, its own back button (IsBackButtonVisible: PART_BackButton of TitleBarBackButtonStyle in its column, stretched to the bar less its Margin of 2, as Breeze UI draws an image button at the bar's start; a Button of that style in the LeftHeader is only as tall as its 16-DIP icon, since the header's presenter is centered), and as its RightHeader a Button reading Edit and a subtle Button 40 by 44 DIPs holding the Share glyph with TitleBarBackButtonStyle's Margin of 2, 4 apart, where Breeze UI's HeaderBar holds an image button, a push button and an image button, and below the bar the window's content, a TextBlock 16 DIPs in from the window's side and the bar's bottom. The TitleBar is 422 DIPs wide, the window's 560 less the 138 that MyGo's three 46-DIP caption buttons take (headerTestRoom), as the scene's borderless window has no caption buttons of its own.
         yield return new Scene("winui-headerbar", 560, 120, Canvas(560, 120, """
-            <TitleBar x:Name="titlebar" Canvas.Left="0" Canvas.Top="0" Width="422" Title="Documents">
-              <TitleBar.LeftHeader>
-                <Button x:Name="back" Style="{StaticResource TitleBarBackButtonStyle}" AutomationProperties.Name="Back"/>
-              </TitleBar.LeftHeader>
+            <TitleBar x:Name="titlebar" Canvas.Left="0" Canvas.Top="0" Width="422" Title="Documents" IsBackButtonVisible="True">
               <TitleBar.RightHeader>
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Stretch">
                   <Button x:Name="edit" Content="Edit" VerticalAlignment="Center"/>
-                  <Button x:Name="share" Width="40" Margin="2" VerticalAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
+                  <Button x:Name="share" Width="40" Height="44" Margin="2" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
                 </StackPanel>
               </TitleBar.RightHeader>
             </TitleBar>
-            """), ["titlebar", "back", "edit", "share"]);
+            <TextBlock x:Name="content" Canvas.Left="16" Canvas.Top="64" Text="Content"/>
+            """), ["titlebar", "edit", "share", "content"]);
         yield return new Scene("winui-headerbar-subtitle", 560, 120, Canvas(560, 120, """
-            <TitleBar x:Name="titlebar" Canvas.Left="0" Canvas.Top="0" Width="422" Title="Documents" Subtitle="12 items">
-              <TitleBar.LeftHeader>
-                <Button x:Name="back" Style="{StaticResource TitleBarBackButtonStyle}" AutomationProperties.Name="Back"/>
-              </TitleBar.LeftHeader>
+            <TitleBar x:Name="titlebar" Canvas.Left="0" Canvas.Top="0" Width="422" Title="Documents" Subtitle="12 items" IsBackButtonVisible="True">
               <TitleBar.RightHeader>
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Stretch">
                   <Button x:Name="edit" Content="Edit" VerticalAlignment="Center"/>
-                  <Button x:Name="share" Width="40" Margin="2" VerticalAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
+                  <Button x:Name="share" Width="40" Height="44" Margin="2" Padding="0" BorderThickness="0" CornerRadius="{ThemeResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorTransparentBrush}" AutomationProperties.Name="Share"><FontIcon Glyph="&#xE72D;" FontSize="16"/></Button>
                 </StackPanel>
               </TitleBar.RightHeader>
             </TitleBar>
-            """), ["titlebar", "back", "edit", "share"]);
+            <TextBlock x:Name="content" Canvas.Left="16" Canvas.Top="64" Text="Content"/>
+            """), ["titlebar", "edit", "share", "content"]);
 
         // TestScreenshotsText's textView: the TextBlock styles of Breeze UI's Text steps where textTops places them, the last two in TextFillColorSecondaryBrush.
         yield return new Scene("winui-text", 360, 300, Canvas(360, 300, """
