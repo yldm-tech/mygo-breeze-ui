@@ -1,0 +1,45 @@
+name: Reference tools
+
+# Builds the tools that render the platforms' own controls (tools/): nothing else compiles them, so a change that breaks one would otherwise go unnoticed until someone next runs it. It runs only when they or this workflow change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/**"
+      - ".github/workflows/reference-tools.yml"
+  pull_request:
+    paths:
+      - "tools/**"
+      - ".github/workflows/reference-tools.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reference-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  appkit:
+    name: AppKit reference
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: swift build -c release --package-path tools/appkit-reference
+
+  winui:
+    name: WinUI reference
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet build -c Release -m:4 tools/winui-reference/WinUIReference.csproj
+
+  adwaita:
+    name: Adwaita reference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 -m compileall -q tools/adwaita-reference
