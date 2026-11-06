@@ -678,7 +678,7 @@ func carouselMiddle(tester *ui.Tester) (x, y float32) {
 	return r.X + r.W/2, r.Y + r.H/2
 }
 
-// TestCarouselSwipesWithATouchpad checks the touchpad's swipe on GNOME and macOS, left to right and right to left: the pages follow the fingers, on GNOME 400 pixels to a page (TOUCHPAD_BASE_DISTANCE_H), on macOS the view's width (inferred); a slow swipe ending less than half a page on goes back, past half a page on; a quick one goes on to the next page (VELOCITY_THRESHOLD_TOUCHPAD); and a scroll more up or down than sideways leaves the pages, as SCROLL_ORIENTATION_FACTOR rejects it.
+// TestCarouselSwipesWithATouchpad checks the touchpad's swipe on GNOME and macOS, left to right and right to left: the pages follow the fingers, on GNOME 400 pixels to a page (TOUCHPAD_BASE_DISTANCE_H), on macOS the view's width (inferred); a slow swipe ending less than half a page on goes back, past half a page on; a quick one goes on to the next page (VELOCITY_THRESHOLD_TOUCHPAD); and a scroll less than 1.2 times as sideways as up or down leaves the pages, as SCROLL_ORIENTATION_FACTOR rejects it.
 func TestCarouselSwipesWithATouchpad(t *testing.T) {
 	for _, p := range []Platform{Linux, Mac} {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
@@ -694,20 +694,20 @@ func TestCarouselSwipesWithATouchpad(t *testing.T) {
 			s := &carouselTestState{shown: 1}
 			tester := carouselMotionTester(p, s, dir)
 			x, y := carouselMiddle(tester)
-			// Slowly a third of a page on: it goes back.
-			for range 4 {
-				tester.Scroll(x, y, sign*page/12, 0)
+			// Slowly 0.45 of a page on: it goes back.
+			for range 9 {
+				tester.Scroll(x, y, sign*page/20, 0)
 				tester.Advance(100 * 1e6)
 				tester.Frame()
 			}
 			if !tester.HasText("Slide 3") {
-				t.Errorf("%s: a third of a page into a swipe the next page does not show", name)
+				t.Errorf("%s: 0.45 of a page into a swipe the next page does not show", name)
 			}
 			tester.Advance(time1s)
 			tester.Frame()
 			tester.Frame()
 			if s.shown != 1 || tester.HasText("Slide 3") {
-				t.Errorf("%s: a slow swipe of a third of a page showed page %d, want it back on 1", name, s.shown)
+				t.Errorf("%s: a slow swipe of 0.45 of a page showed page %d, want it back on 1", name, s.shown)
 			}
 			// Slowly two thirds of a page on: it goes on.
 			for range 8 {
@@ -733,12 +733,13 @@ func TestCarouselSwipesWithATouchpad(t *testing.T) {
 			if s.shown != 1 {
 				t.Errorf("%s: a quick swipe of a tenth of a page back showed page %d, want 1", name, s.shown)
 			}
-			tester.Scroll(x, y, sign*20, 60)
+			// 300 sideways and 260 down is not 1.2 times as sideways as down.
+			tester.Scroll(x, y, sign*300, 260)
 			tester.Advance(time1s)
 			tester.Frame()
 			tester.Frame()
 			if s.shown != 1 {
-				t.Errorf("%s: a scroll more down than sideways moved to page %d", name, s.shown)
+				t.Errorf("%s: a scroll less than 1.2 times as sideways as down moved to page %d", name, s.shown)
 			}
 		}
 	}
@@ -888,45 +889,46 @@ func TestCarouselFlipButtons(t *testing.T) {
 	}
 }
 
-// TestCarouselFlipButtonsDrawn checks FlipView's buttons at 2x, light and dark: the in-app acrylic's fallback color (#f9f9f9, #2c2c2c) and a caret 6 DIPs wide in ControlStrongFillColorDefault in the middle, pointing to the start in the previous button.
+// TestCarouselFlipButtonsDrawn checks FlipView's buttons at 2x, light and dark, left to right and right to left: the in-app acrylic's fallback color (#f9f9f9, #2c2c2c) and a caret 6 DIPs wide and 8 high in ControlStrongFillColorDefault in the middle, the previous button's pointing to the start, mirrored right to left as its glyph is (MirroredWhenRightToLeft).
 func TestCarouselFlipButtonsDrawn(t *testing.T) {
 	for _, dark := range []bool{false, true} {
-		s := &carouselTestState{shown: 1}
-		var th ui.Theme
-		tester := ui.NewTester(func(c *ui.Context) {
-			Preview(c, Windows, func() {
-				s.view(c)
-				th = *c.Theme()
-			})
-		}, 400, 320)
-		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
-		tester.SetScale(2)
-		tester.SetDark(dark)
-		tester.Frame()
-		x, y := carouselMiddle(tester)
-		tester.Move(x, y)
-		tester.Frame()
-		face := pick(dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c"))
-		strong := face.Mix(pick(dark, black, white), pick(dark, float32(0x72)/255, 0x8b/255.0))
-		prev, _ := tester.Find("Previous")
-		cx, cy := prev.X+prev.W/2, prev.Y+prev.H/2
-		if got := pagerPixel(tester, 2, prev.X+2, prev.Y+4); !macNear(got, face, 2) {
-			t.Errorf("dark %v: the button's face reads %v, want %v", dark, got, face)
+		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
+			name := fmt.Sprintf("dark %v %v", dark, dir)
+			s := &carouselTestState{shown: 1}
+			tester := ui.NewTester(func(c *ui.Context) { Preview(c, Windows, func() { s.view(c) }) }, 400, 320)
+			tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.SetDirection(dir)
+			tester.Frame()
+			x, y := carouselMiddle(tester)
+			tester.Move(x, y)
+			tester.Frame()
+			face := pick(dark, ui.Hex("#f9f9f9"), ui.Hex("#2c2c2c"))
+			strong := face.Mix(pick(dark, black, white), pick(dark, float32(0x72)/255, 0x8b/255.0))
+			prev, _ := tester.Find("Previous")
+			cx, cy := prev.X+prev.W/2, prev.Y+prev.H/2
+			if got := pagerPixel(tester, 2, prev.X+2, prev.Y+4); !macNear(got, face, 2) {
+				t.Errorf("%s: the button's face reads %v, want %v", name, got, face)
+			}
+			// The caret's flat side, toward the end, and its tip, toward the start: right and left of the middle left to right, mirrored right to left.
+			flat := float32(2.25)
+			if dir == ui.RightToLeft {
+				flat = -flat
+			}
+			if got := pagerPixel(tester, 2, cx+flat, cy); !macNear(got, strong, 3) {
+				t.Errorf("%s: the caret reads %v near its flat side, want %v", name, got, strong)
+			}
+			if got := pagerPixel(tester, 2, cx+flat, cy-2.75); !macNear(got, strong, 3) {
+				t.Errorf("%s: the caret's flat side is not 8 DIPs high (%v)", name, got)
+			}
+			if got := pagerPixel(tester, 2, cx-flat, cy-2); !macNear(got, face, 3) {
+				t.Errorf("%s: the caret does not point toward the start (%v)", name, got)
+			}
+			if got := pagerPixel(tester, 2, cx+flat*3.5/2.25, cy); !macNear(got, face, 3) {
+				t.Errorf("%s: the caret is wider than 6 DIPs (%v)", name, got)
+			}
 		}
-		// The caret's tip at the start and its flat side 6 DIPs on, at the end.
-		if got := pagerPixel(tester, 2, cx+2.25, cy); !macNear(got, strong, 3) {
-			t.Errorf("dark %v: the caret reads %v near its flat side, want %v", dark, got, strong)
-		}
-		if got := pagerPixel(tester, 2, cx+2.25, cy-2.75); !macNear(got, strong, 3) {
-			t.Errorf("dark %v: the caret's flat side is not 8 DIPs high (%v)", dark, got)
-		}
-		if got := pagerPixel(tester, 2, cx-2.25, cy-2); !macNear(got, face, 3) {
-			t.Errorf("dark %v: the caret is not pointed toward the start (%v)", dark, got)
-		}
-		if got := pagerPixel(tester, 2, cx+3.5, cy); !macNear(got, face, 3) {
-			t.Errorf("dark %v: the caret is wider than 6 DIPs (%v)", dark, got)
-		}
-		_ = th
 	}
 }
 
