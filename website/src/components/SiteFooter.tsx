@@ -1,33 +1,36 @@
-import { GitBranch } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { BrandMark } from "./SiteHeader";
 import { useUiStore } from "../store";
-import { useCopy } from "../copy";
 
 export function SiteFooter() {
   const { locale } = useUiStore();
-  const t = useCopy(locale);
+  const zh = locale === "zh";
   return (
-    <footer className="mx-auto flex w-[calc(100%-48px)] max-w-[1160px] items-center gap-2 border-t border-line py-[23px] text-[10px] text-dim max-[680px]:w-[calc(100%-34px)] max-[680px]:flex-wrap">
-      <Link
-        className="mr-auto flex items-center gap-2.5 text-[14px] font-extrabold tracking-[-0.06em] text-ink max-[680px]:w-full"
-        to="/"
-      >
-        <span className="grid size-6 place-items-center rounded-[7px] bg-mint text-[11px] font-extrabold tracking-normal text-bg">
-          B
-        </span>
-        <span>
-          breeze<span className="text-mint">.</span>ui
-        </span>
-      </Link>
-      <span>{t.footer} · MIT License · ai-logo icons</span>
-      <a
-        className="ml-5 inline-flex items-center gap-1.5 text-muted hover:text-ink max-[680px]:ml-auto"
-        href="https://github.com/yldm-tech/mygo-breeze-ui"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <GitBranch size={14} /> {t.source}
-      </a>
+    <footer className="site-footer">
+      <div className="footer-inner">
+        <div className="footer-brand">
+          <span><BrandMark />Breeze UI</span>
+          <small>{zh ? "MyGo 的原生 UI 组件。MIT License。" : "Native UI widgets for MyGo. MIT License."}</small>
+        </div>
+        <nav className="footer-nav" aria-label={zh ? "文档" : "Docs"}>
+          <strong>{zh ? "文档" : "Docs"}</strong>
+          <Link to="/" hash="install">{zh ? "快速开始" : "Quick start"}</Link>
+          <Link to="/" hash="platforms">{zh ? "平台与主题" : "Platforms & themes"}</Link>
+          <Link to="/" hash="catalog">{zh ? "组件" : "Components"}</Link>
+          <Link to="/cli-mcp">{zh ? "CLI 与 MCP" : "CLI & MCP"}</Link>
+        </nav>
+        <nav className="footer-nav" aria-label={zh ? "资源" : "Resources"}>
+          <strong>{zh ? "资源" : "Resources"}</strong>
+          <a href="https://yldm-tech.github.io/mygo-breeze-ui/storybook/" target="_blank" rel="noreferrer">Storybook</a>
+          <a href="https://pkg.go.dev/github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">pkg.go.dev</a>
+          <a href="https://github.com/egoist/mygo" target="_blank" rel="noreferrer">MyGo</a>
+        </nav>
+        <nav className="footer-nav" aria-label={zh ? "社区" : "Community"}>
+          <strong>{zh ? "社区" : "Community"}</strong>
+          <a href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/yldm-tech/mygo-breeze-ui/issues" target="_blank" rel="noreferrer">{zh ? "问题反馈" : "Issues"}</a>
+        </nav>
+      </div>
     </footer>
   );
 }
