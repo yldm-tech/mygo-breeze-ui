@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"embed"
 	"io/fs"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -19,7 +20,7 @@ import (
 //
 // Windows 11: WinUI's CalendarView and CalendarDatePicker of microsoft/microsoft-ui-xaml main at 5ed8dd3: CalendarView_themeresources.xaml (the brushes, CalendarViewDayItem's 40-DIP MinWidth and MinHeight and its Margin of 1, the header button's and the navigation buttons' margins, paddings and glyphs, the week day names' style, the 1-DIP line under the header, the month view's margins), CalendarViewBaseItemChrome.cpp (the round chrome of CalendarViewBaseItemRoundedChromeEnabled: today a filled circle, the chosen day a 1-DIP ring, both an inner ring), CalendarView_Partial_Interaction.cpp (the keys), CalendarView_Partial.cpp (the days' direction, the language's), dxaml/xcp/core/core/elements/Grid.cpp (how the row of day names shares its star columns), CalendarDatePicker_themeresources.xaml and calendardatepicker_partial.cpp (the button, its glyph column, the flyout below it, the short date, the calendar closing as a day is chosen), and Microsoft.UI.Xaml.Common.rc for the strings.
 //
-// GNOME: GTK 4.24.1's gtkcalendar.c (the header's arrows and labels, the homogeneous grid of day names and six weeks, a week of the month before when the month starts on the first column, the keys) as libadwaita 1.10.0's _calendar.scss styles it, with _views.scss, _buttons.scss (%button_basic_flat, .image-button), _popovers.scss (a calendar in a popover loses its border and its background) and adwaita-icon-theme 51's pan-start-symbolic and pan-end-symbolic.
+// GNOME: GTK 4.24.1's gtkcalendar.c (the header's arrows and labels, the homogeneous grid of day names and six weeks, a week of the month before when the month starts on the first column, the keys) as libadwaita 1.10.0's _calendar.scss styles it, with _views.scss, _buttons.scss (%button_basic_flat, .image-button), _popovers.scss (a calendar in a popover loses its border and its background) and adwaita-icon-theme 51's pan-start-symbolic and pan-end-symbolic; then compared pixel by pixel, light and dark, with GTK's own rendered by tools/adwaita-reference/reference.py's datepicker, datepickeropen, datepickernoarrow and datepickerfocus sets (GtkCalendar, the GtkMenuButton with its popover open with and without GtkPopover's arrow, and the calendar after a click on a day), whose bounds and pixels are cited as measured.
 
 //go:embed i18n/*.json
 var stringFiles embed.FS
@@ -141,10 +142,11 @@ func setDay(date *time.Time, d time.Time) bool {
 	return true
 }
 
-// calendarState is what a calendar keeps between frames: the day the keys are on, whose month it shows, and the date it last saw, which the cursor follows when the app sets another.
+// calendarState is what a calendar keeps between frames: the day the keys are on, whose month it shows, the date it last saw, which the cursor follows when the app sets another, and whether a click on a day or a key that moves among the days has put the keys on a day since the calendar was built, or in a date picker since the picker was (GtkCalendar's focus_row and focus_col, -1 until then).
 type calendarState struct {
 	cursor, seen time.Time
 	started      bool
+	placed       bool
 }
 
 // calendarBuild is what a calendar's parts are built from in a frame.
@@ -161,6 +163,7 @@ type calendarBuild struct {
 	bare    bool       // inside a date picker's popover
 	keys    ui.Element // the element that takes the keys and the focus
 	focused bool       // keys has the focus, from the keyboard or not
+	placed  bool       // a click on a day or a key among the days has put the keys on one (calendarState)
 	// move shows d, and chooses it with choose; pick chooses a day clicked.
 	move func(d time.Time, choose bool)
 	pick func(d time.Time)
@@ -180,19 +183,22 @@ func (b *calendarBuild) start(p Platform) time.Time {
 // A click on a day chooses it. The days are one Tab stop, after the header's buttons on Windows and GNOME; the arrows move the day the keys are on, Up and Down by weeks (Left and Right mirrored right to left, on Windows where the language is written right to left), Page Up and Page Down by months, keeping the day or taking the last of a shorter month, Home and End to the first and the last day of the month, and Enter and Space choose the day the keys are on; the month shown is that day's. Assistive technology sees a table named by the month, of buttons named by their dates (Element.ActiveDescendant tells it which day the keys are on), checked where chosen.
 //   - macOS: NSDatePicker of style clockAndCalendar, as SwiftUI's graphical DatePicker draws it: 139 by 148 points, a field (white, white at 4.9% over the window in Dark Aqua) inside a half-point line (black at 7.8%, white at 9.8%) whose bottom edge is darker; the month and the year abbreviated ("Nov 2026") in 13-point bold labelColor 3 points in; at the end the buttons ◀ (the month before), ● (today) and ▶ (the month after), 6, 7 and 6 points wide and 7 high, 8 apart, in secondaryLabelColor; the short day names ("Su") in 10-point bold secondaryLabelColor over a 1-point separator (black at 10%, white at 9.8%); six weeks in rows 18 points high, columns 18.5 wide from 4 points in, the numbers in 10 points with proportional digits at the end of their column, 2 before it; the days of the months around in tertiaryLabelColor, today's number in the accent (#0060e5, #26a0ff for the blue), the chosen day an 18 by 16 rectangle with corners of 2.5, selectedContentBackgroundColor with a white number while the calendar has the focus, unemphasizedSelectedContentBackgroundColor without it (measured on macOS 27.2). The whole calendar is the one Tab stop with AppKit's focus ring around it, its buttons not, as NSDatePicker is one control; every move chooses the day, as NSDatePicker's arrows and buttons do.
 //   - Windows: CalendarView: 300 by 352 DIPs, ControlFillColorInputActive inside a ControlStrokeColorDefault border with corners of 4; the month and the year ("November 2026") in 14-DIP semibold 16 DIPs in, the Previous and Next buttons (34 by 36, the CaretUpSolid8 and CaretDownSolid8 glyphs, SubtleFillColorSecondary under the pointer and Tertiary pressed, the glyph 0.875 as large pressed) at the end; a 1-DIP line; the short day names in 12-DIP semibold, centered in columns 42 DIPs wide, or wider where a name with its padding of 12 at either side needs it, the others narrower (fluentWeekdayWidths); six weeks of 40-DIP day items with a margin of 1, their numbers in 14 DIPs, the days out of the month in TextFillColorSecondary; today a filled AccentFillColorDefault circle with TextOnAccentFillColorPrimary text, the chosen day a 1-DIP AccentFillColorDefault ring with AccentTextFillColorPrimary text (a TextOnAccentFillColorPrimary ring inside today's circle when today is chosen), a day under the pointer SubtleFillColorSecondary, pressed Tertiary; the system focus visual 3 DIPs around the day the keys are on. The month header button that zooms out to the year is the header's text here, and the Previous and Next buttons are Tab stops before the days; the arrows only move among the days, Enter or Space or a click choosing one. The day names and the days are laid out in the direction of the language, not the window's (fluentDaysDirection): in a window laid out right to left the header mirrors while the days of an English calendar stay left to right, as WinUI's do.
-//   - GNOME: GtkCalendar with libadwaita's style: view_bg_color inside a 1-pixel $border_color border; a header, its bottom border a line, of flat 34-pixel square image buttons with pan-start-symbolic and pan-end-symbolic around the month (the widest month's room) and, after free room, around the year (10 pixels wider than it); a grid padded 3 at the left and the bottom of rows 27 high (a label's 18 and its padding of 3 and margin of 3 above it) sharing the width in seven columns, a 3-pixel margin at each label's right; the abbreviated day names ("Sun"), the days in view_fg_color, those of the months around at 30%, today with a 2-pixel $border_color line along its label's bottom, the chosen day the accent with corners of 9 and accent_fg_color text; the focus ring inside the label the keys are on. The four buttons are Tab stops before the days; they and Ctrl with the arrows (Left and Right the month, Up and Down the year) choose the same day in another month or year, as GTK's do; the arrows only move among the days, Space or Enter or a click choosing one.
+//   - GNOME: GtkCalendar with libadwaita's style: view_bg_color inside a 1-pixel $border_color border; a header, its bottom border a line, of flat 34-pixel square image buttons with pan-start-symbolic and pan-end-symbolic around the month (the widest month's room) and, after free room, around the year (10 pixels wider than it); a grid padded 3 at the left and the bottom of rows 27 high (a label's 18 and its padding of 3 and margin of 3 above it) in seven columns sharing room for eight of the widest label (285 pixels wide in Adwaita Sans), a 3-pixel margin at each label's right; the abbreviated day names ("Sun"), the days in view_fg_color, those of the months around at 30%, today with a 2-pixel $border_color line along its label's bottom, the chosen day the accent with corners of 9 and accent_fg_color text; the focus ring inside the label the keys are on, once a click on a day or a key among the days has put them there, and from then on whether the calendar has the focus or not, as GtkCalendar keeps the label it focused. The four buttons are Tab stops before the days, where GtkCalendar, focusable itself, comes before its buttons (MyGo's Tab order is the elements' order, and the days' table follows the header); they and Ctrl with the arrows (Left and Right the month, Up and Down the year) choose the same day in another month or year, as GTK's do; the arrows only move among the days, Space or Enter or a click choosing one.
 //
 // It returns the calendar, whose Changed reports a day chosen. Calendar keeps MyGo's own, which takes Browse.
 func CalendarView(c *ui.Context, date *time.Time) ui.Element {
-	return calendarView(c, date, nil)
+	return calendarView(c, date, nil, nil)
 }
 
-// calendarView builds CalendarView; with done, in a date picker's popover, it is drawn without its own frame where the platform draws it so, takes the focus as it appears, and calls done once a click, Enter or Space chooses a day.
-func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
+// calendarView builds CalendarView; with done, in a date picker's popover, it is drawn without its own frame where the platform draws it so, takes the focus as it appears, and calls done once a click, Enter or Space chooses a day. placed, when not nil, is where the date picker keeps calendarState's placed while its popover is closed, as GNOME's apps keep the GtkCalendar of their popover and with it the label it focused.
+func calendarView(c *ui.Context, date *time.Time, done func(), placed *bool) ui.Element {
 	p := PlatformOf(c)
 	region, locale := dateFormats(c)
 	root := ui.Column(c).Shrink(0)
 	st := ui.Local(root, "breeze-calendar", func() calendarState { return calendarState{} })
+	if placed != nil && *placed {
+		st.placed = true
+	}
 	now := dayOf(calendarNow(c))
 	if !st.started || !st.seen.Equal(*date) {
 		st.cursor, st.seen, st.started = now, *date, true
@@ -200,7 +206,7 @@ func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
 			st.cursor = dayOf(*date)
 		}
 	}
-	b := &calendarBuild{c: c, t: c.Theme(), locale: locale, first: region.FirstWeekday, cursor: st.cursor, today: now, rtl: c.Direction() == ui.RightToLeft, bare: done != nil}
+	b := &calendarBuild{c: c, t: c.Theme(), locale: locale, first: region.FirstWeekday, cursor: st.cursor, today: now, rtl: c.Direction() == ui.RightToLeft, bare: done != nil, placed: st.placed}
 	b.month = time.Date(b.cursor.Year(), b.cursor.Month(), 1, 0, 0, 0, 0, time.UTC)
 	if !date.IsZero() {
 		b.chosen = dayOf(*date)
@@ -213,9 +219,14 @@ func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
 			chooseDay = &d
 		}
 	}
-	finish := false
+	finish, stepped := false, false
 	b.pick = func(d time.Time) {
-		moveTo, chooseDay, finish = &d, &d, true
+		moveTo, chooseDay, finish, stepped = &d, &d, true, true
+	}
+	// step moves the keys among the days, as the arrows, Page Up, Page Down, Home and End do, the header's buttons and Ctrl with the arrows not.
+	step := func(d time.Time, choose bool) {
+		b.move(d, choose)
+		stepped = true
 	}
 	switch p {
 	case Windows:
@@ -246,26 +257,30 @@ func calendarView(c *ui.Context, date *time.Time, done func()) ui.Element {
 	case p == Linux && keys.Shortcut(ui.Ctrl, ui.KeyDown):
 		b.move(addMonths(cur, 12), true)
 	case keys.Shortcut(0, back):
-		b.move(cur.AddDate(0, 0, -1), moves)
+		step(cur.AddDate(0, 0, -1), moves)
 	case keys.Shortcut(0, forth):
-		b.move(cur.AddDate(0, 0, 1), moves)
+		step(cur.AddDate(0, 0, 1), moves)
 	case keys.Shortcut(0, ui.KeyUp):
-		b.move(cur.AddDate(0, 0, -7), moves)
+		step(cur.AddDate(0, 0, -7), moves)
 	case keys.Shortcut(0, ui.KeyDown):
-		b.move(cur.AddDate(0, 0, 7), moves)
+		step(cur.AddDate(0, 0, 7), moves)
 	case keys.Shortcut(0, ui.KeyPageUp):
-		b.move(addMonths(cur, -1), moves)
+		step(addMonths(cur, -1), moves)
 	case keys.Shortcut(0, ui.KeyPageDown):
-		b.move(addMonths(cur, 1), moves)
+		step(addMonths(cur, 1), moves)
 	case keys.Shortcut(0, ui.KeyHome):
-		b.move(b.month, moves)
+		step(b.month, moves)
 	case keys.Shortcut(0, ui.KeyEnd):
-		b.move(b.month.AddDate(0, 1, -1), moves)
+		step(b.month.AddDate(0, 1, -1), moves)
 	case keys.Shortcut(0, ui.KeyEnter), keys.Shortcut(0, ui.KeySpace):
 		b.pick(cur)
 	}
 	if moveTo != nil {
 		st.cursor = *moveTo
+		st.placed = st.placed || stepped
+		if placed != nil {
+			*placed = st.placed
+		}
 		if chooseDay != nil && setDay(date, *chooseDay) {
 			root.SetChanged()
 		}
@@ -673,14 +688,15 @@ func fluentCalendarDay(c *ui.Context, b *calendarBuild, th *ui.Theme, bg ui.Colo
 
 // ---- GNOME: GtkCalendar as libadwaita styles it ----
 
-// adwCalendar builds a GtkCalendar into root, CalendarView's GNOME look (gtkcalendar.c's widgets, _calendar.scss): calendar.view, view_bg_color and view_fg_color inside a 1-pixel $border_color border without corners, or in a popover none of these, the calendar lying on the popover (popover > contents > .view); the header box, a 1-pixel $border_color border along its bottom, holding the image buttons (34 pixels square: min-width and min-height 24 with padding 5, %button_basic_flat with border-radius 0: transparent, $hover_color 7% under the pointer, $active_color 16% pressed) with pan-start-symbolic and pan-end-symbolic (their -rtl variants right to left), around the month's name in a homogeneous stack as wide as the longest of the twelve, then free room (the next month's button hexpands, aligned at its start), and the buttons around the year, whose label is 10 pixels wider than its natural width; the calendar's text in tabular digits (font-variant-numeric: tabular-nums); the grid, padded 3 at the left and the bottom, homogeneous: each label a margin of 3 above and at the right, the day numbers padded 3 (rows 27 high for a label line of 18, Adwaita Sans 11's at 96 DPI, inferred). Its labels are the abbreviated day names (strftime's %a), then the days: in view_fg_color, the other months' (.other-month) at 30%, today (.today) with box-shadow inset 0 -2px $border_color, the chosen one (:selected) accent_bg_color with accent_fg_color and corners of $button_radius (9), and the focus ring (the focus-ring mixin on :focus: 2 pixels of $focus_border_color inside the label) on the one the keys are on while the calendar has the focus, from a click too.
+// adwCalendar builds a GtkCalendar into root, CalendarView's GNOME look (gtkcalendar.c's widgets, _calendar.scss): calendar.view, view_bg_color and view_fg_color inside a 1-pixel $border_color border without corners, or in a popover none of these, the calendar lying on the popover (popover > contents > .view); the header box, a 1-pixel $border_color border along its bottom, holding the image buttons (34 pixels square: min-width and min-height 24 with padding 5, %button_basic_flat with border-radius 0: transparent, $hover_color 7% under the pointer, $active_color 16% pressed) with pan-start-symbolic and pan-end-symbolic (their -rtl variants right to left), around the month's name in a homogeneous stack as wide as the longest of the twelve, then free room (the next month's button hexpands, aligned at its start), and the buttons around the year, whose label is 10 pixels wider than its natural width; the calendar's text in tabular digits (font-variant-numeric: tabular-nums); the grid, padded 3 at the left and the bottom, homogeneous: each label a margin of 3 above and at the right, the day numbers padded 3 (rows 27 high for a label line of 18, Adwaita Sans 11's at 96 DPI, as in libadwaita 1.10.0's render), the columns sharing room for eight of the widest label (adwCalendarColumn). Its labels are the abbreviated day names (strftime's %a), then the days: in view_fg_color, the other months' (.other-month) at 30%, today (.today) with box-shadow inset 0 -2px $border_color, the chosen one (:selected) accent_bg_color with accent_fg_color and corners of $button_radius (9), and the focus ring (the focus-ring mixin on :focus: 2 pixels of $focus_border_color inside the label) on the one the keys are on once a click on a day or a key among the days has put the keys there (calendarState), whether the calendar has the focus or not, in GTK's mix of the accent (adwCalendarRing).
 func adwCalendar(b *calendarBuild, root ui.Element) {
 	c, t := b.c, b.t
 	under := adwListViewBg(t)
 	if b.bare {
 		under = pick(t.Dark, white, ui.Hex("#36363a")) // adwMenu's popover_bg_color
 	} else {
-		root.Background(under).Border(1, adwInkAlpha(t, under, 0.15))
+		// The border lies outside the background (background-clip: padding-box), so its 15% of currentColor falls on the window's background: 220 in the light theme and 67 in the dark one in libadwaita 1.10.0's render, where the header's line over view_bg_color is 224 and 63.
+		root.Background(under).Border(1, adwInkAlpha(t, t.Background, 0.15))
 	}
 	fg := adwTextOn(t, under)
 	border := adwInkAlpha(t, under, 0.15)
@@ -710,11 +726,10 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 			arrow("calendarNextYear", false, 12)
 		})
 		ui.Box(c).Height(1).Shrink(0).Background(border)
-		grid := ui.Column(c).Shrink(0).Padding(0, 0, 3, 3).Focusable().FocusRing(false)
+		grid := ui.Column(c).Shrink(0).Padding(0, 0, 3, 3).MinWidth(3 + 8*adwCalendarColumn(b)).Focusable().FocusRing(false)
 		b.keys = grid
-		b.focused = grid.Focused()
-		// The focus-ring mixin is included with $focus-state ':focus', and GtkCalendar sets the focused label's GTK_STATE_FLAG_FOCUSED itself whatever moved the focus there, a click too: the ring shows while the calendar has the focus, not only from the keyboard.
-		focusRing := b.focused
+		// The focus-ring mixin is included with $focus-state ':focus', and GtkCalendar sets GTK_STATE_FLAG_FOCUSED itself on the label at focus_row and focus_col (calendar_update_day_labels) whatever moved the focus there, a click too, and whether the calendar has the focus or not: the ring shows from a click as from the keyboard, and stays once the focus has left the calendar (libadwaita 1.10.0's render of the datepickeraway set, where the menu button has the focus). focus_row and focus_col are -1 until a click on a day (calendar_select_and_focus_day) or an arrow (move_focus) sets them, so a calendar that has just taken the focus, by Tab or as its popover opens the first time, shows no ring: the datepickernoarrow set's render shows none in the open popover, whose calendar has the focus.
+		focusRing := b.placed
 		grid.Children(func() {
 			calendarDays(b, Linux, func(name string) {
 				ui.Box(c).Grow(1).Basis(0).Padding(3, 3, 0, 0).Role(ui.RoleColumnHeader).Children(func() {
@@ -734,6 +749,22 @@ func adwCalendar(b *calendarBuild, root ui.Element) {
 			})
 		})
 	})
+}
+
+// adwCalendarColumn returns the natural width of the widest label of GtkCalendar's grid, its margin of 3 included: a day name's text, or a day number's in tabular digits with its padding of 3 at either side, in GTK's whole pixels (gtk_label_measure rounds up). The grid is homogeneous, and GtkGridLayout counts the hidden week-number column in its request (grid_request_homogeneous gives every line the widest child's width, the empty one too, and grid_request_sum adds them all), so the grid asks for 3 and 8 such columns, which the 7 shown ones share: in libadwaita 1.10.0's render, with Adwaita Sans's "Wed" 35 wide with its margin, the grid is 283 wide and its columns 40.
+func adwCalendarColumn(b *calendarBuild) float32 {
+	c, t := b.c, b.t
+	widest := float32(0)
+	for _, name := range weekdayNames(b.locale, Linux) {
+		w, _ := c.MeasureText(0, ui.Span{Text: name, Size: t.FontSize})
+		widest = max(widest, float32(math.Ceil(float64(w)))+3)
+	}
+	start := b.start(Linux)
+	for i := range 42 {
+		w, _ := c.MeasureText(0, ui.Span{Text: dateText(b.locale, "d#", start.AddDate(0, 0, i)), Size: t.FontSize, Features: "tnum"})
+		widest = max(widest, float32(math.Ceil(float64(w)))+9)
+	}
+	return widest
 }
 
 // adwCalendarArrow draws one of GtkCalendar's header buttons, btn, over under: flat and square (%button_basic_flat, border-radius 0), currentColor at 7% under the pointer and 16% pressed, its focus ring inside its edge, and the 16-pixel pan-start-symbolic (back) or pan-end-symbolic icon in fg: a 2-pixel round stroke along (9,4), (5,8), (9,12), or (7,4), (11,8), (7,12) (adwaita-icon-theme 51).
@@ -757,6 +788,15 @@ func adwCalendarArrow(t *ui.Theme, btn ui.Element, under, fg ui.Color, back bool
 	})
 }
 
+// adwCalendarRing returns the color of the focus ring over the opaque fill under: $focus_border_color, accent_color at 50%. In the dark theme with the default accent, accent_color lies outside sRGB, (128.6, 208.4, 310.8) (see adwTheme), and GTK 4.24 clamps the mix only once made, so over the chosen day's accent the ring reads (90, 170, 255) in libadwaita 1.10.0's render of tools/adwaita-reference's datepickerfocus set, where the theme's Focus, fitted to GTK's ring over an entry's and a button's faces, would give (91, 160, 245); the ring is that mix here. Otherwise it is the theme's Focus over under, (28, 114, 209) over the accent in the light theme, as in the render.
+func adwCalendarRing(t *ui.Theme, under ui.Color) ui.Color {
+	if !t.Dark || t.Accent != adwAccent {
+		return t.Focus.Over(under)
+	}
+	mix := func(wide float32, u uint8) uint8 { return uint8(min(255, (wide+float32(u))/2+0.5)) }
+	return ui.RGB(mix(128.6, under.R), mix(208.4, under.G), mix(310.8, under.B))
+}
+
 // adwCalendarDay draws GtkCalendar's day-number label e of day d over under (adwCalendar).
 func adwCalendarDay(c *ui.Context, b *calendarBuild, under, fg, border ui.Color, e ui.Element, d time.Time, ringed bool) {
 	t := b.t
@@ -775,7 +815,7 @@ func adwCalendarDay(c *ui.Context, b *calendarBuild, under, fg, border ui.Color,
 			p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H - 2, W: r.W, H: 2}, border, 0)
 		}
 		if ringed {
-			p.Stroke(r, t.Focus, pick(chosen, float32(0), 9), 2)
+			p.Stroke(r, adwCalendarRing(t, pick(chosen, under, t.Accent)), pick(chosen, float32(0), 9), 2)
 		}
 	})
 	e.Children(func() {
@@ -788,7 +828,7 @@ func adwCalendarDay(c *ui.Context, b *calendarBuild, under, fg, border ui.Color,
 // DatePicker creates a button showing *date in the user's regional formats, as the platform's date picker shows it (MyGo's short date, "11/18/2026" in the United States), that opens CalendarView in a popover below it; a zero *date shows WinUI's placeholder, "select a date", on every platform. A click on a day, or Enter or Space on the day the keys are on, chooses it and closes the popover, the focus going back to the button; Escape or a click outside closes it. The keys in the calendar are CalendarView's: on macOS the arrows choose as they move, and the popover stays open.
 //   - macOS: SwiftUI's DatePicker of the compact style without its stepper, which is NSDatePicker of style textField with presentsCalendarOverlay: the date field's bezel (macDatePicker: 23 points high with its line, corners of 7), the date 3.5 points in (its tabular digits' ink from 5.5); the calendar overlay, the graphical calendar on a panel like a menu (macMenu) padded 6, below the field's start (inferred: the overlay is a window of its own that the renders do not show).
 //   - Windows: CalendarDatePicker: a button's face 32 DIPs high (fluentDateTimeFace), the date (DateText, Padding 12,0,0,2) and the calendar glyph E787 at 12 DIPs in TextFillColorSecondary, TextFillColorPrimary at rest once a date is chosen, centered in a 32-DIP column at the end (drawn as the render shows it: a calendar's outline with five dots), the system focus visual 3 DIPs around it (FocusVisualMargin -3); its Flyout, Placement Bottom, centered below it and 4 DIPs below it with a FlyoutPresenter of Padding 0, BorderThickness 0, corners of OverlayCornerRadius (8) and the default shadow, holding the CalendarView, its translucent background and border read over the presenter's background, the in-app acrylic's fallback color, which closes once a day is chosen.
-//   - GNOME: a GtkMenuButton showing the date, as GNOME's apps open a GtkCalendar from one: a raised button (adwButton) padded 5px 9px, the label 4 pixels before pan-down-symbolic, $button_checked_color (30%) while the popover is open; the popover (adwPopover) centered below it, holding the calendar without its border.
+//   - GNOME: a GtkMenuButton showing the date, as GNOME's apps open a GtkCalendar from one: a raised button (adwButton) padded 5px 9px, the label 4 pixels before pan-down-symbolic, $button_checked_color (30%) while the popover is open; the popover (adwPopover) centered right below it, its contents starting at the button's bottom edge as GtkPopover places them without its arrow, holding the calendar without its border, which keeps the day it focused while the popover is closed, as the apps' GtkCalendar does, so that the ring shows again as it opens.
 //
 // Assistive technology sees a pop-up button whose value is the date, expanded while the calendar is open. It returns the button, whose Changed reports a day chosen.
 func DatePicker(c *ui.Context, date *time.Time) ui.Element {
@@ -816,6 +856,8 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 		})
 	}
 	before := *date
+	// Whether the popover's calendar has put the keys on a day, kept while the popover is closed (calendarView).
+	placed := ui.Local(b, "breeze-date-picker-placed", func() bool { return false })
 	panel := ui.PopoverBase(c, b, open, func(panel ui.Element) {
 		Preview(c, p, func() {
 			switch p {
@@ -824,8 +866,9 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop).Margin(4, 0, 0, 0).Radius(8).Clip().
 					Shadow(0, 8, 17, 0, ui.RGBA(0, 0, 0, pick(t.Dark, float32(0.14), 0.26)))
 			case Linux:
+				// GtkPopover without its arrow (has-arrow false, as MyGo draws popovers) puts its contents right at the button's bottom edge, centered on it: in libadwaita 1.10.0's render (tools/adwaita-reference's datepickernoarrow set) the contents span 269 to 568 under a button spanning 360 to 476 and ending at 50, where they start. adwPopover's margin of 6 is a dropdown's.
 				adwPopover(c, panel)
-				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop)
+				panel.AttachTo(b, ui.AnchorBottom, ui.AnchorTop).Margin(0)
 			default:
 				macMenu(c, panel)
 				panel.Padding(6)
@@ -833,7 +876,7 @@ func DatePicker(c *ui.Context, date *time.Time) ui.Element {
 			calendarView(c, date, func() {
 				*open = false
 				b.Focus()
-			})
+			}, placed)
 		})
 	})
 	if panel.Dismissed() {

@@ -1,6 +1,10 @@
 package breeze
 
-import "github.com/egoist/mygo/ui"
+import (
+	"math"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // ---- header bar: the title bar a view draws in a window whose title bar is hidden ----
 //
@@ -180,15 +184,35 @@ func headerFluentButton(c *ui.Context, b ui.Element, h float32) {
 
 // ---- GNOME ----
 
-// headerAdwContent lays out the parts of an AdwHeaderBar: the start box, the AdwWindowTitle centered across the bar, as GtkCenterBox centers its center child while the sides leave it room, and the end box, the boxes 6 pixels from the title. The title's .title is bold and the subtitle's .subtitle smaller (GTK's font-size: smaller, the size divided by 1.2) and .dimmed (55%, 90% with higher contrast), each padded 12 at either end and centered (_header-bar.scss, adw-window-title.ui).
+// headerAdwContent lays out the parts of an AdwHeaderBar: the start box, the AdwWindowTitle centered across the bar, as GtkCenterBox centers its center child while the sides leave it room, and the end box, the boxes 6 pixels from the title. The title's .title is bold and the subtitle's .subtitle smaller (GTK's font-size: smaller, the size divided by 1.2) and .dimmed (55%, 90% with higher contrast), each padded 12 at either end and centered (_header-bar.scss, adw-window-title.ui); the title's label is at least 5 characters wide (adwTitleChars).
 func headerAdwContent(c *ui.Context, l headerLayout, title, subtitle string, start, end func()) {
 	t := c.Theme()
 	headerAdwSide(c, l, start, l.before, false).MarginEnd(l.titleGap)
-	ui.Column(c).Shrink(1).MinWidth(0).PaddingX(12).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+	// AdwWindowTitle hides its title label while the title is empty, and with it the label's least width.
+	least := float32(0)
+	if title != "" {
+		least = 12 + adwTitleChars(c) + 12
+	}
+	ui.Column(c).Shrink(1).MinWidth(least).PaddingX(12).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		ui.Text(c, title).SingleLine().FontWeight(700)
 		ui.Text(c, subtitle).SingleLine().FontSize(t.Rem(1 / 1.2)).Opacity(pick(c.Preferences().HighContrast, float32(0.55), 0.9)).Hidden(subtitle == "")
 	})
 	headerAdwSide(c, l, end, l.after, true).MarginStart(l.titleGap).Justify(ui.End)
+}
+
+// pangoSampleEnglish is Pango's sample string for English (pango_language_get_sample_string), whose width over its characters is Pango's approximate character width.
+const pangoSampleEnglish = "The wizard quickly jinxed the gnomes before they vaporized."
+
+// adwTitleChars returns the least width of AdwWindowTitle's title label without its padding, its width-chars of 5 (adw-window-title.ui): GtkLabel takes 5 of get_char_pixels's widths, the larger of Pango's approximate character width, the English sample string's width over its characters, and its approximate digit width, the widest digit's, whole pixels as Pango measures them for its metrics (Adwaita Sans Bold at 11 points: 7.38 and 10 for digits 9.89 wide at most). An ellipsized label asks for no less, so a short title's label is wider than its text, which is centered in it: in libadwaita 1.10.0's render of tools/adwaita-reference's switcher set, "Music" is 43.6 wide in a label of 74 (12 + 50 + 12), which shows where an end box moves the title aside, its ink from 84 to 126 before the switcher at 148. The sample string of other languages, whose characters Pango counts by their columns, is not taken.
+func adwTitleChars(c *ui.Context) float32 {
+	t := c.Theme()
+	sample, _ := c.MeasureText(0, ui.Span{Text: pangoSampleEnglish, Size: t.FontSize, Weight: 700})
+	char := sample / float32(len([]rune(pangoSampleEnglish)))
+	for _, d := range "0123456789" {
+		w, _ := c.MeasureText(0, ui.Span{Text: string(d), Size: t.FontSize, Weight: 700})
+		char = max(char, float32(math.Round(float64(w))))
+	}
+	return 5 * char
 }
 
 // headerAdwSide builds the start box (or the end box, atEnd) of an AdwHeaderBar: fn's controls and, at the bar's edge, the room the window controls take there, which GTK draws in a GTK 3 header bar of its own, padded 6 at either end (MyGo's linux/titlebar.go): the room less the 6 pixels the bar leaves at its edge and the box's spacing of 6, so that the controls end where that header bar starts, 6 from the window buttons inside it, as they are from an AdwHeaderBar's windowcontrols (in libadwaita 1.10.0's render the send-to button ends at 514 and the close button spans 520 to 554 in a 560-pixel window, where a room of 46 ends Breeze UI's controls at 514). The two boxes share the room the title leaves equally, so that the title is centered across the bar, but neither is narrower than what it holds, as GtkCenterBox moves its center child aside for a side that needs more than half: each box is at least as wide as its controls were in the previous frame, and a frame is asked for while that width changes.
