@@ -712,7 +712,7 @@ func TestAdwCarouselDragAsRendered(t *testing.T) {
 	}
 }
 
-// TestAdwCarouselDotsWidth checks that a GNOME Carousel of many small pages is as wide as its dots, as tools/adwaita-reference's carouselmany set renders libadwaita 1.10.0's: a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number, over AdwCarouselIndicatorDots with a margin of 6, is 399 pixels wide, the dots 387 (adw_carousel_indicator_dots_measure gives their natural width, 15 a page and 6 at either end, as their minimum), and the first, chosen, dot is centered 16.5 into them, where Breeze UI's dots, which asked for no width, left the carousel as wide as its margins. It writes the view, light and dark, to the directory BREEZE_SCREENSHOTS names.
+// TestAdwCarouselDotsWidth checks that a GNOME Carousel of many small pages is as wide as its dots, as tools/adwaita-reference's carouselmany set renders libadwaita 1.10.0's: a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number centered, over AdwCarouselIndicatorDots with a margin of 6, is 399 pixels wide, the dots 387 (adw_carousel_indicator_dots_measure gives their natural width, 15 a page and 6 at either end, as their minimum), and the first, chosen, dot is centered 16.5 into them, where Breeze UI's dots, which asked for no width, left the carousel as wide as its margins. It writes the view, light and dark, to the directory BREEZE_SCREENSHOTS names.
 func TestAdwCarouselDotsWidth(t *testing.T) {
 	dir := os.Getenv("BREEZE_SCREENSHOTS")
 	for _, dark := range []bool{false, true} {
@@ -723,7 +723,9 @@ func TestAdwCarouselDotsWidth(t *testing.T) {
 				Use(c)
 				ui.Box(c).Fill().Children(func() {
 					ui.Box(c).Absolute().Left(16).Top(16).Children(func() {
-						box = Carousel(c, &shown, 25, func(i int) { ui.Text(c, fmt.Sprint(i+1)).SingleLine() }).Bounds()
+						box = Carousel(c, &shown, 25, func(i int) {
+							ui.Column(c).AlignItems(ui.Center).Children(func() { ui.Text(c, fmt.Sprint(i+1)).SingleLine() })
+						}).Bounds()
 					})
 				})
 			})

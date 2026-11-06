@@ -884,10 +884,10 @@ def carousel_set(rtl=False, drag=False, insensitive=False):
 
 
 def carousel_many_set():
-    """TestAdwCarouselDotsWidth's view: at 16, 16 a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number, the first shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as in the carousel set. The dots ask for their natural width as their minimum (adw_carousel_indicator_dots_measure), 15 pixels a page and 6 at either end, so the box and the carousel are as wide as the dots and their margins, 399 pixels, rather than as the pages; they are measured again once the carousel is laid out, as in the carousel set."""
+    """TestAdwCarouselDotsWidth's view: at 16, 16 a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number centered across the carousel (hexpand, else AdwCarousel's size_allocate makes its pages as wide as the widest label), the first shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as in the carousel set. The dots ask for their natural width as their minimum (adw_carousel_indicator_dots_measure), 15 pixels a page and 6 at either end, so the box and the carousel are as wide as the dots and their margins, 399 pixels, rather than as the pages; they are measured again once the carousel is laid out, as in the carousel set."""
     slides = Adw.Carousel()
     for i in range(25):
-        slides.append(Gtk.Label(label=f"{i + 1}"))
+        slides.append(Gtk.Label(label=f"{i + 1}", hexpand=True))
     dots = Adw.CarouselIndicatorDots(carousel=slides, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
     box = vbox(0, slides, dots)
     scene = fixed(432, 96, [(box, 16, 16)], named={"carousel": slides, "dots": dots, "box": box})
