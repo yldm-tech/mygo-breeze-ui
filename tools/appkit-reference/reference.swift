@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView, statusActionsView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), the preferences widgets of TestScreenshotsPreferences (preferencesSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), the flat buttons of TestScreenshotsFlat (flatSet), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -134,12 +134,16 @@ func flatSet() -> [Item] {
 // StatusBar is the closest macOS has to an inline message bar, which breeze.InfoBar draws there: a row of a grouped Form holding a Label of an SF Symbol in the severity's color over a bold title and a secondary message, and a borderless button showing xmark. The Form insets its section 20 points, which statusSet takes back by placing the view 20 points up and to the left.
 struct StatusBar: View {
     let symbol: String, color: Color, title: String, closable: Bool
+    var message = "Some message about it.", action = "", prominent = false
     var body: some View {
         Form {
             Section {
                 HStack(alignment: .firstTextBaseline) {
-                    Label { VStack(alignment: .leading, spacing: 2) { Text(title).bold(); Text("Some message about it.").foregroundStyle(.secondary) } } icon: { Image(systemName: symbol).foregroundStyle(color) }
+                    Label { VStack(alignment: .leading, spacing: 2) { Text(title).bold(); if !message.isEmpty { Text(message).foregroundStyle(.secondary) } } } icon: { Image(systemName: symbol).foregroundStyle(color) }
                     Spacer()
+                    if !action.isEmpty {
+                        if prominent { Button(action) {}.buttonStyle(.borderedProminent) } else { Button(action) {} }
+                    }
                     if closable { Button {} label: { Image(systemName: "xmark") }.buttonStyle(.borderless) }
                 }
             }
@@ -162,6 +166,20 @@ func statusSet() -> [Item] {
     let small = NSProgressIndicator(); small.style = .spinning; small.isIndeterminate = false; small.controlSize = .small; small.minValue = 0; small.maxValue = 1; small.doubleValue = 0.6
     items.append(Item(name: "ring-small", view: small, x: 208, y: 308, size: NSSize(width: 16, height: 16)))
     return items
+}
+
+// statusActionsSet is TestScreenshotsStatus's statusActionsView: message bars with actions, InfoBarActions' buttons, 16 from the window's edges and 68 apart: a closable warning with a push button, an informational bar with a default (prominent) button, a closable success bar without a message with a push button, and a closable error bar 280 points wide with a push button.
+func statusActionsSet() -> [Item] {
+    let bars: [(String, Color, String, String, String, Bool, Bool, CGFloat)] = [
+        ("exclamationmark.triangle.fill", .yellow, "Warning", "Some message about it.", "Open Settings", true, false, 528),
+        ("info.circle.fill", .accentColor, "Informational", "Some message about it.", "Restart", false, true, 528),
+        ("checkmark.circle.fill", .green, "Success", "", "Undo", true, false, 528),
+        ("xmark.octagon.fill", .red, "Error", "Some message about it.", "Retry", true, false, 280),
+    ]
+    return bars.enumerated().map { i, b in
+        let view = NSHostingView(rootView: StatusBar(symbol: b.0, color: b.1, title: b.2, closable: b.5, message: b.3, action: b.4, prominent: b.6))
+        return Item(name: "actions-\(b.2.lowercased())", view: view, x: -4, y: 16 + CGFloat(i) * 68 - 20, size: NSSize(width: b.7 + 40, height: i == 3 ? 140 : 94))
+    }
 }
 
 // statusPageSet is TestScreenshotsStatus's statusPageView: SwiftUI's ContentUnavailableView filling the window, with a magnifying glass, a title, a description and a button.
@@ -703,6 +721,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(flatSet(), width: 360, height: 100, appearance: appearance, file: "appkit-flat-\(mode).png")
     render(statusSet(), width: 560, height: 360, appearance: appearance, file: "appkit-status-\(mode).png")
     render(statusPageSet(), width: 560, height: 420, appearance: appearance, file: "appkit-statuspage-\(mode).png")
+    render(statusActionsSet(), width: 560, height: 380, appearance: appearance, file: "appkit-statusactions-\(mode).png")
     render(rowsSet(), width: 672, height: 520, appearance: appearance, file: "appkit-rows-\(mode).png")
     render(settingsSet(), width: 672, height: 480, appearance: appearance, file: "appkit-settings-\(mode).png")
     render(preferencesSet(), width: 672, height: 480, appearance: appearance, file: "appkit-preferences-\(mode).png")

@@ -12,8 +12,13 @@ import (
 //
 // macOS values are measured from AppKit and SwiftUI rendered at 2x into an sRGB bitmap in a window answering hasKeyAppearance, on macOS 27.2, by the status set of tools/appkit-reference/reference.swift: NSProgressIndicator of style spinning with isIndeterminate false, regular and small; SwiftUI's ContentUnavailableView in an NSHostingView; and, for the message bar, which AppKit does not have, a row of a SwiftUI grouped Form holding a Label with an SF Symbol and a borderless close button, the closest system look (System Settings shows its inline notices so). Windows values are WinUI 3's (microsoft/microsoft-ui-xaml main): InfoBar_themeresources.xaml and InfoBar.xaml, ProgressRing_themeresources.xaml, ProgressRing.xaml, ProgressRing.cpp and the Lottie of AnimatedVisuals/ProgressRingDeterminate.cpp, and Common_themeresources_any.xaml; WinUI has no empty-state control, so StatusPage follows WinUI's type ramp (SubtitleTextBlockStyle, BodyTextBlockStyle) and is inferred. GNOME values are libadwaita 1.10.0's: _toolbars.scss (banner), adw-banner.c and adw-banner.ui, _misc.scss (statuspage), adw-status-page.ui, _labels.scss (.title-1, .heading, .body) and _colors.scss (--dim-opacity); libadwaita has no determinate ring, so ProgressRing follows AdwSpinner's track and stroke width (adw-spinner-paintable.c) with GtkProgressBar's accent, inferred.
 
-// InfoBar creates an inline message bar of a severity, kind, with a title and a message, as the platform shows a message inside a window: WinUI's InfoBar on Windows, libadwaita's AdwBanner on GNOME, and on macOS, which has no message bar, a section of a grouped form with a colored SF Symbol, as System Settings shows its inline notices (inferred). kind is a ui.Toast's Type, so that the same word colors a toast and a bar: "success", "warning", "error" ("danger" and "critical" too), and any other, as "" or "info", is informational; libadwaita's banners have no severity, so on GNOME every kind draws the same banner. A nil open makes a bar that cannot be closed; otherwise the bar shows while *open and its close button sets *open to false: WinUI's close button, a borderless xmark button on macOS, and on GNOME the banner's button labelled Dismiss. The bar is a status for assistive technology, named by its title and described by its message; the close button is named "Close" on macOS and Windows and "Dismiss" on GNOME. It stretches across a column, as the platforms' bars stretch.
+// InfoBar creates an inline message bar of a severity, kind, with a title and a message, as the platform shows a message inside a window: WinUI's InfoBar on Windows, libadwaita's AdwBanner on GNOME, and on macOS, which has no message bar, a section of a grouped form with a colored SF Symbol, as System Settings shows its inline notices (inferred). kind is a ui.Toast's Type, so that the same word colors a toast and a bar: "success", "warning", "error" ("danger" and "critical" too), and any other, as "" or "info", is informational; libadwaita's banners have no severity, so on GNOME every kind draws the same banner. A nil open makes a bar that cannot be closed; otherwise the bar shows while *open and its close button sets *open to false: WinUI's close button, a borderless xmark button on macOS, and on GNOME the banner's button labelled Dismiss. The bar is a status for assistive technology, named by its title and described by its message; the close button is named "Close" on macOS and Windows and "Dismiss" on GNOME. It stretches across a column, as the platforms' bars stretch. It is InfoBarActions without actions.
 func InfoBar(c *ui.Context, kind, title, message string, open *bool) ui.Element {
+	return InfoBarActions(c, kind, title, message, open, nil)
+}
+
+// InfoBarActions creates an InfoBar with actions: actions builds buttons, as Button, PrimaryButton or Link, which the bar shows where the platform puts a message bar's action. On Windows they are WinUI InfoBar's ActionButton, 16 DIPs after the message on its line while the title, the message and the actions fit across the bar, else 12 below the message at the start. On macOS they sit at the end of the bar before the close button, centered on the title's line, as SwiftUI lays a button out in that row of a grouped form (measured on macOS 27.2): a 24-point push button makes the row 4 points taller. On GNOME they take the place of the banner's button, as AdwBanner has one button (button-label, a PrimaryButton showing as its suggested action): the banner then has no Dismiss button, and an action closes it by setting *open to false. The buttons take their faces over the bar's fill, as the platforms lay their translucent faces over it. Assistive technology reads the title, the message, the actions and then the close button. A nil actions makes InfoBar.
+func InfoBarActions(c *ui.Context, kind, title, message string, open *bool, actions func()) ui.Element {
 	if open != nil && !*open {
 		return ui.Element{}
 	}
@@ -34,11 +39,14 @@ func InfoBar(c *ui.Context, kind, title, message string, open *bool) ui.Element 
 	severity := fluentToastSeverity(kind)
 	switch PlatformOf(c) {
 	case Windows:
-		fluentInfoBar(c, bar, severity, title, message, closer)
+		fluentInfoBar(c, bar, severity, title, message, closer, actions)
 	case Linux:
-		adwBanner(c, bar, title, message, closer)
+		if actions != nil {
+			closer = nil
+		}
+		adwBanner(c, bar, title, message, closer, actions)
 	default:
-		macInfoBar(c, bar, severity, title, message, closer)
+		macInfoBar(c, bar, severity, title, message, closer, actions)
 	}
 	return bar
 }
@@ -62,8 +70,8 @@ func macInfoBarColor(t *ui.Theme, severity int) ui.Color {
 	return t.Accent
 }
 
-// macInfoBar draws the message bar on macOS, which has none: a row of a SwiftUI grouped Form, as measured on macOS 27.2: the section's fill (macFormSectionFill) with corners of 12, the row padded 10 points above and below and 11.5 at the start; a 13-point SF Symbol of the severity (info.circle.fill, checkmark.circle.fill, exclamationmark.triangle.fill or xmark.octagon.fill) in its color, the mark inside cut out to the fill, centered on the title's first line; 11.5 points after it the title in 13-point bold labelColor and the message in secondaryLabelColor, both over the fill (38 and 124 over 247, 222 and 157 over 37), 2 points apart (inferred); and at the end a borderless button showing xmark, 10.5 points across in a 16-point box, its ink 12 points from the end, in secondaryLabelColor, labelColor while pressed (inferred). That macOS shows such a row as a message bar is inferred.
-func macInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element) {
+// macInfoBar draws the message bar on macOS, which has none: a row of a SwiftUI grouped Form, as measured on macOS 27.2: the section's fill (macFormSectionFill) with corners of 12, the row padded 10 points above and below and 11.5 at the start; a 13-point SF Symbol of the severity (info.circle.fill, checkmark.circle.fill, exclamationmark.triangle.fill or xmark.octagon.fill) in its color, the mark inside cut out to the fill, centered on the title's first line; 11.5 points after it the title in 13-point bold labelColor and the message in secondaryLabelColor, both over the fill (38 and 124 over 247, 222 and 157 over 37), 2 points apart (inferred); and at the end a borderless button showing xmark, 10.5 points across in a 16-point box, its ink 12 points from the end, in secondaryLabelColor, labelColor while pressed (inferred). That macOS shows such a row as a message bar is inferred. The actions, built over the fill (macOver), sit between the text and the close button, as SwiftUI lays Buttons out after a Spacer in that row (measured by tools/appkit-reference's statusActionsSet on macOS 27.2): their middle on the title line's, the row growing where they are taller than the line, so that a 24-point push button is 10 points from the row's top and the symbol, the text and the close button 4 points lower than without it; 6.25 points before the close button's box, or 10 from the row's end without one; and 8 apart and at least 8 after the text, as HStack spaces them (inferred: a message that fits beside a button in SwiftUI's render leaves 10).
+func macInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element, actions func()) {
 	t := c.Theme()
 	fill := macFormSectionFill(t)
 	secondary := tint(fill, t.Dark, pick(t.Dark, float32(0.498), 0.549))
@@ -71,15 +79,32 @@ func macInfoBar(c *ui.Context, bar ui.Element, severity int, title, message stri
 	bar.AlignItems(ui.Start).Gap(11.5).PaddingY(10).PaddingStart(11.5).PaddingEnd(9.25).Radius(12).Background(fill).TextColor(tint(fill, t.Dark, 0.847))
 	bar.Children(func() {
 		color := macInfoBarColor(t, severity)
-		ui.Box(c).Size(13, line).Shrink(0).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
+		symbol := ui.Box(c).Size(13, line).Shrink(0).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
 			macInfoBarSymbol(p, ui.Rect{X: r.X, Y: r.Y + (r.H-13)/2, W: 13, H: 13}, severity, color, fill)
 		})
-		ui.Column(c).Grow(1).Shrink(1).Gap(2).Children(func() {
+		text := ui.Column(c).Grow(1).Shrink(1).Gap(2).Children(func() {
 			ui.Text(c, title).Bold()
 			if message != "" {
 				ui.Text(c, message).TextColor(secondary)
 			}
 		})
+		// How far the title's line moves down to keep its middle on the actions' middle, where they are taller than it.
+		var drop float32
+		if actions != nil {
+			row := ui.Themed(c, macOver(t, fill)).Background(ui.Transparent).Row().Shrink(0).MinHeight(line).AlignItems(ui.Center).Gap(8).Children(actions)
+			// The text keeps 8 before the actions, HStack's spacing, so that a message wraps where SwiftUI's does (the bar's gap of 11.5 less 3.5). The bar's gap less 5.25 leaves the 6.25 before the close button's box; without one the bar's end padding of 9.25 and 0.75 leave 10.
+			row.MarginStart(-3.5)
+			if closer != nil {
+				row.MarginEnd(-5.25)
+			} else {
+				row.MarginEnd(0.75)
+			}
+			if _, h := prevSize(c, row); h > line {
+				drop = (h - line) / 2
+				symbol.Margin(drop, 0, 0, 0)
+				text.Margin(drop, 0, 0, 0)
+			}
+		}
 		if closer == nil {
 			return
 		}
@@ -88,11 +113,24 @@ func macInfoBar(c *ui.Context, bar ui.Element, severity int, title, message stri
 		if b.Pressed() {
 			glyph = tint(fill, t.Dark, 0.847)
 		}
-		b.Size(16, line).Center().Children(func() {
+		b.Size(16, line).Margin(drop, 0, 0, 0).Center().Children(func() {
 			ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.17, 1.3, glyph) })
 		})
 		macRing(b, 4)
 	})
+}
+
+// macOver returns t with the colors macOS lays over the window laid over under instead: the theme of the controls of a message bar, whose push buttons' secondarySystemFill and labels show the bar's fill through them (a push button's face reads 228 over the section's 247 and 54 over 37, where over the window it reads 235 and 48, measured by tools/appkit-reference's statusActionsSet on macOS 27.2).
+func macOver(t *ui.Theme, under ui.Color) *ui.Theme {
+	o := *t
+	o.Background = under
+	o.Text = tint(under, t.Dark, 0.847)
+	o.TextMuted = tint(under, t.Dark, pick(t.Dark, float32(0.498), 0.549))
+	o.Border = macSeparator(under, t.Dark)
+	o.Surface = macFace(under, t.Dark)
+	o.SurfaceHover = o.Surface
+	o.SurfacePressed = macPressed(under, t.Dark)
+	return &o
 }
 
 // macInfoBarSymbol draws the SF Symbol of a severity in r, 13 points: a circle, a triangle with rounded corners or an octagon in col, with its mark (i, a check mark, ! or ×) in cut, the fill behind it, as SwiftUI draws a .fill symbol in one color. The shapes are drawn as paths from the symbols' outlines.
@@ -134,8 +172,8 @@ func macInfoBarSymbol(p *ui.Painter, r ui.Rect, severity int, col, cut ui.Color)
 	p.Fill(ui.Rect{X: cx - 0.7*s, Y: cy - 1*s, W: 1.4 * s, H: 4.4 * s}, cut, 0.7*s)
 }
 
-// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high inside its border (InfoBarMinHeight on the template's Grid, inside the ContentRoot Border), so 50 here, where MinHeight includes the border, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness) laid over the window, as the background stops inside it (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the edge reads 229 around every severity's bar in the light theme and 29 in the dark one, not tinted by the bar's color), InfoBarContentRootPadding 16 at the start; the severity icon (fluentInfoBarIcon) in a 16-DIP box with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), the panel as high as its tallest child and the bar's MinHeight making the rest, while the two fit on one line, and otherwise, or when there is no message (InfoBarPanel::MeasureOverride lays a single child out vertically), the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
-func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element) {
+// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high inside its border (InfoBarMinHeight on the template's Grid, inside the ContentRoot Border), so 50 here, where MinHeight includes the border, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness) laid over the window, as the background stops inside it (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the edge reads 229 around every severity's bar in the light theme and 29 in the dark one, not tinted by the bar's color), InfoBarContentRootPadding 16 at the start; the severity icon (fluentInfoBarIcon) in a 16-DIP box with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), the panel as high as its tallest child and the bar's MinHeight making the rest, while the two fit on one line, and otherwise, or when there is no message (InfoBarPanel::MeasureOverride lays a single child out vertically), the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow. The ActionButton is the panel's third child (InfoBar.xaml): across, 16 after the message and 8 from the top (InfoBarActionHorizontalOrientationMargin 16,8,0,0), and laid out vertically, 12 below the message (InfoBarActionVerticalOrientationMargin); the panel goes vertical when the title, the message and the actions with their margins are wider than it or the actions with their margin are taller than InfoBarMinHeight (InfoBarPanel::MeasureOverride), which Breeze UI decides from the actions' size in the previous frame. The actions are built over the bar's color (fluentOver), in a row at least 32 high, a Button's height, so that a Link lines up with the title as InfoBar's HyperlinkButton does, and 8 apart (inferred).
+func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element, actions func()) {
 	t := c.Theme()
 	bg, iconFill := fluentToastColors(t, fluentSystemAccent(c), severity)
 	if severity == fluentToastInformational {
@@ -148,28 +186,40 @@ func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message s
 	}
 	tw, _ := c.MeasureText(0, ui.Span{Text: title, Size: 14, Weight: 600})
 	mw, _ := c.MeasureText(0, ui.Span{Text: message, Size: 14})
-	// InfoBarPanel::MeasureOverride lays a single item, a title without a message, out vertically too.
-	across := message != "" && tw+12+mw <= panel
 	bar.AlignItems(ui.Start).MinHeight(50).PaddingStart(16).Radius(4).Background(bg).
 		Border(1, t.Background.Mix(black, pick(t.Dark, float32(0x0f)/255, 0x19/255.0))).TextColor(t.Text).FontSize(14)
 	bar.Children(func() {
 		ui.Box(c).Size(16, 16).Shrink(0).MarginY(16).MarginEnd(14).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
 			fluentInfoBarIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
 		})
-		if across {
-			ui.Row(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Children(func() {
-				ui.Text(c, title).FontWeight(600).Margin(14, 0, 0, 0)
-				if message != "" {
-					ui.Text(c, message).Shrink(1).Margin(14, 0, 0, 0).MarginStart(12)
-				}
-			})
+		box := ui.Row(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16)
+		var head, body, act ui.Element
+		box.Children(func() {
+			head = ui.Text(c, title).FontWeight(600)
+			if message != "" {
+				body = ui.Text(c, message)
+			}
+			if actions != nil {
+				act = ui.Themed(c, fluentOver(t, bg)).Background(ui.Transparent).Row().Shrink(0).MinHeight(32).AlignItems(ui.Center).Gap(8).Children(actions)
+			}
+		})
+		// InfoBarPanel::MeasureOverride lays a single item, a title without a message or actions, out vertically too.
+		items, across, tall := 1, tw, false
+		if message != "" {
+			items, across = items+1, across+12+mw
+		}
+		if actions != nil {
+			aw, ah := prevSize(c, act)
+			items, across, tall = items+1, across+16+aw, 8+ah > 48
+		}
+		if items > 1 && across <= panel && !tall {
+			head.Margin(14, 0, 0, 0)
+			body.Shrink(1).Margin(14, 0, 0, 0).MarginStart(12)
+			act.Margin(8, 0, 0, 0).MarginStart(16)
 		} else {
-			ui.Column(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Padding(14, 0, 18, 0).Children(func() {
-				ui.Text(c, title).FontWeight(600)
-				if message != "" {
-					ui.Text(c, message).Margin(4, 0, 0, 0)
-				}
-			})
+			box.Column().Padding(14, 0, 18, 0)
+			body.Margin(4, 0, 0, 0)
+			act.Margin(12, 0, 0, 0)
 		}
 		if closer != nil {
 			fluentInfoBarClose(c, closer("Close"))
@@ -209,6 +259,19 @@ func prevWidth(c *ui.Context, e ui.Element) float32 {
 	return w
 }
 
+// prevSize returns e's size in the previous frame, as a layout that places parts by the size of what the caller builds in them needs it; for an element that frame lacked it returns 0, 0 and asks once for another frame, which lays it out by its own. An element laid out empty is asked for only once, not on every frame.
+func prevSize(c *ui.Context, e ui.Element) (float32, float32) {
+	b := e.LayoutBounds()
+	if b.W == 0 && b.H == 0 {
+		asked := ui.Local(e, "breeze-prev-size", func() bool { return false })
+		if !*asked {
+			*asked = true
+			c.Invalidate()
+		}
+	}
+	return b.W, b.H
+}
+
 // fluentInfoBarClose draws an InfoBar's close button (InfoBarCloseButtonStyle): 38 DIPs square (InfoBarCloseButtonSize) with a margin of 5, at the top, ControlCornerRadius, drawn with AppBarButton's brushes as InfoBar.xaml sets them: transparent, SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed; its Cancel symbol (InfoBarCloseButtonGlyphSize) in the text color, an × whose ink is 11 DIPs square in 1-DIP strokes, centered half a DIP above and before the button's middle (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference at 2x); and, as InfoBarCloseButtonStyle is based on DefaultButtonStyle, the system focus visual 3 DIPs around it (FocusVisualMargin -3, fluentFocusRing).
 func fluentInfoBarClose(c *ui.Context, b ui.Element) {
 	t := c.Theme()
@@ -236,8 +299,8 @@ func fluentInfoBarClose(c *ui.Context, b ui.Element) {
 // adwBannerShares are the shares of currentColor a GtkButton's face lays over what is behind it, at rest, under the pointer and pressed, in the light theme (where currentColor is window_fg_color, 80% opaque) and the dark one: $button_color and its hover and active shades.
 var adwBannerShares = [2][3]float32{{0.08, 0.12, 0.24}, {0.10, 0.15, 0.30}}
 
-// adwBanner draws an AdwBanner: a full-width strip of --banner-color (#7d7d83) mixed 30% into window_bg_color, in window_fg_color, padded 6 (_toolbars.scss); its title in .heading, bold, wrapping, centered across its lines; and, while it can be closed, its button, a GtkButton at least 84 wide (BUTTON_HORZ_MIN_WIDTH), as adw-banner.c's allocate_content places them: without a button the title centered and padded a further 6 all around (HORZ_PADDING, VERT_PADDING); with one, the button at the end, centered on the strip's height, and the title centered across the whole strip while it fits with 36 to spare on each side of the button (HORZ_SPACING_CENTERED), else 6 from the start (HORZ_PADDING) and 6 before the button (HORZ_SPACING); and where the title does not fit beside the button at its natural width, the button below the title, centered, at least 160 wide (BUTTON_VERT_MIN_WIDTH), 9 below it (VERT_SPACING), the two padded 6 above, below and at the sides. Breeze UI picks the arrangement from the banner's width in the previous frame. A banner has only a title: the message follows it in the same label, at regular weight (inferred). libadwaita's banners have no severity; the .error, .warning and .success classes only recolor accent-colored parts, which a banner's title is not, so every kind draws this same banner.
-func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func(string) ui.Element) {
+// adwBanner draws an AdwBanner: a full-width strip of --banner-color (#7d7d83) mixed 30% into window_bg_color, in window_fg_color, padded 6 (_toolbars.scss); its title in .heading, bold, wrapping, centered across its lines; and, while it can be closed, its button, a GtkButton at least 84 wide (BUTTON_HORZ_MIN_WIDTH), as adw-banner.c's allocate_content places them: without a button the title centered and padded a further 6 all around (HORZ_PADDING, VERT_PADDING); with one, the button at the end, centered on the strip's height, and the title centered across the whole strip while it fits with 36 to spare on each side of the button (HORZ_SPACING_CENTERED), else 6 from the start (HORZ_PADDING) and 6 before the button (HORZ_SPACING); and where the title does not fit beside the button at its natural width, the button below the title, centered, at least 160 wide (BUTTON_VERT_MIN_WIDTH), 9 below it (VERT_SPACING), the two padded 6 above, below and at the sides. Breeze UI picks the arrangement from the banner's width in the previous frame. A banner has only a title: the message follows it in the same label, at regular weight (inferred). libadwaita's banners have no severity; the .error, .warning and .success classes only recolor accent-colored parts, which a banner's title is not, so every kind draws this same banner. Actions take the button's place, built over the strip (adwOverBanner) and as wide as they are, 6 apart (inferred), placed by their width in the previous frame.
+func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func(string) ui.Element, actions func()) {
 	t := c.Theme()
 	bg := t.Background.Mix(ui.Hex("#7d7d83"), 0.3)
 	fg := pick(t.Dark, bg.Mix(adwInk, 0.8), white)
@@ -250,52 +313,72 @@ func adwBanner(c *ui.Context, bar ui.Element, title, message string, closer func
 			}
 		})
 	}
-	if closer == nil {
+	if closer == nil && actions == nil {
 		bar.Justify(ui.Center).AlignItems(ui.Center).Children(func() { text().Padding(6) })
 		return
 	}
 	const dismiss = "Dismiss"
-	bw, _ := c.MeasureText(0, ui.Span{Text: dismiss, Size: t.FontSize, Weight: 700})
-	bw += 34 // the button's padding of 17 on each side
 	tw, _ := c.MeasureText(0, ui.Span{Text: title, Size: t.FontSize, Weight: 700})
 	if message != "" {
 		mw, _ := c.MeasureText(0, ui.Span{Text: " " + message, Size: t.FontSize})
 		tw += mw
 	}
 	width := prevWidth(c, bar) - 12 // the strip's padding
-	button := func() ui.Element {
-		b := closer(dismiss)
-		adwButton(c, b, false)
-		shares := pick(t.Dark, adwBannerShares[0], adwBannerShares[1])
-		share := shares[0]
-		switch {
-		case b.Pressed():
-			share = shares[2]
-		case b.Hovered():
-			share = shares[1]
+	bar.Children(func() {
+		label := text()
+		var button ui.Element
+		var bw float32
+		if actions != nil {
+			button = ui.Themed(c, adwOverBanner(t, bg, fg)).Background(ui.Transparent).Row().Shrink(0).AlignItems(ui.Center).Gap(6).Children(actions)
+			bw, _ = prevSize(c, button)
+		} else {
+			bw, _ = c.MeasureText(0, ui.Span{Text: dismiss, Size: t.FontSize, Weight: 700})
+			bw += 34 // the button's padding of 17 on each side
+			button = closer(dismiss)
+			adwButton(c, button, false)
+			shares := pick(t.Dark, adwBannerShares[0], adwBannerShares[1])
+			share := shares[0]
+			switch {
+			case button.Pressed():
+				share = shares[2]
+			case button.Hovered():
+				share = shares[1]
+			}
+			face := bg.Mix(pick(t.Dark, adwInk, white), share)
+			button.Background(face).TextColor(adwTextOn(t, face)).Children(func() { ui.Text(c, dismiss).SingleLine() })
 		}
-		face := bg.Mix(pick(t.Dark, adwInk, white), share)
-		return b.Background(face).TextColor(adwTextOn(t, face)).Children(func() { ui.Text(c, dismiss).SingleLine() })
-	}
-	switch {
-	case 6+tw+6+max(bw, 84) > width:
-		bar.Column().AlignItems(ui.Center).Gap(9).Padding(12).Children(func() {
-			text()
-			button().MinWidth(min(max(bw, 160), width))
-		})
-	case tw+(max(bw, 84)+36)*2 > width:
-		bar.AlignItems(ui.Center).Gap(6).PaddingStart(12).Children(func() {
-			text().Grow(1).TextAlign(ui.Start)
-			button().MinWidth(84)
-		})
-	default:
-		bar.AlignItems(ui.Center).Gap(6).Children(func() {
-			// A space as wide as the button keeps the title centered across the strip.
-			ui.Box(c).Width(max(bw, 84)).Shrink(0).Role(ui.RoleNone)
-			text().Grow(1)
-			button().MinWidth(84)
-		})
-	}
+		// The minimum widths are the Dismiss button's; actions keep their own, so the arrangement and the title's margin go by the width the actions have.
+		least := func(w float32) {
+			if actions == nil {
+				button.MinWidth(w)
+			}
+		}
+		shown := bw
+		if actions == nil {
+			shown = max(bw, 84)
+		}
+		switch {
+		case 6+tw+6+shown > width:
+			bar.Column().AlignItems(ui.Center).Gap(9).Padding(12)
+			least(min(max(bw, 160), width))
+		case tw+(shown+36)*2 > width:
+			bar.AlignItems(ui.Center).Gap(6).PaddingStart(12)
+			label.Grow(1).TextAlign(ui.Start)
+			least(84)
+		default:
+			// A margin as wide as the button and the gap keeps the title centered across the strip.
+			bar.AlignItems(ui.Center).Gap(6)
+			label.Grow(1).MarginStart(shown + 6)
+			least(84)
+		}
+	})
+}
+
+// adwOverBanner returns t laid over a banner's strip, bg, its text in fg: the theme a banner's actions build in, so that a button's translucent face and its label take their colors over the strip, as the Dismiss button's do.
+func adwOverBanner(t *ui.Theme, bg, fg ui.Color) *ui.Theme {
+	o := *t
+	o.Background, o.Text = bg, fg
+	return &o
 }
 
 // ProgressRing creates a circular progress indicator filled to value between 0 and 1, as the platform draws a determinate ring: AppKit's NSProgressIndicator of style spinning with isIndeterminate false, WinUI's ProgressRing with IsIndeterminate false, and on GNOME, which has no determinate ring, a ring after AdwSpinner's (inferred). The ring fills clockwise from 12 o'clock in either reading direction, as a clock does. A negative value shows activity of unknown length: it is then Spinner. Assistive technology sees a progress indicator of value from 0 to 1, as for Progress; name it with Label. It is 32 points or DIPs across, as the platforms' regular rings are; Size makes it another size, as AppKit's small one, 16.
