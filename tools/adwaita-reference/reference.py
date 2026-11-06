@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -724,11 +724,19 @@ def tabview_set():
     return fixed(560, 260, [(docs, 16, 16), (content, 16, 75), (prefs, 16, 136)], named={"docs": docs_bar, "content": content, "prefs": prefs_bar})
 
 
-def datepicker_set():
-    """TestScreenshotsDatePicker's datePickerView: a GtkCalendar at 16, 16 showing November 2026 with the 18th chosen, and at 360, 16 a GtkMenuButton showing the same day as American English writes it short, whose popover holds a calendar, closed. Run it with LC_ALL=en_US.UTF-8, so that GTK names the months and days in English and starts the weeks on Sunday; GTK marks the machine's today, which TestScreenshotsDatePicker fixes as the 6th of November 2026."""
+def datepicker_set(open_popover=False, arrow=True):
+    """TestScreenshotsDatePicker's datePickerView: a GtkCalendar at 16, 16 showing November 2026 with the 18th chosen, and at 360, 16 a GtkMenuButton showing the same day as American English writes it short, whose popover holds a calendar, closed; in the sets datepickeropen and datepickernoarrow, those of TestAdwDatePickerPopover, the popover is open, with GtkPopover's arrow as the menu button gives it and without it (has-arrow false), as MyGo's popovers are drawn. Run it with LC_ALL=en_US.UTF-8, so that GTK names the months and days in English and starts the weeks on Sunday; GTK marks the machine's today, which TestScreenshotsDatePicker fixes as the 6th of November 2026."""
     calendar = Gtk.Calendar(year=2026, month=10, day=18)
-    button = Gtk.MenuButton(label="11/18/2026", popover=Gtk.Popover(child=Gtk.Calendar(year=2026, month=10, day=18)))
-    return fixed(560, 400, [(calendar, 16, 16), (button, 360, 16)], named={"calendar": calendar, "date-picker": button})
+    inner = Gtk.Calendar(year=2026, month=10, day=18)
+    popover = Gtk.Popover(child=inner, has_arrow=arrow)
+    button = Gtk.MenuButton(label="11/18/2026", popover=popover)
+    named = {"calendar": calendar, "date-picker": button}
+    if open_popover:
+        named.update({"popover-calendar": inner})
+    scene = fixed(560, 400, [(calendar, 16, 16), (button, 360, 16)], named=named, popovers=[popover] if open_popover else None)
+    # The menu button opens its popover, so it shows checked while the popover is open.
+    scene.open_popovers = button.popup
+    return scene
 
 
 def over_card_set():
@@ -784,6 +792,8 @@ SETS = [
     ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
     ("switcher", "adwaita-switcher", switcher_set),
     ("datepicker", "adwaita-datepicker", datepicker_set),
+    ("datepickeropen", "adwaita-datepicker-open", lambda: datepicker_set(True)),
+    ("datepickernoarrow", "adwaita-datepicker-noarrow", lambda: datepicker_set(True, False)),
     ("text", "adwaita-text", text_set),
 ]
 
@@ -826,7 +836,11 @@ def render(window, scene, path):
     for name, widget in scene.named.items():
         ok, bounds = widget.compute_bounds(window)
         if ok:
-            print(f"  {name}: x {bounds.get_x():g} y {bounds.get_y():g} w {bounds.get_width():g} h {bounds.get_height():g}")
+            # A widget in a popover is measured from the window's surface, its frame included: take the frame off, to print it in the content's DIPs as the others.
+            x, y = bounds.get_x(), bounds.get_y()
+            if widget.get_ancestor(Gtk.Popover) is not None:
+                x, y = x - FRAME, y - FRAME
+            print(f"  {name}: x {x:g} y {y:g} w {bounds.get_width():g} h {bounds.get_height():g}")
 
 
 # Xvfb has no compositor, so GTK gives the window and its popovers the .solid-csd look: a popover's contents square, without their shadows, inside a 1-pixel border. These rules put back the stylesheet's own popover > contents and popover.background (libadwaita 1.10.0's gtk.css), as a desktop with a compositor draws them.
