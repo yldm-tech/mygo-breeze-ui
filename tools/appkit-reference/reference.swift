@@ -1,6 +1,6 @@
 // AppKit's own controls, for comparing Breeze UI's macOS look with them.
 //
-// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), and graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
+// It renders sets of controls in Aqua and Dark Aqua at 2x, laid out where ui/breeze/screenshot_test.go places Breeze UI's (referenceView and referenceView2) and widgets_status_test.go its status widgets (statusView and statusPageView), the settings rows of TestScreenshotsSettings (settingsSet), and the controls of TestScreenshotsInputs (inputsSet, with a window's toolbar holding a combo button and image items), and the text styles where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), the tab bar of tabbed windows for TabView (renderTabs, which -live also captures on the screen), a toolbar item group and a segmented control where widgets_switcher_test.go places Breeze UI's ViewSwitcher (renderSwitcher, also captured with -live), graphical and field date pickers where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (renderDatePicker), and an NSPageController's strip of pages where widgets_carousel_test.go places Breeze UI's Carousel (renderCarousel; the page dots, which AppKit lacks, are UIKit for Mac's, which pagecontrol.swift renders), writes them as PNGs and prints, for every control, its frame and the values along its middle row and column as runs (value x count): a gray pixel as its value, a colored one as #rrggbb, from which the sizes and fills in ui/breeze/mac.go were read. It draws into an sRGB bitmap, the color space MyGo writes, rather than the display's profile that bitmapImageRepForCachingDisplay picks, in which grays read the same but colors paler (systemGreen reads #65c466 in Display P3, #34c759 in sRGB).
 //
 // An NSTextField drawn by cacheDisplay lays its text color's alpha on twice (a label in 50% black reads 63 over white, in labelColor's 85% black 6, where NSString.draw in the same font reads 127 and 39, measured on macOS 27.2), so read text colors from the label colors themselves rather than from these renders.
 //
@@ -503,6 +503,42 @@ func renderDatePicker(appearance: NSAppearance.Name, focused: Bool, file: String
     }
 }
 
+// SlidePages is the delegate of renderCarousel's NSPageController in its custom mode: every page a view controller of one identifier whose view is a label, centered, showing the page's object, "Slide 1" to "Slide 4".
+class SlidePages: NSObject, NSPageControllerDelegate {
+    func pageController(_ pc: NSPageController, identifierFor object: Any) -> NSPageController.ObjectIdentifier { "slide" }
+    func pageController(_ pc: NSPageController, viewControllerForIdentifier id: NSPageController.ObjectIdentifier) -> NSViewController {
+        let vc = NSViewController()
+        let label = NSTextField(labelWithString: "")
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 160))
+        view.addSubview(label)
+        NSLayoutConstraint.activate([label.centerXAnchor.constraint(equalTo: view.centerXAnchor), label.centerYAnchor.constraint(equalTo: view.centerYAnchor)])
+        vc.view = view
+        return vc
+    }
+    func pageController(_ pc: NSPageController, prepare vc: NSViewController, with object: Any?) {
+        (vc.view.subviews.first as? NSTextField)?.stringValue = object as? String ?? ""
+    }
+}
+
+// carouselPages keeps renderCarousel's page controller and its delegate alive while it renders.
+var carouselPages: [AnyObject] = []
+
+// renderCarousel places what AppKit has of a carousel where ui/breeze/widgets_carousel_test.go's carouselShotView places Breeze UI's Carousel on macOS: an NSPageController of transitionStyle horizontalStrip, the controller that swipes between pages on macOS, its view 320 by 160 at 16, 96 showing the second of four pages, "Slide 2" centered. AppKit has no page indicator, and SwiftUI's PageTabViewStyle and IndexViewStyle are unavailable on macOS: the dots that Breeze UI draws below the pages and in its pagers at 16, 16 and 16, 56 are UIKit for Mac's UIPageControl, which pagecontrol.swift renders where the test places them. It renders the page controller's view with render.
+func renderCarousel(appearance: NSAppearance.Name, file: String) {
+    let pages = SlidePages()
+    let pc = NSPageController()
+    pc.view = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 160))
+    pc.delegate = pages
+    pc.transitionStyle = .horizontalStrip
+    pc.arrangedObjects = ["Slide 1", "Slide 2", "Slide 3", "Slide 4"]
+    pc.selectedIndex = 1
+    carouselPages = [pc, pages]
+    render([Item(name: "page-controller", view: pc.view, x: 16, y: 96, size: NSSize(width: 320, height: 160))], width: 352, height: 312, appearance: appearance, file: file)
+    print("  selectedIndex=\(pc.selectedIndex) selectedViewController=\(pc.selectedViewController.map { String(describing: type(of: $0)) } ?? "none")")
+}
+
 // HeaderItems fills the toolbar of renderHeaderBar as an app's window title bar: a navigational back item before the title, then after a flexible space a bordered text item and a bordered image item, as breeze.HeaderBar's start and end hold them in TestScreenshotsHeaderBar.
 class HeaderItems: NSObject, NSToolbarDelegate {
     var back = true
@@ -584,6 +620,7 @@ for (appearance, mode) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark"
     render(textSet(), width: 360, height: 300, appearance: appearance, file: "appkit-text-\(mode).png")
     renderTabs(appearance: appearance, file: "appkit-tabs-\(mode).png")
     renderDatePicker(appearance: appearance, focused: false, file: "appkit-datepicker-\(mode).png"); renderDatePicker(appearance: appearance, focused: true, file: "appkit-datepicker-focused-\(mode).png")
+    renderCarousel(appearance: appearance, file: "appkit-carousel-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", file: "appkit-headerbar-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "12 items", file: "appkit-headerbar-subtitle-\(mode).png")
     renderHeaderBar(appearance: appearance, subtitle: "", back: false, file: "appkit-headerbar-noback-\(mode).png")

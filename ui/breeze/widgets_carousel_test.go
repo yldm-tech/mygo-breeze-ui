@@ -247,7 +247,7 @@ func pagerPixel(tester *ui.Tester, scale, x, y float32) ui.Color {
 	return ui.RGB(px.R, px.G, px.B)
 }
 
-// TestPipsPagerMacDots checks UIPageControl's dots on macOS at 2x, light and dark, left to right and right to left: each 7 points across in the middle of its 19-point cell, the chosen one black (white in Dark Aqua) and the others at 45%, as UIKit for Mac draws them on macOS 27.2 (white at 45% reads 115 over black).
+// TestPipsPagerMacDots checks UIPageControl's dots on macOS at 2x, light and dark, left to right and right to left: each 6 points across in the middle of its 19-point cell, the chosen one black (white in Dark Aqua) and the others at 45%, as UIKit for Mac draws them on macOS 27.2 (white at 45% reads 131 over the dark window's 30).
 func TestPipsPagerMacDots(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		for _, dir := range []ui.Direction{ui.LeftToRight, ui.RightToLeft} {
@@ -274,12 +274,12 @@ func TestPipsPagerMacDots(t *testing.T) {
 					want = ink
 				}
 				// Half a point inside and outside the dot's edge, clear of the antialiased pixels on it.
-				for _, d := range []float32{0, -3, 2.5} {
+				for _, d := range []float32{0, -2.5, 2} {
 					if got := pagerPixel(tester, 2, cx+d, cy); !macNear(got, want, 3) {
 						t.Errorf("dark %v %v: dot %d reads %v at %v from its middle, want %v", dark, dir, i, got, d, want)
 					}
 				}
-				for _, d := range []float32{-4.5, 4} {
+				for _, d := range []float32{-3.5, 3.5} {
 					if got := pagerPixel(tester, 2, cx+d, cy); !macNear(got, th.Background, 3) || !macNear(pagerPixel(tester, 2, cx, cy+d), th.Background, 3) {
 						t.Errorf("dark %v %v: dot %d reaches %v from its middle (%v)", dark, dir, i, d, got)
 					}
