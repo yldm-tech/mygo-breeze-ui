@@ -282,7 +282,7 @@ func TestEntryRowTitleShrinks(t *testing.T) {
 	}
 }
 
-// TestSpinRowSteps checks the spin row on every platform: Tab stops once, at the text named by the title, Up steps the value, a click on Increase steps it and leaves the focus in the text, the buttons are no stops of their own, Increase is disabled at the upper limit, and on GNOME a click on the title focuses the text, as AdwSpinRow's grab_focus does.
+// TestSpinRowSteps checks the spin row on every platform: Tab stops once, at the text named by the title, Up steps the value, a click on Increase steps it and leaves the focus in the text, the buttons are no stops of their own, Increase is disabled at the upper limit, and on GNOME a click on the title focuses the text, as AdwSpinRow's grab_focus does, and so does a click on a button while the focus is elsewhere, as GtkSpinButton's button_pressed_cb grabs it (gtkspinbutton.c of GTK 4.24.1).
 func TestSpinRowSteps(t *testing.T) {
 	for _, p := range Platforms {
 		size, changes := 10.0, 0
@@ -336,6 +336,17 @@ func TestSpinRowSteps(t *testing.T) {
 			tester.Frame()
 			if !tester.Focused("Font size") {
 				t.Error("a click on the row did not focus the text")
+			}
+			if err := tester.Click("After"); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+			if err := tester.Click("Decrease"); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+			if size != 11 || !tester.Focused("Font size") {
+				t.Errorf("a click on Decrease with the focus on a button left %v, the text focused %v", size, tester.Focused("Font size"))
 			}
 		}
 	}

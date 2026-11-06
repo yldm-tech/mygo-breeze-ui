@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows and overcard sets, against TestScreenshotsInputs, TestScreenshotsRows and TestAdwControlsOverCard.
+// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows, overcard and settings sets, against TestScreenshotsInputs, TestScreenshotsRows, TestAdwControlsOverCard and TestScreenshotsSettings.
 
 // TestAdwPasswordFocusRingDark checks the focus ring of a GtkPasswordEntry in the dark theme, which libadwaita 1.10.0 renders (92, 132, 185) over the entry's fill: GTK mixes the dark theme's accent_color, outside sRGB, at 50% without clamping it, bluer than the clamped #81d0ff at 50% (93, 132, 158).
 func TestAdwPasswordFocusRingDark(t *testing.T) {
@@ -211,5 +211,77 @@ func TestAdwControlsOverCard(t *testing.T) {
 		send, arrow := find("Send"), find(inputsMoreOptions)
 		check("the split button's face over the card", at(send.X-4, send.Y+send.H/2), pick(dark, ui.RGB(235, 235, 235), ui.RGB(72, 72, 75)))
 		check("the split button's seam over the card", ink(arrow.X-1, arrow.Y+arrow.H/2, arrow.X+2, arrow.Y+arrow.H/2+0.5), pick(dark, ui.RGB(217, 217, 217), ui.RGB(91, 91, 93)))
+	}
+}
+
+// adwInkTop returns the first row, in device pixels of a frame at scale, of r (in DIPs) that holds ink darker than 200, or -1.
+func adwInkTop(tester *ui.Tester, r ui.Rect, scale float32) int {
+	img := tester.Image()
+	for y := int(r.Y * scale); y < int((r.Y+r.H)*scale); y++ {
+		for x := int(r.X * scale); x < int((r.X+r.W)*scale); x++ {
+			if img.RGBAAt(x, y).R < 200 {
+				return y
+			}
+		}
+	}
+	return -1
+}
+
+// TestAdwEntryRowTitleOverText checks on GNOME that a filled entry row draws its title in the box of the small text it is laid out as, its ink as far below the box's top as a row's subtitle's below its own: AdwEntryRow allocates the title label at the subtitle's size above the text (allocate_editable_area), and libadwaita 1.10.0 draws "Name" as high in its row as that (tools/adwaita-reference's settings set), where the title drawn as a small span on a line of the body's size sat about 2 pixels lower. It reads the ink from the frame against the elements' boxes, whatever the host's font.
+func TestAdwEntryRowTitleOverText(t *testing.T) {
+	const scale = 2
+	shoot := func(build func(c *ui.Context)) *ui.Tester {
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() { build(c) })
+			})
+		}, 400, 120)
+		tester.SetScale(scale)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		return tester
+	}
+	name := "Evan"
+	entry := shoot(func(c *ui.Context) { EntryRow(c, "Name", &name) })
+	row := shoot(func(c *ui.Context) { ActionRow(c, "Title", "Name", nil) })
+	// The first element showing "Name" in the entry row is its small text, laid out above the field and drawn over.
+	small, ok := entry.Find("Name")
+	sub, ok2 := row.Find("Name")
+	if !ok || !ok2 {
+		t.Fatal("the title or the subtitle is missing")
+	}
+	got, want := adwInkTop(entry, small, scale)-int(small.Y*scale), adwInkTop(row, sub, scale)-int(sub.Y*scale)
+	if got < want-1 || got > want+1 {
+		t.Fatalf("the title's ink starts %d device pixels below its box's top, the subtitle's %d", got, want)
+	}
+}
+
+// TestAdwSpinRowIconsOverTheirFace checks on GNOME, light and dark, that a spin row's − and + are drawn in the button's color over the button's own face, as libadwaita 1.10.0 renders them (tools/adwaita-reference's settings set): 47 over the light face of 235, where over the card they would read 51, and white over the dark face.
+func TestAdwSpinRowIconsOverTheirFace(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		size := 12.0
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() { SpinRow(c, "Font size", "Points", &size, 6, 72, 1) })
+			})
+		}, 400, 120)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		for _, name := range []string{"Decrease", "Increase"} {
+			b, ok := tester.Find(name)
+			if !ok {
+				t.Fatalf("dark %v: %s is missing", dark, name)
+			}
+			// The middle of the bar across both icons, a whole device pixel inside its 2-pixel stroke.
+			px := tester.Image().RGBAAt(int((b.X+b.W/2)*2), int((b.Y+b.H/2)*2))
+			want := map[bool]uint8{false: 47, true: 255}[dark]
+			if d := int(px.R) - int(want); d < -2 || d > 2 {
+				t.Errorf("dark %v: %s's icon reads %d, want libadwaita's %d", dark, name, px.R, want)
+			}
+		}
 	}
 }
