@@ -683,6 +683,24 @@ def settings_set():
     return Scene(672, 480, root, named={"settings": settings, "language": language, "copies": copies, "network": network, "advanced": advanced})
 
 
+def switcher_set():
+    """TestScreenshotsViewSwitcher's switcherView: an AdwHeaderBar at the top of the window's content titled Music with an AdwViewSwitcher of the wide policy packed at its end, where Breeze UI's HeaderBar holds a ViewSwitcher among its end controls (libadwaita apps put it in place of the title, as the header bar's title-widget, which Breeze UI's HeaderBar does not take), GTK's close button after it (decoration-layout :close), and below the bar a wide AdwViewSwitcher alone, 16 pixels in from the window's side and 16 below the bar; each switches an AdwViewStack of Library, Browse and Radio with icons, Browse visible. The stacks are hidden and take no room: only the switchers show."""
+    def switcher():
+        stack = Adw.ViewStack()
+        for title, icon in (("Library", "folder-music-symbolic"), ("Browse", "view-grid-symbolic"), ("Radio", "network-wireless-symbolic")):
+            stack.add_titled_with_icon(Gtk.Label(label=title), title.lower(), title, icon)
+        stack.set_visible_child_name("browse")
+        stack.set_visible(False)
+        return Adw.ViewSwitcher(stack=stack, policy=Adw.ViewSwitcherPolicy.WIDE), stack
+
+    bar_switcher, bar_stack = switcher()
+    bar = Adw.HeaderBar(title_widget=Adw.WindowTitle(title="Music", subtitle=""), decoration_layout=":close")
+    bar.pack_end(bar_switcher)
+    alone, alone_stack = switcher()
+    root = vbox(0, bar, vbox(0, start(alone), alone_stack, bar_stack, padding=16))
+    return Scene(560, 140, root, named={"headerbar": bar, "bar-switcher": bar_switcher, "switcher": alone})
+
+
 def tabview_set():
     """TestScreenshotsTabView's tabViewView: an AdwTabBar 528 wide at 16, 16 over an AdwTabView of Documents (chosen), Downloads and Pictures, a flat button with adw-tab-new-symbolic as its end action, the chosen tab's text 12 below the 47-pixel bar, and at 16, 136 a bar of General and Advanced (chosen) without the end action. The pages' close buttons show on the chosen tab and under the pointer, as AdwTab shows them; the second bar's tabs close too, as AdwTabBar has no tabs that do not, while Breeze UI's tab view built without close shows none. The views take no room: only their bars show."""
     def tab_bar(titles, chosen, end_action):
@@ -757,6 +775,7 @@ SETS = [
     ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
     ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set), ("spinlimit", "adwaita-spinlimit", spin_limit_set),
     ("settings", "adwaita-settings", settings_set), ("tabview", "adwaita-tabview", tabview_set),
+    ("switcher", "adwaita-switcher", switcher_set),
     ("text", "adwaita-text", text_set),
 ]
 
