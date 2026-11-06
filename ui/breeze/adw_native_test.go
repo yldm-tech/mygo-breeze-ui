@@ -497,6 +497,34 @@ func TestAdwCalendarAsRendered(t *testing.T) {
 		if !samePixel(ring, want, 2) {
 			t.Errorf("dark %v: the focus ring over the chosen day is %v, want libadwaita's %v", dark, ring, want)
 		}
+		// GtkCalendar sets GTK_STATE_FLAG_FOCUSED on the label at focus_row and focus_col whether it has the focus or not, so the ring stays once the focus has left the calendar: in the datepickeraway set's render the menu button has the focus and the 20th still shows the ring, flags 164 (focused, selected, left to right). Tab takes the focus to the date picker here.
+		shot.Key(0, ui.KeyTab)
+		shot.Frame()
+		shot.Frame()
+		if !shot.Focused("11/18/2026") {
+			t.Fatal("Tab did not take the focus from the calendar to the date picker")
+		}
+		writeShot(t, os.Getenv("BREEZE_SCREENSHOTS"), fmt.Sprintf("breeze-datepicker-linux-away-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), shot)
+		if ring := shotPixel(shot, twenty.X+0.75, twenty.Y+twenty.H/2); !samePixel(ring, want, 2) {
+			t.Errorf("dark %v: with the focus outside the calendar the 20th's edge is %v, want libadwaita's ring %v", dark, ring, want)
+		}
+		// The ring over a day not chosen, after a click on the 20th and Right (the datepickerkeys set's render): accent_color at 50% over view_bg_color, (129, 175, 222) in the light theme and (78, 118, 171) in the dark one, where accent_color's blue past 255 is mixed before it is clamped.
+		if err := shot.Click(dayName(time.November, 20)); err != nil {
+			t.Fatal(err)
+		}
+		shot.Frame()
+		shot.Key(0, ui.KeyRight)
+		shot.Frame()
+		shot.Frame()
+		writeShot(t, os.Getenv("BREEZE_SCREENSHOTS"), fmt.Sprintf("breeze-datepicker-linux-keys-%s.png", map[bool]string{false: "light", true: "dark"}[dark]), shot)
+		next, _ := shot.Find(dayName(time.November, 21))
+		ring, want = shotPixel(shot, next.X+0.75, next.Y+next.H/2), [3]int{129, 175, 222}
+		if dark {
+			want = [3]int{78, 118, 171}
+		}
+		if !samePixel(ring, want, 2) {
+			t.Errorf("dark %v: the focus ring over the 21st is %v, want libadwaita's %v", dark, ring, want)
+		}
 	}
 }
 
@@ -561,5 +589,24 @@ func TestAdwDatePickerPopover(t *testing.T) {
 	inside := shotPixel(tester, label.X+label.W/2, label.Y+label.H-4.5)
 	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); samePixel(edge, inside, 10) {
 		t.Errorf("no ring on the 19th after Right: %v at its edge, %v inside", edge, inside)
+	}
+	// A click on the 20th chooses it and closes the popover. GNOME's apps keep the GtkCalendar of their popover, which keeps the label it focused, so opened again it shows the ring on the 20th at once (the datepickerreopen set's render: the 20th's flags 164 as the popover opens again, 128 as it opened first).
+	if err := tester.Click(dayName(time.November, 20)); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	if _, open := tester.Find("Previous Month"); open {
+		t.Fatal("a click on a day did not close the popover")
+	}
+	if err := tester.Click("11/20/2026"); err != nil {
+		t.Fatal(err)
+	}
+	tester.Frame()
+	tester.Frame()
+	label, _ = tester.Find(dayName(time.November, 20))
+	accent = shotPixel(tester, label.X+label.W/2, label.Y+4)
+	if edge := shotPixel(tester, label.X+1, label.Y+label.H/2); samePixel(edge, accent, 10) {
+		t.Errorf("no ring on the 20th as the popover opens again: %v at its edge, its accent %v", edge, accent)
 	}
 }
