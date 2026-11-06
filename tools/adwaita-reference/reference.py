@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import sys
 
 import gi
@@ -779,7 +779,7 @@ def datepicker_focus_set(keys=(), away=False):
 
 
 def datepicker_reopen_set():
-    """The datepickernoarrow set after a click on the popover's calendar's 20th, the popover then closed, as an app closes it once a day is chosen, and opened again: the calendar keeps the label it focused (GtkCalendar's focus_row and focus_col), so it shows the ring as the popover opens again, where the popover opened the first time showed none."""
+    """The datepickernoarrow set after a click on the popover's calendar's 20th, the popover then closed, as an app closes it once a day is chosen, and opened again: the calendar keeps the label it focused (GtkCalendar's focus_row and focus_col), so it shows the ring as the popover opens again, where the popover opened the first time showed none. Before the click it prints where Tab goes from the calendar, which has the focus as the popover opens: GtkCalendar is focusable itself and comes before its buttons."""
     scene = datepicker_set(True, False)
     button, inner = scene.named["date-picker"], scene.named["popover-calendar"]
     popover = button.get_popover()
@@ -790,12 +790,29 @@ def datepicker_reopen_set():
 
     def opened():
         print_day("opened", inner, 20)
+        # The Tab order from the calendar, which has the focus: the popover's contents take Tab as the window would.
+        window = popover.get_root()
+        order = []
+        for _ in range(4):
+            popover.child_focus(Gtk.DirectionType.TAB_FORWARD)
+            focus = window.get_focus()
+            order.append(focus.get_tooltip_text() or type(focus).__name__)
+        print("  Tab from the calendar: " + ", ".join(order))
         click_day(inner, 20)
         popover.popdown()
         GLib.timeout_add(200, lambda: (reopen(), False)[1])
 
     scene.open_popovers = lambda: (button.popup(), GLib.timeout_add(200, lambda: (opened(), False)[1]))
     return scene
+
+
+def datepicker_rtl_set():
+    """TestScreenshotsDatePicker's rtl-light shot: the datepicker set right to left, the default direction as a right-to-left language sets it (a widget's own direction would not reach the menu button's arrow), the calendar's right edge at 544 and the button's at 200, where the shot puts Breeze UI's."""
+    Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL)
+    calendar = Gtk.Calendar(year=2026, month=10, day=18)
+    button = Gtk.MenuButton(label="11/18/2026", popover=Gtk.Popover(child=Gtk.Calendar(year=2026, month=10, day=18)))
+    width = calendar.measure(Gtk.Orientation.HORIZONTAL, -1)[1]
+    return fixed(560, 400, [(calendar, 544 - width, 16), (button, 200 - button.measure(Gtk.Orientation.HORIZONTAL, -1)[1], 16)], named={"calendar": calendar, "date-picker": button})
 
 
 def over_card_set():
@@ -857,6 +874,7 @@ SETS = [
     ("datepickerkeys", "adwaita-datepicker-keys", lambda: datepicker_focus_set([Gdk.KEY_Right])),
     ("datepickeraway", "adwaita-datepicker-away", lambda: datepicker_focus_set(away=True)),
     ("datepickerreopen", "adwaita-datepicker-reopen", datepicker_reopen_set),
+    ("datepickerrtl", "adwaita-datepicker-rtl", datepicker_rtl_set),
     ("text", "adwaita-text", text_set),
 ]
 
@@ -932,6 +950,8 @@ def main():
             loop.quit()
             return
         dark, file, build = jobs.pop(0)
+        # A set may make the default direction right to left; the next starts left to right.
+        Gtk.Widget.set_default_direction(Gtk.TextDirection.LTR)
         Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK if dark else Adw.ColorScheme.FORCE_LIGHT)
         scene = build()
         window = Adw.Window()
