@@ -367,7 +367,7 @@ func Combobox(c *ui.Context, selected *string, options []string) ui.Element {
 func NumberInput(c *ui.Context, value *float64, lo, hi, step float64) ui.Element {
 	switch PlatformOf(c) {
 	case Windows:
-		return formsFluentNumberInput(c, value, lo, hi, step)
+		return formsFluentNumberInput(c, value, lo, hi, step, "", true)
 	case Linux:
 		return formsAdwNumberInput(c, value, lo, hi, step)
 	}
