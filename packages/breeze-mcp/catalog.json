@@ -95,8 +95,15 @@
       "name": "Calendar",
       "category": "choices",
       "look": "themed",
-      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar.",
+      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar: CalendarView draws them.",
       "example": "breeze.Calendar(c, &app.day)"
+    },
+    {
+      "name": "CalendarView",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A month's calendar choosing a day, drawn as the platform draws its own: NSDatePicker's graphical calendar on macOS (the abbreviated month and year with ◀ ● ▶, short day names over a line, the chosen day a rounded rectangle, today's number in the accent), WinUI's CalendarView on Windows 11 (40-DIP round day items, today a filled accent circle, the chosen day an accent ring, up and down buttons), or GtkCalendar on GNOME (arrows around the month and the year, the chosen day filled with the accent, today underlined). Month and day names, the first day of the week and the numbers follow the window's language and the user's region. The arrows, Page Up, Page Down, Home and End move as the platform's calendar does, choosing as they move on macOS; Enter, Space or a click choose.",
+      "example": "breeze.CalendarView(c, &app.day)"
     },
     {
       "name": "Card",
@@ -155,11 +162,25 @@
       "example": "breeze.Combobox(c, &app.font, fonts)"
     },
     {
+      "name": "ContentRow",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A settings row holding content below its label, such as a text area or a list: a VStack row of a grouped form on macOS, a SettingsCard with ContentAlignment Vertical on Windows 11 (the content 8 below the header, stretched), or a boxed-list row built of AdwActionRow's header on GNOME. It joins a Card, a Fieldset, an AccordionItem or a PreferencesGroup as ActionRow does.",
+      "example": "breeze.ContentRow(c, \"Prompt\", func() {\n\tbreeze.TextArea(c, &app.prompt).Height(80)\n})"
+    },
+    {
       "name": "DateInput",
       "category": "text",
       "look": "drawn",
       "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, without an icon, Windows 11's CalendarDatePicker, or a GNOME entry with its icon at 70%, as GTK has no date field. The calendar is MyGo's.",
       "example": "breeze.DateInput(c, &app.due).Label(\"Due\")"
+    },
+    {
+      "name": "DatePicker",
+      "category": "text",
+      "look": "drawn",
+      "description": "A button showing a date in the user's short format that opens CalendarView in a popover below it: the date field of SwiftUI's compact DatePicker on macOS, WinUI's CalendarDatePicker with its calendar glyph and flyout on Windows 11, or a GtkMenuButton with a pan-down arrow opening a GtkCalendar on GNOME. Choosing a day closes it; a zero date shows WinUI's placeholder, select a date.",
+      "example": "breeze.DatePicker(c, &app.due).Label(\"Due\")"
     },
     {
       "name": "DecimalInput",
@@ -242,7 +263,7 @@
       "name": "HeaderBar",
       "category": "navigation",
       "look": "drawn",
-      "description": "The title bar a view draws in a window whose title bar is hidden (mygo.WindowOptions.TitleBarStyle): a title, an optional subtitle and controls before and after it, keeping clear of the window controls in c.TitleBar()'s room and moving the window when dragged outside its controls. It is drawn as a macOS window's unified toolbar showing its title (52 points high, the title after the start controls), Windows 11's TitleBar control (48 DIPs high with controls, the title in the caption style after them), or GNOME's AdwHeaderBar (47 pixels high, the title centered); breeze's buttons inside take the title bar's look.",
+      "description": "The title bar a view draws in a window whose title bar is hidden (mygo.WindowOptions.TitleBarStyle): a title, an optional subtitle and controls before and after it, keeping clear of the window controls it lies under in c.TitleBar()'s room, so that it also heads a content pane beside a sidebar, and moving the window when dragged outside its controls. It is drawn as a macOS window's unified toolbar showing its title (52 points high, the title after the start controls), Windows 11's TitleBar control (48 DIPs high with controls, the title in the caption style after them), or GNOME's AdwHeaderBar (47 pixels high, the title centered); breeze's buttons inside take the title bar's look.",
       "example": "breeze.HeaderBar(c, \"Documents\", \"12 items\", func() {\n\tbreeze.BackButton(c, app.router)\n}, func() {\n\tbreeze.IconButton(c, shareIcon, \"Share\")\n})"
     },
     {
@@ -337,6 +358,20 @@
       "example": "breeze.PopoverMenuButton(c, \"More\", func(m *ui.Menu) {\n\tm.Item(\"Rename\")\n})"
     },
     {
+      "name": "PreferencesGroup",
+      "category": "layout",
+      "look": "drawn",
+      "description": "A group of settings rows under a header with controls at the end of its line and a description: a grouped form's Section with a header and a footer on macOS, a settings section with its header and cards on Windows 11, or AdwPreferencesGroup with its header suffix and description on GNOME. Its rows join as a Fieldset's do.",
+      "example": "breeze.PreferencesGroup(c, \"Storage\", \"Uploads go to the default.\", func() {\n\tbreeze.Button(c, \"Add\")\n}, func() {\n\tbreeze.ActionRow(c, \"R2\", \"Default\", nil)\n})"
+    },
+    {
+      "name": "PrefixRow",
+      "category": "layout",
+      "look": "drawn",
+      "description": "An ActionRow with content before its title, such as an icon, an avatar or a tile: a grouped form's row with an image on macOS (10 in, the title 10 after it), a SettingsCard's HeaderIcon on Windows 11, or AdwActionRow's prefixes on GNOME. It joins a group as ActionRow does, its separators unbroken.",
+      "example": "breeze.PrefixRow(c, \"Whisper\", \"Base · 142 MB\", func() {\n\tui.Icon(c, app.modelIcon)\n}, func() {\n\tbreeze.Button(c, \"Remove\")\n})"
+    },
+    {
       "name": "PrimaryButton",
       "category": "actions",
       "look": "drawn",
@@ -370,6 +405,13 @@
       "look": "drawn",
       "description": "The group radio buttons choose within, which the arrows move through, its radio buttons set as far apart as the platform sets them: 6 points down a column and 8 across a row on macOS, as SwiftUI's radio-group picker; RadioButtons' row spacing 8 and column spacing 7 on Windows 11; the padded check buttons next to each other on GNOME, which has no radio group.",
       "example": "breeze.RadioGroup(c, func() {\n\tbreeze.Radio(c, &app.size, \"S\", \"Small\")\n\tbreeze.Radio(c, &app.size, \"L\", \"Large\")\n})"
+    },
+    {
+      "name": "RadioRow",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A settings row choosing a value, one of the radio rows sharing it, a click anywhere on the row choosing it and Up and Down moving among those of its group: a radio-group Picker's row on macOS, the radio button at its trailing edge; a clickable SettingsCard with a RadioButton as its HeaderIcon on Windows 11; or AdwActionRow with a grouped check button as its prefix on GNOME. Assistive technology sees one radio button named by its title.",
+      "example": "breeze.RadioRow(c, &app.engine, \"whisper\", \"Whisper\", \"On this Mac\", nil)"
     },
     {
       "name": "RangeSlider",
@@ -671,6 +713,13 @@
       "look": "drawn",
       "description": "An item of a Tree, at the platform's row height, insets, corners and indentation. MyGo's disclosure arrow stays, and WinUI's accent pill on the chosen item is not drawn.",
       "example": "breeze.TreeItem(c, \"Folder\", &app.open, func() {\n\tbreeze.TreeItem(c, \"File\", nil, nil)\n})"
+    },
+    {
+      "name": "ViewSwitcher",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "The control that switches an app's top-level views, each a breeze.ViewItem of an icon and a label; build the chosen view after it, and put it in a HeaderBar's end controls or a Toolbar to switch the window's views from there. It is drawn as macOS's NSToolbarItemGroup of selectionMode selectOne in a toolbar (one platter of 37-point image segments, the chosen one a gray pill, the labels naming them) and its NSSegmentedControl elsewhere (icons before the labels), Windows 11's SelectorBar (icon and text, the accent pill under the chosen item), or GNOME's AdwViewSwitcher in its wide policy (flat buttons at least 120 wide, the icon beside the bold label, the chosen one filled). Tab stops once at the chosen item and the arrows choose among them; assistive technology sees a radio group on macOS and a tab list elsewhere, each item named by its label.",
+      "example": "breeze.ViewSwitcher(c, &app.view,\n\tbreeze.ViewItem{Icon: libraryIcon, Label: \"Library\"},\n\tbreeze.ViewItem{Icon: browseIcon, Label: \"Browse\"},\n\tbreeze.ViewItem{Icon: radioIcon, Label: \"Radio\"},\n)"
     }
   ]
 }

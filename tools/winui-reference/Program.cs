@@ -1,8 +1,8 @@
 // WinUI 3's own controls, for comparing Breeze UI's Windows look with them.
 //
-// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView), and SettingsCards holding a ComboBox, TextBoxes and NumberBoxes and SettingsExpanders where widgets_settings_test.go places Breeze UI's settings rows (settingsView), and wider ones that keep their content at the end, TabViews where widgets_tabview_test.go places Breeze UI's (tabViewView) and one whose tabs fill it (TestFluentTabViewAsMeasured) and TitleBars where widgets_headerbar_test.go places Breeze UI's HeaderBar (headerView), in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
+// It renders WinUI's controls where ui/breeze/screenshot_test.go places Breeze UI's for Windows (referenceView, referenceView2, referenceView3 and the alert) and where ui/breeze/widgets_text_test.go places Breeze UI's Text (textView), a set of the same controls held in their PointerOver and Pressed visual states, and the controls of TestScreenshotsInputs (password boxes, split buttons and icon buttons, alone and in a CommandBar), the InfoBars and determinate ProgressRings of widgets_status_test.go (statusView, and statusTitlesView's InfoBars without a message), and CommunityToolkit's SettingsCards and SettingsExpander where widgets_rows_test.go places Breeze UI's rows (rowsView), and SettingsCards holding a ComboBox, TextBoxes and NumberBoxes and SettingsExpanders where widgets_settings_test.go places Breeze UI's settings rows (settingsView), and wider ones that keep their content at the end, TabViews where widgets_tabview_test.go places Breeze UI's (tabViewView) and one whose tabs fill it (TestFluentTabViewAsMeasured) TitleBars where widgets_headerbar_test.go places Breeze UI's HeaderBar (headerView), SelectorBars where widgets_switcher_test.go places Breeze UI's ViewSwitcher (switcherView), and a CalendarView and a CalendarDatePicker where widgets_datepicker_test.go places Breeze UI's CalendarView and DatePicker (datePickerView), the same right to left, and a CalendarDatePicker with its calendar open (datePickerOpenView), in the light and the dark theme at 2x, writes them as PNGs (winui-light.png, winui2-dark.png, ...) and writes report.txt: for every control its frame in DIPs, the frames of its named template parts and text blocks, and the pixels along its middle row and column at 2x as runs (value x count), a gray pixel as its value and a colored one as #rrggbb, as tools/appkit-reference/reference.swift prints AppKit's. The accent is forced to Windows's default blue: SystemAccentColor #0078D4 and its shades (Light1-3, Dark1-3), the values Windows derives from it and ui/breeze/fluent.go cites, are set in the application's resources, so the result does not depend on the machine's accent. Text is WinUI's default, ContentControlThemeFontFamily, which is Segoe UI Variable on Windows 11.
 //
-// Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and the flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene. ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
+// Each scene is shown in a borderless tool window far off the screen with WS_EX_NOACTIVATE and AppWindow.Show(false), so it never takes the focus or the keyboard, and the program exits by itself, within 55 seconds at most. The window's rasterization scale is the screen's, 1 on the machine it was written on, and RenderTargetBitmap.RenderAsync asked for a larger size only stretches the bitmap, so each scene is scaled by a ScaleTransform of 2 with its RasterizationScale set to 2, which makes WinUI draw its shapes and text at 2x; layout still rounds to whole DIPs, where at 200% it rounds to half DIPs. Popups are not drawn by RenderTargetBitmap and not reached by the scene's scale, so the ContentDialog is shown in place (ContentDialogPlacement.InPlace), which leaves out its smoke layer, and a flyout is opened once to read where WinUI places it, then closed and a FlyoutPresenter with the same content put there in the scene (CalendarDatePicker's own Flyout kept inside the window first, which would otherwise open in a window of its own on the screen). ThemeShadow's shadows do render; the window's backdrop does not. The visual states of the fifth set are set with VisualStateManager.GoToState without transitions, so their final values show.
 //
 // It is an unpackaged app (WindowsPackageType None) that carries the Windows App SDK with it (WindowsAppSDKSelfContained), built with the .NET 8 SDK or later on Windows 10 version 2004 (build 19041) or later, x64:
 //
@@ -64,6 +64,8 @@ public sealed class App : Application, IXamlMetadataProvider
     readonly string outDir;
     readonly string[] only;
     readonly StringBuilder report = new();
+    // Report is the report of the running App, for the scenes' hooks to add what they read.
+    static StringBuilder? Report;
     readonly List<IXamlMetadataProvider> providers = [new XamlControlsXamlMetaDataProvider()];
 
     // App renders the scenes into dir, only those whose file names are in only when it is not empty. The XAML type providers of the CommunityToolkit assemblies next to the program (SettingsControls and what it uses) answer for their types after WinUI's own.
@@ -71,6 +73,7 @@ public sealed class App : Application, IXamlMetadataProvider
     {
         outDir = dir;
         this.only = only;
+        Report = report;
         foreach (var path in Directory.GetFiles(AppContext.BaseDirectory, "CommunityToolkit.WinUI*.dll"))
         {
             Type?[] types;
@@ -335,6 +338,24 @@ public sealed class App : Application, IXamlMetadataProvider
             </StackPanel>
             """), ["settings-card", "combo-row", "entry-row", "entry-row-empty", "spin-row", "combo-row-alone", "spin-row-disabled", "expander-row", "expander-proxy", "expander-metered", "expander-row-closed"]);
 
+        // widgets_switcher_test.go's switcherView on Windows (TestScreenshotsViewSwitcher): a TitleBar along the top of the window titled Music with a SelectorBar as its RightHeader, where Breeze UI's HeaderBar holds a ViewSwitcher among its end controls, and a SelectorBar alone 16 DIPs in from the window's side and the 48-DIP bar's bottom, each of three SelectorBarItems with a FontIcon (FontIcon's own FontSize of 20, which the template scales by 0.8) and a Text, Browse selected. The TitleBar is 422 DIPs wide, the window's 560 less the 138 that MyGo's three 46-DIP caption buttons take (headerTestRoom), as in the headerbar scenes.
+        yield return new Scene("winui-switcher", 560, 140, Canvas(560, 140, """
+            <TitleBar x:Name="titlebar" Canvas.Left="0" Canvas.Top="0" Width="422" Title="Music">
+              <TitleBar.RightHeader>
+                <SelectorBar x:Name="switcher-bar">
+                  <SelectorBarItem x:Name="bar-library" Text="Library"><SelectorBarItem.Icon><FontIcon Glyph="&#xE8F1;"/></SelectorBarItem.Icon></SelectorBarItem>
+                  <SelectorBarItem x:Name="bar-browse" Text="Browse" IsSelected="True"><SelectorBarItem.Icon><FontIcon Glyph="&#xF0E2;"/></SelectorBarItem.Icon></SelectorBarItem>
+                  <SelectorBarItem x:Name="bar-radio" Text="Radio"><SelectorBarItem.Icon><FontIcon Glyph="&#xEC05;"/></SelectorBarItem.Icon></SelectorBarItem>
+                </SelectorBar>
+              </TitleBar.RightHeader>
+            </TitleBar>
+            <SelectorBar x:Name="switcher" Canvas.Left="16" Canvas.Top="64">
+              <SelectorBarItem x:Name="library" Text="Library"><SelectorBarItem.Icon><FontIcon Glyph="&#xE8F1;"/></SelectorBarItem.Icon></SelectorBarItem>
+              <SelectorBarItem x:Name="browse" Text="Browse" IsSelected="True"><SelectorBarItem.Icon><FontIcon Glyph="&#xF0E2;"/></SelectorBarItem.Icon></SelectorBarItem>
+              <SelectorBarItem x:Name="radio" Text="Radio"><SelectorBarItem.Icon><FontIcon Glyph="&#xEC05;"/></SelectorBarItem.Icon></SelectorBarItem>
+            </SelectorBar>
+            """), ["titlebar", "switcher-bar", "bar-library", "bar-browse", "bar-radio", "switcher", "library", "browse", "radio"]);
+
         // widgets_tabview_test.go's tabViewView on Windows: a TabView 528 wide at 16, 16 holding Documents (chosen), Downloads and Pictures with its add button, the chosen tab's text 12 below its 40-DIP strip, and at 16, 136 a TabView of General and Advanced (chosen) whose tabs do not close, without the add button; TabWidthMode Equal and CloseButtonOverlayMode Auto, the defaults.
         yield return new Scene("winui-tabview", 560, 260, Canvas(560, 260, """
             <TabView x:Name="tabview-docs" Canvas.Left="16" Canvas.Top="16" Width="528" SelectedIndex="0">
@@ -348,6 +369,41 @@ public sealed class App : Application, IXamlMetadataProvider
               <TabViewItem x:Name="tab-advanced" Header="Advanced" IsClosable="False"/>
             </TabView>
             """), ["tabview-docs", "tab-documents", "tab-downloads", "tab-pictures", "tab-content", "tabview-prefs", "tab-general", "tab-advanced"]);
+
+        // widgets_datepicker_test.go's datePickerView on Windows: a CalendarView at 16, 16 showing November 2026 with the 18th chosen, and at 360, 16 a CalendarDatePicker of the same day, closed, both in American English with weeks starting on Sunday. XAML cannot set a CalendarView's chosen dates or the month it shows, so the scene's hook adds the 18th to SelectedDates, shows its month with SetDisplayDate and sets the picker's Date. WinUI marks the machine's today, which TestScreenshotsDatePicker fixes as the 6th of November 2026.
+        yield return new Scene("winui-datepicker", 560, 400, Canvas(560, 400, """
+            <CalendarView x:Name="calendar" Canvas.Left="16" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday" SelectionMode="Single"/>
+            <CalendarDatePicker x:Name="date-picker" Canvas.Left="360" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday"/>
+            """), ["calendar", "date-picker"], async (root, theme) =>
+        {
+            var day = new DateTimeOffset(2026, 11, 18, 10, 0, 0, TimeSpan.Zero);
+            var calendar = (CalendarView)root.FindName("calendar");
+            calendar.SelectedDates.Add(day);
+            calendar.SetDisplayDate(day);
+            ((CalendarDatePicker)root.FindName("date-picker")).Date = day;
+            await Task.Delay(800);
+        });
+
+        // The same right to left (TestScreenshotsDatePicker's rtl-light shot): an inner Canvas of FlowDirection RightToLeft, which measures Canvas.Left from its right side, mirrors the scene inside the root, whose own ScaleTransform a mirrored root would carry off the bitmap.
+        yield return new Scene("winui-datepicker-rtl", 560, 400, Canvas(560, 400, """
+            <Canvas Width="560" Height="400" FlowDirection="RightToLeft">
+              <CalendarView x:Name="calendar" Canvas.Left="16" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday" SelectionMode="Single"/>
+              <CalendarDatePicker x:Name="date-picker" Canvas.Left="360" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday"/>
+            </Canvas>
+            """), ["calendar", "date-picker"], async (root, theme) =>
+        {
+            var day = new DateTimeOffset(2026, 11, 18, 10, 0, 0, TimeSpan.Zero);
+            var calendar = (CalendarView)root.FindName("calendar");
+            calendar.SelectedDates.Add(day);
+            calendar.SetDisplayDate(day);
+            ((CalendarDatePicker)root.FindName("date-picker")).Date = day;
+            await Task.Delay(800);
+        });
+
+        // widgets_datepicker_test.go's datePickerOpenView on Windows (TestScreenshotsFluentDatePickerOpen): a CalendarDatePicker of the 18th of November 2026 at 120, 16 with its calendar open, which OpenCalendar puts where WinUI's flyout shows it.
+        yield return new Scene("winui-datepicker-open", 420, 440, Canvas(420, 440, """
+            <CalendarDatePicker x:Name="date-picker" Canvas.Left="120" Canvas.Top="16" Language="en-US" FirstDayOfWeek="Sunday"/>
+            """), ["date-picker", "flyout-calendar"], OpenCalendar);
 
         // fluent_native_test.go's TestFluentTabViewAsMeasured, its third TabView: 528 wide at 16, 16, five tabs that do not close (A1 chosen), without the add button, so that the tabs fill the strip.
         yield return new Scene("winui-tabview-fill", 560, 80, Canvas(560, 80, """
@@ -435,6 +491,81 @@ public sealed class App : Application, IXamlMetadataProvider
         ((Panel)root).Children.Add(presenter);
         await WhenLoaded(presenter);
         await Task.Delay(500);
+    }
+
+    // OpenCalendar sets the CalendarDatePicker named date-picker to the 18th of November 2026 and opens its calendar, to read where WinUI places the flyout's FlyoutPresenter, which Placement Bottom centers below the picker, and how its template dresses the presenter and the CalendarView, then closes it and puts a FlyoutPresenter of the same style, shadow and offset from the picker's bottom middle there in the scene, holding a CalendarView of the same style, corners, border and margin showing the same month and day, as RenderTargetBitmap does not draw popups and the scene's scale does not reach them.
+    static async Task OpenCalendar(FrameworkElement root, ElementTheme theme)
+    {
+        var day = new DateTimeOffset(2026, 11, 18, 10, 0, 0, TimeSpan.Zero);
+        var picker = (CalendarDatePicker)root.FindName("date-picker");
+        picker.Date = day;
+        await Task.Delay(500);
+        // The template's Flyout (FlyoutBase.AttachedFlyout of its root) would open in a window of its own on the screen, out of the off-screen window; kept in the window's root it opens there, at the same place, as the root has room around the picker.
+        if (VisualTreeHelper.GetChild(picker, 0) is FrameworkElement templateRoot && FlyoutBase.GetAttachedFlyout(templateRoot) is FlyoutBase attached)
+        {
+            attached.ShouldConstrainToRootBounds = true;
+        }
+        else
+        {
+            throw new InvalidOperationException("the picker's template has no attached flyout");
+        }
+        picker.IsCalendarOpen = true;
+        await Task.Delay(1000);
+        FlyoutPresenter? shown = null;
+        Popup? holder = null;
+        foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root.XamlRoot))
+        {
+            if (shown == null && Find<FlyoutPresenter>(popup.Child) is FlyoutPresenter found)
+            {
+                shown = found;
+                holder = popup;
+            }
+        }
+        if (shown == null || holder == null || Find<CalendarView>(shown) is not CalendarView inner)
+        {
+            throw new InvalidOperationException("the calendar did not open");
+        }
+        // The popup is not scaled with the scene: its offset from the picker's bottom middle, in the window's DIPs, is the offset in the scene's.
+        var target = picker.TransformToVisual(null).TransformPoint(new Point(picker.ActualWidth / 2, picker.ActualHeight));
+        var opened = shown.TransformToVisual(null).TransformPoint(new Point(0, 0));
+        double w = shown.ActualWidth, h = shown.ActualHeight;
+        double dx = opened.X + w / 2 - target.X, dy = opened.Y - target.Y;
+        var below = picker.TransformToVisual(root).TransformPoint(new Point(picker.ActualWidth / 2, picker.ActualHeight));
+        var at = new Point(below.X - w / 2 + dx, below.Y + dy);
+        var innerAt = inner.TransformToVisual(shown).TransformPoint(new Point(0, 0));
+        var Ts = (Thickness t) => $"{t.Left},{t.Top},{t.Right},{t.Bottom}";
+        var Cs = (CornerRadius r) => $"{r.TopLeft},{r.TopRight},{r.BottomRight},{r.BottomLeft}";
+        var Bs = (Brush b) => b is SolidColorBrush s ? $"#{s.Color.A:x2}{s.Color.R:x2}{s.Color.G:x2}{s.Color.B:x2}" : b?.GetType().Name ?? "null";
+        Report?.AppendLine($"opened flyout ({theme}): {w}x{h} at {dx},{dy} from the picker's bottom middle (window {opened.X},{opened.Y}); presenter padding {Ts(shown.Padding)} border {Ts(shown.BorderThickness)} {Bs(shown.BorderBrush)} corners {Cs(shown.CornerRadius)} background {Bs(shown.Background)} translation {shown.Translation} shadow {shown.Shadow?.GetType().Name ?? "none"} (popup's translation {holder.Translation} shadow {holder.Shadow?.GetType().Name ?? "none"}, its child's {holder.Child.Translation} {holder.Child.Shadow?.GetType().Name ?? "none"}) style {(shown.Style != null ? "set" : "none")}; calendar {inner.ActualWidth}x{inner.ActualHeight} at {innerAt.X},{innerAt.Y} margin {Ts(inner.Margin)} border {Ts(inner.BorderThickness)} {Bs(inner.BorderBrush)} corners {Cs(inner.CornerRadius)} background {Bs(inner.Background)}");
+        picker.IsCalendarOpen = false;
+        await Task.Delay(500);
+        var calendar = new CalendarView
+        {
+            Name = "flyout-calendar",
+            Language = "en-US",
+            FirstDayOfWeek = Windows.Globalization.DayOfWeek.Sunday,
+            SelectionMode = inner.SelectionMode,
+            CornerRadius = inner.CornerRadius,
+            BorderThickness = inner.BorderThickness,
+            Margin = inner.Margin,
+        };
+        if (inner.Style != null)
+        {
+            calendar.Style = inner.Style;
+        }
+        calendar.SelectedDates.Add(day);
+        calendar.SetDisplayDate(day);
+        // Sized by its content, as in the popup: a width set on it would limit the CalendarView's, and WinUI would wrap the day names that do not fit their columns rather than widen the columns.
+        var presenter = new FlyoutPresenter { Name = "flyout", Content = calendar, Translation = shown.Translation, Shadow = shown.Shadow };
+        if (shown.Style != null)
+        {
+            presenter.Style = shown.Style;
+        }
+        Microsoft.UI.Xaml.Controls.Canvas.SetLeft(presenter, at.X);
+        Microsoft.UI.Xaml.Controls.Canvas.SetTop(presenter, at.Y);
+        ((Panel)root).Children.Add(presenter);
+        await WhenLoaded(presenter);
+        await Task.Delay(800);
     }
 
     static T? Find<T>(DependencyObject? e) where T : DependencyObject

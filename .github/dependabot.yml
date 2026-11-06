@@ -1,0 +1,36 @@
+# Weekly updates of the Go module, the Bun workspaces and the workflows' actions, minor and patch updates of each grouped in one pull request. Dependabot titles them as Conventional Commits (chore(deps): ...), which the Labels workflow requires.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    labels: [dependencies]
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    labels: [dependencies]
+    groups:
+      bun-minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]

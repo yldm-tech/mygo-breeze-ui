@@ -72,3 +72,24 @@ func TestTokensCommandIsGone(t *testing.T) {
 		t.Fatal("tokens is no longer a command")
 	}
 }
+
+func TestVersion(t *testing.T) {
+	for _, arg := range []string{"version", "--version"} {
+		var out bytes.Buffer
+		if err := run([]string{arg}, &out); err != nil {
+			t.Fatal(err)
+		}
+		if got := out.String(); got != "breeze-ui devel\n" {
+			t.Fatalf("%s printed %q, want the version of a build from a checkout", arg, got)
+		}
+	}
+	version = "v9.8.7"
+	defer func() { version = "" }()
+	var out bytes.Buffer
+	if err := run([]string{"version"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "breeze-ui v9.8.7\n" {
+		t.Fatalf("a release binary printed %q, want its tag", got)
+	}
+}

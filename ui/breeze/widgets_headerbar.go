@@ -1,6 +1,10 @@
 package breeze
 
-import "github.com/egoist/mygo/ui"
+import (
+	"math"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // ---- header bar: the title bar a view draws in a window whose title bar is hidden ----
 //
@@ -27,7 +31,7 @@ type headerLayout struct {
 }
 
 // headerLayoutOf returns p's layout of a title bar with controls (items) or without, in a window whose controls take bar's room: before, the room at the start of the bar (Left, or Right right to left), and after, at its end.
-//   - macOS: a unified toolbar is 52 points high, its items 8 apart, the first 17 after the traffic lights (8 from the window's edge without them, as the last is from the other edge: inferred from the trailing edge), and the title 12 after the item before it.
+//   - macOS: a unified toolbar is 52 points high, its items 8 apart, the first 17 after the traffic lights (8 from the bar's edge without them, as the last is from the other edge: over the content pane of an NSSplitViewController, after a tracking separator over its divider, the first item's platter is 8 points after the divider, measured on macOS 27.2), and the title 12 after the item before it.
 //   - Windows: TitleBarExpandedHeight 48 with a LeftHeader, Content or RightHeader, TitleBarCompactHeight 32 without (TitleBar::UpdateHeight); the LeftPaddingColumn as wide as the caption buttons at the start, none without them (TitleBar::UpdatePadding replaces TitleBarLeftPaddingWidth's 2 with the window's AppWindowTitleBar.LeftInset, RightInset right to left); the RightHeader before the 48-DIP TitleBarMinDragRegionWidth column and the caption buttons' RightPaddingColumn; the title 14 after the LeftHeader (TitleBarLeftHeaderPaddingWidth), so 16 after the visible edge of an image button there, which keeps the back button's Margin of 2 (headerFluentButton). WinUI spaces no controls inside a header, which the app's own panel does: 4 apart, as a CommandBar's buttons (inferred).
 //   - GNOME: an AdwHeaderBar is at least 47 pixels high, its box padded 6 above, 7 below and 7 at either end, its start and end boxes 6 apart inside (border-spacing) and 6 from the title (_header-bar.scss); the bar's margins of -1px at its sides put it a pixel past the window's edges, so its controls start and end 6 from them (the back button at 6 and GTK's close button ending 6 from the edge in libadwaita 1.10.0's render, tools/adwaita-reference's headerbar set); the window controls are the first child of the start box or the last of the end box, so the title is centered across the whole bar.
 func headerLayoutOf(p Platform, bar ui.TitleBar, before, after float32, items bool) headerLayout {
@@ -53,7 +57,7 @@ func headerLayoutOf(p Platform, bar ui.TitleBar, before, after float32, items bo
 	return l
 }
 
-// HeaderBar creates the title bar of a window whose title bar is hidden (mygo.WindowOptions.TitleBarStyle), as the platform draws a window's own: the title, the subtitle under it or beside it (an empty subtitle shows none), and the controls start and end build before and after it (nil builds none). It keeps clear of the window controls, in the room c.TitleBar() reports, is at least as high as they are, and moves the window when dragged anywhere but over its controls (ui.Element.DragWindow), maximizing it on a double click. Put it at the top of the window's column.
+// HeaderBar creates the title bar of a window whose title bar is hidden (mygo.WindowOptions.TitleBarStyle), as the platform draws a window's own: the title, the subtitle under it or beside it (an empty subtitle shows none), and the controls start and end build before and after it (nil builds none). It keeps clear of the window controls it lies under, in the room c.TitleBar() reports, is at least as high as they are, and moves the window when dragged anywhere but over its controls (ui.Element.DragWindow), maximizing it on a double click. Put it at the top of the window's column, or at the top of a pane's column beside a sidebar, where it keeps clear of only the controls over the pane: beside a sidebar holding the traffic lights a bar begins its controls 8 points from the pane's edge on macOS, as a unified toolbar's items after a tracking separator over a split view's divider, 2 DIPs in on Windows, as a TitleBar with no caption buttons at its start, and 6 pixels in on GNOME, its title centered across the pane, as a content pane's AdwHeaderBar without window buttons at its start.
 //
 // The controls of this package built in start and end take the platform's look of a title bar's controls, as they take a toolbar's in a Toolbar: on macOS bordered NSToolbarItems, 36-point capsules, image items side by side sharing a platter; on Windows the subtle 40-DIP buttons of a TitleBar for image buttons (IconButton, BackButton, ForwardButton, a Button with an empty label), the others drawn as outside a toolbar, as WinUI's TitleBar gives its headers' content no look of its own; on GNOME an AdwHeaderBar's, flat image and menu buttons and raised text buttons. Each control is a Tab stop of its own, as in a header bar of GTK and a TitleBar of WinUI.
 //   - macOS: the title bar of a window with a unified toolbar on macOS 26 and 27, 52 points high on the window's background with a half-point line along its bottom (black at 10.2%, white at 7.1% in Dark Aqua, measured offscreen on macOS 27.2), the start controls 17 points after the traffic lights as navigational items, then the title 12 points after them in 15-point semibold labelColor, or with a subtitle in 13-point bold over the 11-point subtitle in secondaryLabelColor, then the end controls at the far end, 8 points from the edge. AppKit centers the traffic lights in a 52-point bar (19 points down and 19 in); MyGo leaves them where its hidden title bar puts them unless mygo.WindowOptions.TrafficLightPosition moves them, which {X: 19, Y: 19} does.
@@ -65,15 +69,6 @@ func HeaderBar(c *ui.Context, title, subtitle string, start, end func()) ui.Elem
 	p := PlatformOf(c)
 	t := c.Theme()
 	room := c.TitleBar()
-	before, after := room.Left, room.Right
-	if c.Direction() == ui.RightToLeft {
-		before, after = after, before
-	}
-	l := headerLayoutOf(p, room, before, after, start != nil || end != nil)
-	left, right := l.start, l.end
-	if c.Direction() == ui.RightToLeft {
-		left, right = right, left
-	}
 	var bar ui.Element
 	if p == Linux {
 		// The controls of the bar are drawn over headerbar_bg_color, which they take their faces from as from a theme's background.
@@ -82,6 +77,15 @@ func HeaderBar(c *ui.Context, title, subtitle string, start, end func()) ui.Elem
 		bar = ui.Themed(c, &th).Row()
 	} else {
 		bar = ui.Row(c)
+	}
+	before, after := headerRoom(c, bar, room)
+	if c.Direction() == ui.RightToLeft {
+		before, after = after, before
+	}
+	l := headerLayoutOf(p, room, before, after, start != nil || end != nil)
+	left, right := l.start, l.end
+	if c.Direction() == ui.RightToLeft {
+		left, right = right, left
 	}
 	bar.Shrink(0).FillWidth().MinHeight(l.height).AlignItems(ui.Center).Gap(0).Padding(l.top, right, l.bottom, left).DragWindow().Role(ui.RoleGroup).Label(title)
 	bar.Children(func() {
@@ -104,6 +108,40 @@ func HeaderBar(c *ui.Context, title, subtitle string, start, end func()) ui.Elem
 		macHeaderBar(c, bar)
 	}
 	return bar
+}
+
+// headerRoom returns the room the window controls in room take at the left and at the right of bar: the part of each that bar lies under, all of it at the ends of a bar along the window's top from edge to edge, less or none at the end of a bar over a pane that stops short of the window's edge, as a bar over the content beside a sidebar does, and none for a bar below the controls' band. It reads where the previous frame laid bar out, against the window's width that frame was laid out at, which the bar notes as it is drawn, and takes a bar that frame lacked to run from edge to edge. The frame being built may lay bar out elsewhere, as when a sidebar beside it comes or goes, so the bar asks for another frame when it is drawn somewhere it lies under other room than it kept clear of, and keeps clear of that room in the next frame.
+func headerRoom(c *ui.Context, bar ui.Element, room ui.TitleBar) (left, right float32) {
+	w, _ := c.Size()
+	last := ui.Local(bar, "breeze-header-window", func() float32 { return w })
+	left, right = room.Left, room.Right
+	// LayoutBounds is the box before transforms and zoom, in the DIPs the layout and c.TitleBar() work in; a bar the previous frame laid out is never empty, as its MinHeight makes it high.
+	if r := bar.LayoutBounds(); r.W > 0 || r.H > 0 {
+		left, right = headerRoomOver(room, r, *last)
+	}
+	s := c.Services()
+	bar.DrawOver(func(_ *ui.Painter, r ui.Rect) {
+		// The width is noted once the frame is laid out rather than as it is built: MyGo builds a frame again after an event handled while building it, and every pass reads the previous frame's LayoutBounds, so each must read them against the width they were laid out at.
+		*last = w
+		if l, rr := headerRoomOver(room, r, w); l != left || rr != right {
+			s.Invalidate()
+		}
+	})
+	return left, right
+}
+
+// headerRoomOver returns the room the window controls in room take at the left and at the right of a bar laid out at r in a window w wide: how far the left room reaches past r's left edge and the right room past its right edge, none for a bar below the controls' band.
+func headerRoomOver(room ui.TitleBar, r ui.Rect, w float32) (left, right float32) {
+	if r.Y >= room.Height {
+		return 0, 0
+	}
+	if room.Left > 0 {
+		left = max(room.Left-r.X, 0)
+	}
+	if room.Right > 0 {
+		right = max(r.X+r.W-(w-room.Right), 0)
+	}
+	return left, right
 }
 
 // headerItems builds fn's controls in a row of the bar, gap apart, as the controls of a toolbar's start or end (idiomWithToolbar), so that they take the platform's look of a title bar's controls. The row is built hidden when fn is nil, so that what follows it keeps its place among its siblings.
@@ -180,15 +218,35 @@ func headerFluentButton(c *ui.Context, b ui.Element, h float32) {
 
 // ---- GNOME ----
 
-// headerAdwContent lays out the parts of an AdwHeaderBar: the start box, the AdwWindowTitle centered across the bar, as GtkCenterBox centers its center child while the sides leave it room, and the end box, the boxes 6 pixels from the title. The title's .title is bold and the subtitle's .subtitle smaller (GTK's font-size: smaller, the size divided by 1.2) and .dimmed (55%, 90% with higher contrast), each padded 12 at either end and centered (_header-bar.scss, adw-window-title.ui).
+// headerAdwContent lays out the parts of an AdwHeaderBar: the start box, the AdwWindowTitle centered across the bar, as GtkCenterBox centers its center child while the sides leave it room, and the end box, the boxes 6 pixels from the title. The title's .title is bold and the subtitle's .subtitle smaller (GTK's font-size: smaller, the size divided by 1.2) and .dimmed (55%, 90% with higher contrast), each padded 12 at either end and centered (_header-bar.scss, adw-window-title.ui); the title's label is at least 5 characters wide (adwTitleChars).
 func headerAdwContent(c *ui.Context, l headerLayout, title, subtitle string, start, end func()) {
 	t := c.Theme()
 	headerAdwSide(c, l, start, l.before, false).MarginEnd(l.titleGap)
-	ui.Column(c).Shrink(1).MinWidth(0).PaddingX(12).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+	// AdwWindowTitle hides its title label while the title is empty, and with it the label's least width.
+	least := float32(0)
+	if title != "" {
+		least = 12 + adwTitleChars(c) + 12
+	}
+	ui.Column(c).Shrink(1).MinWidth(least).PaddingX(12).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		ui.Text(c, title).SingleLine().FontWeight(700)
 		ui.Text(c, subtitle).SingleLine().FontSize(t.Rem(1 / 1.2)).Opacity(pick(c.Preferences().HighContrast, float32(0.55), 0.9)).Hidden(subtitle == "")
 	})
 	headerAdwSide(c, l, end, l.after, true).MarginStart(l.titleGap).Justify(ui.End)
+}
+
+// pangoSampleEnglish is Pango's sample string for English (pango_language_get_sample_string), whose width over its characters is Pango's approximate character width.
+const pangoSampleEnglish = "The wizard quickly jinxed the gnomes before they vaporized."
+
+// adwTitleChars returns the least width of AdwWindowTitle's title label without its padding, its width-chars of 5 (adw-window-title.ui): GtkLabel takes 5 of get_char_pixels's widths, the larger of Pango's approximate character width, the English sample string's width over its characters, and its approximate digit width, the widest digit's, whole pixels as Pango measures them for its metrics (Adwaita Sans Bold at 11 points: 7.38 and 10 for digits 9.89 wide at most). An ellipsized label asks for no less, so a short title's label is wider than its text, which is centered in it: in libadwaita 1.10.0's render of tools/adwaita-reference's switcher set, "Music" is 43.6 wide in a label of 74 (12 + 50 + 12), which shows where an end box moves the title aside, its ink from 84 to 126 before the switcher at 148. The sample string of other languages, whose characters Pango counts by their columns, is not taken.
+func adwTitleChars(c *ui.Context) float32 {
+	t := c.Theme()
+	sample, _ := c.MeasureText(0, ui.Span{Text: pangoSampleEnglish, Size: t.FontSize, Weight: 700})
+	char := sample / float32(len([]rune(pangoSampleEnglish)))
+	for _, d := range "0123456789" {
+		w, _ := c.MeasureText(0, ui.Span{Text: string(d), Size: t.FontSize, Weight: 700})
+		char = max(char, float32(math.Round(float64(w))))
+	}
+	return 5 * char
 }
 
 // headerAdwSide builds the start box (or the end box, atEnd) of an AdwHeaderBar: fn's controls and, at the bar's edge, the room the window controls take there, which GTK draws in a GTK 3 header bar of its own, padded 6 at either end (MyGo's linux/titlebar.go): the room less the 6 pixels the bar leaves at its edge and the box's spacing of 6, so that the controls end where that header bar starts, 6 from the window buttons inside it, as they are from an AdwHeaderBar's windowcontrols (in libadwaita 1.10.0's render the send-to button ends at 514 and the close button spans 520 to 554 in a 560-pixel window, where a room of 46 ends Breeze UI's controls at 514). The two boxes share the room the title leaves equally, so that the title is centered across the bar, but neither is narrower than what it holds, as GtkCenterBox moves its center child aside for a side that needs more than half: each box is at least as wide as its controls were in the previous frame, and a frame is asked for while that width changes.
