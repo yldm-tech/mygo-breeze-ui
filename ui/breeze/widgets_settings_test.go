@@ -436,3 +436,181 @@ func TestSettingsRowsJoinInACard(t *testing.T) {
 		}
 	}
 }
+
+// TestSettingsRowsDisabled checks on every platform that the four rows, disabled, are no Tab stops and that clicks on them open, focus, step and type nothing.
+func TestSettingsRowsDisabled(t *testing.T) {
+	for _, p := range Platforms {
+		choice, name, size, open := "Light", "", 3.0, false
+		tester := layoutTester(p, 560, 500, func(c *ui.Context) {
+			settingsAround(c, func() {
+				ComboRow(c, "Appearance", "", &choice, []string{"Light", "Dark"}).Disabled(true)
+				EntryRow(c, "Name", &name).Disabled(true)
+				SpinRow(c, "Copies", "", &size, 1, 9, 1).Disabled(true)
+				ExpanderRow(c, "Network", "", &open, func() { ActionRow(c, "Proxy", "", nil) }).Disabled(true)
+			})
+		})
+		if err := tester.Click("Before"); err != nil {
+			t.Fatal(err)
+		}
+		tester.Frame()
+		tester.Key(0, ui.KeyTab)
+		tester.Frame()
+		if !tester.Focused("After") {
+			t.Errorf("%v: Tab from the button before the rows stopped in a disabled row", p)
+		}
+		for _, s := range []string{"Light", "Name", "Copies", "Increase", "Network"} {
+			if err := tester.Click(s); err != nil {
+				t.Fatal(err)
+			}
+			tester.Frame()
+		}
+		tester.Type("abc")
+		tester.Frame()
+		if tester.HasText("Dark") || name != "" || size != 3 || open || tester.Focused("Name") || tester.Focused("Copies") {
+			t.Errorf("%v: clicks on disabled rows opened the list %v, typed %q, stepped to %v, opened %v, focused the entry %v or the spin row %v", p, tester.HasText("Dark"), name, size, open, tester.Focused("Name"), tester.Focused("Copies"))
+		}
+	}
+}
+
+// TestMacFormRowHeights checks on macOS the heights SwiftUI gives a grouped form's rows, measured on macOS 27.2, against a row of text so that they hold whatever the host's font: alone, a picker's row of one line is at least 37.5 points high and a stepper's 40.5, taller for their controls than a row of text; an entry row is half a point shorter than a row of text; a closed expander row is its title's line and 14.5 points above and below it.
+func TestMacFormRowHeights(t *testing.T) {
+	choice, name, size, open := "A", "", 1.0, false
+	var text, combo, entry, spin, expander ui.Rect
+	tester := layoutTester(Mac, 400, 500, func(c *ui.Context) {
+		ui.Column(c).Width(300).Gap(16).Children(func() {
+			text = ActionRow(c, "Text", "", nil).Bounds()
+			combo = ComboRow(c, "Combo", "", &choice, []string{"A", "B"}).Bounds()
+			entry = EntryRow(c, "Entry", &name).Bounds()
+			spin = SpinRow(c, "Spin", "", &size, 0, 9, 1).Bounds()
+			expander = ExpanderRow(c, "Expander", "", &open, func() {}).Bounds()
+		})
+	})
+	tester.Frame()
+	near := func(a, b float32) bool { return a-b > -0.01 && a-b < 0.01 }
+	// A row of text is 10.5 above its title's line and 11 below it.
+	line := text.H - 21.5
+	if combo.H < 37.5-0.01 || spin.H < 40.5-0.01 {
+		t.Errorf("a picker's row is %v high and a stepper's %v, want 37.5 and 40.5 at least", combo.H, spin.H)
+	}
+	if !near(entry.H, text.H-0.5) {
+		t.Errorf("an entry row is %v high where a row of text is %v, want half a point less", entry.H, text.H)
+	}
+	if !near(expander.H, line+29) {
+		t.Errorf("a closed expander row is %v high, want its title's %v and 29", expander.H, line)
+	}
+}
+
+// TestMacStepperFieldInASection checks on macOS a spin row's field at 2x, light and dark: its bezel's line is laid over the section as AppKit lays it (210 over 247, 57 over 37, measured on macOS 27.2), and the bezel ends 9 points from the row's end, a point past the stepper's.
+func TestMacStepperFieldInASection(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		size := 3.0
+		var row ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Mac, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() { row = SpinRow(c, "Copies", "", &size, 1, 9, 1).Bounds() })
+			})
+		}, 400, 120)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		inc, ok := tester.Find("Increase")
+		if !ok {
+			t.Fatal("no stepper half is named Increase")
+		}
+		if end := row.X + row.W - 10; inc.X+20 < end-0.01 || inc.X+20 > end+0.01 {
+			t.Errorf("dark %v: the stepper ends at %v, want %v, a point before the bezel's end", dark, inc.X+20, end)
+		}
+		want, section := map[bool]uint8{false: 210, true: 57}[dark], map[bool]uint8{false: 247, true: 37}[dark]
+		img := tester.Image()
+		near := func(got, want uint8) bool { return got+2 >= want && got <= want+2 }
+		// The bezel's top line over the field's middle, and its end line across the stepper's middle: its last pixel and the section's first after it.
+		top := img.RGBAAt(int((inc.X-30)*2), int((inc.Y-1)*2)).R
+		y := int((inc.Y + 12) * 2)
+		last, after := img.RGBAAt(int((row.X+row.W-9)*2)-1, y).R, img.RGBAAt(int((row.X+row.W-9)*2), y).R
+		if !near(top, want) || !near(last, want) || !near(after, section) {
+			t.Errorf("dark %v: the bezel's line reads %d at the top and %d at the end, %d after it; want %d and the section's %d after it", dark, top, last, after, want, section)
+		}
+	}
+}
+
+// TestFluentExpanderRowHeader checks on Windows, light and dark, the SettingsExpander's header as WinUI renders it (tools/winui-reference's winui-rows): 70 DIPs high closed, 68 of fill inside its border; open, the first item's line right below 68 DIPs of fill, a single line, the header on ControlFillColorDefault (251, 45) and the items on CardBackgroundFillColorDefault (251, 43).
+func TestFluentExpanderRowHeader(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		open := false
+		var item ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Windows, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() {
+					ExpanderRow(c, "Network", "", &open, func() { item = ActionRow(c, "Proxy", "", nil).Bounds() })
+				})
+			})
+		}, 400, 300)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		header, ok := tester.Find("Network")
+		if !ok {
+			t.Fatal("no element is named Network")
+		}
+		if header.H < 70-0.01 || header.H > 70+0.01 {
+			t.Errorf("dark %v: the closed header is %v high, want 70", dark, header.H)
+		}
+		open = true
+		tester.Frame()
+		tester.Frame()
+		header, _ = tester.Find("Network")
+		if top := header.Y + 69; item.Y < top-0.01 || item.Y > top+0.01 {
+			t.Errorf("dark %v: the first item starts at %v, want right below the header's border and 68 DIPs of fill, %v", dark, item.Y, top)
+		}
+		img := tester.Image()
+		x := int(item.X + 8)
+		face, line, above, fill := img.RGBAAt(x, int(header.Y+header.H/2)).R, img.RGBAAt(x, int(item.Y)).R, img.RGBAAt(x, int(item.Y)-1).R, img.RGBAAt(x, int(item.Y+item.H/2)).R
+		want := map[bool][3]uint8{false: {251, 229, 251}, true: {45, 29, 43}}[dark]
+		if face != want[0] || line != want[1] || above != face || fill != want[2] {
+			t.Errorf("dark %v: header %d, line %d with %d above it, item %d; want %d, a single line of %d, %d", dark, face, line, above, fill, want[0], want[1], want[2])
+		}
+	}
+}
+
+// TestAdwExpanderRowArrow checks on GNOME, light and dark, that an open expander row's arrow is accent_color as libadwaita 1.10.0 draws it, #0461be and #81d0ff for the default blue (measured by tools/adwaita-reference).
+func TestAdwExpanderRowArrow(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		open := true
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Column(c).Padding(16).Width(332).Children(func() { ExpanderRow(c, "Network", "", &open, func() {}) })
+			})
+		}, 400, 200)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		header, ok := tester.Find("Network")
+		if !ok {
+			t.Fatal("no element is named Network")
+		}
+		want := map[bool][3]int{false: {4, 97, 190}, true: {129, 208, 255}}[dark]
+		abs := func(v int) int { return max(v, -v) }
+		img, found := tester.Image(), false
+		// The 16-pixel arrow ends 14 pixels before the row's end: 2 of the row's padding and 12 of the header's margin.
+		end := header.X + header.W - 14
+		for y := int(header.Y * 2); y < int((header.Y+header.H)*2) && !found; y++ {
+			for x := int((end - 16) * 2); x < int(end*2); x++ {
+				c := img.RGBAAt(x, y)
+				if d := abs(int(c.R)-want[0]) + abs(int(c.G)-want[1]) + abs(int(c.B)-want[2]); d <= 6 {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			t.Errorf("dark %v: no pixel of the open arrow is accent_color %v", dark, want)
+		}
+	}
+}

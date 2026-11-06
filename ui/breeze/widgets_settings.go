@@ -8,10 +8,10 @@ import (
 
 // ---- settings rows: combo rows, entry rows, spin rows and expander rows ----
 //
-// The rows that complete ActionRow and SwitchRow (widgets_rows.go), built on its row look (rowsJoin, rowsStyle) so that they join a Card, a Fieldset or an AccordionItem as the platform joins rows there. macOS: SwiftUI's grouped Form with a Picker of the menu style, TextFields with a label, a Stepper with a format (its value in a text field) and DisclosureGroups whose label is a title over a subtitle, rendered at 2x in Aqua and Dark Aqua on macOS 27.2 by tools/appkit-reference/reference.swift (its settings scene). Windows 11: CommunityToolkit/Windows's SettingsCard.xaml (the MinWidth of 120 it gives a ComboBox and a TextBox in a card, SettingsCardContentMinWidth) and SettingsExpander.xaml (main at a784bad: SettingsExpanderHeaderPadding 16,16,4,16, the 32-DIP chevron button with a Margin of 0,0,8,0 and a 16-DIP AnimatedChevronUpDownSmallVisualSource, the items' 58,8,44,8), with breeze's Select, TextInput and NumberInput for the ComboBox, the TextBox and the NumberBox. GNOME: libadwaita 1.10.0's adw-combo-row.ui and .c, adw-entry-row.ui and .c, adw-spin-row.ui and .c, adw-expander-row.ui, _lists.scss (row.entry, row.spin, row.combo, row.expander, %boxed_list_row), _spin-button.scss, _buttons.scss (%circular_button) and its icons adw-entry-edit.svg and adw-expander-arrow.svg.
+// The rows that complete ActionRow and SwitchRow (widgets_rows.go), built on its row look (rowsJoin, rowsStyle) so that they join a Card, a Fieldset or an AccordionItem as the platform joins rows there. macOS: SwiftUI's grouped Form with a Picker of the menu style, TextFields with a label, a Stepper with a format (its value in a text field) and DisclosureGroups whose label is a title over a subtitle, rendered at 2x in Aqua and Dark Aqua on macOS 27.2 by tools/appkit-reference/reference.swift (its settings scene). Windows 11: CommunityToolkit/Windows's SettingsCard.xaml (the MinWidth of 120 it gives a ComboBox and a TextBox in a card, SettingsCardContentMinWidth) and SettingsExpander.xaml (main at a784bad: SettingsExpanderHeaderPadding 16,16,4,16, the 32-DIP chevron button with a Margin of 0,0,8,0 and a 16-DIP AnimatedChevronUpDownSmallVisualSource, the header's ToggleButton states, the items' 58,8,44,8), microsoft-ui-xaml's Expander_themeresources.xaml (ExpanderContentDownBorderThickness 1,0,1,1) and the SettingsExpander of tools/winui-reference's winui-rows, rendered by WinUI 3 3.3 on Windows 11 26H2, with breeze's Select, TextInput and NumberInput for the ComboBox, the TextBox and the NumberBox. GNOME: libadwaita 1.10.0's adw-combo-row.ui and .c, adw-entry-row.ui and .c, adw-spin-row.ui and .c, adw-expander-row.ui, _lists.scss (row.entry, row.spin, row.combo, row.expander, %boxed_list_row), _spin-button.scss, _buttons.scss (%circular_button) and its icons adw-entry-edit.svg and adw-expander-arrow.svg, and the AdwExpanderRow of tools/adwaita-reference's rows set for the open arrow's color.
 
 // ComboRow creates a settings row choosing *selected among options: the title, the subtitle below it (an empty subtitle shows none) and the choice at its end, opening a list of the options as the platform does. It joins a Card, a Fieldset or an AccordionItem as ActionRow does. Changed reports a new choice.
-//   - macOS: a SwiftUI Picker of the menu style in a grouped Form, as System Settings shows one: at the row's trailing edge a borderless pop-up button, 24 points high, showing the choice in labelColor 12 points before a 20-point circle of black at 7.8% (white in Dark Aqua: 228 over the section's 247, 54 over 37) holding up and down chevrons in labelColor over it, the circle 4 points in from the button's end (measured on macOS 27.2). The button is the row's focus stop, with AppKit's focus ring around it; its menu is Select's.
+//   - macOS: a SwiftUI Picker of the menu style in a grouped Form, as System Settings shows one: at the row's trailing edge a borderless pop-up button, 24 points high, showing the choice in labelColor 12 points before a 20-point circle of black at 7.8% (white in Dark Aqua: 228 over the section's 247, 54 over 37) holding up and down chevrons in labelColor over it, the circle 4 points in from the button's end, a row of one line 37.5 points high, a point taller than a row of text for the button (measured on macOS 27.2). The button is the row's focus stop, with AppKit's focus ring around it; its menu is Select's.
 //   - Windows: a SettingsCard holding a ComboBox (breeze's Select) at its end, at least 120 DIPs wide as SettingsCard makes a ComboBox (SettingsCardContentMinWidth); the ComboBox is the focus stop, as WinUI focuses the control in a card that is not clickable.
 //   - GNOME: AdwComboRow, the whole row a combo box that a click, Space or Enter opens (adw_combo_row_activate): the choice in card_fg_color, padded 2 as an inline list view's row, and pan-down-symbolic 6 pixels after it, the row lit under the pointer and while its popover is open (has-open-popup), its focus ring across its edge; the popover is a menu of the options with a check mark by the chosen one, at least 120 pixels wide (row.combo popover > contents), aligned with the row's end, where GTK centers it on the arrow (inferred: MyGo places a popup at an edge of what it is attached to).
 //
@@ -22,7 +22,7 @@ func ComboRow(c *ui.Context, title, subtitle string, selected *string, options [
 		return adwComboRow(c, title, subtitle, selected, options)
 	}
 	var trigger ui.Element
-	row := ActionRow(c, title, subtitle, func() {
+	build := func() {
 		if p == Windows {
 			trigger = Select(c, selected, options).MinWidth(120)
 		} else {
@@ -32,7 +32,14 @@ func ComboRow(c *ui.Context, title, subtitle string, selected *string, options [
 		if subtitle != "" {
 			trigger.Description(subtitle)
 		}
-	})
+	}
+	var row ui.Element
+	if p == Windows {
+		row = ActionRow(c, title, subtitle, build)
+	} else {
+		// SwiftUI makes a picker's row of one line 37.5 points high for its 24-point button (measured on macOS 27.2), where a row of text is 36.5.
+		row = macFormRow(c, title, subtitle, 37.5, build)
+	}
 	if trigger.Changed() {
 		row.SetChanged()
 	}
@@ -133,8 +140,15 @@ func macEntryRow(c *ui.Context, title string, value *string) ui.Element {
 		})
 	}}
 	rowsStyle(c, row, item, in, first, title, "", look, nil)
-	// The title and the field share the title's line, 8 apart (measured: the field starts 8 points after the title's advance).
-	row.Gap(8)
+	// The title and the field share the title's line, 8 apart (measured: the field starts 8 points after the title's advance). SwiftUI lays a TextField's row half a point shorter than a row of text, 36 points between two separators, the title as far below the row's top (measured on macOS 27.2): half a point less below the text. In a DisclosureGroup the same half point is taken from rowsStyle's padding there (inferred).
+	top, bottom := float32(10.5), float32(10.5)
+	switch {
+	case in == rowsInAccordion:
+		top, bottom = 4.5, 4.5
+	case in != rowsAlone && !first:
+		top = 11.5
+	}
+	row.Gap(8).Padding(top, 10, bottom, 10)
 	if field.Changed() {
 		row.SetChanged()
 	}
@@ -206,8 +220,8 @@ func adwEditIcon(p *ui.Painter, x, y float32, col ui.Color) {
 	p.StrokePath(&path, 2, col)
 }
 
-// SpinRow creates a settings row setting *value between lo and hi in steps of step: the title, the subtitle below it (an empty subtitle shows none) and at its end the value with the platform's stepping buttons, which joins a Card, a Fieldset or an AccordionItem as ActionRow does. Typing a number in range sets it, Up and Down step it, and the buttons step it and are disabled at the limits, as NumberInput's; Changed reports a new value. The text is the row's one focus stop, named by the title for assistive technology and described by the subtitle; the buttons are not stops, as WinUI's NumberBox and GTK's spin buttons are not, and leave the focus where it is while pressed.
-//   - macOS: a SwiftUI Stepper with a format in a grouped Form: at the row's trailing edge a text field's bezel (macField), 80 points wide, its value at the trailing edge 10 points before an NSStepper without a face inside the field's end, 20 by 24 points, its chevrons those of NumberInput's stepper (formsMacNumberInput) in labelColor over the field and the line between them black at 12.5% (white at 13.8% in Dark Aqua: 223 over 255, 55 over 23), measured on macOS 27.2.
+// SpinRow creates a settings row setting *value between lo and hi in steps of step: the title, the subtitle below it (an empty subtitle shows none) and at its end the value with the platform's stepping buttons, which joins a Card, a Fieldset or an AccordionItem as ActionRow does. Typing a number in range sets it, Up and Down step it, and the buttons step it and are disabled at the limits, as NumberInput's; Changed reports a new value. The text is the row's one focus stop, named by the title for assistive technology (on GNOME described by the subtitle too, as AdwSpinRow's spin button is; on macOS and Windows the row, a group as ActionRow's, is); the buttons are not stops, as WinUI's NumberBox and GTK's spin buttons are not, and leave the focus where it is while pressed.
+//   - macOS: a SwiftUI Stepper with a format in a grouped Form: at the row's trailing edge, 9 points from the section's, a text field's bezel (macField's, its line laid over the section), 80 points wide, its value at the trailing edge 10 points before an NSStepper without a face inside the field's end, 20 by 24 points, its chevrons those of NumberInput's stepper (formsMacNumberInput) in labelColor over the field and the line between them black at 12.5% (white at 13.8% in Dark Aqua: 223 over 255, 55 over 23); a row of one line is 40.5 points high, taller than a row of text for the field (measured on macOS 27.2).
 //   - Windows: a SettingsCard holding a NumberBox with its spin buttons inline (NumberInput's look, formsFluentNumberInput).
 //   - GNOME: AdwSpinRow, an action row with a GtkSpinButton at its end (row.spin): no entry around the text, which ends at the buttons, 6 pixels before them (the text's padding of 6), then the − and + buttons as circular buttons, 30 pixels, margin 10px 2px and 6 apart (border-spacing), filled as libadwaita's buttons are (currentColor at 10%, 15% under the pointer and 30% pressed) with value-decrease-symbolic and value-increase-symbolic. A click on the row focuses the text (adw_spin_row_grab_focus); the row draws its focus ring while the text has the focus and is not lit under the pointer then (row.spin's focus ring on .focused). The text is 64 pixels wide, its value at its end, where GtkSpinButton fills the room the title leaves (inferred: what shows is the same).
 func SpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, step float64) ui.Element {
@@ -216,17 +230,34 @@ func SpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, step
 		return adwSpinRow(c, title, subtitle, value, lo, hi, step)
 	}
 	var spin ui.Element
-	row := ActionRow(c, title, subtitle, func() {
-		if p == Windows {
-			spin = formsFluentNumberInput(c, value, lo, hi, step, title, false)
-		} else {
-			spin = macFormStepper(c, value, lo, hi, step, title)
-		}
-	})
+	var row ui.Element
+	if p == Windows {
+		row = ActionRow(c, title, subtitle, func() { spin = formsFluentNumberInput(c, value, lo, hi, step, title, false) })
+	} else {
+		// SwiftUI makes a Stepper's row of one line 40.5 points high, the bezel 5.5 points below its top and 9 above its bottom (measured on macOS 27.2), where a row of text is 36.5.
+		row = macFormRow(c, title, subtitle, 40.5, func() { spin = macFormStepper(c, value, lo, hi, step, title) })
+	}
 	if spin.Changed() {
 		row.SetChanged()
 	}
 	return row
+}
+
+// macFormRow builds a row of a grouped Form on macOS as ActionRow does, a group named by the title and described by the subtitle, holding at its end what fn builds, and at least least points high where it is alone: SwiftUI makes a row of one line taller than the title's line for a control taller than it. A row with a separator above it takes the separator's point too, and a row of a DisclosureGroup is 12 points shorter, as rowsStyle pads it (both inferred).
+func macFormRow(c *ui.Context, title, subtitle string, least float32, fn func()) ui.Element {
+	row := ui.Row(c).Shrink(0).Role(ui.RoleGroup).Label(title)
+	if subtitle != "" {
+		row.Description(subtitle)
+	}
+	item, in, first := rowsJoin(c, row)
+	rowsStyle(c, row, item, in, first, title, subtitle, rowsLook{}, func(ui.Color, bool, bool) { rowsIsolate(c, fn) })
+	switch {
+	case in == rowsInAccordion:
+		least -= 12
+	case in != rowsAlone && !first:
+		least++
+	}
+	return row.MinHeight(least)
 }
 
 // macFormStepper draws the text field and the stepper of a SwiftUI Stepper with a format in a grouped Form, as SpinRow describes: the field's bezel 82 by 26 points, a point outside its 80 by 24 frame as macField draws it, and the stepper over the frame's last 20 points.
@@ -238,12 +269,23 @@ func macFormStepper(c *ui.Context, value *float64, lo, hi, step float64, name st
 	}
 	ink := tint(fill, t.Dark, 0.847)
 	line := tint(fill, t.Dark, pick(t.Dark, float32(0.125), 0.138))
+	// macField lays the bezel's line over the window; AppKit lays it over what is under the field, here the section: 210 over 247 and 57 over 37 (measured on macOS 27.2), macField's black at 14.9% and white at 9.3% over the section's fill.
+	border := tint(macFormSectionFill(t), t.Dark, pick(t.Dark, float32(macFieldBorder), macFieldBorderDark))
 	row, _ := formsNumberInput(c, value, lo, hi, step, name, false, func(text *string) ui.Element {
-		// The value ends 10 points before the stepper: 31 from the bezel's end.
-		return TextInput(c, text).Width(82).MarginEnd(-1).TextAlign(ui.End).PaddingEnd(31)
+		// The value ends 10 points before the stepper: 30 from the bezel's end, which is 9 points from the section's (measured).
+		in := TextInput(c, text).Width(82).MarginEnd(-1).TextAlign(ui.End).PaddingEnd(30)
+		focused := in.Focused()
+		in.DrawOver(func(p *ui.Painter, r ui.Rect) {
+			// macField's bezel line and focus ring, with its corner of 7.
+			p.Stroke(r, border, 7, 1)
+			if focused {
+				macFocusRing(p, ui.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}, 6)
+			}
+		})
+		return in
 	}, func(stepBy func(sign float64) ui.Element) {
-		// Built Decrease first, for the order assistive technology reads; reversed, Increase shows on top.
-		col := ui.Column(c).Reverse().Size(20, 24).Shrink(0).MarginStart(-21)
+		// Built Decrease first, for the order assistive technology reads; reversed, Increase shows on top. It covers the last 20 points of the field's 80-point frame, which ends a point inside the bezel.
+		col := ui.Column(c).Reverse().Size(20, 24).Shrink(0).MarginStart(-20)
 		col.Children(func() {
 			for _, sign := range []float64{-1, 1} {
 				stepBy(sign).Height(12).Width(20).Draw(func(p *ui.Painter, r ui.Rect) {
@@ -308,9 +350,9 @@ func adwSpinRow(c *ui.Context, title, subtitle string, value *float64, lo, hi, s
 }
 
 // ExpanderRow creates a settings row that opens and closes, showing below it what fn builds while *open: its header shows the title, the subtitle below it (an empty subtitle shows none) and the platform's arrow, and a click on it, Space or Enter open and close it; Changed reports a click. The header is the row's one focus stop, a disclosure that assistive technology names by the title, describes by the subtitle and hears as expanded or collapsed. Rows built in fn (ActionRow, SwitchRow and the other rows) join its nested list as they join an AccordionItem; alone it is drawn as a group of its own, and in a Card, a Fieldset or an AccordionItem it joins as a row does. The arrow turns and the nested rows grow into view as it opens, as Collapsible's do.
-//   - macOS: a SwiftUI DisclosureGroup in a grouped Form whose label is a title over a subtitle: the disclosure chevron (macDisclosure's, its ink as an NSButton of bezel style disclosure draws it) in a 13-point box 7 points in from the row's leading edge, the regular-weight title 1.5 after it, both centered on the labels, the header's text 14.5 points below its top, 15 points above its bottom while closed and 1 while open; the nested rows those of a DisclosureGroup, without separators (measured on macOS 27.2). AppKit's focus ring goes around the chevron, where SwiftUI puts the focus.
-//   - Windows: CommunityToolkit's SettingsExpander: its header a SettingsCard (at least 68 DIPs high, padded 16 and 4 before the chevron) on the card's fill inside CardStrokeColorDefault, lit under the pointer and pressed as a clickable SettingsCard, with the 16-DIP AnimatedChevronUpDownSmall chevron (fluentExpanderHeader's, grown from 12 DIPs to 16) centered in a 32-DIP button 8 DIPs from the end, pointing down closed and up open; the content below on CardBackgroundFillColorSecondary inside the stroke but on the header's side, corners of 4 at the bottom, its rows a SettingsExpander's items, padded 58,8,44,8 with a line above each.
-//   - GNOME: AdwExpanderRow: its header an AdwActionRow (54 pixels, 55 with a line above it) whose last suffix is adw-expander-arrow, the up chevron from (3,10) to (8,5) to (13,10) stroked 2 pixels, turned half a turn while closed, 3 pixels after the other suffixes' 6 (margin-start of image.expander-row-arrow), dimmed while closed and opaque in accent_color while open; the nested list below on card_shade_color at 50%, a line of card_shade_color above each nested row.
+//   - macOS: a SwiftUI DisclosureGroup in a grouped Form whose label is a title over a subtitle: the disclosure chevron (macDisclosure's, its ink as an NSButton of bezel style disclosure draws it) in a 13-point box 7 points in from the row's leading edge, the regular-weight title 1.5 after it, both centered on the labels, the header's text 14.5 points below its top and above its bottom while closed (a one-line header 44 points high), 1 above its bottom while open; the nested rows those of a DisclosureGroup, without separators (measured on macOS 27.2). AppKit's focus ring goes around the chevron, where SwiftUI puts the focus.
+//   - Windows: CommunityToolkit's SettingsExpander: its header the Expander's ToggleButton holding a SettingsCard (70 DIPs high, 68 inside its 1-DIP CardStrokeColorDefault border, padded 16 and 4 before the chevron) on the card's fill while closed and ControlFillColorDefault while open, lit under the pointer and pressed as a clickable SettingsCard, with the 16-DIP AnimatedChevronUpDownSmall chevron (fluentExpanderHeader's, grown from 12 DIPs to 16) centered in a 32-DIP button 8 DIPs from the end, pointing down closed and up open; the content below inside the stroke but on the header's side, corners of 4 at the bottom, its rows a SettingsExpander's items on the card's fill, padded 58,8,44,8 with a line above each, the first's right below the header's fill (measured from WinUI 3 3.3 by tools/winui-reference's winui-rows).
+//   - GNOME: AdwExpanderRow: its header an AdwActionRow (54 pixels, 55 with a line above it) whose last suffix is adw-expander-arrow, the up chevron from (3,10) to (8,5) to (13,10) stroked 2 pixels, turned half a turn while closed, 3 pixels after the other suffixes' 6 (margin-start of image.expander-row-arrow), dimmed while closed and opaque in accent_color while open (#0461be and #81d0ff for the default blue, measured); the nested list below on card_shade_color at 50%, a line of card_shade_color above each nested row.
 func ExpanderRow(c *ui.Context, title, subtitle string, open *bool, fn func()) ui.Element {
 	p := PlatformOf(c)
 	t := c.Theme()
@@ -365,9 +407,10 @@ func ExpanderRow(c *ui.Context, title, subtitle string, open *bool, fn func()) u
 		// Padded and spaced as MyGo pads an AccordionItem's panel, which rows built in an AccordionItem reach across (rowsStyle's rowsInAccordion).
 		side := t.Space(3)
 		panel.Padding(0, side, side, side).Gap(t.Space(2))
-		if p == Windows {
-			_, secondary, stroke := fluentExpanderCard(t)
-			panel.Background(secondary).BorderWidth(0, 1, 1, 1).BorderColor(stroke).Radius(0, 0, 4, 4)
+		if p == Windows && (in == rowsAlone || in == rowsInFieldset) {
+			// ExpanderContent: ExpanderContentDownBorderThickness 1,0,1,1 of ExpanderContentBorderBrush (CardStrokeColorDefault) and the bottom corners of 4, without a fill of its own; the items are SettingsCards on SettingsCardBackground, CardBackgroundFillColorDefault, which they cover it with (measured: 251 and 43, as the header's card). In a Card or an AccordionItem the rows are the group's items and the panel draws nothing.
+			fill, _, stroke := fluentExpanderCard(t)
+			panel.Background(fill).BorderWidth(0, 1, 1, 1).BorderColor(stroke).Radius(0, 0, 4, 4)
 		}
 	})
 	// The header's corners, for its focus ring: the group's at the top, and at the bottom too while closed.
@@ -386,7 +429,11 @@ func adwExpanderArrow(c *ui.Context, progress float32, open bool) {
 	fill, _ := adwBoxedListCard(t)
 	col := pick(t.Dark, fill.Mix(adwInk, 0.8*0.55), fill.Mix(white, 0.55))
 	if open {
-		col = adwLinkColor(t)
+		// accent_color: for the default blue #0461be and #81d0ff, which libadwaita 1.10.0 draws the open arrow in (measured from tools/adwaita-reference's rows set; adwLinkColor's lighter #357fca is the color of a link's text as it renders); for another accent, the accent darkened or lightened as the theme's focus ring takes it.
+		col = pick(t.Dark, t.Accent.Mix(black, 0.2), t.Accent.Mix(white, 0.45))
+		if t.Accent == adwAccent {
+			col = pick(t.Dark, ui.Hex("#0461be"), ui.Hex("#81d0ff"))
+		}
 	}
 	ui.Box(c).Size(16, 16).Shrink(0).MarginStart(3).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
 		// strokeDisclosureChevron points right, turned: -90 degrees points up, 90 down.
@@ -414,9 +461,15 @@ func fluentExpanderRowHeader(c *ui.Context, tr ui.Element, header *rowsItem, in 
 	// SettingsExpanderHeaderPadding 16,16,4,16 and the chevron's Margin 0,0,8,0; the bottom corners square while open, as the Expander's header is in its ExpandDown state.
 	tr.PaddingEnd(8).Gap(4)
 	if in == rowsAlone || in == rowsInFieldset {
+		// The header is the Expander's ToggleButton, its MinHeight the SettingsExpander's 68, holding a SettingsCard of MinHeight 68 inside its 1-DIP border: 70 DIPs high, 68 of fill (measured from WinUI 3 3.3 with CommunityToolkit's SettingsControls 8.2.251219 by tools/winui-reference's winui-rows: the expander's border, 68 DIPs of fill, one line, then the first item). Open, the line below the fill is the first item's, which the content's -2 top margin lays over the header's own bottom border, so the header gives its bottom border up. Closed it is in the Normal state, its fill SettingsCardBackground (CardBackgroundFillColorDefault); open, the Checked state sets no fill, which leaves the ToggleButton's own, ControlFillColorDefault (45 in the dark theme where the card reads 43, as measured).
 		bottom := float32(4)
+		tr.MinHeight(70)
 		if progress > 0 {
 			bottom = 0
+			tr.MinHeight(69).BorderWidth(1, 1, 0, 1)
+			if !look.hovered && !look.pressed {
+				tr.Background(t.Surface)
+			}
 		}
 		tr.Radius(4, 4, bottom, bottom)
 	}
@@ -447,6 +500,6 @@ func macExpanderRowHeader(c *ui.Context, tr ui.Element, header *rowsItem, in row
 		})
 	}
 	rowsStyle(c, tr, header, in, first, title, subtitle, look, nil)
-	// The chevron's box 7 points in, the title 1.5 after it (22 from the section's edge), the labels 14.5 below the header's top and 15 above its bottom, 1 while open, where the nested rows follow (measured on macOS 27.2 from reference.swift's settings scene: a closed one-line header 45 points high, the title's ink 17.5 below its top; the first nested row's title 73 points below the top of a header with a subtitle).
-	tr.AlignItems(ui.Center).Gap(1.5).Padding(14.5, 10, 15-14*progress, 10).PaddingStart(7).PaddingEnd(10)
+	// The chevron's box 7 points in, the title 1.5 after it (22 from the section's edge), the labels 14.5 below the header's top and as far above its bottom, 1 while open, where the nested rows follow (measured on macOS 27.2 from reference.swift's settings scene: a closed one-line header 44 points high, the title's ink 20.5 points below its top and 18.5 above its bottom; the first nested row's title 73 points below the top of a header with a subtitle).
+	tr.AlignItems(ui.Center).Gap(1.5).Padding(14.5, 10, 14.5-13.5*progress, 10).PaddingStart(7).PaddingEnd(10)
 }
