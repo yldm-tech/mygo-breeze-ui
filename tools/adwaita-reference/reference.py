@@ -4,7 +4,7 @@
 #
 #	xvfb-run -a -s "-screen 0 1600x1200x24" python3 tools/adwaita-reference/reference.py <dir> [set...]
 #
-# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, carousel, carouselrtl, carouseldrag, carouseldragrtl, carouselinsensitive, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
+# The sets are first, second, alert, third, feedback, layout, nav, values, collections, forms, idioms, menu (idioms with a popover menu open), table, inputs, status, statuspage, rows, overcard, spinlimit, settings, tabview, switcher, datepicker, datepickeropen, datepickernoarrow, datepickerfocus, datepickerkeys, datepickeraway, datepickerreopen, datepickerrtl, carousel, carouselrtl, carouseldrag, carouseldragrtl, carouselinsensitive, carouselmany, text, headerbar and headerbarsub; without any, it renders them all. The window's frame offsets its content by 5 pixels (10 at 2x) from Breeze UI's screenshots, and the window is 10 pixels wider and higher than the test's so that its content is the test's size. GNOME 51's font is Adwaita Sans 11 (font-name in gsettings-desktop-schemas 51.0); text differs from Breeze UI's in its glyphs and widths, which move the controls after a label, while the controls' sizes and colors compare. A window whose content is at most 360 pixels high makes the alert .short, as it is here.
 import subprocess
 import sys
 
@@ -883,6 +883,18 @@ def carousel_set(rtl=False, drag=False, insensitive=False):
     return scene
 
 
+def carousel_many_set():
+    """TestAdwCarouselDotsWidth's view: at 16, 16 a vertical GtkBox with no width of its own, of an AdwCarousel of 25 pages, each a label of its number, the first shown, over AdwCarouselIndicatorDots with a margin of 6 around them, as in the carousel set. The dots ask for their natural width as their minimum (adw_carousel_indicator_dots_measure), 15 pixels a page and 6 at either end, so the box and the carousel are as wide as the dots and their margins, 399 pixels, rather than as the pages; they are measured again once the carousel is laid out, as in the carousel set."""
+    slides = Adw.Carousel()
+    for i in range(25):
+        slides.append(Gtk.Label(label=f"{i + 1}"))
+    dots = Adw.CarouselIndicatorDots(carousel=slides, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
+    box = vbox(0, slides, dots)
+    scene = fixed(432, 96, [(box, 16, 16)], named={"carousel": slides, "dots": dots, "box": box})
+    scene.shown = lambda window: GLib.timeout_add(300, lambda: (dots.queue_resize(), False)[1])
+    return scene
+
+
 def over_card_set():
     """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
     box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -948,6 +960,7 @@ SETS = [
     ("carouseldrag", "adwaita-carousel-drag", lambda: carousel_set(drag=True)),
     ("carouseldragrtl", "adwaita-carousel-drag-rtl", lambda: carousel_set(True, drag=True)),
     ("carouselinsensitive", "adwaita-carousel-insensitive", lambda: carousel_set(insensitive=True)),
+    ("carouselmany", "adwaita-carousel-many", carousel_many_set),
     ("text", "adwaita-text", text_set),
 ]
 
