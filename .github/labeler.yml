@@ -1,0 +1,34 @@
+# The labels actions/labeler gives a pull request from the files it changes (the Labels workflow).
+"area: widgets":
+  - changed-files:
+      - any-glob-to-any-file: ui/breeze/**
+"area: storybook":
+  - changed-files:
+      - any-glob-to-any-file: examples/**
+"area: cli & mcp":
+  - changed-files:
+      - any-glob-to-any-file: [cmd/**, packages/**]
+"area: website":
+  - changed-files:
+      - any-glob-to-any-file: website/**
+"area: reference tools":
+  - changed-files:
+      - any-glob-to-any-file: tools/**
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: [docs/**, "*.md"]
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file: .github/**
+"area: dependencies":
+  - changed-files:
+      - any-glob-to-any-file: [go.mod, go.sum, bun.lock, package.json, "packages/*/package.json", website/package.json]
+"platform: macos":
+  - changed-files:
+      - any-glob-to-any-file: [ui/breeze/mac*.go, tools/appkit-reference/**]
+"platform: windows":
+  - changed-files:
+      - any-glob-to-any-file: [ui/breeze/fluent*.go, tools/winui-reference/**]
+"platform: gnome":
+  - changed-files:
+      - any-glob-to-any-file: [ui/breeze/adw*.go, tools/adwaita-reference/**]

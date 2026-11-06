@@ -431,6 +431,34 @@ func TestAdwPlusEvenWhenDisabled(t *testing.T) {
 	}
 }
 
+// TestAdwPopoverAtItsAnchor pins where GNOME's popover starts: GtkPopover without its arrow, as MyGo draws popovers, puts its contents right at the anchor's bottom edge, as libadwaita 1.10.0 renders the third set's Details popover under its Info button (its contents start at 104, where the button ends), in the light and the dark theme, rather than adwMenu's 6 pixels below it, a dropdown's.
+func TestAdwPopoverAtItsAnchor(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		open := true
+		var anchor, panel ui.Rect
+		tester := ui.NewTester(func(c *ui.Context) {
+			Preview(c, Linux, func() {
+				Use(c)
+				ui.Box(c).Fill().Padding(16).AlignItems(ui.Start).Children(func() {
+					info := Button(c, "Info")
+					anchor = info.Bounds()
+					panel = Popover(c, info, &open, func() { ui.Text(c, "Details") }).Bounds()
+				})
+			})
+		}, 400, 240)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.Frame()
+		tester.Frame()
+		if panel.H == 0 {
+			t.Fatalf("dark %v: the popover is not shown", dark)
+		}
+		if got, want := panel.Y, anchor.Y+anchor.H; got < want-0.01 || got > want+0.01 {
+			t.Errorf("dark %v: the popover starts at %v, want the button's bottom edge %v", dark, got, want)
+		}
+	}
+}
+
 // TestAdwCalendarAsRendered checks CalendarView on GNOME against GtkCalendar as libadwaita 1.10.0 renders it (tools/adwaita-reference's datepicker set), whatever the font: GtkGridLayout counts the hidden week-number column in the homogeneous grid's request, so the grid asks for 3 and 8 columns of its widest label (a day name, or a day number padded 3 at either side, its margin of 3 included, in whole pixels), which the 7 shown columns share: 283 pixels and columns of 40 in Adwaita Sans, the calendar 285 wide with its border; and the border, outside the background, is 15% of currentColor over the window's background, 220 in the light theme and 67 in the dark one, where the header's line over the view is 224 and 63; and the focus ring over the chosen day after a click is GTK's mix of accent_color. It writes datePickerView after a click on the 20th, light and dark, to the directory BREEZE_SCREENSHOTS names, to compare with the datepickerfocus set's render.
 func TestAdwCalendarAsRendered(t *testing.T) {
 	fixToday(t, datePickerToday)

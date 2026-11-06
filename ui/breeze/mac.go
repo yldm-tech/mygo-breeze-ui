@@ -195,15 +195,20 @@ const (
 
 // macRadio draws an NSButton radio button: a 16-point circle of systemFill, the accent with a white dot of 5 points when chosen, gray when chosen and disabled, as a check box, 6 points from its label.
 func macRadio(c *ui.Context, row, dot ui.Element, on bool) {
-	t := c.Theme()
 	row.Gap(6)
-	fill := tint(t.Background, t.Dark, macTroughAlpha)
-	if row.Pressed() {
-		fill = tint(t.Background, t.Dark, macTroughDownAlpha)
+	macRadioDot(c, dot, c.Theme().Background, on, row.Pressed(), row.FocusVisible(), disabledOnce(row))
+}
+
+// macRadioDot draws a radio button's circle on dot, as macRadio describes, its trough of systemFill laid over under, pressed while pressed, with AppKit's focus ring while ring, gray when chosen and disabled.
+func macRadioDot(c *ui.Context, dot ui.Element, under ui.Color, on, pressed, ring bool, disabled func() bool) {
+	t := c.Theme()
+	fill := tint(under, t.Dark, macTroughAlpha)
+	if pressed {
+		fill = tint(under, t.Dark, macTroughDownAlpha)
 	}
 	if on {
 		fill = t.Accent
-		if row.Pressed() {
+		if pressed {
 			fill = t.AccentPressed
 		}
 	}
@@ -211,7 +216,6 @@ func macRadio(c *ui.Context, row, dot ui.Element, on bool) {
 	if !on {
 		dot.Background(fill)
 	}
-	ring, disabled := row.FocusVisible(), disabledOnce(row)
 	dot.DrawOver(func(p *ui.Painter, r ui.Rect) {
 		if on {
 			// A disabled chosen radio button reads as a disabled checked box does: 236 and 175 in Aqua, 46 and 98 in Dark Aqua (measured in a key window on macOS 27.2).
