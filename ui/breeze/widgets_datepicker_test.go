@@ -802,13 +802,13 @@ func TestFluentCalendarAsRendered(t *testing.T) {
 		near("the row of names", float32(shotPixel(tester, box.X+4, box.Y+60)[0]), pick(dark, float32(255), 30), 0.5)
 		near("the month view", float32(shotPixel(tester, box.X+4, box.Y+120)[0]), pick(dark, float32(255), 31), 0.5)
 
-		// The columns' edges follow from the names' middles, the first starting 3 in (the border and the month view's margin of 2): Grid's star columns sharing the 294 DIPs, each holding its name with its padding (TestFluentStarColumns).
+		// The columns' edges follow from the names' middles, the first starting 3 in (the border and the month view's margin of 2): Grid's star columns sharing the 294 DIPs, each holding its name with its padding where the names fit, in equal shares where the host's font makes them too wide (TestFluentStarColumns, TestFluentWeekdayColumnsFitTheCalendar).
 		var least [7]float32
 		for i, name := range weekdayNames("en-US", Windows) {
 			r, _ := tester.Find(name)
 			least[i] = r.W + 26
 		}
-		want := fluentStarColumns(least, 294)
+		want := fluentWeekdayColumns(least, 294)
 		edge := box.X + 3
 		for i, name := range weekdayNames("en-US", Windows) {
 			r, _ := tester.Find(name)
@@ -933,6 +933,20 @@ func TestFluentStarColumns(t *testing.T) {
 	got = fluentStarColumns([7]float32{30, 30, 30, 30, 30, 30, 60}, 294)
 	for i, want := range []float32{39, 39, 39, 39, 39, 39, 60} {
 		near(fmt.Sprintf("overflowing column %d", i), got[i], want, 0.01)
+	}
+}
+
+// TestFluentWeekdayColumnsFitTheCalendar pins that names too wide together for CalendarView's row, as a host font wider than Segoe UI Variable makes them (DejaVu Sans on Linux), share the row in equal columns, as WinUI's star columns share a width that limits them, rather than running past the calendar's border; names that fit share it as Grid does (TestFluentStarColumns).
+func TestFluentWeekdayColumnsFitTheCalendar(t *testing.T) {
+	wide := [7]float32{44, 48, 44, 48, 44, 40, 44}
+	for i, got := range fluentWeekdayColumns(wide, 294) {
+		if got != 42 {
+			t.Errorf("column %d of names 312 wide together is %v, want 42", i, got)
+		}
+	}
+	segoe := [7]float32{39.78, 44.5, 39.85, 43.73, 39.83, 36.68, 39.03}
+	if got, want := fluentWeekdayColumns(segoe, 294), fluentStarColumns(segoe, 294); got != want {
+		t.Errorf("names that fit share the row as %v, want Grid's %v", got, want)
 	}
 }
 

@@ -572,6 +572,22 @@ func fluentWeekdayWidths(c *ui.Context, names [7]string, size, width float32) [7
 		w, _ := c.MeasureText(0, ui.Span{Text: n, Size: size, Weight: 600})
 		least[i] = w + 26
 	}
+	return fluentWeekdayColumns(least, width)
+}
+
+// fluentWeekdayColumns shares width among the seven columns of names whose widths with their padding are least: as fluentStarColumns does where they fit, and in equal shares where together they need more than width, as WinUI's star columns share a width that limits them (a CalendarView given a width keeps its 42-DIP columns and wraps a name that does not fit), so that a host font wider than Segoe UI Variable keeps the names inside the calendar.
+func fluentWeekdayColumns(least [7]float32, width float32) [7]float32 {
+	var sum float32
+	for _, l := range least {
+		sum += l
+	}
+	if sum > width {
+		var out [7]float32
+		for i := range out {
+			out[i] = width / 7
+		}
+		return out
+	}
 	return fluentStarColumns(least, width)
 }
 
