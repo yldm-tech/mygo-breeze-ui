@@ -1,0 +1,64 @@
+name: Release
+
+# Tags main and publishes a GitHub release once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh). The Go module's users take versions from these tags. Run it by hand to force a bump.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Bump to make, whatever the commits call for
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag and release
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Next version
+        id: version
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(.github/scripts/next-version.sh "$SHA" "$BUMP")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse "$SHA")" >> "$GITHUB_OUTPUT"
+          if [ -n "$version" ]; then
+            echo "Releasing $version at $SHA" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Nothing to release at $SHA" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Tag
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA: ${{ steps.version.outputs.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "$VERSION" "$SHA"
+          git push origin "refs/tags/$VERSION"
+      - name: Release
+        if: steps.version.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create "$VERSION" --verify-tag --title "$VERSION" --generate-notes

@@ -95,6 +95,8 @@ bun run typecheck
 bun run build
 ```
 
+Pull request 标题和提交信息使用 [Conventional Commits](https://www.conventionalcommits.org/)（`feat(breeze): ...`、`fix: ...`）。Labels 工作流会检查标题，并按类型、大小、区域和平台给每个 pull request 打标签；Conflicts 工作流会给与目标分支冲突的 pull request 打标签。`main` 上的 CI 通过后，如果上一个 tag 之后的提交需要发版，Release 工作流就会打 tag 并发布 GitHub Release：`feat` 升次版本号，`fix`、`perf` 和 `revert` 升修订号，破坏性改动（`feat!:` 或 `BREAKING CHANGE:` 脚注）升主版本号，版本仍是 0.x 时只升次版本号。需要强制发版时可以手动运行 Release 工作流。
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=yldm-tech/mygo-breeze-ui&type=Date)](https://star-history.com/#yldm-tech/mygo-breeze-ui&Date)
