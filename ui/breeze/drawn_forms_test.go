@@ -669,8 +669,12 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 		for i, ours := range []bool{true, false} {
 			address := ""
 			var th *ui.Theme
+			var top float32
 			tester := formsTester(Linux, dir, 400, 300, func(c *ui.Context) {
 				th = c.Theme()
+				// The legend's line centered in the group's 34-pixel header, the fields 6 below it, as Fieldset lays them out on GNOME.
+				_, line := c.MeasureText(0, ui.Span{Text: "Shipping", Size: th.FontSize, Weight: 600})
+				top = (adwGroupHeader - line) / 2
 				ui.Column(c).Padding(16).Children(func() {
 					build := func() {
 						Field(c, "Address", func() { TextInput(c, &address).Label("Address input") })
@@ -678,12 +682,12 @@ func TestFieldLabelAndLegendWeights(t *testing.T) {
 					if ours {
 						Fieldset(c, "Shipping", build)
 					} else {
-						ui.Fieldset(c, "Shipping", build).Gap(12)
+						ui.Fieldset(c, "Shipping", build).Padding(top, 0, 0, 0).Gap(top + 6)
 					}
 				})
 			})
 			legend := formsFind(t, tester, "Shipping")
-			box := ui.Rect{X: legend.X, Y: legend.Y, W: legend.W, H: 20}
+			box := ui.Rect{X: legend.X, Y: legend.Y + top, W: legend.W, H: 20}
 			legendRows[i][0], legendRows[i][1] = formsInkRows(tester, box, th.Background)
 			legendInk[i], _ = formsInk(tester, box, th.Background, th.Text)
 			legendEdge[i] = formsInkEdge(tester, box, th.Background, rtl)

@@ -35,7 +35,8 @@ func adwTheme(dark bool, accent ui.Color) *ui.Theme {
 		t.SurfaceHover = t.Background.Mix(white, 0.15)
 		t.SurfacePressed = t.Background.Mix(white, 0.30)
 		t.Danger, t.Warning, t.Success = ui.Hex("#c01c28"), ui.Hex("#cd9309"), ui.Hex("#26a269")
-		t.Focus = ui.RGBA(129, 208, 255, 0.5) // accent_color at 50%
+		// accent_color at 50%. The dark theme's accent_color is the accent with its Oklab lightness raised to 0.85, which for #3584e4 is outside sRGB (128.6, 208.4, 310.8: its blue past 255), and GTK 4.24 mixes it at 50% unclamped: libadwaita 1.10.0's focus ring reads (92, 132, 185) over an entry's (57, 57, 60) (measured by tools/adwaita-reference), where the clamped #81d0ff at 50% gives (93, 132, 158). The blue's 185 needs 64.3% of 255; these values give GTK's ring over the entry's and a button's faces, and come within 3 levels of it over the window.
+		t.Focus = ui.RGBA(112, 175, 255, 0.643)
 	} else {
 		t.Background = ui.Hex("#fafafb")
 		t.Text = t.Background.Mix(adwInk, 0.8)
@@ -106,14 +107,23 @@ func adwButton(c *ui.Context, b ui.Element, primary bool) {
 		return
 	}
 	adwFocusRing(t, b, 9, nil)
-	face := t.Surface
+	// $button_color, $button_hover_color and $button_active_color are currentColor at 10%, 15% and 30%, translucent, so a button shows what is behind it: over a boxed list's card its face is the card's color mixed, 235 in the light theme and 72 in the dark one where over the window it is 230 and 57 (measured from libadwaita 1.10.0 by tools/adwaita-reference, an AdwActionRow's suffix and the inputs set's buttons). The text takes its color over the face as it is over the window.
+	share := float32(0.10)
 	switch {
 	case pressed:
-		face = t.SurfacePressed
+		share = 0.30
 	case hovered:
-		face = t.SurfaceHover
+		share = 0.15
 	}
-	b.Background(face).TextColor(adwTextOn(t, face))
+	b.Background(adwInkLayer(t, share)).TextColor(adwTextOn(t, adwInkAlpha(t, t.Background, share)))
+}
+
+// adwInkLayer is currentColor at share as a translucent color, what adwInkAlpha lays over a background: white in the dark theme, and in the light one window_fg_color, the shade at 80%.
+func adwInkLayer(t *ui.Theme, share float32) ui.Color {
+	if t.Dark {
+		return white.Alpha(share)
+	}
+	return adwInk.Alpha(share * 0.8)
 }
 
 // adwCheckbox draws a GtkCheckButton: a 20-pixel indicator (14 and padding 3) with corners of 6 and an inset 2-pixel trough border, 4 pixels from its label, inside a row padded by 4 (.text-button) with corners of 9 that shows the focus ring inside its edge; checked, the accent with libadwaita's check mark in accent_fg_color.
@@ -234,7 +244,7 @@ func adwToggleShare(b ui.Element, on bool) float32 {
 	return 0.10
 }
 
-// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12.
+// adwField draws a GtkEntry: 34 pixels high with padding 0 9px, corners of 9, filled with currentColor at 10% and no border, and a 2-pixel focus ring inside its edge while it has the focus; a search entry is the same. A multi-line text view sits in a frame: view_bg_color inside a 1-pixel border, corners of 12. The fill is translucent, as libadwaita's is, so an entry shows what is behind it: over the window 230 in the light theme and 57 in the dark one, in an AdwActionRow over a boxed list's card 235 and 72 (measured from libadwaita 1.10.0 (GTK 4.24.1) by tools/adwaita-reference, its inputs and overcard sets). An entry's placeholder is .dimmed, window_fg_color at 55% over the fill: 129 and 166 over the window, 132 and 172 over the card, where MyGo's TextMuted, opaque over the window, read 140 and 156.
 func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 	t := c.Theme()
 	f.Border(0, ui.Color{})
@@ -243,7 +253,7 @@ func adwField(c *ui.Context, f ui.Element, kind fieldKind) {
 		radius = 12
 		f.Padding(8, 9).Background(pick(t.Dark, white, ui.Hex("#1d1d20")))
 	} else {
-		f.MinHeight(34).Padding(0, 9).Background(adwInkAlpha(t, t.Background, 0.10))
+		f.MinHeight(34).Padding(0, 9).Background(adwInkLayer(t, 0.10)).PlaceholderColor(adwInkLayer(t, 0.55))
 	}
 	f.Radius(radius)
 	focused := f.Focused()

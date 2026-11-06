@@ -292,9 +292,13 @@ func rowsBuild(c *ui.Context, row ui.Element, title, subtitle string, toggle boo
 			adwBoxedListShadow(row)
 			item.radius = [4]float32{12, 12, 12, 12}
 		case rowsInAccordion:
-			// row.expander list.nested: card_shade_color at 50% over the card, a line of card_shade_color above every row, the expander's header above the first.
+			// row.expander list.nested: card_shade_color at 50% over the card, a line of card_shade_color above every row, the expander's header above the first. The line below the header is over the card; the lines between nested rows are over the nested list, darker: 229 over its 246 in the light theme and 27 over 42 in the dark one, where the header's reads 237 and 33 (measured from libadwaita 1.10.0 by tools/adwaita-reference).
 			under = fill.Mix(adwInk, pick(t.Dark, float32(0.035), 0.18))
-			row.Background(under).BorderWidth(1, 0, 0, 0).BorderColor(shade)
+			line := shade
+			if !first {
+				line = adwNestedRowLine(t, under)
+			}
+			row.Background(under).BorderWidth(1, 0, 0, 0).BorderColor(line)
 		default:
 			if bordered {
 				row.BorderWidth(1, 0, 0, 0).BorderColor(shade)

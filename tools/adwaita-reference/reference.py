@@ -297,7 +297,9 @@ def layout_set():
     paned = Gtk.Paned(start_child=pad(Gtk.Label(label="Sidebar", xalign=0, yalign=0), 8), end_child=pad(Gtk.Label(label="Content", xalign=0, yalign=0), 8), position=120)
     paned.add_css_class("frame")
     paned.set_size_request(-1, 60)
-    right = vbox(16, name_row, shipping, group, paned, width=270)
+    # The test's Form puts its Fieldset 24 below the field above it (ui.Form's gap of 12 and the 12 a Fieldset keeps from what is above it), as an AdwPreferencesPage spaces its groups 24 apart.
+    form = vbox(24, name_row, shipping)
+    right = vbox(16, form, group, paned, width=270)
     root = hbox(24, left, right, padding=16)
     return Scene(600, 470, root, named={"expander": closed, "accordion": accordion, "expanderrow": privacy, "name": name, "shipping": shipping, "group": group, "paned": paned})
 
@@ -552,10 +554,10 @@ def inputs_set():
 
 
 def status_set():
-    """TestScreenshotsStatus's statusView: four banners, 16 from the window's edges and 68 apart, the first and the last with a Dismiss button (banners have no severity, so the four differ only in their titles), and AdwSpinners where the determinate rings are, as libadwaita has no determinate ring."""
+    """TestScreenshotsStatus's statusView: four banners, 16 from the window's edges and 68 apart, the first and the last with a Dismiss button (banners have no severity, so the four differ only in their titles), and AdwSpinners where the determinate rings are, as libadwaita has no determinate ring. A banner has only a title: Breeze UI's message follows it in the same label at regular weight, which markup gives the bold title here."""
     items, named = [], {}
     for i, title in enumerate(["Informational", "Success", "Warning", "Error"]):
-        banner = Adw.Banner(title=title + " Some message about it.", revealed=True)
+        banner = Adw.Banner(title=title + ' <span weight="normal">Some message about it.</span>', use_markup=True, revealed=True)
         if i in (0, 3):
             banner.set_button_label("Dismiss")
         banner.set_size_request(528, -1)
@@ -575,7 +577,25 @@ def status_page_set():
     """TestScreenshotsStatus's statusPageView: an AdwStatusPage filling the window with system-search-symbolic, a title, a description and a button."""
     button = Gtk.Button(label="Clear Search", halign=Gtk.Align.CENTER)
     page = Adw.StatusPage(icon_name="system-search-symbolic", title="No Results", description="Check the spelling or try a new search.", child=button)
-    return Scene(560, 420, page, named={"statuspage": page, "button": button})
+    named = {"statuspage": page, "button": button}
+    # The page's icon, title and description, which it does not expose, by their types and style classes (adw-status-page.ui).
+    for w in descendants(page):
+        if isinstance(w, Gtk.Image):
+            named["icon"] = w
+        elif isinstance(w, Gtk.Label) and w.has_css_class("title"):
+            named["title"] = w
+        elif isinstance(w, Gtk.Label) and w.has_css_class("description"):
+            named["description"] = w
+    return Scene(560, 420, page, named=named)
+
+
+def descendants(widget):
+    """Every widget inside widget, depth first."""
+    child = widget.get_first_child()
+    while child is not None:
+        yield child
+        yield from descendants(child)
+        child = child.get_next_sibling()
 
 
 def rows_set():
@@ -614,8 +634,28 @@ def rows_set():
     network.add_row(switch_row("Metered", False))
     accordion = boxed(network)
     right = vbox(16, privacy, accordion, width=300)
+    # The rows ask to expand, which would widen the column past the test's 300 to the window's end.
+    right.set_hexpand(False)
     root = hbox(24, left, right, padding=16)
     return Scene(672, 520, root, named={"card": card, "rows": settings, "storage": storage, "privacy": privacy, "network": network})
+
+
+def over_card_set():
+    """The card of TestAdwControlsOverCard: a boxed list 300 wide, 16 from the window's edges, of an AdwActionRow holding an AdwSplitButton and one holding an empty GtkPasswordEntry with a placeholder, 160 wide, to read what the translucent faces of libadwaita's controls show over a card."""
+    box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+    box.add_css_class("boxed-list")
+    share = Adw.ActionRow(title="Share")
+    split = Adw.SplitButton(label="Send", valign=Gtk.Align.CENTER, menu_model=Gio.Menu())
+    share.add_suffix(split)
+    secret = Adw.ActionRow(title="Secret")
+    entry = Gtk.PasswordEntry(placeholder_text="Password", valign=Gtk.Align.CENTER)
+    entry.set_size_request(160, -1)
+    secret.add_suffix(entry)
+    box.append(share)
+    box.append(secret)
+    root = vbox(0, box, padding=16, width=300)
+    root.set_hexpand(False)
+    return Scene(332, 160, start(root), named={"split": split, "password": entry})
 
 
 def text_set():
@@ -636,7 +676,7 @@ SETS = [
     ("idioms", "adwaita-idioms", idioms_set), ("menu", "adwaita-idioms-menu", lambda: idioms_set(True)), ("table", "adwaita-table", table_set),
     ("inputs", "adwaita-inputs", inputs_set),
     ("status", "adwaita-status", status_set), ("statuspage", "adwaita-statuspage", status_page_set),
-    ("rows", "adwaita-rows", rows_set),
+    ("rows", "adwaita-rows", rows_set), ("overcard", "adwaita-overcard", over_card_set),
     ("text", "adwaita-text", text_set),
 ]
 
@@ -694,6 +734,8 @@ def main():
         Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK if dark else Adw.ColorScheme.FORCE_LIGHT)
         scene = build()
         window = Adw.Window()
+        # AdwWindow asks for at least 360 by 200 pixels, frame included; a scene less than 190 high (the inputs set) would get a taller window, which the snapshot below then squeezes into the scene's height.
+        window.set_size_request(-1, -1)
         window.set_content(scene.root)
         window.set_default_size(scene.width + 2 * FRAME, scene.height + 2 * FRAME)
         window.present()
