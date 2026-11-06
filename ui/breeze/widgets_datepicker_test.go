@@ -110,6 +110,8 @@ func TestScreenshotsFluentDatePickerOpen(t *testing.T) {
 		if err := tester.Click("11/18/2026"); err != nil {
 			t.Fatal(err)
 		}
+		// The pointer leaves the picker, as no pointer is over WinUI's in its scene, so that the picker is not drawn under the pointer.
+		tester.Move(410, 430)
 		tester.Frame()
 		tester.Frame()
 		prev, ok := tester.Find("Previous")
@@ -758,7 +760,7 @@ func TestFluentCalendarStatesAsMeasured(t *testing.T) {
 	}
 }
 
-// TestFluentCalendarAsRendered pins what WinUI 3's render on Windows 11 26H2 (tools/winui-reference's winui-datepicker and winui-datepicker-open scenes) shows of CalendarView and CalendarDatePicker beyond their sources: the Previous and Next buttons 34 by 36 DIPs, 218 and 258 DIPs in, with carets 6 DIPs high; the month's text 17 DIPs in and its middle 24.5 down, its room ending 12 DIPs before Previous's margin (the HeaderButton's margin of 3, its border and its padding of 8); the line under the header ControlStrokeColorDefault over the calendar's background (240, 47); the row of names under CalendarViewBackground a second time (30 over the calendar's 31 in the dark theme); the day names' columns widened to fit a name with its padding, the others sharing the rest; the picker's date 12 DIPs from its start and its calendar glyph, an outline 10 high with its band and five dots, its middle 16 DIPs before the picker's end; and in the picker's flyout the calendar's background and border over the presenter's in-app acrylic fallback (34 and 59 in the dark theme, the row of names 31, the border 234 in the light one).
+// TestFluentCalendarAsRendered pins what WinUI 3's render on Windows 11 26H2 (tools/winui-reference's winui-datepicker and winui-datepicker-open scenes) shows of CalendarView and CalendarDatePicker beyond their sources: the Previous and Next buttons 34 by 36 DIPs, 218 and 258 DIPs in, with carets 6 DIPs high; the month's text 17 DIPs in and its middle 24.5 down, its room ending 12 DIPs before Previous's margin (the HeaderButton's margin of 3, its border and its padding of 8); the line under the header ControlStrokeColorDefault over the calendar's background (240, 47); the row of names under CalendarViewBackground a second time (30 over the calendar's 31 in the dark theme); the day names' columns, each holding its name with its padding, sharing the row in order as WinUI's Grid shares star columns (TestFluentStarColumns); the picker's date 12 DIPs from its start and its calendar glyph, an outline 10 high with its band and five dots, its middle 16 DIPs before the picker's end; and in the picker's flyout the calendar's background and border over the presenter's in-app acrylic fallback (34 and 59 in the dark theme, the row of names 31, the border 234 in the light one).
 func TestFluentCalendarAsRendered(t *testing.T) {
 	fixToday(t, datePickerToday)
 	near := func(what string, got, want, by float32) {
