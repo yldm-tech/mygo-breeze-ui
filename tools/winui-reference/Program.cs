@@ -465,7 +465,7 @@ public sealed class App : Application, IXamlMetadataProvider
     // CarouselXaml is the body of the carousel scenes (see winui-carousel).
     const string CarouselXaml = """
         <PipsPager x:Name="pager-five" Canvas.Left="16" Canvas.Top="16" NumberOfPages="5" SelectedPageIndex="1"/>
-        <PipsPager x:Name="pager-nine" Canvas.Left="16" Canvas.Top="56" NumberOfPages="9" SelectedPageIndex="6"/>
+        <PipsPager x:Name="pager-nine" Canvas.Left="16" Canvas.Top="56" NumberOfPages="9"/>
         <StackPanel x:Name="carousel" Canvas.Left="16" Canvas.Top="96" Width="320">
           <FlipView x:Name="flipview" Height="160">
             <Grid><TextBlock Text="Slide 1" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
@@ -480,10 +480,11 @@ public sealed class App : Application, IXamlMetadataProvider
     // CarouselItems are the elements of the carousel scenes whose frames, parts and pixels the report gives.
     static readonly string[] CarouselItems = ["pager-five", "pager-nine", "carousel", "flipview", "carousel-pager"];
 
-    // WaitForPips shows the FlipView's 2nd page, which XAML cannot choose before the pages are added (a Selector's SelectedIndex past its items is refused), and gives the move to it and the PipsPagers' ScrollViewers the time to finish, which they animate (FlipView::OnSelectedIndexChanged animates a move to the adjacent page; ScrollToCenterOfViewport asks StartBringIntoView for an animation).
+    // WaitForPips shows the FlipView's 2nd page, which XAML cannot choose before the pages are added (a Selector's SelectedIndex past its items is refused), chooses the 7th page of the pager of 9 once it is laid out, and gives the move to it and the PipsPagers' ScrollViewers the time to finish, which they animate (FlipView::OnSelectedIndexChanged animates a move to the adjacent page; ScrollToCenterOfViewport asks StartBringIntoView for an animation). A SelectedPageIndex set in XAML is brought into view only by OnApplyTemplate's UpdateSelectedPip, before the pager's first layout, where StartBringIntoView does nothing: rendered so, the pager of 9 shows its first 5 pips and not the chosen one, which a page chosen later, as an app's or a click's, does not.
     static async Task WaitForPips(FrameworkElement root, ElementTheme theme)
     {
         ((FlipView)root.FindName("flipview")).SelectedIndex = 1;
+        ((PipsPager)root.FindName("pager-nine")).SelectedPageIndex = 6;
         await Task.Delay(1000);
     }
 
