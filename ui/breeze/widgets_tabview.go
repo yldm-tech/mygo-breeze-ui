@@ -1,6 +1,8 @@
 package breeze
 
 import (
+	"math"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -46,7 +48,7 @@ func tabViewAfterClose(selected, i, n int) int {
 // The tabs are MyGo's TabsBase: a tab list for assistive technology, of tabs named by their labels, Tab stopping once at the chosen tab, the arrows, Home and End choosing among them. The close buttons are buttons named as the platform names them, which the pointer and assistive technology press but Tab does not stop at, as WinUI's (IsTabStop False) and GTK's (can-focus False) are not; the add button is a Tab stop after the tabs. The platform's keys switch tabs while the focus is in the strip, or anywhere in the window when no element around the focus takes them: Ctrl+Tab and Ctrl+Shift+Tab on every platform (AppKit's Window menu, WinUI's KeyboardAccelerators, AdwTabView's shortcuts), wrapping around; Ctrl+F4 closes the chosen tab on Windows; on GNOME Ctrl+Page Up and Ctrl+Page Down switch too, Alt+1 to Alt+9 and Alt+0 choose the first ten tabs, and Ctrl+Home and Ctrl+End the first and the last while the focus is in the strip (in the window they would take those keys from text fields). A key it would not act on goes on to the window's other shortcuts, as WinUI's accelerators leave it unhandled and AdwTabView's shortcuts let it propagate: the switching keys with a single tab, Ctrl+F4 when the tabs do not close, an Alt+digit for a tab that is not there or is the chosen one. With the focus in the strip, the tab the keys choose, or the one chosen in place of a closed tab, takes the focus, as AdwTabBox gives it to the chosen tab and WinUI's TabView moves it from a closed tab to the one beside it. Closing the tab with Ctrl+W or Cmd+W is the app's, as GNOME and macOS leave it to the app's menus.
 //   - macOS: the tab bar of a window's tabs (NSWindow tabbing): a 28-point capsule track 8 points in from the strip's sides, 9% of the label color over the window, holding the tabs, equal in width, 24 points high 2 points inside it and a point apart, their titles centered in 13 points; the chosen tab a white capsule (white at 11.7% in Dark Aqua) in labelColor, the others in secondaryLabelColor; a separator 1 by 16 points, the label color at 12% over the track, between two tabs neither of which is chosen or under the pointer; the close button under the pointer at the tab's leading edge; the + button, a 28-point circle 4 points after the track; a separator line under the strip as under a title bar.
 //   - Windows: WinUI's TabView with TabWidthMode Equal and CloseButtonOverlayMode Auto: tabs 32 DIPs high, 8 below the strip's top, sharing the width up to 240 each, their 12-DIP headers in TextFillColorSecondary, semibold in TextFillColorPrimary on the chosen tab, which SolidBackgroundFillColorTertiary fills with corners of 8 at the top and 4-DIP curves joining CardStrokeColorDefault's line along the strip's bottom; DividerStrokeColorDefault separators 16 high at the ends of tabs neither chosen nor beside the chosen one, nor under the pointer; a 32 by 24 close button with the Cancel glyph on every closable tab, as Auto shows them (it maps to Always); the 32 by 24 add button 3 DIPs after the tabs and above the strip's bottom.
-//   - GNOME: AdwTabBar with expand-tabs: a bar of headerbar_bg_color with headerbar_shade_color along its bottom, the tabs 34 pixels high, 6 below its top, 5 apart and 5 from its ends, sharing its width, their titles centered; the chosen tab currentColor at 10% (13% under the pointer, 19% pressed), another one 7% under the pointer and 16% pressed, corners of 9, none of it with a single tab; a 1-pixel separator 28 high centered in the space before every tab neither it nor the tab before is chosen or under the pointer; a round 24-pixel flat close button with window-close-symbolic at the tab's end while it is chosen or under the pointer; the add button, a flat 34-pixel image button with adw-tab-new-symbolic, at the bar's end.
+//   - GNOME: AdwTabBar with expand-tabs: a bar of headerbar_bg_color 47 pixels high with headerbar_shade_color along its bottom pixel, the tabs 34 pixels high, 6 below its top, 5 apart and 5 from its ends, sharing its width in whole pixels, the first ones a pixel narrower where it does not divide evenly, their titles centered; the chosen tab currentColor at 10% (13% under the pointer, 19% pressed), another one 7% under the pointer and 16% pressed, corners of 9, none of it with a single tab; a 1-pixel separator 28 high centered in the space before every tab neither it nor the tab before is chosen or under the pointer; a round 24-pixel flat close button with window-close-symbolic at the tab's end while it is chosen or under the pointer; the add button, a flat 34-pixel image button with adw-tab-new-symbolic, at the bar's end.
 //
 // It returns the strip, whose Changed reports nothing: read *selected. Dragging tabs to reorder them, GNOME's Ctrl+Shift+Page Up and Page Down that move the chosen tab, and the middle click closing a tab on Windows and GNOME are not provided: see the documentation's Limits.
 func TabView(c *ui.Context, selected *int, labels []string, close func(i int), add func()) ui.Element {
@@ -65,17 +67,22 @@ func TabView(c *ui.Context, selected *int, labels []string, close func(i int), a
 	strip.Children(func() {
 		parts := ui.TabsBase(c, selected, n)
 		list := parts.List.Grow(1).Shrink(1).MinWidth(0)
+		var widths []float32
 		switch p {
 		case Windows:
 			fluentTabViewStrip(c, strip, list, n)
 		case Linux:
 			adwTabViewStrip(c, strip, list)
+			widths = adwTabViewWidths(c, list, n)
 		default:
 			macTabViewStrip(c, strip, list)
 		}
 		list.Children(func() {
 			for i, label := range labels {
 				tab := parts.Tab(i).Label(label).Grow(1).Shrink(1).MinWidth(0).FocusRing(false)
+				if widths != nil {
+					tab.Grow(0).Basis(widths[i])
+				}
 				hovered[i] = tab.Hovered()
 				chosen := i == sel
 				if chosen && *follow {
@@ -419,12 +426,36 @@ func adwTabViewBar(t *ui.Theme) (bg, shade ui.Color) {
 	return bg, bg.Mix(adwInk, pick(t.Dark, float32(0.12), 0.36))
 }
 
-// adwTabViewStrip lays out an AdwTabBar: .box padded 1 pixel at the sides and the bottom, none at the top, its inset shade along the bottom over that pixel; the tabbox padded 6 above and below, its tabs SPACING (5) apart and 5 from its ends, sharing its width (expand-tabs, AdwTabBar's default).
+// adwTabViewStrip lays out an AdwTabBar: .box padded 1 pixel at the sides and the bottom, none at the top, its inset shade along the bottom drawn over that pixel (the border here), so that the bar is 47 pixels high with the shade in its last row, as libadwaita 1.10.0 renders it (tools/adwaita-reference's tabview set); the tabbox padded 6 above and below, its tabs SPACING (5) apart and 5 from its ends, sharing its width (expand-tabs, AdwTabBar's default).
 func adwTabViewStrip(c *ui.Context, strip, list ui.Element) {
 	t := c.Theme()
 	bg, shade := adwTabViewBar(t)
-	strip.Background(bg).TextColor(adwTextOn(t, bg)).Padding(0, 1, 1, 1).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(shade)
+	strip.Background(bg).TextColor(adwTextOn(t, bg)).Padding(0, 1, 0, 1).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(shade)
 	list.Padding(6, 5).Gap(5).AlignItems(ui.Stretch)
+}
+
+// adwTabViewWidths returns the widths of n tabs in the tab list as AdwTabBox gives them (adw_tab_box_size_allocate with get_base_tab_width): the list's whole width less SPACING before, between and after the tabs, divided by n and rounded up, then a pixel taken from each of the first tabs until they fit, so that the tabs and the separators between them sit on whole pixels, as libadwaita 1.10.0 renders them (tools/adwaita-reference's tabview set: tabs 155, 156 and 156 wide in a 528-pixel bar with the add button, the separator before the third at 340). The width is the list's in the previous frame, and a frame is asked for while it changes; it returns nil while the list has not been laid out yet, and the tabs then share its width as they grow.
+func adwTabViewWidths(c *ui.Context, list ui.Element, n int) []float32 {
+	w := float32(math.Floor(float64(list.LayoutBounds().W)))
+	last := ui.Local(list, "breeze-tabview-width", func() float32 { return -1 })
+	if *last != w {
+		*last = w
+		c.Invalidate()
+	}
+	const spacing = 5
+	room := int(w) - spacing*(n+1)
+	if n == 0 || room <= 0 {
+		return nil
+	}
+	base := (room + n - 1) / n
+	widths := make([]float32, n)
+	for i := range widths {
+		widths[i] = float32(base)
+		if i < n*base-room {
+			widths[i]--
+		}
+	}
+	return widths
 }
 
 // adwTabViewTab draws AdwTab i and builds its children, returning its close button: 34 pixels high (min-height 26px, padding 4px), corners of $button_radius 9, its title in a .tab-title label with margins of 4, centered on the tab (adw_tab_size_allocate centers it across the whole tab, so the close button is matched by as much room at the start); currentColor at 10%, 13% under the pointer and 19% pressed while chosen, 7% under the pointer and 16% pressed otherwise, and none in a bar of one tab (.single-tab); the close button (window-close-symbolic in a .flat button 24 pixels round, currentColor at 7% under the pointer and 16% pressed) at the end, shown while the tab is chosen or under the pointer (update_state) and taking no clicks otherwise (can-target follows its opacity). The separator before tab i, a GtkSeparator of $border_color (currentColor at 15%) 1 pixel wide and 3 in from the tabbox's content top and bottom, is centered in the 5-pixel space before the tab, hidden before the first tab and where it or the tab before is chosen, under the pointer or pressed (update_separators). The focus ring is inside the tab's edge (tabboxchild's focus-ring mixin).

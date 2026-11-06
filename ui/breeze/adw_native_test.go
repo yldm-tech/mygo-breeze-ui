@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows, overcard and settings sets, against TestScreenshotsInputs, TestScreenshotsRows, TestAdwControlsOverCard and TestScreenshotsSettings.
+// The values these tests pin were measured from libadwaita 1.10.0's rendering (GTK 4.24.1, Adwaita Sans) by tools/adwaita-reference, its inputs, rows, overcard, settings and tabview sets, against TestScreenshotsInputs, TestScreenshotsRows, TestAdwControlsOverCard, TestScreenshotsSettings and TestScreenshotsTabView.
 
 // TestAdwPasswordFocusRingDark checks the focus ring of a GtkPasswordEntry in the dark theme, which libadwaita 1.10.0 renders (92, 132, 185) over the entry's fill: GTK mixes the dark theme's accent_color, outside sRGB, at 50% without clamping it, bluer than the clamped #81d0ff at 50% (93, 132, 158).
 func TestAdwPasswordFocusRingDark(t *testing.T) {
@@ -282,6 +282,47 @@ func TestAdwSpinRowIconsOverTheirFace(t *testing.T) {
 			if d := int(px.R) - int(want); d < -2 || d > 2 {
 				t.Errorf("dark %v: %s's icon reads %d, want libadwaita's %d", dark, name, px.R, want)
 			}
+		}
+	}
+}
+
+// TestAdwTabBarAsRendered checks on GNOME, light and dark, the tab bars of TestScreenshotsTabView against libadwaita 1.10.0's AdwTabBars in tools/adwaita-reference's tabview set: each bar 47 pixels high with headerbar_shade_color in its last row (224 over 255 in the light theme, 29 over 46 in the dark one) and the window below it (250, 34); the tabs share the bar in whole pixels as AdwTabBox does, the first a pixel narrower, at 22, 182 and 343, 155, 156 and 156 wide beside the add button, and at 22 and 282, 255 and 256 wide without it; the separator before Pictures fills the pixel column at 340 (224, 77) from 25 to 52.5, 3 inside the tabs' 34 pixels.
+func TestAdwTabBarAsRendered(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		tester := ui.NewTester(tabViewView(Linux), 560, 260)
+		tester.SetScale(2)
+		tester.SetDark(dark)
+		tester.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+		tester.Frame()
+		tester.Frame()
+		want := map[string][2]float32{"Documents": {22, 155}, "Downloads": {182, 156}, "Pictures": {343, 156}, "General": {22, 255}, "Advanced": {282, 256}}
+		for name, xw := range want {
+			r, ok := tester.Find(name)
+			if !ok {
+				t.Fatalf("dark %v: the tab %s is missing", dark, name)
+			}
+			if r.X != xw[0] || r.W != xw[1] {
+				t.Errorf("dark %v: the tab %s is %v wide at %v, want %v wide at %v", dark, name, r.W, r.X, xw[1], xw[0])
+			}
+		}
+		img := tester.Image()
+		at := func(x, y int) uint8 { return img.RGBAAt(x, y).R }
+		bg, shade, window := map[bool]uint8{false: 255, true: 46}[dark], map[bool]uint8{false: 224, true: 29}[dark], map[bool]uint8{false: 250, true: 34}[dark]
+		near := func(got, want uint8) bool { return int(got)-int(want) <= 2 && int(want)-int(got) <= 2 }
+		// The bars start at 16 and 136; at x 100, 47 rows down, the window shows again.
+		for _, top := range []int{16, 136} {
+			for _, row := range []struct {
+				y    int
+				want uint8
+			}{{2 * (top + 45), bg}, {2*(top+46) + 1, shade}, {2 * (top + 46), shade}, {2 * (top + 47), window}} {
+				if got := at(200, row.y); !near(got, row.want) {
+					t.Errorf("dark %v: the bar at %d reads %d at device row %d, want %d", dark, top, got, row.y, row.want)
+				}
+			}
+		}
+		sep := map[bool]uint8{false: 224, true: 77}[dark]
+		if got := at(680, 2*38); !near(got, sep) || !near(at(681, 2*38), sep) || !near(at(682, 2*38), bg) {
+			t.Errorf("dark %v: the separator before Pictures reads %d, %d, %d across device columns 680 to 682, want %d, %d, %d", dark, got, at(681, 2*38), at(682, 2*38), sep, sep, bg)
 		}
 	}
 }
