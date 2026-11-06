@@ -134,7 +134,7 @@ func macInfoBarSymbol(p *ui.Painter, r ui.Rect, severity int, col, cut ui.Color)
 	p.Fill(ui.Rect{X: cx - 0.7*s, Y: cy - 1*s, W: 1.4 * s, H: 4.4 * s}, cut, 0.7*s)
 }
 
-// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high inside its border (InfoBarMinHeight on the template's Grid, inside the ContentRoot Border), so 50 here, where MinHeight includes the border, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness), InfoBarContentRootPadding 16 at the start; the 16-DIP severity icon (fluentToastIcon) with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), the panel as high as its tallest child and the bar's MinHeight making the rest, while the two fit on one line, and otherwise, or when there is no message (InfoBarPanel::MeasureOverride lays a single child out vertically), the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
+// fluentInfoBar draws a WinUI InfoBar in the layout, as InfoBar.xaml lays it out and as fluentToast draws it floating: at least 48 DIPs high inside its border (InfoBarMinHeight on the template's Grid, inside the ContentRoot Border), so 50 here, where MinHeight includes the border, ControlCornerRadius, a 1-DIP CardStrokeColorDefault border (InfoBarBorderThickness) laid over the window, as the background stops inside it (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference: the edge reads 229 around every severity's bar in the light theme and 29 in the dark one, not tinted by the bar's color), InfoBarContentRootPadding 16 at the start; the severity icon (fluentInfoBarIcon) in a 16-DIP box with InfoBarIconMargin 0,16,14,16; the title in 14-DIP semibold and the message at regular weight, 16 before the close button (InfoBarPanelMargin); and the close button (fluentInfoBarClose). InfoBarPanel puts the message 12 after the title, both 14 from the top (InfoBarTitleHorizontalOrientationMargin, InfoBarMessageHorizontalOrientationMargin), the panel as high as its tallest child and the bar's MinHeight making the rest, while the two fit on one line, and otherwise, or when there is no message (InfoBarPanel::MeasureOverride lays a single child out vertically), the message 4 below the title, the panel padded 14 above and 18 below (InfoBarPanelVerticalOrientationPadding, InfoBarMessageVerticalOrientationMargin); Breeze UI decides it from the bar's width in the previous frame. In the layout the informational bar's background is SystemFillColorAttentionBackground, #80F6F6F6 and #08FFFFFF over the window, where the floating toast's is the solid one; the other severities' are the same solid colors (fluentToastColors). It has no shadow.
 func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message string, closer func(string) ui.Element) {
 	t := c.Theme()
 	bg, iconFill := fluentToastColors(t, fluentSystemAccent(c), severity)
@@ -151,10 +151,10 @@ func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message s
 	// InfoBarPanel::MeasureOverride lays a single item, a title without a message, out vertically too.
 	across := message != "" && tw+12+mw <= panel
 	bar.AlignItems(ui.Start).MinHeight(50).PaddingStart(16).Radius(4).Background(bg).
-		Border(1, pick(t.Dark, ui.RGBA(0, 0, 0, 0.059), ui.RGBA(0, 0, 0, 0.098))).TextColor(t.Text).FontSize(14)
+		Border(1, t.Background.Mix(black, pick(t.Dark, float32(0x0f)/255, 0x19/255.0))).TextColor(t.Text).FontSize(14)
 	bar.Children(func() {
 		ui.Box(c).Size(16, 16).Shrink(0).MarginY(16).MarginEnd(14).Role(ui.RoleNone).Draw(func(p *ui.Painter, r ui.Rect) {
-			fluentToastIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
+			fluentInfoBarIcon(p, r, severity, iconFill, pick(t.Dark, white, ui.RGBA(0, 0, 0, 0.894)))
 		})
 		if across {
 			ui.Row(c).Grow(1).Shrink(1).AlignItems(ui.Start).MarginEnd(16).Children(func() {
@@ -177,6 +177,27 @@ func fluentInfoBar(c *ui.Context, bar ui.Element, severity int, title, message s
 	})
 }
 
+// fluentInfoBarIcon draws an InfoBar's severity icon in its 16-DIP box r, as WinUI 3 3.3 renders the glyphs of Segoe Fluent Icons on Windows 11 26H2 (measured by tools/winui-reference at 2x): a circle 15 DIPs across, flush with the box's start and a DIP below its top, in fill, and on it in mark, in strokes a DIP wide: for information an i, its dot 1.5 high from 3.5 above the circle's middle and its stem 3.5 high from half a DIP above it; for a warning the same turned over, its stem from 3 above the middle and its dot ending 3.5 below; for success a check mark from 3.25 left of the middle to its point 1 left and 2 below and up to 3.25 right and 2.25 above; for an error an × whose ink is 5 DIPs square. The marks are drawn from the render, as the font is not open.
+func fluentInfoBarIcon(p *ui.Painter, r ui.Rect, severity int, fill, mark ui.Color) {
+	circle := ui.Rect{X: r.X, Y: r.Y + 1, W: 15, H: 15}
+	p.Fill(circle, fill, 7.5)
+	cx, cy := circle.X+7.5, circle.Y+7.5
+	switch severity {
+	case fluentToastSuccess:
+		var path ui.Path
+		path.MoveTo(cx-3.25, cy-0.25).LineTo(cx-1, cy+2).LineTo(cx+3.25, cy-2.25)
+		p.StrokePath(&path, 1, mark)
+	case fluentToastError:
+		toastCross(p, ui.Rect{X: cx - 2.25, Y: cy - 2.25, W: 4.5, H: 4.5}, 0, 1, mark)
+	case fluentToastWarning:
+		p.Fill(ui.Rect{X: cx - 0.5, Y: cy - 3, W: 1, H: 3.5}, mark, 0)
+		p.Fill(ui.Rect{X: cx - 0.5, Y: cy + 2, W: 1, H: 1.5}, mark, 0)
+	default:
+		p.Fill(ui.Rect{X: cx - 0.5, Y: cy - 3.5, W: 1, H: 1.5}, mark, 0)
+		p.Fill(ui.Rect{X: cx - 0.5, Y: cy - 0.5, W: 1, H: 3.5}, mark, 0)
+	}
+}
+
 // prevWidth returns e's width in the previous frame, as a platform's layout that switches between arrangements by the width it is given knows it; for an element that frame lacked it returns the window's width and asks for another frame, which lays it out at its own.
 func prevWidth(c *ui.Context, e ui.Element) float32 {
 	// LayoutBounds is the box before transforms and zoom, in the DIPs the layout works in. A bar the previous frame had is never empty, as its padding and MinHeight make it high, so an empty box means a new bar and the frame is asked for once, not on every frame for a bar laid out zero wide.
@@ -188,7 +209,7 @@ func prevWidth(c *ui.Context, e ui.Element) float32 {
 	return w
 }
 
-// fluentInfoBarClose draws an InfoBar's close button (InfoBarCloseButtonStyle): 38 DIPs square (InfoBarCloseButtonSize) with a margin of 5, at the top, ControlCornerRadius, drawn with AppBarButton's brushes as InfoBar.xaml sets them: transparent, SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed; its 16-DIP Cancel symbol (InfoBarCloseButtonGlyphSize) in the text color; and, as InfoBarCloseButtonStyle is based on DefaultButtonStyle, the system focus visual 3 DIPs around it (FocusVisualMargin -3, fluentFocusRing).
+// fluentInfoBarClose draws an InfoBar's close button (InfoBarCloseButtonStyle): 38 DIPs square (InfoBarCloseButtonSize) with a margin of 5, at the top, ControlCornerRadius, drawn with AppBarButton's brushes as InfoBar.xaml sets them: transparent, SubtleFillColorSecondary under the pointer and SubtleFillColorTertiary pressed; its Cancel symbol (InfoBarCloseButtonGlyphSize) in the text color, an × whose ink is 11 DIPs square in 1-DIP strokes, centered half a DIP above and before the button's middle (measured from WinUI 3 3.3 on Windows 11 26H2 by tools/winui-reference at 2x); and, as InfoBarCloseButtonStyle is based on DefaultButtonStyle, the system focus visual 3 DIPs around it (FocusVisualMargin -3, fluentFocusRing).
 func fluentInfoBarClose(c *ui.Context, b ui.Element) {
 	t := c.Theme()
 	b.Size(38, 38).Margin(5).Shrink(0).Radius(4).Center().FocusRing(false)
@@ -206,7 +227,9 @@ func fluentInfoBarClose(c *ui.Context, b ui.Element) {
 		b.Background(hover)
 	}
 	b.Children(func() {
-		ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) { toastCross(p, r, 0.22, 1, t.Text) })
+		ui.Box(c).Size(16, 16).Draw(func(p *ui.Painter, r ui.Rect) {
+			toastCross(p, ui.Rect{X: r.X + r.W/2 - 5.5, Y: r.Y + r.H/2 - 5.5, W: 10, H: 10}, 0, 1, t.Text)
+		})
 	})
 }
 
