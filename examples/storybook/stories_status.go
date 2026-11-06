@@ -37,6 +37,36 @@ func statusStories() []*story {
 				}
 				return "breeze.InfoBar(c, " + q(*a.text["kind"]) + ", " + q(*a.text["title"]) + ", " + q(*a.text["message"]) + ", " + open + ")"
 			}},
+		{component: "InfoBarActions", name: "With an action", category: "Feedback",
+			controls: []control{choiceArg("kind", "warning", "info", "success", "warning", "error"), textArg("title", "Speech model missing"), textArg("message", "Download a model to transcribe."), textArg("action", "Open Settings"), toggleArg("primary", false), toggleArg("closable", true), toggleArg("open", true)},
+			render: func(c *ui.Context, a *args) {
+				var open *bool
+				if *a.on["closable"] {
+					open = a.on["open"]
+				}
+				ui.Column(c).FillWidth().MaxWidth(560).Gap(12).AlignItems(ui.Stretch).Children(func() {
+					breeze.InfoBarActions(c, *a.text["kind"], *a.text["title"], *a.text["message"], open, func() {
+						if *a.on["primary"] {
+							breeze.PrimaryButton(c, *a.text["action"])
+						} else {
+							breeze.Button(c, *a.text["action"])
+						}
+					})
+					if open != nil && !*open && breeze.Button(c, "Show again").AlignSelf(ui.Start).Clicked() {
+						*open = true
+					}
+				})
+			},
+			code: func(a *args) string {
+				open, button := "nil", "Button"
+				if *a.on["closable"] {
+					open = "&app.showNotice"
+				}
+				if *a.on["primary"] {
+					button = "PrimaryButton"
+				}
+				return "breeze.InfoBarActions(c, " + q(*a.text["kind"]) + ", " + q(*a.text["title"]) + ", " + q(*a.text["message"]) + ", " + open + ", func() {\n\tif breeze." + button + "(c, " + q(*a.text["action"]) + ").Clicked() {\n\t\tapp.openSettings()\n\t}\n})"
+			}},
 		{component: "ProgressRing", name: "Determinate", category: "Feedback",
 			controls: []control{numberArg("value", 0.6, 0, 1), toggleArg("small", false)},
 			render: func(c *ui.Context, a *args) {
