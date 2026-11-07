@@ -5,7 +5,7 @@ import { RootRoute } from "./root";
 import { Seo } from "../components/Seo";
 import { GoCodeBlock } from "../components/CodeHighlight";
 import { useUiStore } from "../store";
-import { categoryLabels, docsComponents } from "./components-docs";
+import { categoryLabels, docsComponents, localizedDescription } from "./components-docs";
 
 const afterCode = `func (app *settings) view(c *ui.Context) {
     breeze.Use(c) // 平台的颜色和尺寸，ui 包的组件也会跟着变
@@ -61,7 +61,7 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+function DocsSidebar({ open, onClose, locale }: { open: boolean; onClose: () => void; locale: "zh" | "en" }) {
   const groups = [
     {
       title: "开始",
@@ -77,7 +77,7 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
       items: [["平台与 Preview", "#platforms", false], ["主题", "#themes", false], ["已知限制", "#limits", false]],
     },
   ] as const;
-  const categoryOrder = ["actions", "choices", "text input", "layout", "navigation", "data", "feedback", "overlays"];
+  const categoryOrder = ["actions", "choices", "text", "layout", "navigation", "data", "feedback", "overlays"];
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [activeSection, setActiveSection] = useState(() => (typeof window !== "undefined" ? window.location.hash.slice(1) || "top" : "top"));
@@ -104,7 +104,7 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
           <label className="flex h-10 items-center gap-2 rounded-xl bg-white px-3 text-[#6B7280] shadow-[inset_0_0_0_1px_#E2E4E9]"><Search size={15} /><span className="sr-only">搜索组件</span><input className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索组件" /></label>
           <div className="flex flex-col gap-1">
             {categoryOrder.map((category) => {
-              const items = docsComponents.filter((item) => item.category === category && (!visible || `${item.name} ${item.description}`.toLowerCase().includes(visible)));
+              const items = docsComponents.filter((item) => item.category === category && (!visible || `${item.name} ${localizedDescription(item, locale)}`.toLowerCase().includes(visible)));
               if (!items.length) return null;
               const isExpanded = Boolean(expanded[category] || visible);
               return <div key={category}>
@@ -156,7 +156,7 @@ function DocsPage() {
         </div>
 
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-start">
-          <DocsSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+          <DocsSidebar open={menuOpen} onClose={() => setMenuOpen(false)} locale={locale} />
           <article id="top" className="min-w-0 flex-[999_1_560px] px-4 pb-16 pt-6 md:px-12 md:pb-20 md:pt-10">
             <div className="mx-auto flex max-w-[780px] flex-col gap-12">
               <div className="flex flex-col gap-3.5">

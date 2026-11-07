@@ -6,17 +6,9 @@ import { Seo } from "../components/Seo";
 import { GoCodeBlock } from "../components/CodeHighlight";
 import { catalog, type CatalogComponent } from "../lib/catalog";
 import { useUiStore } from "../store";
+import translations from "../locales/components.json";
 
-export const categoryLabels: Record<string, string> = {
-  actions: "操作",
-  choices: "选择",
-  "text input": "文本输入",
-  layout: "布局",
-  navigation: "导航",
-  data: "数据",
-  feedback: "反馈",
-  overlays: "浮层",
-};
+export const categoryLabels: Record<string, string> = translations.categories;
 
 const platformMeta = [
   { key: "mac", label: "macOS", accent: "#007AFF", font: "-apple-system, BlinkMacSystemFont, sans-serif" },
@@ -28,46 +20,9 @@ const platformMeta = [
 const referenceComponentNames = "Accordion,AccordionItem,ActionRow,AlertDialog,Autocomplete,Avatar,BackButton,Badge,Breadcrumbs,Button,Calendar,CalendarView,Card,Checkbox,CheckboxGroup,Collapsible,ColorPicker,ColorWell,ComboRow,Combobox,DateInput,DatePicker,DecimalInput,Divider,EditableText,EntryRow,ExpanderRow,Field,Fieldset,FindBar,Form,ForwardButton,GridView,HeaderBar,IconButton,InfoBar,Link,List,MenuButton,Meter,Modal,NumberInput,Outline,OutlineTable,PasswordField,Popover,PopoverMenuButton,PrimaryButton,Progress,ProgressRing,Radio,RadioGroup,RangeSlider,Rating,Scroll,ScrollBoth,ScrollHorizontal,SearchField,Segmented,Select,Sidebar,SidebarItem,SidebarSection,Slider,SpinRow,Spinner,Split,SplitButton,SplitPercent,SplitVertical,SplitVerticalPercent,StatusPage,StepSlider,Stepper,Switch,SwitchRow,TabView,Table,Tabs,Text,TextArea,TextAreaBuffer,TextInput,TextInputBuffer,TimeInput,Toasts,Toggle,ToggleGroup,TokenField,Toolbar,Tooltip,Tree,TreeItem,ViewSwitcher".split(",");
 export const docsComponents = catalog.components.filter((item) => referenceComponentNames.includes(item.name));
 
-const zhDescriptions: Record<string, string> = {
-  Switch: "开关控件，用于在开启和关闭两种状态之间切换。",
-  SwitchRow: "带标题和说明的开关行，适合设置页中的布尔选项。",
-  Calendar: "月份日历，用于选择日期并按平台显示导航和选中状态。",
-  CalendarView: "可嵌入视图的日历，用于展示和选择一个月中的日期。",
-  Modal: "模态对话框，用于承载需要用户确认或填写的内容。",
-  AlertDialog: "警告对话框，用于展示重要提示和需要确认的操作。",
-  Button: "普通按钮，用于触发一个明确的操作。",
-  PrimaryButton: "主操作按钮，用于突出当前界面最重要的动作。",
-  Checkbox: "复选框，用于选择一个独立的布尔选项。",
-  Radio: "单选按钮，用于从一组互斥选项中选择一个值。",
-  Slider: "滑块，用于在连续范围内调整一个数值。",
-  RangeSlider: "范围滑块，用于同时设置数值的最小值和最大值。",
-  Progress: "进度条，用于展示任务的完成进度。",
-  ProgressRing: "环形进度指示器，用于在紧凑空间中展示进度。",
-  TextInput: "单行文本输入框，用于输入短文本、名称或数值。",
-  TextArea: "多行文本输入框，用于编辑较长的文本内容。",
-  SearchField: "搜索输入框，用于快速筛选当前列表或目录。",
-  DateInput: "日期输入框，用于按平台格式输入一个日期。",
-  DatePicker: "日期选择器，用于从日历弹层中选择日期。",
-  TimeInput: "时间输入框，用于输入和调整时间值。",
-  NumberInput: "数字输入框，用于输入带有数值约束的数字。",
-  Select: "选择框，用于从下拉选项中选择一个值。",
-  Combobox: "可搜索的组合框，用于从候选项中选择或输入值。",
-  Tabs: "标签页，用于在同一内容区域中切换不同视图。",
-  TabView: "标签视图容器，用于组织多个可切换的页面。",
-  Segmented: "分段控件，用于在少量互斥选项之间快速切换。",
-  Toolbar: "工具栏，用于排列一组高频操作按钮和控件。",
-  Tooltip: "工具提示，用于解释控件或图标的作用。",
-  Popover: "浮层面板，用于在当前内容旁展示补充信息或操作。",
-  Table: "表格，用于按行和列展示结构化数据。",
-  List: "列表，用于展示一组可滚动的行项目。",
-  Tree: "树形列表，用于展示有层级关系的项目。",
-  Sidebar: "侧栏，用于在主内容旁展示导航或辅助信息。",
-  HeaderBar: "标题栏，用于展示页面标题、导航和窗口操作。",
-};
-
 export function localizedDescription(component: CatalogComponent, locale: "zh" | "en") {
-  if (locale === "en") return component.description;
-  return zhDescriptions[component.name] ?? `用于${categoryLabels[component.category] ?? "界面"}场景的 ${component.name} 组件，遵循 macOS、Windows 11 和 GNOME 的平台外观与交互规范。`;
+  const descriptions = translations[locale].descriptions as Record<string, string>;
+  return descriptions[component.name] ?? component.description;
 }
 
 function findComponent(name: string) {
@@ -93,10 +48,10 @@ function CopyExample({ value }: { value: string }) {
 }
 
 function ComponentDemo({ component, platform, locale }: { component: CatalogComponent; platform: (typeof platformMeta)[number]; locale: "zh" | "en" }) {
-  const zh = locale === "zh";
+  const copy = translations[locale].demo;
   const [on, setOn] = useState(true);
   const [checked, setChecked] = useState(true);
-  const [selected, setSelected] = useState("All");
+  const [selected, setSelected] = useState("all");
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(62);
   const name = component.name;
@@ -107,30 +62,29 @@ function ComponentDemo({ component, platform, locale }: { component: CatalogComp
   const surface = `${radius} border border-[#E2E4E9] bg-white px-4 py-3 shadow-[0_12px_28px_rgba(20,24,32,0.08)]`;
 
   if (["Switch", "SwitchRow", "Toggle"].includes(name)) {
-    return <button type="button" className={`${surface} flex min-w-[220px] items-center justify-between gap-6 text-left`} onClick={() => setOn((v) => !v)}><span><strong className="block text-sm">{name}</strong><span className="text-xs text-[#6B7280]">{on ? (zh ? "已启用" : "Enabled") : (zh ? "已停用" : "Disabled")}</span></span><span className="relative block h-6 w-12 rounded-full" style={{ background: on ? platform.accent : "#D5D9DF" }}><span className="absolute top-1 size-4 rounded-full bg-white shadow-sm transition-all" style={{ left: on ? "26px" : "4px" }} /></span></button>;
+    return <button type="button" className={`${surface} flex min-w-[220px] items-center justify-between gap-6 text-left`} onClick={() => setOn((v) => !v)}><span><strong className="block text-sm">{name}</strong><span className="text-xs text-[#6B7280]">{on ? copy.enabled : copy.disabled}</span></span><span className="relative block h-6 w-12 rounded-full" style={{ background: on ? platform.accent : "#D5D9DF" }}><span className="absolute top-1 size-4 rounded-full bg-white shadow-sm transition-all" style={{ left: on ? "26px" : "4px" }} /></span></button>;
   }
   if (["Checkbox", "CheckboxGroup", "Radio", "RadioGroup", "RadioRow"].includes(name)) {
-    return <div className={`${surface} flex min-w-[240px] flex-col gap-3 text-sm`}><label className="flex cursor-pointer items-center gap-2"><input className="size-4 accent-[#0B7A63]" type={name.includes("Radio") ? "radio" : "checkbox"} checked={checked} onChange={(event) => setChecked(event.target.checked)} /> {zh ? "记住我" : "Remember me"}</label><label className="flex cursor-pointer items-center gap-2"><input className="size-4 accent-[#0B7A63]" type={name.includes("Radio") ? "radio" : "checkbox"} checked={!checked} onChange={(event) => setChecked(!event.target.checked)} /> {zh ? "发送通知" : "Send notifications"}</label></div>;
+    return <div className={`${surface} flex min-w-[240px] flex-col gap-3 text-sm`}><label className="flex cursor-pointer items-center gap-2"><input className="size-4 accent-[#0B7A63]" type={name.includes("Radio") ? "radio" : "checkbox"} checked={checked} onChange={(event) => setChecked(event.target.checked)} /> {copy.rememberMe}</label><label className="flex cursor-pointer items-center gap-2"><input className="size-4 accent-[#0B7A63]" type={name.includes("Radio") ? "radio" : "checkbox"} checked={!checked} onChange={(event) => setChecked(!event.target.checked)} /> {copy.sendNotifications}</label></div>;
   }
   if (["Slider", "RangeSlider", "StepSlider", "Progress", "Meter", "ProgressRing"].includes(name)) {
     return <div className={`${surface} flex min-w-[260px] flex-col gap-3`}><div className="flex items-center justify-between text-sm"><strong>{name}</strong><span className="font-mono text-xs text-[#555C69]">{value}%</span></div><input className="w-full accent-[#0B7A63]" type="range" min="0" max="100" value={value} onChange={(event) => setValue(Number(event.target.value))} /><div className="h-2 overflow-hidden rounded-full bg-[#E5E7EB]"><div className="h-full rounded-full" style={{ width: `${value}%`, background: platform.accent }} /></div></div>;
   }
   if (["Modal", "AlertDialog", "Sheet", "Popover", "PopoverMenuButton", "Tooltip"].includes(name)) {
-    return <div className="relative flex min-h-[140px] min-w-[260px] flex-col items-center justify-center gap-3"><button type="button" className={button} style={{ background: platform.accent, color: "#fff" }} onClick={() => setOpen((v) => !v)}>{open ? (zh ? "关闭" : "Close") : (zh ? `打开 ${name}` : `Open ${name}`)}</button>{open && <div className={`${surface} absolute bottom-0 left-1/2 z-10 w-[min(280px,90%)] -translate-x-1/2 translate-y-1/2`}><strong className="block text-sm">{name}</strong><p className="m-0 mt-1 text-xs text-[#555C69]">{zh ? "这是一个交互式平台预览。" : "This is an interactive platform preview."}</p><button type="button" className="mt-3 text-xs font-semibold" style={{ color: platform.accent }} onClick={() => setOpen(false)}>{zh ? "完成" : "Done"}</button></div>}</div>;
+    return <div className="relative flex min-h-[140px] min-w-[260px] flex-col items-center justify-center gap-3"><button type="button" className={button} style={{ background: platform.accent, color: "#fff" }} onClick={() => setOpen((v) => !v)}>{open ? copy.close : copy.open.replace("{name}", name)}</button>{open && <div className={`${surface} absolute bottom-0 left-1/2 z-10 w-[min(280px,90%)] -translate-x-1/2 translate-y-1/2`}><strong className="block text-sm">{name}</strong><p className="m-0 mt-1 text-xs text-[#555C69]">{copy.interactivePreview}</p><button type="button" className="mt-3 text-xs font-semibold" style={{ color: platform.accent }} onClick={() => setOpen(false)}>{copy.done}</button></div>}</div>;
   }
   if (["Tabs", "Segmented", "ToggleGroup", "ViewSwitcher"].includes(name)) {
-    const tabs = ["All", "Recent", "Pinned"];
-    const tabLabels: Record<string, string> = zh ? { All: "全部", Recent: "最近", Pinned: "已固定" } : { All: "All", Recent: "Recent", Pinned: "Pinned" };
-    return <div className={`${surface} flex min-w-[280px] flex-wrap gap-1 p-1`}>{tabs.map((item) => <button key={item} type="button" className={`${radius} px-3 py-2 text-xs font-semibold`} style={{ background: selected === item ? platform.accent : "transparent", color: selected === item ? "#fff" : "#555C69" }} onClick={() => setSelected(item)}>{tabLabels[item]}</button>)}</div>;
+    const tabs = ["all", "recent", "pinned"] as const;
+    return <div className={`${surface} flex min-w-[280px] flex-wrap gap-1 p-1`}>{tabs.map((item) => <button key={item} type="button" className={`${radius} px-3 py-2 text-xs font-semibold`} style={{ background: selected === item ? platform.accent : "transparent", color: selected === item ? "#fff" : "#555C69" }} onClick={() => setSelected(item)}>{copy.tabs[item]}</button>)}</div>;
   }
   if (["TextInput", "TextInputBuffer", "TextArea", "TextAreaBuffer", "SearchField", "DateInput", "DatePicker", "TimeInput", "NumberInput", "DecimalInput", "PasswordField", "EntryRow", "Autocomplete", "Combobox", "Select", "TokenField"].includes(name)) {
-    return <div className={`${surface} flex min-w-[280px] flex-col gap-2`}><label className="text-xs font-semibold text-[#555C69]">{name} <span className="font-normal">{zh ? "值" : "value"}</span></label>{name.includes("Area") ? <textarea className="min-h-16 resize-none rounded-md border border-[#D5D9DF] p-2 text-sm outline-none focus:border-[#0B7A63]" defaultValue="Breeze UI" /> : <input className="h-9 rounded-md border border-[#D5D9DF] px-3 text-sm outline-none focus:border-[#0B7A63]" placeholder={zh ? `输入 ${name}` : `Type into ${name}`} />}</div>;
+    return <div className={`${surface} flex min-w-[280px] flex-col gap-2`}><label className="text-xs font-semibold text-[#555C69]">{name} <span className="font-normal">{copy.value}</span></label>{name.includes("Area") ? <textarea className="min-h-16 resize-none rounded-md border border-[#D5D9DF] p-2 text-sm outline-none focus:border-[#0B7A63]" defaultValue="Breeze UI" /> : <input className="h-9 rounded-md border border-[#D5D9DF] px-3 text-sm outline-none focus:border-[#0B7A63]" placeholder={copy.typeInto.replace("{name}", name)} />}</div>;
   }
   if (["Calendar", "CalendarView"].includes(name)) {
-    return <div className={`${surface} min-w-[280px]`}><div className="mb-3 flex items-center justify-between text-sm font-semibold"><span>{zh ? "2026年11月" : "November 2026"}</span><span className="text-xs" style={{ color: platform.accent }}>{zh ? "今天" : "Today"}</span></div><div className="grid grid-cols-7 gap-1 text-center text-xs text-[#555C69]">{[...(zh ? ["日", "一", "二", "三", "四", "五", "六"] : ["S", "M", "T", "W", "T", "F", "S"]), ...Array.from({ length: 28 }, (_, i) => String(i + 1))].map((day, index) => <button key={`${day}-${index}`} type="button" className="grid aspect-square place-items-center rounded-md hover:bg-[#EEF5FF]" style={index === 13 ? { background: platform.accent, color: "#fff" } : undefined}>{day}</button>)}</div></div>;
+    return <div className={`${surface} min-w-[280px]`}><div className="mb-3 flex items-center justify-between text-sm font-semibold"><span>{copy.month}</span><span className="text-xs" style={{ color: platform.accent }}>{copy.today}</span></div><div className="grid grid-cols-7 gap-1 text-center text-xs text-[#555C69]">{[...copy.weekdays, ...Array.from({ length: 28 }, (_, i) => String(i + 1))].map((day, index) => <button key={`${day}-${index}`} type="button" className="grid aspect-square place-items-center rounded-md hover:bg-[#EEF5FF]" style={index === 13 ? { background: platform.accent, color: "#fff" } : undefined}>{day}</button>)}</div></div>;
   }
   if (["Button", "PrimaryButton", "DestructiveButton", "Link", "IconButton", "BackButton", "ForwardButton", "MenuButton"].includes(name)) {
-    return <div className="flex flex-wrap items-center justify-center gap-2"><button type="button" className={button} style={{ background: name.includes("Destructive") ? "#C9363E" : platform.accent, color: "#fff" }}>{name}</button><button type="button" className={`${button} border border-[#D5D9DF] bg-white text-[#3A404C]`}>{zh ? "取消" : "Cancel"}</button></div>;
+    return <div className="flex flex-wrap items-center justify-center gap-2"><button type="button" className={button} style={{ background: name.includes("Destructive") ? "#C9363E" : platform.accent, color: "#fff" }}>{name}</button><button type="button" className={`${button} border border-[#D5D9DF] bg-white text-[#3A404C]`}>{copy.cancel}</button></div>;
   }
   return <div className={`${surface} flex min-w-[260px] flex-col gap-3`}><div className="flex items-center justify-between"><strong className="text-sm">{name}</strong><Sparkles size={16} style={{ color: platform.accent }} /></div><div className="h-10 rounded-md bg-[#F4F5F7]" /><div className="flex gap-2"><span className="h-2 w-20 rounded-full bg-[#D5D9DF]" /><span className="h-2 w-12 rounded-full bg-[#E6E9ED]" /></div></div>;
 }
@@ -140,7 +94,7 @@ function ComponentCard({ item, locale }: { item: CatalogComponent; locale: "zh" 
 }
 
 function ComponentDocsSidebar({ active, locale }: { active?: string; locale: "zh" | "en" }) {
-  const categoryOrder = ["actions", "choices", "text input", "layout", "navigation", "data", "feedback", "overlays"];
+  const categoryOrder = ["actions", "choices", "text", "layout", "navigation", "data", "feedback", "overlays"];
   const [query, setQuery] = useState("");
   const activeCategory = docsComponents.find((item) => item.name === active)?.category;
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => (activeCategory ? { [activeCategory]: true } : {}));
@@ -189,7 +143,7 @@ function ComponentDocPage() {
   if (!component) return <main className="mx-auto min-h-screen w-[min(900px,calc(100%-48px))] py-20"><h1 className="text-3xl font-semibold">找不到这个组件</h1><Link className="mt-5 inline-flex text-[#0B7A63]" to="/docs/components">返回组件目录</Link></main>;
   const description = localizedDescription(component, locale);
   const related = docsComponents.filter((item) => item.category === component.category && item.name !== component.name).slice(0, 4);
-  return <><Seo title={`Breeze UI · ${component.name}`} description={`${component.name} 的 Go 用法、三平台差异和交互演示。`} socialTitle={`Breeze UI ${component.name}`} socialDescription={`${component.name} usage and platform preview`} path={`/docs/components/${component.name}`} locale={locale} /><main className="min-h-screen bg-white"><div className="mx-auto grid w-[min(1440px,100%)] grid-cols-[280px_minmax(0,780px)_220px] gap-8 py-12 max-[1100px]:grid-cols-1 max-[680px]:w-[calc(100%-34px)] max-[680px]:py-9"><ComponentDocsSidebar active={component.name} locale={locale} /><article><div className="mb-8 flex items-center gap-2 text-sm text-[#6B7280]"><Link className="hover:text-[#0B7A63]" to="/docs">文档</Link><span>/</span><span>组件</span><span>/</span><span className="text-[#15171C]">{component.name}</span></div><div className="mb-8 flex flex-wrap items-start justify-between gap-5"><div><div className="mb-3 flex items-center gap-2 text-xs text-[#6B7280]"><Link to="/docs">文档</Link><span>/</span><span>组件</span><span>/</span><span className="text-[#15171C]">{component.name}</span></div><h1 className="m-0 text-[44px] font-semibold leading-[1.1] tracking-[-0.04em] max-[680px]:text-[35px]">{component.name}</h1><p className="mt-3 max-w-[700px] text-lg leading-[1.65] text-[#555C69]">{description}</p></div><span className="rounded-full bg-[#E3F3EE] px-3 py-1.5 text-xs font-semibold text-[#075A49]">{component.look === "drawn" ? "按平台自绘" : "套用平台主题"}</span></div><section className="mb-12 rounded-2xl bg-[#F8F9FB] p-5 shadow-[inset_0_0_0_1px_#E2E4E9]" aria-labelledby="component-demo-heading"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 id="component-demo-heading" className="m-0 text-xl font-semibold">交互演示</h2><p className="m-0 mt-1 text-sm text-[#6B7280]">点击控件查看 {component.name} 的状态变化。</p></div><div className="flex rounded-xl bg-white p-1 shadow-[inset_0_0_0_1px_#E2E4E9]">{platformMeta.map((item) => <button key={item.key} type="button" className={`rounded-lg px-3 py-2 text-xs font-semibold ${platformKey === item.key ? "text-white" : "text-[#555C69]"}`} style={platformKey === item.key ? { background: item.accent } : undefined} onClick={() => setPlatformKey(item.key)}>{item.label}</button>)}</div></div><div className="flex min-h-[240px] items-center justify-center rounded-xl border border-[#E2E4E9] bg-white p-6" style={{ fontFamily: platform.font }}><ComponentDemo component={component} platform={platform} locale={locale} /></div><p className="m-0 mt-3 text-xs text-[#6B7280]">当前预览：{platform.label} · {component.look === "drawn" ? "控件由 Breeze UI 按平台绘制" : "MyGo 组件套用平台主题"}</p></section><section className="mb-12" id="usage"><div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="m-0 text-[26px] font-semibold">用法</h2><p className="m-0 mt-1 text-sm text-[#555C69]">API 名称和签名与 MyGo 的 ui 包保持一致。</p></div><CopyExample value={component.example} /></div><GoCodeBlock code={component.example} className="m-0 overflow-x-auto rounded-2xl bg-[#15171C] p-5 font-mono text-[13px] leading-[1.75] text-[#E8EEF2]" /></section><section className="mb-12" id="platforms"><h2 className="m-0 text-[26px] font-semibold">三平台对照</h2><p className="mt-2 text-[#3A404C]">同一段视图代码会根据窗口平台呈现不同的尺寸、间距、颜色和交互反馈。</p><div className="mt-5 overflow-x-auto rounded-xl shadow-[0_0_0_1px_#E2E4E9]"><table className="w-full min-w-[660px] border-collapse text-sm"><thead><tr className="bg-[#FAFBFC] text-left"><th className="border-b border-[#E2E4E9] px-4 py-3 font-semibold text-[#555C69]">平台</th><th className="border-b border-[#E2E4E9] px-4 py-3 font-semibold text-[#555C69]">外观</th><th className="border-b border-[#E2E4E9] px-4 py-3 font-semibold text-[#555C69]">怎么检查</th></tr></thead><tbody>{platformMeta.map((item) => <tr key={item.key}><th className="border-b border-[#EEF0F3] px-4 py-3.5 text-left font-semibold" style={{ color: item.accent }}>{item.label}</th><td className="border-b border-[#EEF0F3] px-4 py-3.5 text-[#3A404C]">{item.key === "mac" ? "紧凑的原生控件、较小的按钮和圆润的系统间距。" : item.key === "win" ? "WinUI 3 的 32px 控件、强调色边框和键盘焦点。" : "libadwaita 的 34px 控件、卡片列表和更宽的触控目标。"}</td><td className="border-b border-[#EEF0F3] px-4 py-3.5 text-[#3A404C]"><code className="font-mono text-xs">breeze.SetPlatform(breeze.{item.key === "mac" ? "Mac" : item.key === "win" ? "Windows" : "Linux"})</code></td></tr>)}</tbody></table></div></section><section className="mb-12" id="details"><h2 className="m-0 text-[26px] font-semibold">实现说明</h2><p className="mt-2 text-[#3A404C]">{description}</p><ul className="mt-4 flex list-disc flex-col gap-2 pl-5 text-[#3A404C]"><li>组件返回 <code className="font-mono text-sm">ui.Element</code>，可以继续链式调用布局和样式方法。</li><li>交互事件沿用 MyGo 基座：按钮响应 <code className="font-mono text-sm">Clicked()</code>，输入和选择控件绑定指针值。</li><li>目录标记为 <strong>{component.look === "drawn" ? "drawn" : "themed"}</strong>，可在截图和 Storybook 中核对实际平台外观。</li></ul></section>{related.length > 0 && <section className="border-t border-[#E2E4E9] pt-8"><h2 className="m-0 text-[22px] font-semibold">同类组件</h2><div className="mt-4 grid grid-cols-2 gap-3 max-[560px]:grid-cols-1">{related.map((item) => <Link key={item.name} to="/docs/components/$component" params={{ component: item.name }} className="rounded-xl p-4 shadow-[inset_0_0_0_1px_#E2E4E9] hover:text-[#0B7A63]"><strong>{item.name}</strong><span className="mt-1 block text-xs text-[#6B7280]">{categoryLabels[item.category] ?? item.category}</span></Link>)}</div></section>}</article><aside className="hidden lg:block"><div className="sticky top-24 flex flex-col gap-1 text-[13px]"><span className="pb-2 font-semibold">本页内容</span><a className="border-l-2 border-[#0B7A63] py-1 pl-2.5 text-[#0B7A63]" href="#usage">用法</a><a className="border-l border-[#E2E4E9] py-1 pl-2.5 text-[#555C69]" href="#platforms">三平台对照</a><a className="border-l border-[#E2E4E9] py-1 pl-2.5 text-[#555C69]" href="#details">实现说明</a></div></aside></div></main></>;
+  return <><Seo title={`Breeze UI · ${component.name}`} description={`${component.name} 的 Go 用法、三平台差异和交互演示。`} socialTitle={`Breeze UI ${component.name}`} socialDescription={`${component.name} usage and platform preview`} path={`/docs/components/${component.name}`} locale={locale} /><main className="min-h-screen bg-white"><div className="mx-auto grid w-[min(1440px,100%)] grid-cols-[280px_minmax(0,780px)_220px] gap-8 py-12 max-[1100px]:grid-cols-1 max-[680px]:w-[calc(100%-34px)] max-[680px]:py-9"><ComponentDocsSidebar active={component.name} locale={locale} /><article><div className="mb-8 flex items-center gap-2 text-sm text-[#6B7280]"><Link className="hover:text-[#0B7A63]" to="/docs">文档</Link><span>/</span><span>组件</span><span>/</span><span className="text-[#15171C]">{component.name}</span></div><div className="mb-8 flex flex-wrap items-start justify-between gap-5"><div><h1 className="m-0 text-[44px] font-semibold leading-[1.1] tracking-[-0.04em] max-[680px]:text-[35px]">{component.name}</h1><p className="mt-3 max-w-[700px] text-lg leading-[1.65] text-[#555C69]">{description}</p></div><span className="rounded-full bg-[#E3F3EE] px-3 py-1.5 text-xs font-semibold text-[#075A49]">{component.look === "drawn" ? "按平台自绘" : "套用平台主题"}</span></div><section className="mb-12 rounded-2xl bg-[#F8F9FB] p-5 shadow-[inset_0_0_0_1px_#E2E4E9]" aria-labelledby="component-demo-heading"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 id="component-demo-heading" className="m-0 text-xl font-semibold">交互演示</h2><p className="m-0 mt-1 text-sm text-[#6B7280]">点击控件查看 {component.name} 的状态变化。</p></div><div className="flex rounded-xl bg-white p-1 shadow-[inset_0_0_0_1px_#E2E4E9]">{platformMeta.map((item) => <button key={item.key} type="button" className={`rounded-lg px-3 py-2 text-xs font-semibold ${platformKey === item.key ? "text-white" : "text-[#555C69]"}`} style={platformKey === item.key ? { background: item.accent } : undefined} onClick={() => setPlatformKey(item.key)}>{item.label}</button>)}</div></div><div className="flex min-h-[240px] items-center justify-center rounded-xl border border-[#E2E4E9] bg-white p-6" style={{ fontFamily: platform.font }}><ComponentDemo component={component} platform={platform} locale={locale} /></div><p className="m-0 mt-3 text-xs text-[#6B7280]">当前预览：{platform.label} · {component.look === "drawn" ? "控件由 Breeze UI 按平台绘制" : "MyGo 组件套用平台主题"}</p></section><section className="mb-12" id="usage"><div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="m-0 text-[26px] font-semibold">用法</h2><p className="m-0 mt-1 text-sm text-[#555C69]">API 名称和签名与 MyGo 的 ui 包保持一致。</p></div><CopyExample value={component.example} /></div><GoCodeBlock code={component.example} className="m-0 overflow-x-auto rounded-2xl bg-[#15171C] p-5 font-mono text-[13px] leading-[1.75] text-[#E8EEF2]" /></section><section className="mb-12" id="platforms"><h2 className="m-0 text-[26px] font-semibold">三平台对照</h2><p className="mt-2 text-[#3A404C]">同一段视图代码会根据窗口平台呈现不同的尺寸、间距、颜色和交互反馈。</p><div className="mt-5 overflow-x-auto rounded-xl shadow-[0_0_0_1px_#E2E4E9]"><table className="w-full min-w-[660px] border-collapse text-sm"><thead><tr className="bg-[#FAFBFC] text-left"><th className="border-b border-[#E2E4E9] px-4 py-3 font-semibold text-[#555C69]">平台</th><th className="border-b border-[#E2E4E9] px-4 py-3 font-semibold text-[#555C69]">外观</th><th className="border-b border-[#E2E4E9] px-4 py-3 font-semibold text-[#555C69]">怎么检查</th></tr></thead><tbody>{platformMeta.map((item) => <tr key={item.key}><th className="border-b border-[#EEF0F3] px-4 py-3.5 text-left font-semibold" style={{ color: item.accent }}>{item.label}</th><td className="border-b border-[#EEF0F3] px-4 py-3.5 text-[#3A404C]">{item.key === "mac" ? "紧凑的原生控件、较小的按钮和圆润的系统间距。" : item.key === "win" ? "WinUI 3 的 32px 控件、强调色边框和键盘焦点。" : "libadwaita 的 34px 控件、卡片列表和更宽的触控目标。"}</td><td className="border-b border-[#EEF0F3] px-4 py-3.5 text-[#3A404C]"><code className="font-mono text-xs">breeze.SetPlatform(breeze.{item.key === "mac" ? "Mac" : item.key === "win" ? "Windows" : "Linux"})</code></td></tr>)}</tbody></table></div></section><section className="mb-12" id="details"><h2 className="m-0 text-[26px] font-semibold">实现说明</h2><p className="mt-2 text-[#3A404C]">{description}</p><ul className="mt-4 flex list-disc flex-col gap-2 pl-5 text-[#3A404C]"><li>组件返回 <code className="font-mono text-sm">ui.Element</code>，可以继续链式调用布局和样式方法。</li><li>交互事件沿用 MyGo 基座：按钮响应 <code className="font-mono text-sm">Clicked()</code>，输入和选择控件绑定指针值。</li><li>目录标记为 <strong>{component.look === "drawn" ? "drawn" : "themed"}</strong>，可在截图和 Storybook 中核对实际平台外观。</li></ul></section>{related.length > 0 && <section className="border-t border-[#E2E4E9] pt-8"><h2 className="m-0 text-[22px] font-semibold">同类组件</h2><div className="mt-4 grid grid-cols-2 gap-3 max-[560px]:grid-cols-1">{related.map((item) => <Link key={item.name} to="/docs/components/$component" params={{ component: item.name }} className="rounded-xl p-4 shadow-[inset_0_0_0_1px_#E2E4E9] hover:text-[#0B7A63]"><strong>{item.name}</strong><span className="mt-1 block text-xs text-[#6B7280]">{categoryLabels[item.category] ?? item.category}</span></Link>)}</div></section>}</article><aside className="hidden lg:block"><div className="sticky top-24 flex flex-col gap-1 text-[13px]"><span className="pb-2 font-semibold">本页内容</span><a className="border-l-2 border-[#0B7A63] py-1 pl-2.5 text-[#0B7A63]" href="#usage">用法</a><a className="border-l border-[#E2E4E9] py-1 pl-2.5 text-[#555C69]" href="#platforms">三平台对照</a><a className="border-l border-[#E2E4E9] py-1 pl-2.5 text-[#555C69]" href="#details">实现说明</a></div></aside></div></main></>;
 }
 
 export const ComponentsRoute = createRoute({ getParentRoute: () => RootRoute, path: "/docs/components", component: ComponentsIndexPage });
