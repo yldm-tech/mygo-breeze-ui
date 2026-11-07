@@ -9,6 +9,13 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+func TestNewBookDefaultsToSideBySide(t *testing.T) {
+	b := newBook()
+	if b.platform != 3 {
+		t.Fatalf("new Storybook should default to %q, got %q", platformNames[3], platformNames[b.platform])
+	}
+}
+
 // TestEveryStory builds every story on every platform choice, light and dark, and checks the toolbar names it. With BREEZE_SCREENSHOTS set, it writes a few views of the book there at 2x.
 func TestEveryStory(t *testing.T) {
 	b := newBook()

@@ -64,7 +64,7 @@ type book struct {
 }
 
 func newBook() *book {
-	b := &book{stories: stories(), open: map[string]*bool{}, args: map[string]*args{}}
+	b := &book{stories: stories(), platform: 3, open: map[string]*bool{}, args: map[string]*args{}}
 	b.selected = b.stories[0].id()
 	for _, cat := range categories {
 		shown := true
