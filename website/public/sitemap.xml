@@ -4,9 +4,6 @@
     <loc>https://breeze-ui.yldm.ai/</loc>
   </url>
   <url>
-    <loc>https://breeze-ui.yldm.ai/api/</loc>
-  </url>
-  <url>
     <loc>https://breeze-ui.yldm.ai/cli-mcp/</loc>
   </url>
 </urlset>

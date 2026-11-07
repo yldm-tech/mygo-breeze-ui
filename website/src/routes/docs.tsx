@@ -80,15 +80,7 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
         ["Switch", "/docs/components/Switch", false],
         ["Calendar", "/docs/components/Calendar", false],
         ["Modal", "/docs/components/Modal", false],
-        ["全部组件 →", "/docs/components", false],
-      ],
-    },
-    {
-      title: "工具",
-      items: [
-        ["breeze-ui CLI", "/cli-mcp", false],
-        ["MCP 服务", "/cli-mcp#mcp", false],
-        ["目录 API", "/api", false],
+        ["组件总览 →", "/docs/components", false],
       ],
     },
   ] as const;
