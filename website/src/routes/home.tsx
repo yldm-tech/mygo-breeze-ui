@@ -54,16 +54,17 @@ function Mark() {
 function HeroDemo({ t }: { t: Text }) {
   const [platform, setPlatform] = useState("macOS");
   const [dark, setDark] = useState(false);
+  const platformClass = platform === "Windows" ? "windows" : platform === "GNOME" ? "gnome" : "macos";
   return (
-    <div className="demo-stage">
+    <div className={`demo-stage demo-stage-${platformClass}`}>
       <div className="demo-controls">
         <div className="segmented" role="radiogroup" aria-label="Platform">
           {["macOS", "Windows", "GNOME"].map((name) => <button key={name} type="button" aria-checked={platform === name} onClick={() => setPlatform(name)}>{name === "Windows" ? "Windows 11" : name}</button>)}
         </div>
         <div className="segmented" role="radiogroup" aria-label="Appearance"><button type="button" aria-checked={!dark} onClick={() => setDark(false)}>{t.light}</button><button type="button" aria-checked={dark} onClick={() => setDark(true)}>{t.dark}</button></div>
       </div>
-      <motion.div className={`demo-window ${dark ? "dark" : ""}`} layout>
-        <div className="demo-titlebar"><div className="traffic"><span style={{ background: "#ff5f57" }} /><span style={{ background: "#febc2e" }} /><span style={{ background: "#28c840" }} /></div>Settings</div>
+      <motion.div className={`demo-window demo-window-${platformClass} ${dark ? "dark" : ""}`} layout>
+        <div className="demo-titlebar"><div className="traffic"><span style={{ background: "#ff5f57" }} /><span style={{ background: "#febc2e" }} /><span style={{ background: "#28c840" }} /></div><span>Settings</span>{platform !== "macOS" && <b className="demo-close" aria-hidden="true">×</b>}</div>
         <div className="demo-settings">
           <div className="setting-row"><span>Name</span><div className="setting-input">Breeze</div></div>
           <div className="setting-row"><span>Sync</span><span className="fake-toggle" /></div>
