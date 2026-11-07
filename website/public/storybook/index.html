@@ -26,9 +26,22 @@
     </style>
     <script src="wasm_exec.js"></script>
     <script>
-      const storybookZh = /^zh(?:-|$)/i.test(navigator.language || "");
-      document.documentElement.lang = storybookZh ? "zh-CN" : "en";
-      document.title = storybookZh ? "Breeze UI 故事书" : "Breeze UI Storybook";
+      const storybookLanguages = ["zh", "ja", "ko", "es", "fr", "de", "en"];
+      const storybookLocale = (navigator.languages?.length ? navigator.languages : [navigator.language || "en"])
+        .map((language) => language.toLowerCase().split("-")[0])
+        .find((language) => storybookLanguages.includes(language)) || "en";
+      const storybookChrome = {
+        en: { title: "Breeze UI Storybook", docs: "Docs", storybook: "Storybook", cli: "CLI & MCP", github: "GitHub", loading: "Loading the storybook…", error: "The storybook could not load: " },
+        zh: { title: "Breeze UI 故事书", docs: "文档", storybook: "Storybook", cli: "CLI 与 MCP", github: "GitHub", loading: "正在加载故事书…", error: "故事书加载失败：" },
+        ja: { title: "Breeze UI ストーリーブック", docs: "ドキュメント", storybook: "Storybook", cli: "CLI と MCP", github: "GitHub", loading: "ストーリーブックを読み込んでいます…", error: "ストーリーブックの読み込みに失敗しました：" },
+        ko: { title: "Breeze UI 스토리북", docs: "문서", storybook: "Storybook", cli: "CLI 및 MCP", github: "GitHub", loading: "스토리북을 불러오는 중…", error: "스토리북을 불러오지 못했습니다: " },
+        es: { title: "Storybook de Breeze UI", docs: "Documentación", storybook: "Storybook", cli: "CLI y MCP", github: "GitHub", loading: "Cargando Storybook…", error: "No se pudo cargar Storybook: " },
+        fr: { title: "Storybook Breeze UI", docs: "Documentation", storybook: "Storybook", cli: "CLI et MCP", github: "GitHub", loading: "Chargement de Storybook…", error: "Le chargement de Storybook a échoué : " },
+        de: { title: "Breeze UI Storybook", docs: "Dokumentation", storybook: "Storybook", cli: "CLI & MCP", github: "GitHub", loading: "Storybook wird geladen …", error: "Storybook konnte nicht geladen werden: " },
+      };
+      const storybookCopy = storybookChrome[storybookLocale];
+      document.documentElement.lang = storybookLocale === "zh" ? "zh-CN" : storybookLocale;
+      document.title = storybookCopy.title;
       const go = new Go();
       WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107"), go.importObject)
         .then((r) => {
@@ -36,7 +49,7 @@
           go.run(r.instance);
         })
         .catch((err) => {
-          document.getElementById("loading").textContent = storybookZh ? "故事书加载失败：" + err : "The storybook could not load: " + err;
+          document.getElementById("loading").textContent = storybookCopy.error + err;
         });
     </script>
   </head>
@@ -55,17 +68,19 @@
           Breeze UI
         </a>
         <nav class="nav-links" aria-label="Breeze UI">
-          <a class="docs" href="../docs/" data-en="Docs" data-zh="文档">Docs</a>
-          <a class="active" href="./" aria-current="page" data-en="Storybook" data-zh="Storybook">Storybook</a>
-          <a href="../cli-mcp/" data-en="CLI &amp; MCP" data-zh="CLI 与 MCP">CLI &amp; MCP</a>
+          <a class="docs" href="../docs/" data-i18n="docs">Docs</a>
+          <a class="active" href="./" aria-current="page" data-i18n="storybook">Storybook</a>
+          <a href="../cli-mcp/" data-i18n="cli">CLI &amp; MCP</a>
         </nav>
-        <a class="nav-github" href="https://github.com/yldm-tech/mygo-breeze-ui" data-en="GitHub" data-zh="GitHub">GitHub</a>
+        <a class="nav-github" href="https://github.com/yldm-tech/mygo-breeze-ui" data-i18n="github">GitHub</a>
       </div>
     </header>
-    <div id="loading" data-en="Loading the storybook…" data-zh="正在加载故事书…">Loading the storybook…</div>
+    <div id="loading" data-i18n="loading">Loading the storybook…</div>
     <script>
-      const zh = storybookZh;
-      document.querySelectorAll("[data-en]").forEach((el) => { el.textContent = zh ? el.dataset.zh : el.dataset.en; });
+      document.querySelectorAll("[data-i18n]").forEach((el) => {
+        const key = el.dataset.i18n;
+        if (key && storybookCopy[key]) el.textContent = storybookCopy[key];
+      });
     </script>
     <div id="mygo"></div>
   </body>
