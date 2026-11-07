@@ -246,7 +246,7 @@ function DocsPage() {
                 <h2 className="m-0 text-[26px] font-semibold tracking-[-0.01em]">Storybook</h2>
                 <div className="flex flex-wrap items-center gap-6 rounded-2xl bg-[#F8F9FB] p-6 shadow-[inset_0_0_0_1px_#E2E4E9]">
                   <div className="flex min-w-[min(100%,300px)] flex-1 flex-col gap-2.5"><p className="m-0 text-[#3A404C]">每个组件都有自己的 story：选 macOS、Windows 11、GNOME 或三者并排，切换浅色和深色，用控件调整参数，并查看构建它的 Go 代码。网页版由 WebAssembly 编译，MyGo 用 WebGL 2 在页面里绘制。</p><GoCodeBlock code="go run ./examples/storybook" className="m-0 overflow-x-auto rounded-[10px] bg-white p-3 px-3.5 font-mono text-[13px] shadow-[inset_0_0_0_1px_#E2E4E9]" /></div>
-                  <a className="inline-flex min-h-11 items-center rounded-[10px] bg-[#15171C] px-[18px] text-sm font-semibold text-white" href="https://breeze-ui.yldm.ai/storybook/" target="_blank" rel="noreferrer">打开 Storybook →</a>
+                  <a className="inline-flex min-h-11 items-center rounded-[10px] bg-[#15171C] px-[18px] text-sm font-semibold text-white" href={`https://breeze-ui.yldm.ai/storybook/?lang=${locale}`} target="_blank" rel="noreferrer">打开 Storybook →</a>
                 </div>
               </section>
 
