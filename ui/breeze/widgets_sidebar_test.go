@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	for _, n := range []string{"SidebarItemImage", "SidebarSectionWithActions"} {
+	for _, n := range []string{"SidebarItemImage", "SidebarItemDetail", "SidebarSectionWithActions"} {
 		drawnWidgets[n] = true
 	}
 }
@@ -269,6 +269,96 @@ func TestSidebarItemImageKeepsItsColors(t *testing.T) {
 					t.Fatalf("%s: a click on the image chose %q, want a", name, selected[1])
 				}
 			}
+		}
+	}
+}
+
+// sidebarDetailView lays out a sidebar of two items ending with counts in SidebarItemDetail, Alpha with 12 and Beta with 3, and sets *th to the platform's theme.
+func sidebarDetailView(p Platform, selected *string, th **ui.Theme) func(c *ui.Context) {
+	return func(c *ui.Context) {
+		Preview(c, p, func() {
+			Use(c)
+			*th = Theme(c, p)
+			ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
+				Sidebar(c, selected, func() {
+					SidebarItem(c, "a", navTestFolder, "Alpha").Children(func() { SidebarItemDetail(c, "12") })
+					SidebarItem(c, "b", navTestFolder, "Beta").Children(func() { SidebarItemDetail(c, "3") })
+				}).Width(200).Label("Folders")
+				ui.Column(c).Grow(1)
+			})
+		})
+	}
+}
+
+// sidebarDetailInk returns the ink of text in tester's last frame, at scale 2, the pixel of its frame farthest from the frame's first one, and that first pixel, the row behind the text.
+func sidebarDetailInk(t *testing.T, tester *ui.Tester, text string) (ink, bg ui.Color) {
+	t.Helper()
+	r, ok := tester.Find(text)
+	if !ok {
+		t.Fatalf("%q is missing", text)
+	}
+	img := tester.Image()
+	at := func(x, y int) ui.Color { px := img.RGBAAt(x, y); return ui.RGB(px.R, px.G, px.B) }
+	bg = at(int(r.X*2), int(r.Y*2))
+	ink, far := bg, 0
+	for y := int(r.Y * 2); y < int((r.Y+r.H)*2); y++ {
+		for x := int(r.X * 2); x < int((r.X+r.W)*2); x++ {
+			if px := at(x, y); sidebarColorDistance(px, bg) > far {
+				ink, far = px, sidebarColorDistance(px, bg)
+			}
+		}
+	}
+	return ink, bg
+}
+
+// sidebarColorDistance is the largest difference between a channel of a and the same channel of b.
+func sidebarColorDistance(a, b ui.Color) int {
+	d := func(x, y uint8) int { return max(int(x)-int(y), int(y)-int(x)) }
+	return max(d(a.R, b.R), d(a.G, b.G), d(a.B, b.B))
+}
+
+// TestSidebarItemDetail checks on every platform, light and dark, that SidebarItemDetail draws a count in the platform's secondary text on a row not chosen and on the chosen one without the focus, macOS's secondaryLabelColor and WinUI's TextFillColorSecondary (the theme's TextMuted) and GNOME's .dimmed (the row's text at 55%), and that on macOS, once the sidebar has the focus, the chosen row's count turns near white on the accent selection, #e8f2fe on #0070f5 and #e8f3ff on #007aff as AppKit draws a secondary text field there (measured by tools/appkit-reference's renderSidebar on macOS 27.2), the count of the row not chosen staying secondary; on Windows and GNOME the focus changes neither.
+func TestSidebarItemDetail(t *testing.T) {
+	for _, p := range Platforms {
+		for _, dark := range []bool{false, true} {
+			name := fmt.Sprintf("%v dark %v", p, dark)
+			selected := "a"
+			var th *ui.Theme
+			tester := ui.NewTester(sidebarDetailView(p, &selected, &th), 320, 160)
+			tester.SetScale(2)
+			tester.SetDark(dark)
+			tester.Frame()
+			secondary := func(bg ui.Color) ui.Color {
+				if p == Linux {
+					return bg.Mix(adwSidebarFg(th), 0.55)
+				}
+				return th.TextMuted
+			}
+			check := func(text, when string, want func(bg ui.Color) ui.Color) {
+				t.Helper()
+				ink, bg := sidebarDetailInk(t, tester, text)
+				if w := want(bg); sidebarColorDistance(ink, w) > 6 {
+					t.Fatalf("%s: the count %s %s is %v on %v, want %v", name, text, when, ink, bg, w)
+				}
+			}
+			check("12", "of the chosen row without the focus", secondary)
+			check("3", "of the row not chosen", secondary)
+			tester.Key(0, ui.KeyTab)
+			tester.Frame()
+			if !tester.Focused("Folders") {
+				t.Fatalf("%s: Tab did not give the sidebar the focus", name)
+			}
+			if p == Mac {
+				check("12", "of the chosen row with the focus", func(bg ui.Color) ui.Color {
+					if want := pick(dark, ui.Hex("#0070f5"), ui.Hex("#007aff")); bg != want {
+						t.Fatalf("%s: the focused selection is %v, want %v", name, bg, want)
+					}
+					return pick(dark, ui.Hex("#e8f2fe"), ui.Hex("#e8f3ff"))
+				})
+			} else {
+				check("12", "of the chosen row with the focus", secondary)
+			}
+			check("3", "of the row not chosen with the focus", secondary)
 		}
 	}
 }

@@ -1,9 +1,10 @@
 import AppKit
 
-// SourceList fills the outline view of renderSidebar as a sidebar: a group row, Mailboxes, holding Inbox, Sent and Drafts, each a cell of a template SF Symbol and a title, and Flagged, whose image is not a template, a red square, as breeze.SidebarItemImage shows a colored image.
+// SourceList fills the outline view of renderSidebar as a sidebar: a group row, Mailboxes, holding Inbox, Sent and Drafts, each a cell of a template SF Symbol and a title, and Flagged, whose image is not a template, a red square, as breeze.SidebarItemImage shows a colored image. Inbox and Sent end with a count, a second text field in secondaryLabelColor 40 points before the cell's end, inside the 200-point render, as breeze.SidebarItemDetail shows one.
 class SourceList: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
     let group = "Mailboxes"
     let items = [("Inbox", "tray"), ("Sent", "paperplane"), ("Drafts", "doc"), ("Flagged", "")]
+    let counts = ["Inbox": "12", "Sent": "3"]
     func outlineView(_ o: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int { item == nil ? 1 : items.count }
     func outlineView(_ o: NSOutlineView, child i: Int, ofItem item: Any?) -> Any { item == nil ? group : items[i].0 }
     func outlineView(_ o: NSOutlineView, isItemExpandable item: Any) -> Bool { (item as? String) == group }
@@ -33,6 +34,14 @@ class SourceList: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
             view.leadingAnchor.constraint(equalTo: cell.leadingAnchor), view.widthAnchor.constraint(equalToConstant: 23), view.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
             text.leadingAnchor.constraint(equalTo: view.trailingAnchor, constant: 3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
         ])
+        if let n = counts[name] {
+            let count = NSTextField(labelWithString: n)
+            count.textColor = .secondaryLabelColor
+            count.identifier = .init("count")
+            count.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(count)
+            NSLayoutConstraint.activate([count.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -40), count.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+        }
         return cell
     }
 }
@@ -79,6 +88,23 @@ func renderSidebar(appearance: NSAppearance.Name, focused: Bool, chosen: String 
             let f = iv.convert(iv.bounds, to: root)
             print("  image x=\(f.minX) top=\(H - f.maxY) w=\(f.width) h=\(f.height)")
             print("  row: " + runs((Int(f.minX * 2)..<Int(f.maxX * 2)).map { gray($0, Int((H - f.midY) * 2)) }))
+        }
+        if let count = cell.subviews.first(where: { $0.identifier?.rawValue == "count" }) as? NSTextField {
+            // The lightest and darkest pixels inside the count's frame, its fonts and the title's, and the pixels across the middle of both: on the emphasized selection AppKit draws the secondary text field near white (#e8f2fe on #0070f5), where the title is white, and regular, where the title is semibold.
+            let f = count.convert(count.bounds, to: root)
+            var lo = 255, hi = 0
+            for y in Int((H - f.maxY) * 2)..<Int((H - f.minY) * 2) {
+                for x in Int(f.minX * 2)..<Int(f.maxX * 2) {
+                    var p = [Int](repeating: 0, count: 4); rep.getPixel(&p, atX: x, y: y)
+                    let v = (p[0] + p[1] + p[2]) / 3
+                    lo = min(lo, v); hi = max(hi, v)
+                }
+            }
+            if let title = cell.textField {
+                let t = title.convert(title.bounds, to: root)
+                print("  title row: " + runs((Int(t.minX * 2)..<Int(t.maxX * 2)).map { gray($0, Int((H - t.midY) * 2)) }))
+            }
+            print("  count \"\(count.stringValue)\" x=\(f.minX) w=\(f.width) style=\(cell.backgroundStyle.rawValue) font=\((count.attributedStringValue.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.fontName ?? "nil") title font=\((cell.textField?.attributedStringValue.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.fontName ?? "nil") lightest=\(hi) darkest=\(lo) row: " + runs((Int(f.minX * 2)..<Int(f.maxX * 2)).map { gray($0, Int((H - f.midY) * 2)) }))
         }
     }
 }
