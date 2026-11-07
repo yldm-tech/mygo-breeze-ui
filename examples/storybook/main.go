@@ -101,30 +101,16 @@ func storybookTheme() *ui.Theme {
 	return &t
 }
 
-func storybookLogo(c *ui.Context) ui.Element {
-	return ui.Box(c).Size(30, 30).Role(ui.RoleImage).Label("Breeze UI").Draw(func(p *ui.Painter, r ui.Rect) {
-		p.Fill(ui.Rect{X: r.X + 2, Y: r.Y + 3, W: 18, H: 14}, ui.Hex("#a6e1cd"), 4.5)
-		p.Fill(ui.Rect{X: r.X + 7, Y: r.Y + 8.5, W: 18, H: 14}, ui.Hex("#3fae8c"), 2)
-		p.Fill(ui.Rect{X: r.X + 12, Y: r.Y + 14, W: 18, H: 14}, ui.Hex("#0b7a63"), 3.5)
-		for _, x := range []float32{15.5, 18.5, 21.5} {
-			p.Fill(ui.Rect{X: r.X + x - 0.9, Y: r.Y + 17.5 - 0.9, W: 1.8, H: 1.8}, ui.RGB(255, 255, 255), 0.9)
-		}
-	})
-}
-
 // sidebar lists the stories by category, filtered by the search field.
 func (b *book) sidebar(c *ui.Context) {
 	t := c.Theme()
 	ui.Column(c).Width(288).Shrink(0).Background(t.Surface).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
-		ui.Column(c).Padding(22, 18, 14, 18).Gap(12).Children(func() {
-			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-				storybookLogo(c)
-				ui.Column(c).Gap(0).Children(func() {
-					ui.Text(c, "Breeze UI").FontSize(t.FontSize + 3).Bold()
-					ui.Text(c, "Storybook").TextColor(t.TextMuted).FontSize(t.FontSize - 1)
-				})
+		ui.Column(c).Padding(18, 18, 14, 18).Gap(10).Children(func() {
+			ui.Row(c).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "Components").FontSize(t.FontSize + 3).Bold().Grow(1)
+				ui.Text(c, fmt.Sprintf("%d", len(b.stories))).Padding(4, 8).Radius(999).Background(t.SurfaceHover).TextColor(t.TextMuted).FontSize(t.FontSize - 2)
 			})
-			ui.Text(c, fmt.Sprintf("%d components · live previews", len(b.stories))).TextColor(t.TextMuted).FontSize(t.FontSize - 1)
+			ui.Text(c, "Interactive stories and platform previews").TextColor(t.TextMuted).FontSize(t.FontSize - 1)
 			ui.SearchField(c, &b.query).Label("Find a component")
 		})
 		q := strings.ToLower(strings.TrimSpace(b.query))
