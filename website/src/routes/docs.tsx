@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronRight, Copy, Info, Menu, Search, X } from "l
 import { createRoute, Link } from "@tanstack/react-router";
 import { RootRoute } from "./root";
 import { Seo } from "../components/Seo";
+import { GoCodeBlock } from "../components/CodeHighlight";
 import { useUiStore } from "../store";
 import { categoryLabels, docsComponents } from "./components-docs";
 
@@ -187,7 +188,7 @@ function DocsPage() {
                   <CopyButton value="go get github.com/yldm-tech/mygo-breeze-ui" />
                 </div>
                 <p className="m-0 text-[#3A404C]">想先看看效果？克隆仓库后运行组件画廊，三个平台会并排显示：</p>
-                <pre className="m-0 overflow-x-auto rounded-xl bg-[#F8F9FB] p-3.5 px-4 font-mono text-sm shadow-[inset_0_0_0_1px_#E2E4E9]">go run ./examples/breeze-ui</pre>
+                <GoCodeBlock code="go run ./examples/breeze-ui" className="m-0 overflow-x-auto rounded-xl bg-[#F8F9FB] p-3.5 px-4 font-mono text-sm shadow-[inset_0_0_0_1px_#E2E4E9]" />
               </section>
 
               <section id="first-view" className="flex scroll-mt-24 flex-col gap-3.5">
@@ -201,7 +202,7 @@ function DocsPage() {
                     </div>
                     <span className="text-xs text-[#555C69]">settings.go</span>
                   </div>
-                  <pre className="m-0 overflow-x-auto p-4 px-5 font-mono text-[13.5px] leading-[1.75] text-[#15171C]">{diff === "after" ? afterCode : beforeCode}</pre>
+                  <GoCodeBlock code={diff === "after" ? afterCode : beforeCode} className="m-0 overflow-x-auto p-4 px-5 font-mono text-[13.5px] leading-[1.75] text-[#15171C]" />
                 </div>
                 <div className="flex gap-3 rounded-xl bg-[#EEF5FF] p-4 px-[18px] text-[15px] text-[#173B6B]">
                   <Info size={20} className="mt-0.5 shrink-0" />
@@ -225,7 +226,7 @@ function DocsPage() {
                   </table>
                 </div>
                 <p className="m-0 text-[#3A404C]">配合 <InlineCode>ui.Themed(c, breeze.Theme(c, p))</InlineCode>，就能像组件画廊那样把三个平台并排：</p>
-                <pre className="m-0 overflow-x-auto rounded-xl bg-[#F8F9FB] p-4 px-5 font-mono text-[13.5px] leading-[1.75] shadow-[inset_0_0_0_1px_#E2E4E9]">{previewCode}</pre>
+                <GoCodeBlock code={previewCode} className="m-0 overflow-x-auto rounded-xl bg-[#F8F9FB] p-4 px-5 font-mono text-[13.5px] leading-[1.75] shadow-[inset_0_0_0_1px_#E2E4E9]" />
               </section>
 
               <section id="themes" className="flex scroll-mt-24 flex-col gap-3.5">
@@ -241,7 +242,7 @@ function DocsPage() {
               <section id="storybook" className="flex scroll-mt-24 flex-col gap-3.5">
                 <h2 className="m-0 text-[26px] font-semibold tracking-[-0.01em]">Storybook</h2>
                 <div className="flex flex-wrap items-center gap-6 rounded-2xl bg-[#F8F9FB] p-6 shadow-[inset_0_0_0_1px_#E2E4E9]">
-                  <div className="flex min-w-[min(100%,300px)] flex-1 flex-col gap-2.5"><p className="m-0 text-[#3A404C]">每个组件都有自己的 story：选 macOS、Windows 11、GNOME 或三者并排，切换浅色和深色，用控件调整参数，并查看构建它的 Go 代码。网页版由 WebAssembly 编译，MyGo 用 WebGL 2 在页面里绘制。</p><pre className="m-0 overflow-x-auto rounded-[10px] bg-white p-3 px-3.5 font-mono text-[13px] shadow-[inset_0_0_0_1px_#E2E4E9]">go run ./examples/storybook</pre></div>
+                  <div className="flex min-w-[min(100%,300px)] flex-1 flex-col gap-2.5"><p className="m-0 text-[#3A404C]">每个组件都有自己的 story：选 macOS、Windows 11、GNOME 或三者并排，切换浅色和深色，用控件调整参数，并查看构建它的 Go 代码。网页版由 WebAssembly 编译，MyGo 用 WebGL 2 在页面里绘制。</p><GoCodeBlock code="go run ./examples/storybook" className="m-0 overflow-x-auto rounded-[10px] bg-white p-3 px-3.5 font-mono text-[13px] shadow-[inset_0_0_0_1px_#E2E4E9]" /></div>
                   <a className="inline-flex min-h-11 items-center rounded-[10px] bg-[#15171C] px-[18px] text-sm font-semibold text-white" href="https://breeze-ui.yldm.ai/storybook/" target="_blank" rel="noreferrer">打开 Storybook →</a>
                 </div>
               </section>
