@@ -1,6 +1,6 @@
 {
   "name": "breeze-ui-mcp",
-  "version": "0.17.3",
+  "version": "0.17.4",
   "description": "MCP server for Breeze UI, MyGo's native UI drawn as macOS, Windows 11 and GNOME draw their controls",
   "keywords": [
     "adwaita",
