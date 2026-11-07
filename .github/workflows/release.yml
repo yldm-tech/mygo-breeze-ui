@@ -82,6 +82,8 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        if: steps.commit.outputs.sha != ''
       - name: Publish npm packages
         if: steps.commit.outputs.sha != ''
         env:
