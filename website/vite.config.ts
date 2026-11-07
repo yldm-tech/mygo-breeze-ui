@@ -15,7 +15,7 @@ const githubPagesFallback = () => ({
 });
 
 export default defineConfig({
-  base: "/mygo-breeze-ui/",
+  base: "/",
   plugins: lazyPlugins(() => [react(), tailwindcss(), githubPagesFallback()]),
   server: { port: 4173 },
 });
