@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Locale = "en" | "zh";
+export type Locale = "en" | "zh" | "ja" | "ko" | "es" | "fr" | "de";
 export type CatalogFilter = "all" | "components" | "platforms";
 
 type UiState = {

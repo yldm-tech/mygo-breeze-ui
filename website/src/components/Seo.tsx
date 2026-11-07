@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { Locale } from "../store";
 
 const siteUrl = "https://breeze-ui.yldm.ai";
 const imageUrl = `${siteUrl}/og-image.png`;
@@ -9,7 +10,7 @@ type SeoProps = {
   socialTitle?: string;
   socialDescription?: string;
   path: string;
-  locale: "zh" | "en";
+  locale: Locale;
 };
 
 function setMeta(selector: string, attribute: "name" | "property", key: string, content: string) {
@@ -26,7 +27,7 @@ export function Seo({ title, description, socialTitle = title, socialDescription
   useEffect(() => {
     const url = `${siteUrl}${path === "/" ? "/" : path}`;
     document.title = title;
-    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+    document.documentElement.lang = ({ zh: "zh-CN", en: "en", ja: "ja", ko: "ko", es: "es", fr: "fr", de: "de" } as const)[locale];
     setMeta('meta[name="description"]', "name", "description", description);
     setMeta('meta[property="og:title"]', "property", "og:title", socialTitle);
     setMeta('meta[property="og:description"]', "property", "og:description", socialDescription);

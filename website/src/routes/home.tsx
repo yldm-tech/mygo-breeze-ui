@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { RootRoute } from "./root";
 import { getCatalog, type CatalogEntry } from "../lib/catalog";
 import { useUiStore } from "../store";
+import type { Locale } from "../store";
 import { Seo } from "../components/Seo";
 
 export const HomeRoute = createRoute({ getParentRoute: () => RootRoute, path: "/", component: HomePage });
@@ -112,7 +113,7 @@ const referenceNames = referenceCatalog.split(",").map((item) => {
   return { name, category: referenceCategory[rawKind.charAt(0)] ?? "layout", look: rawKind.includes("*") ? "themed" : "drawn" } as const;
 });
 
-function Catalog({ t, entries, locale }: { t: Text; entries: CatalogEntry[]; locale: "zh" | "en" }) {
+function Catalog({ t, entries, locale }: { t: Text; entries: CatalogEntry[]; locale: Locale }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const categoryData: readonly (readonly [string, string, number])[] = locale === "zh" ? [
@@ -145,7 +146,7 @@ function CodeSection({ t }: { t: Text }) {
 
 function HomePage() {
   const { locale } = useUiStore();
-  const t = texts[locale];
+  const t = texts[locale as "zh" | "en"] ?? texts.en;
   const { data } = useQuery({ queryKey: ["catalog"], queryFn: getCatalog });
   const entries: CatalogEntry[] = referenceNames.map((item) => {
     const source = data?.components.find((candidate) => candidate.name === item.name);
