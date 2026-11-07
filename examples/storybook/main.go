@@ -184,6 +184,7 @@ func storybookTheme() *ui.Theme {
 	t.Radius = 10
 	t.Spacing = 4
 	t.FontSize = 14
+	t.Font = "Inter, Noto Sans SC, PingFang SC, system-ui, sans-serif"
 	return &t
 }
 
