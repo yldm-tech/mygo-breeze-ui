@@ -6,6 +6,7 @@
       "name": "mygo-breeze-ui",
       "devDependencies": {
         "@types/bun": "latest",
+        "breeze-ui": "file:packages/breeze-cli",
         "typescript": "^7",
         "vite": "catalog:",
         "vite-plus": "catalog:",
@@ -13,14 +14,14 @@
     },
     "packages/breeze-cli": {
       "name": "breeze-ui-cli",
-      "version": "0.3.0",
+      "version": "0.15.2",
       "bin": {
         "breeze-ui": "bin/breeze-ui.js",
       },
     },
     "packages/breeze-mcp": {
       "name": "breeze-ui-mcp",
-      "version": "0.3.0",
+      "version": "0.15.2",
       "bin": {
         "breeze-ui-mcp": "bin/breeze-ui-mcp.js",
       },
@@ -525,6 +526,8 @@
     "babel-plugin-macros": ["babel-plugin-macros@3.1.0", "", { "dependencies": { "@babel/runtime": "^7.12.5", "cosmiconfig": "^7.0.0", "resolve": "^1.19.0" } }, "sha512-Cg7TFGpIr01vOQNODXOOaGz2NpCU5gl8x1qJFbb6hbZxR7XrcE2vtbAsTAbJ7/xwJtUuJEw8K8Zr/AE0LHlesg=="],
 
     "body-parser": ["body-parser@2.3.0", "", { "dependencies": { "bytes": "^3.1.2", "content-type": "^2.0.0", "debug": "^4.4.3", "http-errors": "^2.0.1", "iconv-lite": "^0.7.2", "on-finished": "^2.4.1", "qs": "^6.15.2", "raw-body": "^3.0.2", "type-is": "^2.1.0" } }, "sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw=="],
+
+    "breeze-ui": ["breeze-ui-cli@file:packages/breeze-cli", { "bin": { "breeze-ui": "bin/breeze-ui.js" } }],
 
     "breeze-ui-cli": ["breeze-ui-cli@workspace:packages/breeze-cli"],
 

@@ -5,7 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const checkout = join(here, "..", "..", "..");
+const cwd = process.cwd();
+const checkout = existsSync(join(cwd, "go.mod")) ? cwd : join(here, "..", "..", "..");
 const args = process.argv.slice(2);
 const binary = process.env.BREEZE_UI_CLI_BINARY;
 let result;
