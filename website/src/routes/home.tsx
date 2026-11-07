@@ -171,5 +171,6 @@ function HomePage() {
 }
 
 function ToolCard({ icon, title, text, code, href, link }: { icon: ReactNode; title: string; text: string; code: string; href: string; link: string }) {
-  return <motion.article className="tool-card" initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .2 }}><div style={{ color: "#0b7a63" }}>{icon}</div><h3>{title}</h3><p>{text}</p><code>{code}</code><a className="tool-link" href={href} target="_blank" rel="noreferrer">{link} <ArrowRight size={15} /></a></motion.article>;
+  const [copied, setCopied] = useState(false);
+  return <motion.article className="tool-card" initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .2 }}><div style={{ color: "#0b7a63" }}>{icon}</div><h3>{title}</h3><p>{text}</p><div className="tool-command"><code>{code}</code><button className="tool-copy" type="button" onClick={async () => { await navigator.clipboard?.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1200); }} aria-label={copied ? "Copied" : "Copy command"} title={copied ? "Copied" : "Copy command"}>{copied ? <Check size={15} /> : <Clipboard size={15} />}</button></div><a className="tool-link" href={href} target="_blank" rel="noreferrer">{link} <ArrowRight size={15} /></a></motion.article>;
 }
