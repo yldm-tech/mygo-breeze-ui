@@ -18,7 +18,7 @@ var (
 	sidebarUnreadMark  = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="4" fill="#34c759"/><circle cx="8" cy="8" r="3" fill="#fff"/></svg>`))
 )
 
-// sidebarStories are the stories of SidebarItemImage and SidebarSectionWithActions in widgets_navigation.go.
+// sidebarStories are the stories of SidebarItemImage, SidebarItemDetail and SidebarSectionWithActions in widgets_navigation.go.
 func sidebarStories() []*story {
 	return []*story{
 		{component: "SidebarSectionWithActions", name: "Mailboxes +", category: "Navigation",
@@ -53,6 +53,20 @@ func sidebarStories() []*story {
 			},
 			code: func(a *args) string {
 				return "breeze.SidebarSection(c, \"Smart Mailboxes\", nil, func() {\n\tbreeze.SidebarItemImage(c, \"Flagged\", flaggedMark, \"Flagged\")\n\tbreeze.SidebarItemImage(c, \"Today\", todayMark, \"Today\")\n\tbreeze.SidebarItemImage(c, \"Unread\", unreadMark, \"Unread\").Children(func() {\n\t\tbreeze.Badge(c, \"3\")\n\t})\n})"
+			}},
+		{component: "SidebarItemDetail", name: "Counts", category: "Navigation",
+			controls: []control{choiceArg("selected", "Inbox", "Inbox", "Sent", "Drafts")},
+			render: func(c *ui.Context, a *args) {
+				breeze.Sidebar(c, a.text["selected"], func() {
+					breeze.SidebarSection(c, "Mailboxes", nil, func() {
+						for _, m := range []struct{ name, count string }{{"Inbox", "12"}, {"Sent", "3"}, {"Drafts", "1"}} {
+							breeze.SidebarItem(c, m.name, navigationFolderIcon, m.name).Children(func() { breeze.SidebarItemDetail(c, m.count) })
+						}
+					})
+				}).Size(240, 200).Label("Mailboxes")
+			},
+			code: func(a *args) string {
+				return "for _, m := range app.mailboxes {\n\tbreeze.SidebarItem(c, m.name, folderIcon, m.name).Children(func() {\n\t\tbreeze.SidebarItemDetail(c, strconv.Itoa(m.unread))\n\t})\n}"
 			}},
 	}
 }

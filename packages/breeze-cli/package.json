@@ -1,6 +1,6 @@
 {
   "name": "breeze-ui-cli",
-  "version": "0.8.0",
+  "version": "0.13.1",
   "description": "CLI for Breeze UI, MyGo's native UI drawn as macOS, Windows 11 and GNOME draw their controls",
   "keywords": [
     "adwaita",

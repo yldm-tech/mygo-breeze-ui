@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestSidebarStories checks the sidebar stories on every platform: the add button of the Mailboxes section appends a mailbox to its control and shows it, the section staying open, and the Smart Mailboxes story shows its items with their images and chooses one with a click.
+// TestSidebarStories checks the sidebar stories on every platform: the add button of the Mailboxes section appends a mailbox to its control and shows it, the section staying open, the Smart Mailboxes story shows its items with their images and chooses one with a click, and the Counts story shows each item's count and chooses one with a click.
 func TestSidebarStories(t *testing.T) {
 	for platform := range 3 {
 		b := newBook()
@@ -31,6 +31,16 @@ func TestSidebarStories(t *testing.T) {
 		tester.Frame()
 		if got := *a.text["selected"]; got != "Today" || !tester.HasText("Unread") {
 			t.Fatalf("%s: a click on Today chose %q", platformNames[platform], got)
+		}
+		b.selected = "SidebarItemDetail/Counts"
+		a = b.argsOf(b.story())
+		tester.Frame()
+		if err := tester.Click("Sent"); err != nil {
+			t.Fatalf("%s: %v", platformNames[platform], err)
+		}
+		tester.Frame()
+		if got := *a.text["selected"]; got != "Sent" || !tester.HasText("12") || !tester.HasText("3") {
+			t.Fatalf("%s: a click on Sent chose %q, or a count is missing", platformNames[platform], got)
 		}
 	}
 }

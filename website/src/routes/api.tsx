@@ -100,8 +100,8 @@ function ApiPage() {
             </h3>
             <p className="m-0 text-[11px] text-muted">
               {locale === "zh"
-                ? "API、CLI 和 MCP 服务都从同一份 catalog.json 生成，避免文档和实现漂移。"
-                : "The API, CLI, and MCP server share the same catalog.json, so docs and implementation stay in sync."}
+                ? "API、CLI 和 MCP 服务都从 ui/breeze/catalog/ 下同一组文件合并出同一份目录，避免文档和实现漂移。"
+                : "The API, CLI, and MCP server merge the same files of ui/breeze/catalog/ into one catalog, so docs and implementation stay in sync."}
             </p>
           </div>
         </div>

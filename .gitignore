@@ -7,3 +7,6 @@ website/dist/
 # The storybook's WebAssembly, built for the site rather than kept
 website/public/storybook/app.wasm
 website/public/storybook/wasm_exec.js
+
+# The MCP package's catalog, assembled from ui/breeze/catalog/ by its build (and before npm pack)
+packages/breeze-mcp/catalog.json

@@ -1,9 +1,11 @@
 import fs from "node:fs"
 import path from "node:path"
 
-const source = path.resolve(import.meta.dir, "../../ui/breeze/catalog.json")
+import { assembleCatalog } from "./src/catalog"
+
+// The package carries the catalog assembled from ui/breeze/catalog/, which an installed package has no checkout to read; it is built here, never committed.
 const target = path.resolve(import.meta.dir, "catalog.json")
-fs.copyFileSync(source, target)
+fs.writeFileSync(target, JSON.stringify(assembleCatalog(path.resolve(import.meta.dir, "../../ui/breeze/catalog")), null, 2) + "\n")
 const result = await Bun.build({
   entrypoints: [path.resolve(import.meta.dir, "src/index.ts")],
   outdir: path.resolve(import.meta.dir, "dist"),

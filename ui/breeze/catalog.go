@@ -1,14 +1,25 @@
 package breeze
 
 import (
-	_ "embed"
+	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"sort"
 )
 
-//go:embed catalog.json
-var catalogData []byte
+// catalogFiles are the files the catalog is assembled from: catalog/platforms.json holds the version and the platforms, and each other file the components of one Go file, catalog/<group>.json those of widgets_<group>.go (or <group>.go for widgets.go and extras.go), so that a pull request adding widgets to a group touches only that group's files.
+//
+//go:embed catalog/*.json
+var catalogFiles embed.FS
+
+// catalogFile is one file of catalog/.
+type catalogFile struct {
+	Version    *int          `json:"version"`
+	Platforms  []CatalogItem `json:"platforms"`
+	Components []CatalogItem `json:"components"`
+}
 
 type catalog struct {
 	Version    int           `json:"version"`
@@ -30,14 +41,55 @@ type CatalogItem struct {
 	Example string `json:"example,omitempty"`
 }
 
-var loadedCatalog = loadCatalog()
+var loadedCatalog, catalogData = loadCatalog()
 
-func loadCatalog() catalog {
-	var c catalog
-	if err := json.Unmarshal(catalogData, &c); err != nil {
+// loadCatalog merges the files of catalog/ in the order of their names into one catalog, its components in the byte order of their names, and returns it with its JSON, two-space indented, as the website and the MCP server assemble it too. The version must be given once, and no two components or platforms may share a name.
+func loadCatalog() (catalog, []byte) {
+	names, err := fs.Glob(catalogFiles, "catalog/*.json")
+	if err != nil {
 		panic(fmt.Sprintf("mygo-breeze-ui/ui/breeze: invalid embedded catalog: %v", err))
 	}
-	return c
+	var c catalog
+	versions := 0
+	seen := map[string]bool{}
+	for _, name := range names {
+		data, err := catalogFiles.ReadFile(name)
+		if err != nil {
+			panic(fmt.Sprintf("mygo-breeze-ui/ui/breeze: invalid embedded catalog: %v", err))
+		}
+		var f catalogFile
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&f); err != nil {
+			panic(fmt.Sprintf("mygo-breeze-ui/ui/breeze: invalid embedded catalog %s: %v", name, err))
+		}
+		if f.Version != nil {
+			versions++
+			c.Version = *f.Version
+		}
+		for kind, items := range map[string][]CatalogItem{"platform": f.Platforms, "component": f.Components} {
+			for _, item := range items {
+				if seen[kind+" "+item.Name] {
+					panic(fmt.Sprintf("mygo-breeze-ui/ui/breeze: invalid embedded catalog %s: %s %q is listed twice", name, kind, item.Name))
+				}
+				seen[kind+" "+item.Name] = true
+			}
+		}
+		c.Platforms = append(c.Platforms, f.Platforms...)
+		c.Components = append(c.Components, f.Components...)
+	}
+	if versions != 1 {
+		panic(fmt.Sprintf("mygo-breeze-ui/ui/breeze: invalid embedded catalog: %d files give a version, want 1", versions))
+	}
+	sort.Slice(c.Components, func(i, j int) bool { return c.Components[i].Name < c.Components[j].Name })
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(c); err != nil {
+		panic(fmt.Sprintf("mygo-breeze-ui/ui/breeze: invalid embedded catalog: %v", err))
+	}
+	return c, buf.Bytes()
 }
 
 // Catalog returns a copy of all catalog entries in stable name order. The result is safe for callers to modify.
@@ -60,7 +112,7 @@ func Catalog() []CatalogItem {
 	return items
 }
 
-// CatalogJSON returns the source catalog as a copy for documentation tools.
+// CatalogJSON returns the catalog as JSON, the files of catalog/ merged, as a copy for documentation tools.
 func CatalogJSON() []byte { return append([]byte(nil), catalogData...) }
 
 // Find returns the catalog item with name, or false when it does not exist.

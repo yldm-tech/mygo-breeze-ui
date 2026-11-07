@@ -1,9 +1,13 @@
 package breeze
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
+	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -39,14 +43,15 @@ func TestCatalogLookup(t *testing.T) {
 	}
 }
 
-// TestCatalogMatchesWidgets checks the catalog against the widget functions of extras.go and the widgets*.go files: every exported one is listed with an example calling it, and those Breeze UI draws itself are marked drawn.
-func TestCatalogMatchesWidgets(t *testing.T) {
-	var widgets []string
+// widgetGroups maps each group of widgets to the exported functions its Go file declares, widgets.go and extras.go and the widgets_<group>.go files: a group is the file's name without .go and without a leading widgets_. The catalog (catalog/<group>.json) and the documentation (docs/widgets/<group>.md) are split by the same groups.
+func widgetGroups(t *testing.T) map[string][]string {
+	t.Helper()
 	files, err := filepath.Glob("widgets*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	files = append(files, "extras.go")
+	groups := map[string][]string{}
 	for _, name := range files {
 		if strings.HasSuffix(name, "_test.go") {
 			continue
@@ -55,29 +60,77 @@ func TestCatalogMatchesWidgets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		group := strings.TrimPrefix(strings.TrimSuffix(name, ".go"), "widgets_")
+		// Two files of one group would hide each other's widgets from the checks, and catalog/platforms.json is not a group's.
+		if _, taken := groups[group]; taken || group == "platforms" {
+			t.Fatalf("%s: the group name %s is taken (widgets.go, extras.go and catalog/platforms.json use widgets, extras and platforms)", name, group)
+		}
+		groups[group] = []string{}
 		for _, decl := range file.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.IsExported() {
-				widgets = append(widgets, fn.Name.Name)
+				groups[group] = append(groups[group], fn.Name.Name)
 			}
 		}
+		sort.Strings(groups[group])
 	}
-	sort.Strings(widgets)
-	var listed []string
-	for _, item := range Catalog() {
-		if item.Kind != "component" {
+	return groups
+}
+
+// TestCatalogMatchesWidgets checks the catalog against the widget functions of extras.go and the widgets*.go files, group by group: catalog/<group>.json lists exactly the exported functions of the group's Go file, each with an example calling it, those Breeze UI draws itself marked drawn; only catalog/platforms.json gives the version and the platforms, and no file of catalog/ is without its Go file.
+func TestCatalogMatchesWidgets(t *testing.T) {
+	if _, err := os.Stat("catalog.json"); err == nil {
+		t.Fatal("catalog.json is back: the catalog is the files of catalog/, one per group of widgets (a merge or rebase may have restored the old file)")
+	}
+	groups := widgetGroups(t)
+	names, err := fs.Glob(catalogFiles, "catalog/*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		data, err := catalogFiles.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var f catalogFile
+		if err := json.Unmarshal(data, &f); err != nil {
+			t.Fatal(err)
+		}
+		group := strings.TrimSuffix(path.Base(name), ".json")
+		if group == "platforms" {
+			if f.Version == nil || len(f.Platforms) == 0 || len(f.Components) != 0 {
+				t.Errorf("%s: want the version and the platforms and no components", name)
+			}
 			continue
 		}
-		listed = append(listed, item.Name)
-		if !strings.Contains(item.Example, "breeze."+item.Name+"(") {
-			t.Errorf("%s: example %q does not call breeze.%s", item.Name, item.Example, item.Name)
+		if f.Version != nil || len(f.Platforms) != 0 {
+			t.Errorf("%s: only catalog/platforms.json gives the version and the platforms", name)
 		}
-		drawn := drawnWidgets[item.Name]
-		if want := map[bool]string{true: "drawn", false: "themed"}[drawn]; item.Look != want {
-			t.Errorf("%s: look %q, want %q", item.Name, item.Look, want)
+		widgets, ok := groups[group]
+		if !ok {
+			t.Errorf("%s lists components of no Go file: want widgets_%s.go", name, group)
+			continue
+		}
+		delete(groups, group)
+		var listed []string
+		for _, item := range f.Components {
+			listed = append(listed, item.Name)
+			if !strings.Contains(item.Example, "breeze."+item.Name+"(") {
+				t.Errorf("%s: example %q does not call breeze.%s", item.Name, item.Example, item.Name)
+			}
+			drawn := drawnWidgets[item.Name]
+			if want := map[bool]string{true: "drawn", false: "themed"}[drawn]; item.Look != want {
+				t.Errorf("%s: look %q, want %q", item.Name, item.Look, want)
+			}
+		}
+		sort.Strings(listed)
+		if strings.Join(widgets, ",") != strings.Join(listed, ",") {
+			t.Errorf("the Go file of group %s has %v, %s lists %v", group, widgets, name, listed)
 		}
 	}
-	if strings.Join(widgets, ",") != strings.Join(listed, ",") {
-		t.Fatalf("widgets.go has %v, the catalog lists %v", widgets, listed)
+	for group, widgets := range groups {
+		if len(widgets) > 0 {
+			t.Errorf("group %s has %v, but there is no catalog/%s.json", group, widgets, group)
+		}
 	}
 }
 

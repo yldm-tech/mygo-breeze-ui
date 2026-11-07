@@ -1,0 +1,60 @@
+{
+  "components": [
+    {
+      "name": "Calendar",
+      "category": "choices",
+      "look": "themed",
+      "description": "A month's calendar choosing a day: package ui's, laid out as SwiftUI's graphical date picker, in the platform's theme. Its days and buttons are built inside it, out of reach of a style applied to what it returns, and a calendar rebuilt outside MyGo could neither name its month buttons in MyGo's translations nor take Browse, which acts only on MyGo's own calendar, so it is not drawn as NSDatePicker's calendar, WinUI's CalendarView or GtkCalendar: CalendarView draws them.",
+      "example": "breeze.Calendar(c, &app.day)"
+    },
+    {
+      "name": "ColorPicker",
+      "category": "choices",
+      "look": "themed",
+      "description": "A picker of a color with a saturation and brightness square, hue and opacity sliders, the hex and swatches: package ui's, laid out as AppKit's color panel, in the platform's theme. Its parts are built inside it, and a picker rebuilt outside MyGo could not name them, their values and the swatches' colors in MyGo's translations. WinUI's ColorPicker and GTK's color chooser lay theirs out differently.",
+      "example": "breeze.ColorPicker(c, &app.tint)"
+    },
+    {
+      "name": "ColorWell",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A swatch of a color opening a picker below it: macOS's NSColorWell, a capsule in a capsule; on Windows 11, which has no color well, a DropDownButton showing the color; GNOME's GtkColorDialogButton. The picker it opens is MyGo's.",
+      "example": "breeze.ColorWell(c, &app.tint).Label(\"Tint\")"
+    },
+    {
+      "name": "DateInput",
+      "category": "text",
+      "look": "drawn",
+      "description": "A field showing a date that opens a calendar: macOS's NSDatePicker of style textField, without an icon, Windows 11's CalendarDatePicker, or a GNOME entry with its icon at 70%, as GTK has no date field. The calendar is MyGo's.",
+      "example": "breeze.DateInput(c, &app.due).Label(\"Due\")"
+    },
+    {
+      "name": "DecimalInput",
+      "category": "text",
+      "look": "themed",
+      "description": "A field editing an exact decimal, as an amount of money, with buttons stepping it: package ui's, in the platform's theme. Its field and buttons are built inside it, out of reach of a style applied to what it returns, and a field rebuilt outside MyGo could not show its errors (Enter a number, Use at most 2 decimal places) in MyGo's translations, while NumberInput, which shows none, is rebuilt.",
+      "example": "breeze.DecimalInput(c, &app.amount, \"0\", \"\", \"0.01\")"
+    },
+    {
+      "name": "RangeSlider",
+      "category": "choices",
+      "look": "themed",
+      "description": "A slider of two knobs setting a range: package ui's, in the platform's accent and colors. Its knobs take the focus as elements inside it, whose focus rings only MyGo's drawing can show, and knobs rebuilt outside MyGo could not be named after the slider's Label (Price minimum), so it is not drawn as the platforms' sliders; macOS and GNOME have no range slider, Windows its Community Toolkit's RangeSelector.",
+      "example": "breeze.RangeSlider(c, &app.min, &app.max, 0, 100, 0).Label(\"Price\")"
+    },
+    {
+      "name": "StepSlider",
+      "category": "choices",
+      "look": "drawn",
+      "description": "A slider that snaps to steps with a tick mark at each: macOS's NSSlider with dots below its track, Windows 11's Slider with ticks below (TickPlacement BottomRight), or GNOME's GtkScale with marks and a pointed slider.",
+      "example": "breeze.StepSlider(c, &app.quality, 0, 100, 25).Label(\"Quality\")"
+    },
+    {
+      "name": "TimeInput",
+      "category": "text",
+      "look": "drawn",
+      "description": "A field of a time of day whose hours, minutes and half of the day each take the focus: in macOS's NSDatePicker bezel, Windows 11's TimePicker button, 242 wide with the segments spread across it, or a GNOME entry. The segments, their keys and the colon between the hours and the minutes are MyGo's.",
+      "example": "breeze.TimeInput(c, &app.alarm).Label(\"Alarm\")"
+    }
+  ]
+}
