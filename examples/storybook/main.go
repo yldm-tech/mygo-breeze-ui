@@ -10,12 +10,39 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo"
+	_ "github.com/egoist/mygo/locales/zh-Hans"
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // Platform choices of the toolbar, in order; the last shows the three side by side.
 var platformNames = []string{"macOS", "Windows", "GNOME", "Side by side"}
+
+type storybookText struct {
+	zh                                            bool
+	components, subtitle, search, stories         string
+	story, live, platform, appearance             string
+	light, dark, sideBySide, controls, noControls string
+	goCode, copy                                  string
+}
+
+func textFor(c *ui.Context) storybookText {
+	zh := strings.HasPrefix(strings.ToLower(c.Locale()), "zh")
+	if zh {
+		return storybookText{zh: true, components: "组件", subtitle: "交互式 story 和平台预览", search: "查找组件", stories: "故事", story: "故事", live: "实时", platform: "平台", appearance: "外观", light: "浅色", dark: "深色", sideBySide: "并排", controls: "控件", noControls: "这个 story 没有可调参数。", goCode: "Go 代码", copy: "复制"}
+	}
+	return storybookText{components: "Components", subtitle: "Interactive stories and platform previews", search: "Find a component", stories: "Stories", story: "STORY", live: "LIVE", platform: "Platform", appearance: "Appearance", light: "Light", dark: "Dark", sideBySide: "Side by side", controls: "Controls", noControls: "This story has no controls.", goCode: "Go code", copy: "Copy"}
+}
+
+func categoryLabel(category string, zh bool) string {
+	if !zh {
+		return category
+	}
+	if label, ok := map[string]string{"Actions": "操作", "Choices": "选择", "Text": "文本", "Feedback": "反馈", "Navigation": "导航", "Overlays": "浮层", "Layout": "布局", "Data": "数据"}[category]; ok {
+		return label
+	}
+	return category
+}
 
 type navEntry struct {
 	category string
@@ -104,14 +131,15 @@ func storybookTheme() *ui.Theme {
 // sidebar lists the stories by category, filtered by the search field.
 func (b *book) sidebar(c *ui.Context) {
 	t := c.Theme()
+	copy := textFor(c)
 	ui.Column(c).Width(288).Shrink(0).Background(t.Surface).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
 		ui.Column(c).Padding(18, 18, 14, 18).Gap(10).Children(func() {
 			ui.Row(c).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Components").FontSize(t.FontSize + 3).Bold().Grow(1)
+				ui.Text(c, copy.components).FontSize(t.FontSize + 3).Bold().Grow(1)
 				ui.Text(c, fmt.Sprintf("%d", len(b.stories))).Padding(4, 8).Radius(999).Background(t.SurfaceHover).TextColor(t.TextMuted).FontSize(t.FontSize - 2)
 			})
-			ui.Text(c, "Interactive stories and platform previews").TextColor(t.TextMuted).FontSize(t.FontSize - 1)
-			ui.SearchField(c, &b.query).Label("Find a component")
+			ui.Text(c, copy.subtitle).TextColor(t.TextMuted).FontSize(t.FontSize - 1)
+			ui.SearchField(c, &b.query).Label(copy.search)
 		})
 		q := strings.ToLower(strings.TrimSpace(b.query))
 		b.navRows = b.navRows[:0]
@@ -155,7 +183,7 @@ func (b *book) sidebar(c *ui.Context) {
 		b.navList.Label = func(i int) string {
 			entry := b.navRows[i]
 			if entry.story == nil {
-				return entry.category
+				return categoryLabel(entry.category, copy.zh)
 			}
 			return entry.story.component + " " + entry.story.name
 		}
@@ -169,7 +197,7 @@ func (b *book) sidebar(c *ui.Context) {
 						arrow = "▸"
 					}
 					ui.Text(row.Context, arrow).TextColor(t.TextMuted).Width(16)
-					ui.Text(row.Context, entry.category).TextColor(t.TextMuted).Bold().Grow(1)
+					ui.Text(row.Context, categoryLabel(entry.category, copy.zh)).TextColor(t.TextMuted).Bold().Grow(1)
 				})
 				if head.Clicked() {
 					*b.open[entry.category] = !*b.open[entry.category]
@@ -184,7 +212,7 @@ func (b *book) sidebar(c *ui.Context) {
 				ui.Text(row.Context, entry.story.component+" · "+entry.story.name).Grow(1).SingleLine()
 			})
 		})
-		list.Grow(1).Label("Stories")
+		list.Grow(1).Label(copy.stories)
 		if list.Changed() && b.navIndex >= 0 && b.navIndex < len(b.navRows) && b.navRows[b.navIndex].story != nil {
 			b.selected = b.navRows[b.navIndex].story.id()
 			b.navID = b.selected
@@ -195,24 +223,29 @@ func (b *book) sidebar(c *ui.Context) {
 // toolbar names the story and chooses the platform and the appearance.
 func (b *book) toolbar(c *ui.Context, s *story) {
 	t := c.Theme()
+	copy := textFor(c)
 	ui.Column(c).Padding(14, 22, 16, 22).Gap(12).Background(t.Surface).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
 		ui.Row(c).Gap(14).AlignItems(ui.Center).Wrap().Children(func() {
 			ui.Row(c).Grow(1).Gap(9).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "STORY").Padding(4, 8).Radius(999).Background(t.Accent).TextColor(t.AccentText).FontSize(t.FontSize - 2).Bold()
+				ui.Text(c, copy.story).Padding(4, 8).Radius(999).Background(t.Accent).TextColor(t.AccentText).FontSize(t.FontSize - 2).Bold()
 				ui.Text(c, s.component).Bold().FontSize(t.FontSize + 4)
 				ui.Text(c, "/").TextColor(t.Border)
 				ui.Text(c, s.name).TextColor(t.TextMuted)
 			})
-			ui.Text(c, "LIVE").Padding(4, 8).Radius(999).Background(ui.RGBA(11, 122, 99, 0.12)).TextColor(t.Accent).FontSize(t.FontSize - 2).Bold()
+			ui.Text(c, copy.live).Padding(4, 8).Radius(999).Background(ui.RGBA(11, 122, 99, 0.12)).TextColor(t.Accent).FontSize(t.FontSize - 2).Bold()
 		})
 		ui.Row(c).Gap(10).AlignItems(ui.Center).Wrap().Children(func() {
 			ui.Row(c).Gap(8).Padding(5, 8).Radius(10).Background(t.SurfaceHover).Border(1, t.Border).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Platform").TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
-				ui.Segmented(c, &b.platform, platformNames...)
+				ui.Text(c, copy.platform).TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
+				platforms := platformNames
+				if copy.zh {
+					platforms = []string{"macOS", "Windows", "GNOME", copy.sideBySide}
+				}
+				ui.Segmented(c, &b.platform, platforms...)
 			})
 			ui.Row(c).Gap(8).Padding(5, 8).Radius(10).Background(t.SurfaceHover).Border(1, t.Border).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Appearance").TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
-				ui.Segmented(c, &b.dark, "Light", "Dark")
+				ui.Text(c, copy.appearance).TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
+				ui.Segmented(c, &b.dark, copy.light, copy.dark)
 			})
 		})
 	})
@@ -254,12 +287,13 @@ func (b *book) canvas(c *ui.Context, s *story) {
 // panel shows the story's controls and the Go that builds it.
 func (b *book) panel(c *ui.Context, s *story) {
 	t := c.Theme()
+	copy := textFor(c)
 	a := b.argsOf(s)
 	ui.Row(c).Height(250).Shrink(0).AlignItems(ui.Stretch).Background(t.Surface).BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Children(func() {
 		ui.Scroll(c).Grow(1).Basis(0).Padding(18, 22).Gap(12).Children(func() {
-			ui.Text(c, "Controls").TextColor(t.Accent).Bold()
+			ui.Text(c, copy.controls).TextColor(t.Accent).Bold()
 			if len(s.controls) == 0 {
-				ui.Text(c, "This story has no controls.").TextColor(t.TextMuted)
+				ui.Text(c, copy.noControls).TextColor(t.TextMuted)
 			}
 			ui.Form(c, func() {
 				for _, ctl := range s.controls {
@@ -269,8 +303,8 @@ func (b *book) panel(c *ui.Context, s *story) {
 		})
 		ui.Column(c).Grow(1).Basis(0).Padding(18, 22).Gap(12).Background(t.SurfaceHover).BorderWidth(0, 0, 0, 1).BorderColor(t.Border).Children(func() {
 			ui.Row(c).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Go code").TextColor(t.Accent).Bold().Grow(1)
-				if ui.Button(c, "Copy").Clicked() {
+				ui.Text(c, copy.goCode).TextColor(t.Accent).Bold().Grow(1)
+				if ui.Button(c, copy.copy).Clicked() {
 					c.WriteClipboard(s.code(a))
 				}
 			})

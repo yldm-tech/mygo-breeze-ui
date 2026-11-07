@@ -26,6 +26,9 @@
     </style>
     <script src="wasm_exec.js"></script>
     <script>
+      const storybookZh = /^zh(?:-|$)/i.test(navigator.language || "");
+      document.documentElement.lang = storybookZh ? "zh-CN" : "en";
+      document.title = storybookZh ? "Breeze UI 故事书" : "Breeze UI Storybook";
       const go = new Go();
       WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107"), go.importObject)
         .then((r) => {
@@ -33,7 +36,7 @@
           go.run(r.instance);
         })
         .catch((err) => {
-          document.getElementById("loading").textContent = "The storybook could not load: " + err;
+          document.getElementById("loading").textContent = storybookZh ? "故事书加载失败：" + err : "The storybook could not load: " + err;
         });
     </script>
   </head>
@@ -52,14 +55,18 @@
           Breeze UI
         </a>
         <nav class="nav-links" aria-label="Breeze UI">
-          <a class="docs" href="../docs/">Docs</a>
-          <a class="active" href="./" aria-current="page">Storybook</a>
-          <a href="../cli-mcp/">CLI &amp; MCP</a>
+          <a class="docs" href="../docs/" data-en="Docs" data-zh="文档">Docs</a>
+          <a class="active" href="./" aria-current="page" data-en="Storybook" data-zh="Storybook">Storybook</a>
+          <a href="../cli-mcp/" data-en="CLI &amp; MCP" data-zh="CLI 与 MCP">CLI &amp; MCP</a>
         </nav>
-        <a class="nav-github" href="https://github.com/yldm-tech/mygo-breeze-ui">GitHub</a>
+        <a class="nav-github" href="https://github.com/yldm-tech/mygo-breeze-ui" data-en="GitHub" data-zh="GitHub">GitHub</a>
       </div>
     </header>
-    <div id="loading">Loading the storybook…</div>
+    <div id="loading" data-en="Loading the storybook…" data-zh="正在加载故事书…">Loading the storybook…</div>
+    <script>
+      const zh = storybookZh;
+      document.querySelectorAll("[data-en]").forEach((el) => { el.textContent = zh ? el.dataset.zh : el.dataset.en; });
+    </script>
     <div id="mygo"></div>
   </body>
 </html>

@@ -70,3 +70,22 @@ func TestControlsDriveTheStory(t *testing.T) {
 		t.Fatal("the code panel did not follow the label control")
 	}
 }
+
+func TestStorybookChromeFollowsLocale(t *testing.T) {
+	b := newBook()
+	tester := ui.NewTester(b.view, 1280, 820)
+	tester.SetLocale("zh-Hans")
+	tester.Frame()
+	for _, want := range []string{"组件", "交互式 story 和平台预览", "故事", "平台", "外观", "控件", "Go 代码", "复制"} {
+		if !tester.HasText(want) {
+			t.Fatalf("Chinese chrome does not contain %q", want)
+		}
+	}
+	tester.SetLocale("en")
+	tester.Frame()
+	for _, want := range []string{"Components", "Interactive stories and platform previews", "Platform", "Appearance", "Controls", "Go code", "Copy"} {
+		if !tester.HasText(want) {
+			t.Fatalf("English chrome does not contain %q", want)
+		}
+	}
+}
