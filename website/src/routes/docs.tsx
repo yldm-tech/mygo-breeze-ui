@@ -80,6 +80,7 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
   const categoryOrder = ["actions", "choices", "text input", "layout", "navigation", "data", "feedback", "overlays"];
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [activeSection, setActiveSection] = useState(() => (typeof window !== "undefined" ? window.location.hash.slice(1) || "top" : "top"));
   const visible = query.trim().toLowerCase();
 
   return (
@@ -92,8 +93,9 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
           <div key={group.title} className="flex flex-col gap-2">
             <p className="m-0 px-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8A90A0]">{group.title}</p>
             {group.items.map(([label, href, current]) => {
-              const className = `flex min-h-[34px] items-center rounded-lg px-2.5 ${current ? "bg-[#E3F3EE] font-semibold text-[#075A49]" : "text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]"}`;
-              return <a key={label} className={className} href={href} onClick={onClose} aria-current={current ? "page" : undefined}>{label}</a>;
+              const selected = href.startsWith("#") ? activeSection === href.slice(1) : current;
+              const className = `flex min-h-[34px] items-center rounded-lg px-2.5 ${selected ? "bg-[#E3F3EE] font-semibold text-[#075A49]" : "text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]"}`;
+              return <a key={label} className={className} href={href} onClick={() => { if (href.startsWith("#")) setActiveSection(href.slice(1)); onClose(); }} aria-current={selected ? "page" : undefined}>{label}</a>;
             })}
           </div>
         ))}
