@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	_ "github.com/egoist/mygo/locales/zh-Hans"
@@ -17,6 +18,12 @@ import (
 
 // Platform choices of the toolbar, in order; the last shows the three side by side.
 var platformNames = []string{"macOS", "Windows", "GNOME", "Side by side"}
+
+var storybookPreviewTransition = ui.ElementTransition{
+	Duration: 220 * time.Millisecond,
+	Ease:     ui.EaseInOut,
+	Enter:    &ui.Motion{Opacity: 0, Scale: 0.97},
+}
 
 // Storybook owns translations for its chrome in these languages. Registering
 // them with MyGo makes App.Locale follow navigator.languages in WebAssembly
@@ -320,7 +327,7 @@ func (b *book) canvas(c *ui.Context, s *story) {
 				name = platformNames[b.platform]
 			}
 			// The appearance's theme first, which breeze.Theme reads light or dark from, then the platform's.
-			ui.Themed(c, appearance).Grow(1).Basis(0).MinWidth(0).Radius(16).Background(t.Surface).Border(1, t.Border).Shadow(0, 8, 24, 0, ui.RGBA(20, 24, 32, 0.06)).Clip().Children(func() {
+			ui.Themed(c, appearance).Key(fmt.Sprintf("storybook-preview-%s-%s-%d-%d", s.id(), p.String(), b.platform, b.dark)).Transition(storybookPreviewTransition).Grow(1).Basis(0).MinWidth(0).Radius(16).Background(t.Surface).Border(1, t.Border).Shadow(0, 8, 24, 0, ui.RGBA(20, 24, 32, 0.06)).Clip().Children(func() {
 				breeze.Preview(c, p, func() {
 					ui.Themed(c, breeze.Theme(c, p)).Fill().Padding(20).Gap(16).Children(func() {
 						if len(platforms) > 1 {
