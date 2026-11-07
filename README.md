@@ -13,7 +13,7 @@ Breeze UI draws [MyGo](https://github.com/egoist/mygo)'s native UI widgets as th
 
 ## What is included
 
-- `ui/breeze`: widgets drawn as each platform draws its controls, following macOS 27, WinUI 3 and libadwaita 1.10 (GNOME 51), with sizes and colors measured from AppKit's and libadwaita's own rendering and taken from WinUI 3's theme resources, and a few of package `ui`'s widgets under the same names in the platform's theme. The [website's catalog](https://yldm-tech.github.io/mygo-breeze-ui/#catalog) lists every widget, [the storybook](https://yldm-tech.github.io/mygo-breeze-ui/storybook/) shows each one, and [`docs/widgets`](docs/widgets) describes them group by group.
+- `ui/breeze`: widgets drawn as each platform draws its controls, following macOS 27, WinUI 3 and libadwaita 1.10 (GNOME 51), with sizes and colors measured from AppKit's and libadwaita's own rendering and taken from WinUI 3's theme resources, and a few of package `ui`'s widgets under the same names in the platform's theme. The [website's catalog](https://breeze-ui.yldm.ai/#catalog) lists every widget, [the storybook](https://breeze-ui.yldm.ai/storybook/) shows each one, and [`docs/widgets`](docs/widgets) describes them group by group.
 - Themes of the three platforms, light and dark, that follow the accent color, contrast and text size the user chose.
 - `breeze-ui`, a CLI that lists the widgets and platforms and writes snippets.
 - `breeze-ui-mcp`, a read-only MCP server over the same catalog.
