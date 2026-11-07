@@ -390,6 +390,9 @@ func formatNumber(v, hi float64) string {
 
 func main() {
 	mygo.App.SetLanguages(storybookLanguages...)
+	if locale := browserLocale(); locale != "" {
+		mygo.App.SetLocale(locale)
+	}
 	b := newBook()
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{

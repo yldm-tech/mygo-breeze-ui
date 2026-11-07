@@ -42,10 +42,11 @@
         de: { title: "Breeze UI Storybook", docs: "Dokumentation", storybook: "Storybook", cli: "CLI & MCP", github: "GitHub", loading: "Storybook wird geladen …", error: "Storybook konnte nicht geladen werden: " },
       };
       const storybookCopy = storybookChrome[storybookLocale];
+      window.__MYGO_STORYBOOK_LOCALE__ = storybookLocale === "zh" ? "zh-Hans" : storybookLocale;
       document.documentElement.lang = storybookLocale === "zh" ? "zh-CN" : storybookLocale;
       document.title = storybookCopy.title;
       const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107"), go.importObject)
+      WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107-runtime-locale"), go.importObject)
         .then((r) => {
           document.getElementById("loading").remove();
           go.run(r.instance);
