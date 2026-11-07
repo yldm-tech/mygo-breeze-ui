@@ -3,9 +3,10 @@ import { HomeRoute } from "./routes/home";
 import { ApiRoute } from "./routes/api";
 import { CliMcpRoute } from "./routes/cli-mcp";
 import { DocsRoute } from "./routes/docs";
+import { ComponentsRoute, ComponentDocRoute } from "./routes/components-docs";
 import { RootRoute } from "./routes/root";
 
-const routeTree = RootRoute.addChildren([HomeRoute, DocsRoute, ApiRoute, CliMcpRoute]);
+const routeTree = RootRoute.addChildren([HomeRoute, DocsRoute, ComponentsRoute, ComponentDocRoute, ApiRoute, CliMcpRoute]);
 export const router = createRouter({
   routeTree,
   basepath: import.meta.env.BASE_URL,

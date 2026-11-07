@@ -74,7 +74,7 @@ export function assembleCatalog(files: Record<string, CatalogFile>) {
   return { version, platforms, components };
 }
 
-const catalog = catalogSchema.parse(assembleCatalog(catalogFiles));
+export const catalog = catalogSchema.parse(assembleCatalog(catalogFiles));
 
 export async function getCatalog(): Promise<Catalog> {
   return catalog;

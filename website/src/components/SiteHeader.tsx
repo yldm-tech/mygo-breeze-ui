@@ -35,7 +35,7 @@ export function SiteHeader() {
         </Link>
         <nav className={`${open ? "flex" : "hidden"} absolute left-4 right-4 top-[58px] flex-col items-start gap-3 rounded-[14px] border border-line bg-white p-4 text-[14px] text-muted shadow-[0_18px_36px_rgba(20,24,32,0.1)] min-[681px]:static min-[681px]:flex min-[681px]:flex-1 min-[681px]:flex-row min-[681px]:flex-wrap min-[681px]:items-center min-[681px]:gap-x-6 min-[681px]:gap-y-1 min-[681px]:border-0 min-[681px]:bg-transparent min-[681px]:p-0 min-[681px]:text-[15px] min-[681px]:shadow-none`} aria-label="Breeze UI">
           <Link to="/docs" onClick={close}>{locale === "zh" ? "文档" : "Docs"}</Link>
-          <Link to="/" hash="catalog" onClick={close}>{locale === "zh" ? "组件" : "Components"}</Link>
+          <Link to="/docs/components" onClick={close}>{locale === "zh" ? "组件" : "Components"}</Link>
           <Link to="/" hash="tooling" onClick={close}>Storybook</Link>
           <Link to="/cli-mcp" onClick={close}>{locale === "zh" ? "CLI 与 MCP" : "CLI & MCP"}</Link>
         </nav>
