@@ -101,7 +101,13 @@ function ComponentDocsSidebar({ active }: { active?: string }) {
   const visible = query.trim().toLowerCase();
   const link = (label: string, href: string) => {
     const selected = label === active || (!active && href === "/docs/components");
-    return <a key={`${label}-${href}`} className={`flex min-h-[32px] items-center rounded-lg px-2.5 ${selected ? "bg-[#E3F3EE] font-semibold text-[#075A49]" : "text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]"}`} href={href} aria-current={selected ? "page" : undefined}>{label}</a>;
+    const className = `flex min-h-[32px] items-center rounded-lg px-2.5 ${selected ? "bg-[#E3F3EE] font-semibold text-[#075A49]" : "text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]"}`;
+    if (href === "/docs/components") return <Link key={`${label}-${href}`} to="/docs/components" className={className} aria-current={selected ? "page" : undefined}>{label}</Link>;
+    if (href.startsWith("/docs/components/")) {
+      const component = href.slice("/docs/components/".length);
+      return <Link key={`${label}-${href}`} to="/docs/components/$component" params={{ component }} className={className} aria-current={selected ? "page" : undefined}>{label}</Link>;
+    }
+    return <a key={`${label}-${href}`} className={className} href={href} aria-current={selected ? "page" : undefined}>{label}</a>;
   };
   return <aside className="hidden w-[280px] shrink-0 border-r border-[#E2E4E9] bg-white px-4 py-7 lg:block"><nav className="sticky top-24 flex max-h-[calc(100vh-112px)] flex-col gap-3 overflow-y-auto pr-1 text-[13px]" aria-label="组件文档目录">
     <label className="mb-2 flex h-11 items-center gap-2 rounded-xl bg-white px-3.5 text-[#6B7280] shadow-[inset_0_0_0_1px_#E2E4E9,0_2px_8px_rgba(20,24,32,0.05)]"><Search size={16} /><span className="sr-only">搜索组件</span><input className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索组件" /></label>
