@@ -19,26 +19,72 @@ import (
 var platformNames = []string{"macOS", "Windows", "GNOME", "Side by side"}
 
 type storybookText struct {
-	zh                                            bool
+	locale                                        storybookLocale
 	components, subtitle, search, stories         string
 	story, live, platform, appearance             string
 	light, dark, sideBySide, controls, noControls string
 	goCode, copy                                  string
 }
 
-func textFor(c *ui.Context) storybookText {
-	zh := strings.HasPrefix(strings.ToLower(c.Locale()), "zh")
-	if zh {
-		return storybookText{zh: true, components: "组件", subtitle: "交互式 story 和平台预览", search: "查找组件", stories: "故事", story: "故事", live: "实时", platform: "平台", appearance: "外观", light: "浅色", dark: "深色", sideBySide: "并排", controls: "控件", noControls: "这个 story 没有可调参数。", goCode: "Go 代码", copy: "复制"}
+type storybookLocale string
+
+const (
+	localeEN storybookLocale = "en"
+	localeZH storybookLocale = "zh"
+	localeJA storybookLocale = "ja"
+	localeKO storybookLocale = "ko"
+	localeES storybookLocale = "es"
+	localeFR storybookLocale = "fr"
+	localeDE storybookLocale = "de"
+)
+
+func localeFor(c *ui.Context) storybookLocale {
+	raw := strings.ToLower(c.Locale())
+	switch {
+	case strings.HasPrefix(raw, "zh"):
+		return localeZH
+	case strings.HasPrefix(raw, "ja"):
+		return localeJA
+	case strings.HasPrefix(raw, "ko"):
+		return localeKO
+	case strings.HasPrefix(raw, "es"):
+		return localeES
+	case strings.HasPrefix(raw, "fr"):
+		return localeFR
+	case strings.HasPrefix(raw, "de"):
+		return localeDE
+	default:
+		return localeEN
 	}
-	return storybookText{components: "Components", subtitle: "Interactive stories and platform previews", search: "Find a component", stories: "Stories", story: "STORY", live: "LIVE", platform: "Platform", appearance: "Appearance", light: "Light", dark: "Dark", sideBySide: "Side by side", controls: "Controls", noControls: "This story has no controls.", goCode: "Go code", copy: "Copy"}
 }
 
-func categoryLabel(category string, zh bool) string {
-	if !zh {
-		return category
+func textFor(c *ui.Context) storybookText {
+	l := localeFor(c)
+	texts := map[storybookLocale]storybookText{
+		localeZH: {locale: localeZH, components: "组件", subtitle: "交互式 story 和平台预览", search: "查找组件", stories: "故事", story: "故事", live: "实时", platform: "平台", appearance: "外观", light: "浅色", dark: "深色", sideBySide: "并排", controls: "控件", noControls: "这个 story 没有可调参数。", goCode: "Go 代码", copy: "复制"},
+		localeJA: {locale: localeJA, components: "コンポーネント", subtitle: "インタラクティブなストーリーとプラットフォームプレビュー", search: "コンポーネントを検索", stories: "ストーリー", story: "ストーリー", live: "ライブ", platform: "プラットフォーム", appearance: "外観", light: "ライト", dark: "ダーク", sideBySide: "横並び", controls: "コントロール", noControls: "このストーリーには調整可能なパラメータがありません。", goCode: "Go コード", copy: "コピー"},
+		localeKO: {locale: localeKO, components: "컴포넌트", subtitle: "인터랙티브 스토리 및 플랫폼 미리보기", search: "컴포넌트 찾기", stories: "스토리", story: "스토리", live: "라이브", platform: "플랫폼", appearance: "모양", light: "밝은 테마", dark: "어두운 테마", sideBySide: "나란히 보기", controls: "컨트롤", noControls: "이 스토리에는 조정 가능한 매개변수가 없습니다.", goCode: "Go 코드", copy: "복사"},
+		localeES: {locale: localeES, components: "Componentes", subtitle: "Historias interactivas y vistas previas de plataforma", search: "Buscar un componente", stories: "Historias", story: "HISTORIA", live: "EN VIVO", platform: "Plataforma", appearance: "Apariencia", light: "Claro", dark: "Oscuro", sideBySide: "Lado a lado", controls: "Controles", noControls: "Esta historia no tiene controles.", goCode: "Código Go", copy: "Copiar"},
+		localeFR: {locale: localeFR, components: "Composants", subtitle: "Histoires interactives et aperçus des plateformes", search: "Rechercher un composant", stories: "Histoires", story: "HISTOIRE", live: "EN DIRECT", platform: "Plateforme", appearance: "Apparence", light: "Clair", dark: "Sombre", sideBySide: "Côte à côte", controls: "Contrôles", noControls: "Cette histoire n’a aucun contrôle.", goCode: "Code Go", copy: "Copier"},
+		localeDE: {locale: localeDE, components: "Komponenten", subtitle: "Interaktive Stories und Plattformvorschauen", search: "Komponente suchen", stories: "Stories", story: "STORY", live: "LIVE", platform: "Plattform", appearance: "Darstellung", light: "Hell", dark: "Dunkel", sideBySide: "Nebeneinander", controls: "Steuerelemente", noControls: "Diese Story hat keine Steuerelemente.", goCode: "Go-Code", copy: "Kopieren"},
+		localeEN: {locale: localeEN, components: "Components", subtitle: "Interactive stories and platform previews", search: "Find a component", stories: "Stories", story: "STORY", live: "LIVE", platform: "Platform", appearance: "Appearance", light: "Light", dark: "Dark", sideBySide: "Side by side", controls: "Controls", noControls: "This story has no controls.", goCode: "Go code", copy: "Copy"},
 	}
-	if label, ok := map[string]string{"Actions": "操作", "Choices": "选择", "Text": "文本", "Feedback": "反馈", "Navigation": "导航", "Overlays": "浮层", "Layout": "布局", "Data": "数据"}[category]; ok {
+	if text, ok := texts[l]; ok {
+		return text
+	}
+	return texts[localeEN]
+}
+
+func categoryLabel(category string, locale storybookLocale) string {
+	labels := map[storybookLocale]map[string]string{
+		localeZH: {"Actions": "操作", "Choices": "选择", "Text": "文本", "Feedback": "反馈", "Navigation": "导航", "Overlays": "浮层", "Layout": "布局", "Data": "数据"},
+		localeJA: {"Actions": "操作", "Choices": "選択", "Text": "テキスト", "Feedback": "フィードバック", "Navigation": "ナビゲーション", "Overlays": "オーバーレイ", "Layout": "レイアウト", "Data": "データ"},
+		localeKO: {"Actions": "동작", "Choices": "선택", "Text": "텍스트", "Feedback": "피드백", "Navigation": "탐색", "Overlays": "오버레이", "Layout": "레이아웃", "Data": "데이터"},
+		localeES: {"Actions": "Acciones", "Choices": "Opciones", "Text": "Texto", "Feedback": "Comentarios", "Navigation": "Navegación", "Overlays": "Superposiciones", "Layout": "Diseño", "Data": "Datos"},
+		localeFR: {"Actions": "Actions", "Choices": "Choix", "Text": "Texte", "Feedback": "Retour", "Navigation": "Navigation", "Overlays": "Superpositions", "Layout": "Mise en page", "Data": "Données"},
+		localeDE: {"Actions": "Aktionen", "Choices": "Auswahl", "Text": "Text", "Feedback": "Feedback", "Navigation": "Navigation", "Overlays": "Overlays", "Layout": "Layout", "Data": "Daten"},
+	}
+	if label, ok := labels[locale][category]; ok {
 		return label
 	}
 	return category
@@ -64,7 +110,7 @@ type book struct {
 }
 
 func newBook() *book {
-	b := &book{stories: stories(), open: map[string]*bool{}, args: map[string]*args{}}
+	b := &book{stories: stories(), platform: 3, open: map[string]*bool{}, args: map[string]*args{}}
 	b.selected = b.stories[0].id()
 	for _, cat := range categories {
 		shown := true
@@ -183,7 +229,7 @@ func (b *book) sidebar(c *ui.Context) {
 		b.navList.Label = func(i int) string {
 			entry := b.navRows[i]
 			if entry.story == nil {
-				return categoryLabel(entry.category, copy.zh)
+				return categoryLabel(entry.category, copy.locale)
 			}
 			return entry.story.component + " " + entry.story.name
 		}
@@ -197,7 +243,7 @@ func (b *book) sidebar(c *ui.Context) {
 						arrow = "▸"
 					}
 					ui.Text(row.Context, arrow).TextColor(t.TextMuted).Width(16)
-					ui.Text(row.Context, categoryLabel(entry.category, copy.zh)).TextColor(t.TextMuted).Bold().Grow(1)
+					ui.Text(row.Context, categoryLabel(entry.category, copy.locale)).TextColor(t.TextMuted).Bold().Grow(1)
 				})
 				if head.Clicked() {
 					*b.open[entry.category] = !*b.open[entry.category]
@@ -238,9 +284,7 @@ func (b *book) toolbar(c *ui.Context, s *story) {
 			ui.Row(c).Gap(8).Padding(5, 8).Radius(10).Background(t.SurfaceHover).Border(1, t.Border).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, copy.platform).TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
 				platforms := platformNames
-				if copy.zh {
-					platforms = []string{"macOS", "Windows", "GNOME", copy.sideBySide}
-				}
+				platforms = []string{"macOS", "Windows", "GNOME", copy.sideBySide}
 				ui.Segmented(c, &b.platform, platforms...)
 			})
 			ui.Row(c).Gap(8).Padding(5, 8).Radius(10).Background(t.SurfaceHover).Border(1, t.Border).AlignItems(ui.Center).Children(func() {

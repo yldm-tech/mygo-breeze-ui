@@ -5,7 +5,8 @@ import { RootRoute } from "./root";
 import { Seo } from "../components/Seo";
 import { GoCodeBlock } from "../components/CodeHighlight";
 import { useUiStore } from "../store";
-import { categoryLabels, docsComponents, localizedDescription } from "./components-docs";
+import { categoryLabels, docsComponents, localizedCategory, localizedDescription } from "./components-docs";
+import type { Locale } from "../store";
 
 const afterCode = `func (app *settings) view(c *ui.Context) {
     breeze.Use(c) // 平台的颜色和尺寸，ui 包的组件也会跟着变
@@ -61,7 +62,7 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function DocsSidebar({ open, onClose, locale }: { open: boolean; onClose: () => void; locale: "zh" | "en" }) {
+function DocsSidebar({ open, onClose, locale }: { open: boolean; onClose: () => void; locale: Locale }) {
   const groups = [
     {
       title: "开始",
@@ -109,7 +110,7 @@ function DocsSidebar({ open, onClose, locale }: { open: boolean; onClose: () => 
               const isExpanded = Boolean(expanded[category] || visible);
               return <div key={category}>
                 <button type="button" className="flex min-h-[36px] w-full items-center gap-2 rounded-lg px-2.5 text-left text-[#555C69] hover:bg-[#F8F9FB]" aria-expanded={isExpanded} onClick={() => setExpanded((value) => ({ ...value, [category]: !value[category] }))}>
-                  {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}<span className="flex-1">{categoryLabels[category] ?? category}</span><span className="text-xs text-[#8A90A0]">{docsComponents.filter((item) => item.category === category).length}</span>
+                  {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}<span className="flex-1">{localizedCategory(category, locale)}</span><span className="text-xs text-[#8A90A0]">{docsComponents.filter((item) => item.category === category).length}</span>
                 </button>
                 {isExpanded && <div className="ml-5 flex flex-col gap-0.5 border-l border-[#E2E4E9] pl-2">{items.map((item) => <Link key={item.name} className="flex min-h-[32px] items-center rounded-lg px-2.5 text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]" to="/docs/components/$component" params={{ component: item.name }} onClick={onClose}>{item.name}</Link>)}</div>}
               </div>;

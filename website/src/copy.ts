@@ -123,5 +123,5 @@ export const copy = {
 } as const;
 
 export function useCopy(locale: Locale) {
-  return copy[locale];
+  return copy[locale as "zh" | "en"] ?? copy.en;
 }

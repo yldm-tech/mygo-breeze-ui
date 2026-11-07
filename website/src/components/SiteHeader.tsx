@@ -25,6 +25,9 @@ export function SiteHeader() {
   const { locale, setLocale } = useUiStore();
   const t = useCopy(locale);
   const [open, setOpen] = useState(false);
+  const localeOrder = ["zh", "en", "ja", "ko", "es", "fr", "de"] as const;
+  const localeLabels = { zh: "简体中文", en: "English", ja: "日本語", ko: "한국어", es: "Español", fr: "Français", de: "Deutsch" } as const;
+  const nextLocale = localeOrder[(localeOrder.indexOf(locale) + 1) % localeOrder.length] ?? "zh";
   const close = () => setOpen(false);
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-[rgba(244,245,247,0.88)] backdrop-blur-[16px]">
@@ -39,8 +42,8 @@ export function SiteHeader() {
           <Link to="/cli-mcp" onClick={close}>{locale === "zh" ? "CLI 与 MCP" : "CLI & MCP"}</Link>
         </nav>
         <div className="ml-auto flex items-center gap-1">
-          <button className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-[10px] border-0 bg-transparent px-2.5 text-sm text-muted hover:bg-[#e9ecef] hover:text-ink max-[680px]:min-h-9 max-[680px]:px-2" type="button" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} aria-label="Change language">
-            <Globe2 size={15} />{locale === "zh" ? "简体中文" : "English"}<ChevronDown size={13} />
+          <button className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-[10px] border-0 bg-transparent px-2.5 text-sm text-muted hover:bg-[#e9ecef] hover:text-ink max-[680px]:min-h-9 max-[680px]:px-2" type="button" onClick={() => setLocale(nextLocale)} aria-label="Change language">
+            <Globe2 size={15} />{localeLabels[locale]}<ChevronDown size={13} />
           </button>
           <a className="inline-flex size-11 items-center justify-center rounded-[10px] text-ink hover:bg-[#e9ecef] max-[680px]:size-9" href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer" aria-label="GitHub"><GitHubMark /></a>
           <Link className="ml-1 inline-flex min-h-10 items-center rounded-[10px] bg-ink px-4 text-sm font-semibold text-white max-[680px]:hidden" to="/docs">{locale === "zh" ? "开始使用" : "Get started"}</Link>
