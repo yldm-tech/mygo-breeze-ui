@@ -6,7 +6,7 @@ import { Seo } from "../components/Seo";
 import { catalog, type CatalogComponent } from "../lib/catalog";
 import { useUiStore } from "../store";
 
-const categoryLabels: Record<string, string> = {
+export const categoryLabels: Record<string, string> = {
   actions: "操作",
   choices: "选择",
   "text input": "文本输入",
@@ -25,7 +25,7 @@ const platformMeta = [
 
 // Keep the docs gallery in lockstep with the 94-component reference catalog.
 const referenceComponentNames = "Accordion,AccordionItem,ActionRow,AlertDialog,Autocomplete,Avatar,BackButton,Badge,Breadcrumbs,Button,Calendar,CalendarView,Card,Checkbox,CheckboxGroup,Collapsible,ColorPicker,ColorWell,ComboRow,Combobox,DateInput,DatePicker,DecimalInput,Divider,EditableText,EntryRow,ExpanderRow,Field,Fieldset,FindBar,Form,ForwardButton,GridView,HeaderBar,IconButton,InfoBar,Link,List,MenuButton,Meter,Modal,NumberInput,Outline,OutlineTable,PasswordField,Popover,PopoverMenuButton,PrimaryButton,Progress,ProgressRing,Radio,RadioGroup,RangeSlider,Rating,Scroll,ScrollBoth,ScrollHorizontal,SearchField,Segmented,Select,Sidebar,SidebarItem,SidebarSection,Slider,SpinRow,Spinner,Split,SplitButton,SplitPercent,SplitVertical,SplitVerticalPercent,StatusPage,StepSlider,Stepper,Switch,SwitchRow,TabView,Table,Tabs,Text,TextArea,TextAreaBuffer,TextInput,TextInputBuffer,TimeInput,Toasts,Toggle,ToggleGroup,TokenField,Toolbar,Tooltip,Tree,TreeItem,ViewSwitcher".split(",");
-const docsComponents = catalog.components.filter((item) => referenceComponentNames.includes(item.name));
+export const docsComponents = catalog.components.filter((item) => referenceComponentNames.includes(item.name));
 
 function findComponent(name: string) {
   return docsComponents.find((item) => item.name.toLowerCase() === decodeURIComponent(name).toLowerCase());

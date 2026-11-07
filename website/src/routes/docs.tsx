@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Check, Copy, Info, Menu, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Info, Menu, Search, X } from "lucide-react";
 import { createRoute, Link } from "@tanstack/react-router";
 import { RootRoute } from "./root";
 import { Seo } from "../components/Seo";
 import { useUiStore } from "../store";
+import { categoryLabels, docsComponents } from "./components-docs";
 
 const afterCode = `func (app *settings) view(c *ui.Context) {
     breeze.Use(c) // 平台的颜色和尺寸，ui 包的组件也会跟着变
@@ -74,20 +75,16 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
       title: "指南",
       items: [["平台与 Preview", "#platforms", false], ["主题", "#themes", false], ["已知限制", "#limits", false]],
     },
-    {
-      title: "组件 · 94",
-      items: [
-        ["Switch", "/docs/components/Switch", false],
-        ["Calendar", "/docs/components/Calendar", false],
-        ["Modal", "/docs/components/Modal", false],
-      ],
-    },
   ] as const;
+  const categoryOrder = ["actions", "choices", "text input", "layout", "navigation", "data", "feedback", "overlays"];
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const visible = query.trim().toLowerCase();
 
   return (
     <aside
       id="docs-side"
-      className={`${open ? "block" : "hidden"} w-full shrink-0 border-b border-[#E2E4E9] bg-white px-4 py-5 md:sticky md:top-16 md:block md:w-[280px] md:border-b-0 md:border-r md:px-5 md:py-10`}
+      className={`${open ? "block" : "hidden"} w-full shrink-0 border-b border-[#E2E4E9] bg-white px-4 py-5 md:sticky md:top-16 md:block md:max-h-[calc(100vh-4rem)] md:w-[280px] md:overflow-y-auto md:border-b-0 md:border-r md:px-5 md:py-10`}
     >
       <nav className="flex flex-col gap-7 text-[13px]" aria-label="文档目录">
         {groups.map((group) => (
@@ -95,22 +92,27 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
             <p className="m-0 px-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8A90A0]">{group.title}</p>
             {group.items.map(([label, href, current]) => {
               const className = `flex min-h-[34px] items-center rounded-lg px-2.5 ${current ? "bg-[#E3F3EE] font-semibold text-[#075A49]" : "text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]"}`;
-              return href.startsWith("#") ? (
-                <a key={label} className={className} href={href} onClick={onClose} aria-current={current ? "page" : undefined}>
-                  {label}
-                </a>
-              ) : href.startsWith("/docs/components/") ? (
-                <Link key={label} className={className} to="/docs/components/$component" params={{ component: href.slice("/docs/components/".length) }} onClick={onClose} aria-current={current ? "page" : undefined}>
-                  {label}
-                </Link>
-              ) : (
-                <a key={label} className={className} href={href} onClick={onClose}>
-                  {label}
-                </a>
-              );
+              return <a key={label} className={className} href={href} onClick={onClose} aria-current={current ? "page" : undefined}>{label}</a>;
             })}
           </div>
         ))}
+        <div className="flex flex-col gap-3">
+          <p className="m-0 px-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8A90A0]">组件 · {docsComponents.length}</p>
+          <label className="flex h-10 items-center gap-2 rounded-xl bg-white px-3 text-[#6B7280] shadow-[inset_0_0_0_1px_#E2E4E9]"><Search size={15} /><span className="sr-only">搜索组件</span><input className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索组件" /></label>
+          <div className="flex flex-col gap-1">
+            {categoryOrder.map((category) => {
+              const items = docsComponents.filter((item) => item.category === category && (!visible || `${item.name} ${item.description}`.toLowerCase().includes(visible)));
+              if (!items.length) return null;
+              const isExpanded = Boolean(expanded[category] || visible);
+              return <div key={category}>
+                <button type="button" className="flex min-h-[36px] w-full items-center gap-2 rounded-lg px-2.5 text-left text-[#555C69] hover:bg-[#F8F9FB]" aria-expanded={isExpanded} onClick={() => setExpanded((value) => ({ ...value, [category]: !value[category] }))}>
+                  {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}<span className="flex-1">{categoryLabels[category] ?? category}</span><span className="text-xs text-[#8A90A0]">{docsComponents.filter((item) => item.category === category).length}</span>
+                </button>
+                {isExpanded && <div className="ml-5 flex flex-col gap-0.5 border-l border-[#E2E4E9] pl-2">{items.map((item) => <Link key={item.name} className="flex min-h-[32px] items-center rounded-lg px-2.5 text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]" to="/docs/components/$component" params={{ component: item.name }} onClick={onClose}>{item.name}</Link>)}</div>}
+              </div>;
+            })}
+          </div>
+        </div>
       </nav>
     </aside>
   );
