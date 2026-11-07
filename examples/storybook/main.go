@@ -134,15 +134,26 @@ func (b *book) sidebar(c *ui.Context) {
 // toolbar names the story and chooses the platform and the appearance.
 func (b *book) toolbar(c *ui.Context, s *story) {
 	t := c.Theme()
-	ui.Row(c).Padding(16, 22).Gap(16).AlignItems(ui.Center).Wrap().Background(t.Surface).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-		ui.Row(c).Gap(6).Grow(1).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "STORY").TextColor(t.Accent).FontSize(t.FontSize - 2).Bold()
-			ui.Text(c, s.component).Bold().FontSize(t.FontSize + 4)
-			ui.Text(c, "/").TextColor(t.Border)
-			ui.Text(c, s.name).TextColor(t.TextMuted)
+	ui.Column(c).Padding(14, 22, 16, 22).Gap(12).Background(t.Surface).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
+		ui.Row(c).Gap(14).AlignItems(ui.Center).Wrap().Children(func() {
+			ui.Row(c).Grow(1).Gap(9).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "STORY").Padding(4, 8).Radius(999).Background(t.Accent).TextColor(t.AccentText).FontSize(t.FontSize - 2).Bold()
+				ui.Text(c, s.component).Bold().FontSize(t.FontSize + 4)
+				ui.Text(c, "/").TextColor(t.Border)
+				ui.Text(c, s.name).TextColor(t.TextMuted)
+			})
+			ui.Text(c, "LIVE").Padding(4, 8).Radius(999).Background(ui.RGBA(11, 122, 99, 0.12)).TextColor(t.Accent).FontSize(t.FontSize - 2).Bold()
 		})
-		ui.Segmented(c, &b.platform, platformNames...).Label("Platform")
-		ui.Segmented(c, &b.dark, "Light", "Dark").Label("Appearance")
+		ui.Row(c).Gap(10).AlignItems(ui.Center).Wrap().Children(func() {
+			ui.Row(c).Gap(8).Padding(5, 8).Radius(10).Background(t.SurfaceHover).Border(1, t.Border).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "Platform").TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
+				ui.Segmented(c, &b.platform, platformNames...)
+			})
+			ui.Row(c).Gap(8).Padding(5, 8).Radius(10).Background(t.SurfaceHover).Border(1, t.Border).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "Appearance").TextColor(t.TextMuted).FontSize(t.FontSize - 1).Bold()
+				ui.Segmented(c, &b.dark, "Light", "Dark")
+			})
+		})
 	})
 }
 
