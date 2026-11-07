@@ -27,7 +27,7 @@
     <script src="wasm_exec.js"></script>
     <script>
       const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject)
+      WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107"), go.importObject)
         .then((r) => {
           document.getElementById("loading").remove();
           go.run(r.instance);
