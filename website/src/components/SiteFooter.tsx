@@ -14,8 +14,8 @@ export function SiteFooter() {
         </div>
         <nav className="footer-nav" aria-label={zh ? "文档" : "Docs"}>
           <strong>{zh ? "文档" : "Docs"}</strong>
-          <Link to="/" hash="install">{zh ? "快速开始" : "Quick start"}</Link>
-          <Link to="/" hash="platforms">{zh ? "平台与主题" : "Platforms & themes"}</Link>
+          <Link to="/docs">{zh ? "快速开始" : "Quick start"}</Link>
+          <Link to="/docs" hash="platforms">{zh ? "平台与主题" : "Platforms & themes"}</Link>
           <Link to="/" hash="catalog">{zh ? "组件" : "Components"}</Link>
           <Link to="/cli-mcp">{zh ? "CLI 与 MCP" : "CLI & MCP"}</Link>
         </nav>
