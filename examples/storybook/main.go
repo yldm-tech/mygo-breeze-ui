@@ -17,6 +17,11 @@ import (
 // Platform choices of the toolbar, in order; the last shows the three side by side.
 var platformNames = []string{"macOS", "Windows", "GNOME", "Side by side"}
 
+type navEntry struct {
+	category string
+	story    *story
+}
+
 type book struct {
 	stories  []*story
 	selected string // the chosen story's id
@@ -25,6 +30,10 @@ type book struct {
 	query    string
 	open     map[string]*bool // the sidebar sections shown
 	args     map[string]*args // each story's argument values, kept as stories change
+	navRows  []navEntry
+	navList  ui.ListState
+	navIndex int
+	navID    string
 }
 
 func newBook() *book {
@@ -92,15 +101,24 @@ func storybookTheme() *ui.Theme {
 	return &t
 }
 
+func storybookLogo(c *ui.Context) ui.Element {
+	return ui.Box(c).Size(30, 30).Role(ui.RoleImage).Label("Breeze UI").Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(ui.Rect{X: r.X + 2, Y: r.Y + 3, W: 18, H: 14}, ui.Hex("#a6e1cd"), 4.5)
+		p.Fill(ui.Rect{X: r.X + 7, Y: r.Y + 8.5, W: 18, H: 14}, ui.Hex("#3fae8c"), 2)
+		p.Fill(ui.Rect{X: r.X + 12, Y: r.Y + 14, W: 18, H: 14}, ui.Hex("#0b7a63"), 3.5)
+		for _, x := range []float32{15.5, 18.5, 21.5} {
+			p.Fill(ui.Rect{X: r.X + x - 0.9, Y: r.Y + 17.5 - 0.9, W: 1.8, H: 1.8}, ui.RGB(255, 255, 255), 0.9)
+		}
+	})
+}
+
 // sidebar lists the stories by category, filtered by the search field.
 func (b *book) sidebar(c *ui.Context) {
 	t := c.Theme()
 	ui.Column(c).Width(288).Shrink(0).Background(t.Surface).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
 		ui.Column(c).Padding(22, 18, 14, 18).Gap(12).Children(func() {
 			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(30, 30).Radius(9).Background(t.Accent).Children(func() {
-					ui.Text(c, "B").TextColor(t.AccentText).Bold().FontSize(16)
-				})
+				storybookLogo(c)
 				ui.Column(c).Gap(0).Children(func() {
 					ui.Text(c, "Breeze UI").FontSize(t.FontSize + 3).Bold()
 					ui.Text(c, "Storybook").TextColor(t.TextMuted).FontSize(t.FontSize - 1)
@@ -110,24 +128,81 @@ func (b *book) sidebar(c *ui.Context) {
 			ui.SearchField(c, &b.query).Label("Find a component")
 		})
 		q := strings.ToLower(strings.TrimSpace(b.query))
-		ui.Sidebar(c, &b.selected, func() {
-			for _, cat := range categories {
-				var matches []*story
-				for _, s := range b.stories {
-					if s.category == cat && (q == "" || strings.Contains(strings.ToLower(s.component+" "+s.name), q)) {
-						matches = append(matches, s)
-					}
+		b.navRows = b.navRows[:0]
+		for _, cat := range categories {
+			var matches []*story
+			for _, s := range b.stories {
+				if s.category == cat && (q == "" || strings.Contains(strings.ToLower(s.component+" "+s.name), q)) {
+					matches = append(matches, s)
 				}
-				if len(matches) == 0 {
-					continue
-				}
-				ui.SidebarSection(c, cat, b.open[cat], func() {
-					for _, s := range matches {
-						ui.SidebarItem(c, s.id(), nil, s.component+" · "+s.name)
-					}
-				})
 			}
-		}).Grow(1).Label("Stories")
+			if len(matches) == 0 {
+				continue
+			}
+			b.navRows = append(b.navRows, navEntry{category: cat})
+			if shown := b.open[cat]; shown != nil && *shown {
+				for _, s := range matches {
+					b.navRows = append(b.navRows, navEntry{category: cat, story: s})
+				}
+			}
+		}
+		if b.navID != b.selected {
+			b.navID = b.selected
+			b.navIndex = -1
+			for i, entry := range b.navRows {
+				if entry.story != nil && entry.story.id() == b.selected {
+					b.navIndex = i
+					break
+				}
+			}
+		}
+		b.navList.Selected = &b.navIndex
+		b.navList.RoundRows = true
+		b.navList.Key = func(i int) any {
+			entry := b.navRows[i]
+			if entry.story == nil {
+				return "category/" + entry.category
+			}
+			return entry.story.id()
+		}
+		b.navList.Header = func(i int) bool { return b.navRows[i].story == nil }
+		b.navList.Label = func(i int) string {
+			entry := b.navRows[i]
+			if entry.story == nil {
+				return entry.category
+			}
+			return entry.story.component + " " + entry.story.name
+		}
+		list := ui.List(c, &b.navList, len(b.navRows)).Rows(func(row ui.ListRow) {
+			entry := b.navRows[row.Index]
+			if entry.story == nil {
+				head := ui.ButtonBase(row.Context).FillWidth().Padding(8, 10).Radius(8).AlignItems(ui.Center)
+				head.Children(func() {
+					arrow := "▾"
+					if shown := b.open[entry.category]; shown == nil || !*shown {
+						arrow = "▸"
+					}
+					ui.Text(row.Context, arrow).TextColor(t.TextMuted).Width(16)
+					ui.Text(row.Context, entry.category).TextColor(t.TextMuted).Bold().Grow(1)
+				})
+				if head.Clicked() {
+					*b.open[entry.category] = !*b.open[entry.category]
+				}
+				return
+			}
+			item := ui.Row(row.Context).FillWidth().Gap(8).Padding(7, 10).Radius(8).AlignItems(ui.Center)
+			if row.Selected() {
+				item.Background(t.Accent).TextColor(t.AccentText)
+			}
+			item.Children(func() {
+				ui.Text(row.Context, entry.story.component+" · "+entry.story.name).Grow(1).SingleLine()
+			})
+		})
+		list.Grow(1).Label("Stories")
+		if list.Changed() && b.navIndex >= 0 && b.navIndex < len(b.navRows) && b.navRows[b.navIndex].story != nil {
+			b.selected = b.navRows[b.navIndex].story.id()
+			b.navID = b.selected
+		}
 	})
 }
 

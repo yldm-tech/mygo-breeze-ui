@@ -1,6 +1,6 @@
 # Breeze UI catalog API
 
-The website's [API reference](https://yldm-tech.github.io/mygo-breeze-ui/api/) documents the read-only catalog contract used by the CLI and MCP server. The source of truth is the files of [`ui/breeze/catalog/`](../ui/breeze/catalog): `platforms.json` with the version and the platforms, and one file per group of widgets, `<group>.json` listing the widgets of `widgets_<group>.go` (`widgets.json` and `extras.json` those of `widgets.go` and `extras.go`). The Go package, the MCP server and the website merge them the same way into the catalog the API returns; the website validates its shape with Zod before rendering it, and a Go test checks that each file lists exactly the widgets of its Go file.
+The website's [API reference](https://breeze-ui.yldm.ai/api/) documents the read-only catalog contract used by the CLI and MCP server. The source of truth is the files of [`ui/breeze/catalog/`](../ui/breeze/catalog): `platforms.json` with the version and the platforms, and one file per group of widgets, `<group>.json` listing the widgets of `widgets_<group>.go` (`widgets.json` and `extras.json` those of `widgets.go` and `extras.go`). The Go package, the MCP server and the website merge them the same way into the catalog the API returns; the website validates its shape with Zod before rendering it, and a Go test checks that each file lists exactly the widgets of its Go file.
 
 ## Endpoints
 
