@@ -56,6 +56,7 @@ func (b *book) argsOf(s *story) *args {
 }
 
 func (b *book) view(c *ui.Context) {
+	c.SetTheme(storybookTheme())
 	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
 		b.sidebar(c)
 		ui.Column(c).Grow(1).MinWidth(0).Children(func() {
@@ -67,13 +68,45 @@ func (b *book) view(c *ui.Context) {
 	})
 }
 
+// storybookTheme keeps the application chrome in the same visual language as
+// the website: a soft gray canvas, white panels, ink text and Breeze mint
+// accents. The platform previews still use their own themes below.
+func storybookTheme() *ui.Theme {
+	t := *ui.LightTheme()
+	t.Background = ui.Hex("#f4f5f7")
+	t.Surface = ui.Hex("#ffffff")
+	t.SurfaceHover = ui.Hex("#f8f9fb")
+	t.SurfacePressed = ui.Hex("#e2e4e9")
+	t.Border = ui.Hex("#e2e4e9")
+	t.Text = ui.Hex("#15171c")
+	t.TextMuted = ui.Hex("#555c69")
+	t.Accent = ui.Hex("#0b7a63")
+	t.AccentHover = ui.Hex("#075a49")
+	t.AccentPressed = ui.Hex("#064b3e")
+	t.AccentText = ui.Hex("#ffffff")
+	t.Selection = ui.Hex("#a6e1cd")
+	t.Focus = ui.RGBA(11, 122, 99, 0.35)
+	t.Radius = 10
+	t.Spacing = 4
+	t.FontSize = 14
+	return &t
+}
+
 // sidebar lists the stories by category, filtered by the search field.
 func (b *book) sidebar(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c).Width(280).Shrink(0).Background(t.Surface).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
-		ui.Column(c).Padding(16, 14, 10, 14).Gap(10).Children(func() {
-			ui.Text(c, "Breeze UI").FontSize(t.FontSize + 4).Bold()
-			ui.Text(c, "Storybook").TextColor(t.TextMuted)
+	ui.Column(c).Width(288).Shrink(0).Background(t.Surface).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
+		ui.Column(c).Padding(22, 18, 14, 18).Gap(12).Children(func() {
+			ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Size(30, 30).Radius(9).Background(t.Accent).Children(func() {
+					ui.Text(c, "B").TextColor(t.AccentText).Bold().FontSize(16)
+				})
+				ui.Column(c).Gap(0).Children(func() {
+					ui.Text(c, "Breeze UI").FontSize(t.FontSize + 3).Bold()
+					ui.Text(c, "Storybook").TextColor(t.TextMuted).FontSize(t.FontSize - 1)
+				})
+			})
+			ui.Text(c, fmt.Sprintf("%d components · live previews", len(b.stories))).TextColor(t.TextMuted).FontSize(t.FontSize - 1)
 			ui.SearchField(c, &b.query).Label("Find a component")
 		})
 		q := strings.ToLower(strings.TrimSpace(b.query))
@@ -101,9 +134,11 @@ func (b *book) sidebar(c *ui.Context) {
 // toolbar names the story and chooses the platform and the appearance.
 func (b *book) toolbar(c *ui.Context, s *story) {
 	t := c.Theme()
-	ui.Row(c).Padding(10, 16).Gap(12).AlignItems(ui.Center).Wrap().BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
+	ui.Row(c).Padding(16, 22).Gap(16).AlignItems(ui.Center).Wrap().Background(t.Surface).BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
 		ui.Row(c).Gap(6).Grow(1).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, s.component).Bold().FontSize(t.FontSize + 2)
+			ui.Text(c, "STORY").TextColor(t.Accent).FontSize(t.FontSize - 2).Bold()
+			ui.Text(c, s.component).Bold().FontSize(t.FontSize + 4)
+			ui.Text(c, "/").TextColor(t.Border)
 			ui.Text(c, s.name).TextColor(t.TextMuted)
 		})
 		ui.Segmented(c, &b.platform, platformNames...).Label("Platform")
@@ -113,6 +148,7 @@ func (b *book) toolbar(c *ui.Context, s *story) {
 
 // canvas draws the story as the chosen platform, or as each platform in a column of its own.
 func (b *book) canvas(c *ui.Context, s *story) {
+	t := c.Theme()
 	a := b.argsOf(s)
 	platforms := []breeze.Platform{breeze.Platforms[min(b.platform, 2)]}
 	if b.platform == 3 {
@@ -122,14 +158,14 @@ func (b *book) canvas(c *ui.Context, s *story) {
 	if b.dark == 1 {
 		appearance = ui.DarkTheme()
 	}
-	ui.Row(c).Grow(1).MinHeight(260).AlignItems(ui.Stretch).Children(func() {
+	ui.Row(c).Grow(1).MinHeight(260).AlignItems(ui.Stretch).Padding(20, 22).Gap(16).Background(t.Background).Children(func() {
 		for i, p := range platforms {
 			name := platformNames[i]
 			if len(platforms) == 1 {
 				name = platformNames[b.platform]
 			}
 			// The appearance's theme first, which breeze.Theme reads light or dark from, then the platform's.
-			ui.Themed(c, appearance).Grow(1).Basis(0).MinWidth(0).Children(func() {
+			ui.Themed(c, appearance).Grow(1).Basis(0).MinWidth(0).Radius(16).Background(t.Surface).Border(1, t.Border).Shadow(0, 8, 24, 0, ui.RGBA(20, 24, 32, 0.06)).Clip().Children(func() {
 				breeze.Preview(c, p, func() {
 					ui.Themed(c, breeze.Theme(c, p)).Fill().Padding(20).Gap(16).Children(func() {
 						if len(platforms) > 1 {
@@ -147,9 +183,9 @@ func (b *book) canvas(c *ui.Context, s *story) {
 func (b *book) panel(c *ui.Context, s *story) {
 	t := c.Theme()
 	a := b.argsOf(s)
-	ui.Row(c).Height(230).Shrink(0).AlignItems(ui.Stretch).BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Children(func() {
-		ui.Scroll(c).Grow(1).Basis(0).Padding(14, 16).Gap(10).Children(func() {
-			ui.Text(c, "Controls").Bold()
+	ui.Row(c).Height(250).Shrink(0).AlignItems(ui.Stretch).Background(t.Surface).BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Children(func() {
+		ui.Scroll(c).Grow(1).Basis(0).Padding(18, 22).Gap(12).Children(func() {
+			ui.Text(c, "Controls").TextColor(t.Accent).Bold()
 			if len(s.controls) == 0 {
 				ui.Text(c, "This story has no controls.").TextColor(t.TextMuted)
 			}
@@ -159,9 +195,9 @@ func (b *book) panel(c *ui.Context, s *story) {
 				}
 			})
 		})
-		ui.Column(c).Grow(1).Basis(0).Padding(14, 16).Gap(10).Background(t.Surface).BorderWidth(0, 0, 0, 1).BorderColor(t.Border).Children(func() {
+		ui.Column(c).Grow(1).Basis(0).Padding(18, 22).Gap(12).Background(t.SurfaceHover).BorderWidth(0, 0, 0, 1).BorderColor(t.Border).Children(func() {
 			ui.Row(c).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "Go").Bold().Grow(1)
+				ui.Text(c, "Go code").TextColor(t.Accent).Bold().Grow(1)
 				if ui.Button(c, "Copy").Clicked() {
 					c.WriteClipboard(s.code(a))
 				}
