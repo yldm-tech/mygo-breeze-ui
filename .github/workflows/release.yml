@@ -69,8 +69,14 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           SHA: ${{ steps.commit.outputs.sha }}
         run: |
-          git tag -a "$VERSION" -m "$VERSION" "$SHA"
-          git push origin "refs/tags/$VERSION"
+          existing=$(git ls-remote origin "refs/tags/$VERSION^{}" | awk '{print $1}')
+          if [ -n "$existing" ]; then
+            test "$existing" = "$SHA"
+            echo "Tag $VERSION already points to $SHA; continuing"
+          else
+            git tag -a "$VERSION" -m "$VERSION" "$SHA"
+            git push origin "refs/tags/$VERSION"
+          fi
       - uses: actions/setup-node@v7
         if: steps.commit.outputs.sha != ''
         with:
