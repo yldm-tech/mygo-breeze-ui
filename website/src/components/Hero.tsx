@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { catalogCounts, getCatalog } from "../lib/catalog";
 import { useUiStore } from "../store";
@@ -93,23 +92,5 @@ export function Hero() {
         </div>
       </motion.div>
     </section>
-  );
-}
-
-export function HeroLinks() {
-  return (
-    <div className="flex gap-4 font-mono text-[10px] text-mint">
-      <Link className="inline-flex items-center gap-1.5" to="/api">
-        API reference <ArrowUpRight size={14} />
-      </Link>
-      <a
-        className="inline-flex items-center gap-1.5"
-        href="https://github.com/yldm-tech/mygo-breeze-ui"
-        target="_blank"
-        rel="noreferrer"
-      >
-        GitHub <ArrowUpRight size={14} />
-      </a>
-    </div>
   );
 }

@@ -9,8 +9,6 @@ const githubPagesFallback = () => ({
   name: "github-pages-fallback",
   closeBundle: async () => {
     await copyFile("dist/index.html", "dist/404.html");
-    await mkdir("dist/api", { recursive: true });
-    await copyFile("dist/index.html", "dist/api/index.html");
     await mkdir("dist/docs", { recursive: true });
     await copyFile("dist/index.html", "dist/docs/index.html");
     await mkdir("dist/docs/components", { recursive: true });
