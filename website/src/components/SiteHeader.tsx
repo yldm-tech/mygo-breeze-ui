@@ -25,10 +25,10 @@ export function SiteHeader() {
   const { locale, setLocale } = useUiStore();
   const t = useCopy(locale);
   const [open, setOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
   const localeOrder = ["zh", "en", "ja", "ko", "es", "fr", "de"] as const;
   const localeLabels = { zh: "简体中文", en: "English", ja: "日本語", ko: "한국어", es: "Español", fr: "Français", de: "Deutsch" } as const;
-  const nextLocale = localeOrder[(localeOrder.indexOf(locale) + 1) % localeOrder.length] ?? "zh";
-  const close = () => setOpen(false);
+  const close = () => { setOpen(false); setLanguageOpen(false); };
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-[rgba(244,245,247,0.88)] backdrop-blur-[16px]">
       <div className="mx-auto flex min-h-16 w-[min(1200px,calc(100%-48px))] items-center gap-2 md:gap-8 max-[680px]:w-[calc(100%-34px)]">
@@ -42,9 +42,14 @@ export function SiteHeader() {
           <Link to="/cli-mcp" onClick={close}>{locale === "zh" ? "CLI 与 MCP" : "CLI & MCP"}</Link>
         </nav>
         <div className="ml-auto flex items-center gap-1">
-          <button className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-[10px] border-0 bg-transparent px-2.5 text-sm text-muted hover:bg-[#e9ecef] hover:text-ink max-[680px]:min-h-9 max-[680px]:px-2" type="button" onClick={() => setLocale(nextLocale)} aria-label="Change language">
-            <Globe2 size={15} />{localeLabels[locale]}<ChevronDown size={13} />
-          </button>
+          <div className="relative">
+            <button className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-[10px] border-0 bg-transparent px-2.5 text-sm text-muted hover:bg-[#e9ecef] hover:text-ink max-[680px]:min-h-9 max-[680px]:px-2" type="button" onClick={() => setLanguageOpen((value) => !value)} aria-label="Change language" aria-haspopup="menu" aria-expanded={languageOpen}>
+              <Globe2 size={15} />{localeLabels[locale]}<ChevronDown size={13} className={languageOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+            </button>
+            {languageOpen && <div className="absolute right-0 top-[calc(100%+8px)] z-40 min-w-[150px] rounded-xl border border-line bg-white p-1.5 shadow-[0_14px_32px_rgba(20,24,32,0.14)]" role="menu" aria-label="Languages">
+              {localeOrder.map((item) => <button key={item} type="button" role="menuitem" className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${locale === item ? "bg-[#E3F3EE] font-semibold text-[#075A49]" : "text-ink hover:bg-[#F4F5F7]"}`} onClick={() => { setLocale(item); setLanguageOpen(false); }}>{localeLabels[item]}{locale === item && <span aria-hidden="true">✓</span>}</button>)}
+            </div>}
+          </div>
           <a className="inline-flex size-11 items-center justify-center rounded-[10px] text-ink hover:bg-[#e9ecef] max-[680px]:size-9" href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer" aria-label="GitHub"><GitHubMark /></a>
           <Link className="ml-1 inline-flex min-h-10 items-center rounded-[10px] bg-ink px-4 text-sm font-semibold text-white max-[680px]:hidden" to="/docs">{locale === "zh" ? "开始使用" : "Get started"}</Link>
           <button className="hidden size-9 items-center justify-center rounded-[10px] border-0 bg-transparent text-muted hover:bg-[#e9ecef] max-[680px]:inline-flex" type="button" onClick={() => setOpen((value) => !value)} aria-label="Toggle menu" aria-expanded={open}>
