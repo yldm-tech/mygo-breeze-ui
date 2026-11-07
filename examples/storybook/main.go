@@ -192,7 +192,7 @@ func (b *book) sidebar(c *ui.Context) {
 			}
 			item := ui.Row(row.Context).FillWidth().Gap(8).Padding(7, 10).Radius(8).AlignItems(ui.Center)
 			if row.Selected() {
-				item.Background(t.Accent).TextColor(t.AccentText)
+				item.Background(t.SurfacePressed).TextColor(t.Text)
 			}
 			item.Children(func() {
 				ui.Text(row.Context, entry.story.component+" · "+entry.story.name).Grow(1).SingleLine()
