@@ -7,7 +7,7 @@ import { findCatalog, loadCatalog, searchCatalog } from "./catalog.js"
 
 const serverInfo = {
   name: "breeze-ui",
-  version: "0.13.1",
+  version: "0.15.2",
 }
 
 function textResult(value: unknown) {
