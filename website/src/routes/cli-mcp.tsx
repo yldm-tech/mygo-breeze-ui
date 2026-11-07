@@ -36,7 +36,7 @@ function CliMcpPage() {
           <article className="rounded-2xl border border-line bg-panel p-7 max-[680px]:p-5">
             <div className="mb-6 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#eaf7f2] text-mint"><Terminal size={19} /></span><div><p className="m-0 font-mono text-[10px] uppercase tracking-[0.08em] text-dim">CLI</p><h2 className="m-0 text-2xl tracking-[-0.04em]">breeze-ui</h2></div></div>
             <p className="mb-6 text-sm leading-[1.7] text-muted">{zh ? "列出组件和平台，或生成可以直接放进项目的代码片段。" : "List components and platforms, or generate snippets you can drop into a project."}</p>
-            <CodeBlock>{`npx breeze-ui list\nnpx breeze-ui add Switch -o ui/switch_snippet.go`}</CodeBlock>
+            <CodeBlock>{`npx --yes --package breeze-ui-cli breeze-ui list\nnpx --yes --package breeze-ui-cli breeze-ui add Switch -o ui/switch_snippet.go`}</CodeBlock>
             <p className="mt-5 text-sm text-muted">{zh ? "也可以安装 Go 命令：" : "Or install the Go command:"}</p>
             <CodeBlock>{"go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest"}</CodeBlock>
             <a className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint hover:text-ink" href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">{zh ? "查看 CLI 源码" : "View the CLI source"}<ArrowUpRight size={15} /></a>

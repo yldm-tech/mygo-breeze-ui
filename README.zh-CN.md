@@ -64,8 +64,8 @@ go run ./examples/storybook
 ## CLI
 
 ```sh
-npx breeze-ui list
-npx breeze-ui add Switch -o ui/switch_snippet.go
+npx --yes --package breeze-ui-cli breeze-ui list
+npx --yes --package breeze-ui-cli breeze-ui add Switch -o ui/switch_snippet.go
 ```
 
 也可以安装 Go 命令：
