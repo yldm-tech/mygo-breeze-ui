@@ -34,7 +34,6 @@ export function SiteHeader() {
           Breeze UI
         </Link>
         <nav className={`${open ? "flex" : "hidden"} absolute left-4 right-4 top-[58px] flex-col items-start gap-3 rounded-[14px] border border-line bg-white p-4 text-[14px] text-muted shadow-[0_18px_36px_rgba(20,24,32,0.1)] min-[681px]:static min-[681px]:flex min-[681px]:flex-1 min-[681px]:flex-row min-[681px]:flex-wrap min-[681px]:items-center min-[681px]:gap-x-6 min-[681px]:gap-y-1 min-[681px]:border-0 min-[681px]:bg-transparent min-[681px]:p-0 min-[681px]:text-[15px] min-[681px]:shadow-none`} aria-label="Breeze UI">
-          <Link to="/" onClick={close}>{locale === "zh" ? "首页" : "Home"}</Link>
           <Link to="/docs" onClick={close}>{locale === "zh" ? "文档" : "Docs"}</Link>
           <Link to="/" hash="catalog" onClick={close}>{locale === "zh" ? "组件" : "Components"}</Link>
           <Link to="/" hash="tooling" onClick={close}>Storybook</Link>
@@ -45,7 +44,7 @@ export function SiteHeader() {
             <Globe2 size={15} />{locale === "zh" ? "简体中文" : "English"}<ChevronDown size={13} />
           </button>
           <a className="inline-flex size-11 items-center justify-center rounded-[10px] text-ink hover:bg-[#e9ecef] max-[680px]:size-9" href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer" aria-label="GitHub"><GitHubMark /></a>
-          <Link className="ml-1 inline-flex min-h-10 items-center rounded-[10px] bg-ink px-4 text-sm font-semibold text-white max-[680px]:hidden" to="/" hash="install">{locale === "zh" ? "开始使用" : "Get started"}</Link>
+          <Link className="ml-1 inline-flex min-h-10 items-center rounded-[10px] bg-ink px-4 text-sm font-semibold text-white max-[680px]:hidden" to="/docs">{locale === "zh" ? "开始使用" : "Get started"}</Link>
           <button className="hidden size-9 items-center justify-center rounded-[10px] border-0 bg-transparent text-muted hover:bg-[#e9ecef] max-[680px]:inline-flex" type="button" onClick={() => setOpen((value) => !value)} aria-label="Toggle menu" aria-expanded={open}>
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
