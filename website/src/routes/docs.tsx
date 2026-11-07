@@ -77,10 +77,10 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
     {
       title: "组件 · 94",
       items: [
-        ["Switch", "/api", false],
-        ["Calendar", "/api", false],
-        ["Modal", "/api", false],
-        ["全部组件 →", "/#catalog", false],
+        ["Switch", "/docs/components/Switch", false],
+        ["Calendar", "/docs/components/Calendar", false],
+        ["Modal", "/docs/components/Modal", false],
+        ["全部组件 →", "/docs/components", false],
       ],
     },
     {
@@ -109,9 +109,9 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
                   {label}
                 </a>
               ) : (
-                <Link key={label} className={className} to={href as "/api" | "/cli-mcp" | "/"} onClick={onClose}>
+                <a key={label} className={className} href={href} onClick={onClose}>
                   {label}
-                </Link>
+                </a>
               );
             })}
           </div>
@@ -257,7 +257,7 @@ function DocsPage() {
 
               <section id="next" className="flex scroll-mt-24 flex-col gap-3.5">
                 <h2 className="m-0 text-[26px] font-semibold tracking-[-0.01em]">下一步</h2>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3"><Link to="/api" className="flex flex-col gap-1.5 rounded-xl p-[18px] text-[#15171C] shadow-[inset_0_0_0_1px_#E2E4E9]"><span className="font-semibold">浏览组件 →</span><span className="text-sm text-[#555C69]">94 个组件，每个都写明在三个平台上的样子。</span></Link><Link to="/cli-mcp" className="flex flex-col gap-1.5 rounded-xl p-[18px] text-[#15171C] shadow-[inset_0_0_0_1px_#E2E4E9]"><span className="font-semibold">CLI 与 MCP →</span><span className="text-sm text-[#555C69]">生成代码片段，或把目录接入编程 Agent。</span></Link></div>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3"><Link to="/docs/components" className="flex flex-col gap-1.5 rounded-xl p-[18px] text-[#15171C] shadow-[inset_0_0_0_1px_#E2E4E9]"><span className="font-semibold">浏览组件 →</span><span className="text-sm text-[#555C69]">94 个组件，每个都写明在三个平台上的样子。</span></Link><Link to="/cli-mcp" className="flex flex-col gap-1.5 rounded-xl p-[18px] text-[#15171C] shadow-[inset_0_0_0_1px_#E2E4E9]"><span className="font-semibold">CLI 与 MCP →</span><span className="text-sm text-[#555C69]">生成代码片段，或把目录接入编程 Agent。</span></Link></div>
               </section>
 
               <p className="m-0 border-t border-[#E2E4E9] pt-6 text-[13px] text-[#6B7280]"><a className="text-[#1F5FBF]" href="https://github.com/yldm-tech/mygo-breeze-ui/blob/main/docs/breeze-ui.md" target="_blank" rel="noreferrer">在 GitHub 上编辑此页</a></p>

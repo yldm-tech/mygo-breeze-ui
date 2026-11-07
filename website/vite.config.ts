@@ -11,6 +11,8 @@ const githubPagesFallback = () => ({
     await copyFile("dist/index.html", "dist/api/index.html");
     await mkdir("dist/docs", { recursive: true });
     await copyFile("dist/index.html", "dist/docs/index.html");
+    await mkdir("dist/docs/components", { recursive: true });
+    await copyFile("dist/index.html", "dist/docs/components/index.html");
     await mkdir("dist/cli-mcp", { recursive: true });
     await copyFile("dist/index.html", "dist/cli-mcp/index.html");
   },

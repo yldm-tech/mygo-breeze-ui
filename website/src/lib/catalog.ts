@@ -49,7 +49,7 @@ export function catalogEntries(catalog: Catalog): CatalogEntry[] {
   ];
 }
 
-const catalog = catalogSchema.parse(rawCatalog);
+export const catalog = catalogSchema.parse(rawCatalog);
 
 export async function getCatalog(): Promise<Catalog> {
   return catalog;
