@@ -27,7 +27,9 @@
     <script src="wasm_exec.js"></script>
     <script>
       const storybookLanguages = ["zh", "ja", "ko", "es", "fr", "de", "en"];
-      const storybookLocale = (navigator.languages?.length ? navigator.languages : [navigator.language || "en"])
+      const requestedLocale = new URLSearchParams(window.location.search).get("lang");
+      const preferredLanguages = navigator.languages?.length ? navigator.languages : [navigator.language || "en"];
+      const storybookLocale = (requestedLocale ? [requestedLocale] : preferredLanguages)
         .map((language) => language.toLowerCase().split("-")[0])
         .find((language) => storybookLanguages.includes(language)) || "en";
       const storybookChrome = {
@@ -43,7 +45,7 @@
       document.documentElement.lang = storybookLocale === "zh" ? "zh-CN" : storybookLocale;
       document.title = storybookCopy.title;
       const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107"), go.importObject)
+      WebAssembly.instantiateStreaming(fetch("app.wasm?v=storybook-20261107-locale"), go.importObject)
         .then((r) => {
           document.getElementById("loading").remove();
           go.run(r.instance);

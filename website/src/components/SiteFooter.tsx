@@ -21,7 +21,7 @@ export function SiteFooter() {
         </nav>
         <nav className="flex flex-col gap-2" aria-label={zh ? "资源" : "Resources"}>
           <strong className="font-semibold">{zh ? "资源" : "Resources"}</strong>
-          <a className="text-muted hover:text-mint" href="https://breeze-ui.yldm.ai/storybook/" target="_blank" rel="noreferrer">Storybook</a>
+          <a className="text-muted hover:text-mint" href={`https://breeze-ui.yldm.ai/storybook/?lang=${locale}`} target="_blank" rel="noreferrer">Storybook</a>
           <a className="text-muted hover:text-mint" href="https://pkg.go.dev/github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">pkg.go.dev</a>
           <a className="text-muted hover:text-mint" href="https://github.com/egoist/mygo" target="_blank" rel="noreferrer">MyGo</a>
         </nav>
