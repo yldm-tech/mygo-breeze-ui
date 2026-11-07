@@ -249,7 +249,7 @@ func (b *book) sidebar(c *ui.Context) {
 		list := ui.List(c, &b.navList, len(b.navRows)).Rows(func(row ui.ListRow) {
 			entry := b.navRows[row.Index]
 			if entry.story == nil {
-				head := ui.ButtonBase(row.Context).FillWidth().Padding(8, 10).Radius(8).AlignItems(ui.Center)
+				head := ui.ButtonBase(row.Context).FillWidth().Padding(8, 10).Radius(8).Background(t.Surface).AlignItems(ui.Center)
 				head.Children(func() {
 					arrow := "▾"
 					if shown := b.open[entry.category]; shown == nil || !*shown {
