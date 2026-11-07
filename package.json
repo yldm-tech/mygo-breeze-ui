@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "breeze-ui": "file:packages/breeze-cli",
     "typescript": "^7",
     "vite": "catalog:",
     "vite-plus": "catalog:"
