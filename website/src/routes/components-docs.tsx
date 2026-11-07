@@ -109,8 +109,25 @@ function ComponentDocsSidebar({ active, locale }: { active?: string; locale: "zh
     }
     return <a key={`${label}-${href}`} className={className} href={href} aria-current={selected ? "page" : undefined}>{label}</a>;
   };
-  return <aside className="block w-full shrink-0 border-b border-[#E2E4E9] bg-white px-4 py-5 lg:w-[280px] lg:border-b-0 lg:border-r lg:px-4 lg:py-7"><nav className="flex max-h-[calc(100vh-112px)] flex-col gap-3 overflow-y-auto pr-1 text-[13px] lg:sticky lg:top-24" aria-label="组件文档目录">
-    <label className="mb-2 flex h-11 items-center gap-2 rounded-xl bg-white px-3.5 text-[#6B7280] shadow-[inset_0_0_0_1px_#E2E4E9,0_2px_8px_rgba(20,24,32,0.05)]"><Search size={16} /><span className="sr-only">搜索组件</span><input className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索组件" /></label>
+  const sectionLink = "flex min-h-[34px] items-center rounded-lg px-2.5 text-[#3A404C] hover:bg-[#F8F9FB] hover:text-[#0B7A63]";
+  return <aside className="block w-full shrink-0 border-b border-[#E2E4E9] bg-white px-4 py-5 lg:w-[280px] lg:border-b-0 lg:border-r lg:px-4 lg:py-7"><nav className="flex max-h-[calc(100vh-112px)] flex-col gap-5 overflow-y-auto pr-1 text-[13px] lg:sticky lg:top-24" aria-label="文档目录">
+    <div className="flex flex-col gap-1">
+      <p className="m-0 px-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8A90A0]">开始</p>
+      <Link className={sectionLink} to="/docs" hash="top">快速开始</Link>
+      <Link className={sectionLink} to="/docs" hash="install">安装</Link>
+      <Link className={sectionLink} to="/docs" hash="first-view">第一个视图</Link>
+      <Link className={sectionLink} to="/docs" hash="storybook">Storybook</Link>
+    </div>
+    <div className="flex flex-col gap-1">
+      <p className="m-0 px-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8A90A0]">指南</p>
+      <Link className={sectionLink} to="/docs" hash="platforms">平台与 Preview</Link>
+      <Link className={sectionLink} to="/docs" hash="themes">主题</Link>
+      <Link className={sectionLink} to="/docs" hash="limits">已知限制</Link>
+    </div>
+    <div>
+      <p className="mb-2 px-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8A90A0]">组件 · {docsComponents.length}</p>
+      <label className="mb-2 flex h-11 items-center gap-2 rounded-xl bg-white px-3.5 text-[#6B7280] shadow-[inset_0_0_0_1px_#E2E4E9,0_2px_8px_rgba(20,24,32,0.05)]"><Search size={16} /><span className="sr-only">搜索组件</span><input className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索组件" /></label>
+    </div>
     <div className="mt-1 flex flex-col gap-1">{categoryOrder.map((category) => {
       const items = docsComponents.filter((item) => item.category === category && (!visible || `${item.name} ${localizedDescription(item, locale)}`.toLowerCase().includes(visible)));
       if (!items.length) return null;
