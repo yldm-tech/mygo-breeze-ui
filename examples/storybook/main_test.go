@@ -16,6 +16,12 @@ func TestNewBookDefaultsToSideBySide(t *testing.T) {
 	}
 }
 
+func TestStorybookThemeUsesWebsiteFontStack(t *testing.T) {
+	if got, want := storybookTheme().Font, "Inter, Noto Sans SC, PingFang SC, system-ui, sans-serif"; got != want {
+		t.Fatalf("storybook theme font = %q, want %q", got, want)
+	}
+}
+
 // TestEveryStory builds every story on every platform choice, light and dark, and checks the toolbar names it. With BREEZE_SCREENSHOTS set, it writes a few views of the book there at 2x.
 func TestEveryStory(t *testing.T) {
 	b := newBook()
