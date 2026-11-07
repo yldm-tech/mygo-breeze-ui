@@ -81,8 +81,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm publish packages/breeze-cli --access public
-          npm publish packages/breeze-mcp --access public
+          npm publish ./packages/breeze-cli --access public
+          npm publish ./packages/breeze-mcp --access public
       - uses: actions/setup-go@v7
         if: steps.commit.outputs.sha != ''
         with:
