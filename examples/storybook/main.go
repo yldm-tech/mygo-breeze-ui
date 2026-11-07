@@ -18,6 +18,12 @@ import (
 // Platform choices of the toolbar, in order; the last shows the three side by side.
 var platformNames = []string{"macOS", "Windows", "GNOME", "Side by side"}
 
+// Storybook owns translations for its chrome in these languages. Registering
+// them with MyGo makes App.Locale follow navigator.languages in WebAssembly
+// (and the user's preferred languages on desktop) instead of falling back to
+// English before textFor can choose a translation.
+var storybookLanguages = []string{"en", "zh-Hans", "ja", "ko", "es", "fr", "de"}
+
 type storybookText struct {
 	locale                                        storybookLocale
 	components, subtitle, search, stories         string
@@ -383,6 +389,7 @@ func formatNumber(v, hi float64) string {
 }
 
 func main() {
+	mygo.App.SetLanguages(storybookLanguages...)
 	b := newBook()
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{

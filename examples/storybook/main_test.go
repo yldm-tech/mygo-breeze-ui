@@ -96,3 +96,26 @@ func TestStorybookChromeFollowsLocale(t *testing.T) {
 		}
 	}
 }
+
+func TestStorybookChromeSupportsAllLocales(t *testing.T) {
+	for _, test := range []struct {
+		locale string
+		want   string
+	}{
+		{locale: "zh-Hans", want: "组件"},
+		{locale: "ja", want: "コンポーネント"},
+		{locale: "ko", want: "컴포넌트"},
+		{locale: "es", want: "Componentes"},
+		{locale: "fr", want: "Composants"},
+		{locale: "de", want: "Komponenten"},
+		{locale: "en", want: "Components"},
+	} {
+		b := newBook()
+		tester := ui.NewTester(b.view, 1280, 820)
+		tester.SetLocale(test.locale)
+		tester.Frame()
+		if !tester.HasText(test.want) {
+			t.Errorf("locale %q does not render %q", test.locale, test.want)
+		}
+	}
+}
