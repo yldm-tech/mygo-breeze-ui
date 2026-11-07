@@ -15,8 +15,7 @@ if (binary) {
 } else if (existsSync(join(checkout, "go.mod")) && readFileSync(join(checkout, "go.mod"), "utf8").startsWith("module github.com/yldm-tech/mygo-breeze-ui\n")) {
   result = spawnSync("go", ["run", "./cmd/breeze-ui", ...args], { cwd: checkout, stdio: "inherit" });
 } else {
-  console.error("breeze-ui: set BREEZE_UI_CLI_BINARY or install the Go command with: go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest");
-  process.exit(1);
+  result = spawnSync("go", ["run", "github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest", ...args], { cwd, stdio: "inherit" });
 }
 if (result.error) {
   console.error(`breeze-ui: ${result.error.message}`);
