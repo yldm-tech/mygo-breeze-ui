@@ -80,7 +80,6 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
         ["Switch", "/docs/components/Switch", false],
         ["Calendar", "/docs/components/Calendar", false],
         ["Modal", "/docs/components/Modal", false],
-        ["组件总览 →", "/docs/components", false],
       ],
     },
   ] as const;
@@ -100,10 +99,6 @@ function DocsSidebar({ open, onClose }: { open: boolean; onClose: () => void }) 
                 <a key={label} className={className} href={href} onClick={onClose} aria-current={current ? "page" : undefined}>
                   {label}
                 </a>
-              ) : href === "/docs/components" ? (
-                <Link key={label} className={className} to="/docs/components" onClick={onClose} aria-current={current ? "page" : undefined}>
-                  {label}
-                </Link>
               ) : href.startsWith("/docs/components/") ? (
                 <Link key={label} className={className} to="/docs/components/$component" params={{ component: href.slice("/docs/components/".length) }} onClick={onClose} aria-current={current ? "page" : undefined}>
                   {label}
