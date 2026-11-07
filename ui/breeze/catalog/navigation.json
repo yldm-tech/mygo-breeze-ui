@@ -36,6 +36,13 @@
       "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.Badge(c, \"12\")\n})"
     },
     {
+      "name": "SidebarItemDetail",
+      "category": "navigation",
+      "look": "drawn",
+      "description": "A secondary text at the end of a SidebarItem, as a count, built in its Children: macOS's secondaryLabelColor, regular on the semibold chosen row and near white on the focused accent selection, as AppKit draws a cell's secondary text field there, Windows 11's TextFillColorSecondary, or GNOME's .dimmed, which a chosen row leaves as they are.",
+      "example": "breeze.SidebarItem(c, \"inbox\", inboxIcon, \"Inbox\").Children(func() {\n\tbreeze.SidebarItemDetail(c, \"12\")\n})"
+    },
+    {
       "name": "SidebarItemImage",
       "category": "navigation",
       "look": "drawn",

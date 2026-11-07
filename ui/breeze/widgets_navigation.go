@@ -11,11 +11,12 @@ import (
 // navSidebars holds the Sidebar each window is building, which its sections and items read.
 var navSidebars sync.Map // *ui.Context -> *navSidebar
 
-// navSidebar is a Sidebar being built: the ID of the item chosen, whether the sidebar has the keyboard focus in an active window, as AppKit draws the selection then in the accent color, and how many sections and items it holds so far.
+// navSidebar is a Sidebar being built: the ID of the item chosen, whether the sidebar has the keyboard focus in an active window, as AppKit draws the selection then in the accent color, how many sections and items it holds so far, and whether the item built last is the chosen one, for the SidebarItemDetail its Children build.
 type navSidebar struct {
 	selected *string
 	focused  bool
 	built    int
+	chosen   bool
 }
 
 // navCurrentSidebar returns the Sidebar being built in c's window, or nil outside one.
@@ -26,7 +27,7 @@ func navCurrentSidebar(c *ui.Context) *navSidebar {
 	return nil
 }
 
-// Sidebar creates a sidebar of the sections and items fn builds (SidebarSection, SidebarSectionWithActions, SidebarItem, SidebarItemImage), as the platform draws its source list (macOS), NavigationView's pane (Windows) or navigation sidebar (GNOME): a click chooses an item, whose ID *selected holds, and while the sidebar has the focus Up, Down, Home, End and the first letters of an item choose among them, as in ui.Sidebar. Give it a width. It is ui.Sidebar's counterpart, and its items are drawn as the platform draws them only when built with SidebarItem or SidebarItemImage.
+// Sidebar creates a sidebar of the sections and items fn builds (SidebarSection, SidebarSectionWithActions, SidebarItem, SidebarItemImage, with SidebarItemDetail in an item's Children), as the platform draws its source list (macOS), NavigationView's pane (Windows) or navigation sidebar (GNOME): a click chooses an item, whose ID *selected holds, and while the sidebar has the focus Up, Down, Home, End and the first letters of an item choose among them, as in ui.Sidebar. Give it a width. It is ui.Sidebar's counterpart, and its items are drawn as the platform draws them only when built with SidebarItem or SidebarItemImage.
 func Sidebar(c *ui.Context, selected *string, fn func()) ui.Element {
 	p := PlatformOf(c)
 	var focus *ui.Handle
@@ -213,6 +214,7 @@ func navSidebarItem(c *ui.Context, id string, icon *ui.SVG, image ui.ImageSource
 	if st != nil {
 		chosen, focused = *st.selected == id, st.focused
 		st.built++
+		st.chosen = chosen
 	}
 	// MyGo draws an item's icon in the theme's Accent, its text while chosen in the sidebar with the focus in AccentText, and the item under the pointer in SurfaceHover; a theme of the platform's colors around it draws them so.
 	row := *t
@@ -251,6 +253,22 @@ func navSidebarItem(c *ui.Context, id string, icon *ui.SVG, image ui.ImageSource
 		navItemImage(c, p, item, image)
 	}
 	return item
+}
+
+// SidebarItemDetail creates a text at the end of the SidebarItem or SidebarItemImage whose Children build it, as a count of what the item holds, in the platform's secondary text, regular where macOS draws the chosen label semibold, kept whole as the label shortens: on macOS secondaryLabelColor, and on the selection in the accent color, while the sidebar has the focus, near white, as AppKit draws a cell's second text field in secondaryLabelColor there (#e8f2fe on #0070f5 and #e8f3ff on #007aff, where the title is white, regular where the title is semibold, measured by tools/appkit-reference's renderSidebar on macOS 27.2); on Windows TextFillColorSecondary and on GNOME .dimmed, which a chosen row leaves as they are. Change its size with FontSize. Built outside an item of a Sidebar it is the regular, single-line Text with TextSecondary it is on a row not chosen.
+func SidebarItemDetail(c *ui.Context, text string) ui.Element {
+	e := Text(c, text, TextSecondary).FontWeight(400).SingleLine().Shrink(0)
+	if p := PlatformOf(c); p != Windows && p != Linux {
+		if st := navCurrentSidebar(c); st != nil && st.focused && st.chosen {
+			e.TextColor(macSidebarDetailOnSelection(c.Theme()))
+		}
+	}
+	return e
+}
+
+// macSidebarDetailOnSelection is the color AppKit draws a secondary text field in on a source list's emphasized selection: white at 91% over the selection's fill, measured from a heavy count drawn in secondaryLabelColor (#e8f2fe on #0070f5, #e8f3ff on #007aff).
+func macSidebarDetailOnSelection(t *ui.Theme) ui.Color {
+	return macSidebarSelection(t).Mix(white, 0.91)
 }
 
 // navItemImage lays image over the empty icon of item, where macSidebarItem, fluentSidebarItem and adwSidebarItem put an item's icon: as far in from the item's start as they pad it, 16 square, centered on the row.
