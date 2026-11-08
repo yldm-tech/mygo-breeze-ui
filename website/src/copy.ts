@@ -104,7 +104,7 @@ export const copy = {
     catalogKicker: "组件目录",
     catalogTitle: "小而明确的组件目录",
     catalogText:
-      "组件与 MyGo ui 包里的组件同名。drawn 表示由 Breeze UI 按平台绘制，themed 表示 MyGo 自带组件套用平台主题。",
+      "组件与 MyGo ui 包里的组件同名。按平台自绘的组件由 Breeze UI 按平台绘制，套用平台主题的组件使用 MyGo 自带组件。",
     all: "全部",
     component: "组件",
     platform: "平台",
