@@ -56,6 +56,10 @@ function CliMcpPage() {
             <CodeBlock>{`npx --yes --package breeze-ui-cli breeze-ui list\nnpx --yes --package breeze-ui-cli breeze-ui add Switch -o ui/switch_snippet.go`}</CodeBlock>
             <p className="mt-5 text-sm text-muted">{zh ? "也可以安装 Go 命令：" : "Or install the Go command:"}</p>
             <CodeBlock>{"go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest"}</CodeBlock>
+            <div className="mt-5 grid grid-cols-2 gap-2 text-xs text-muted">
+              <div className="rounded-xl border border-line bg-[#f7f8f9] px-3 py-2.5">{zh ? "适合终端脚本与 CI" : "Terminal scripts and CI"}</div>
+              <div className="rounded-xl border border-line bg-[#f7f8f9] px-3 py-2.5">{zh ? "输出可复用 Go 片段" : "Reusable Go snippets"}</div>
+            </div>
             <a className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint hover:text-ink" href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">{zh ? "查看 CLI 源码" : "View the CLI source"}<ArrowUpRight size={15} /></a>
           </article>
 
@@ -63,9 +67,9 @@ function CliMcpPage() {
             <div className="mb-6 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#eaf7f2] text-mint"><Braces size={19} /></span><div><p className="m-0 font-mono text-[10px] uppercase tracking-[0.08em] text-dim">MCP</p><h2 className="m-0 text-2xl tracking-[-0.04em]">breeze-ui-mcp</h2></div></div>
             <p className="mb-6 text-sm leading-[1.7] text-muted">{zh ? "只读 MCP 服务把 Breeze UI 目录交给编程 Agent，不启动网络监听器。" : "The read-only MCP server gives the Breeze UI catalog to a coding agent without starting a network listener."}</p>
             <CodeBlock>{`bun install\nbun run packages/breeze-mcp/src/index.ts`}</CodeBlock>
-            <p className="mt-5 text-sm leading-[1.7] text-muted">{zh ? "服务提供搜索组件、查看组件、列出平台和生成代码片段四个工具。直接把下面的命令复制到 Claude Code、Codex CLI 或 Cursor Agent；服务通过 stdio 启动，不是单独运行的网络命令。" : "It exposes four tools: search components, inspect a component, list platforms and generate snippets. Copy the commands below into Claude Code, Codex CLI or Cursor Agent; the server starts over stdio rather than as a standalone network command."}</p>
+            <p className="mt-5 text-sm leading-[1.7] text-muted">{zh ? "提供四个只读工具：搜索、查看组件、列出平台和生成片段。选择客户端后复制命令；服务通过 stdio 启动。" : "It provides four read-only tools: search, inspect, list platforms and generate snippets. Choose a client and copy its command; the server starts over stdio."}</p>
             <div className="mb-2 flex flex-wrap gap-1 rounded-xl border border-line bg-[#eef1f3] p-1" role="tablist" aria-label={zh ? "MCP 客户端" : "MCP clients"}>
-              {mcpTabs.map(([key, label, scope]) => <button key={key} type="button" role="tab" aria-selected={mcpClient === key} className={`rounded-lg border-0 px-3 py-2 text-left text-xs transition-colors ${mcpClient === key ? "bg-white font-semibold text-mint shadow-[0_1px_2px_rgba(20,24,32,0.08)]" : "bg-transparent text-muted hover:text-ink"}`} onClick={() => setMcpClient(key)}><span className="block">{label}</span><span className="mt-0.5 block text-[10px] font-normal opacity-75">{scope}</span></button>)}
+              {mcpTabs.map(([key, label, scope]) => <button key={key} type="button" role="tab" aria-selected={mcpClient === key} className={`rounded-lg border-0 px-3 py-2 text-left text-xs transition-colors ${mcpClient === key ? "bg-white font-semibold text-mint shadow-[0_1px_2px_rgba(20,24,32,0.08)]" : "bg-transparent text-muted hover:text-ink"}`} onClick={() => setMcpClient(key)}><span>{label}</span><span className="ml-1 text-[10px] font-normal opacity-75">· {scope}</span></button>)}
             </div>
             <ShellCodeBlock code={mcpClientCommands[mcpClient]} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />
             <a className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint hover:text-ink" href="https://github.com/yldm-tech/mygo-breeze-ui/tree/main/packages/breeze-mcp" target="_blank" rel="noreferrer">{zh ? "查看 MCP 源码" : "View the MCP source"}<ArrowUpRight size={15} /></a>
