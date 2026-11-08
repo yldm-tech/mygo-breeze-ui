@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# set-version.sh <vX.Y.Z>
+# set-version.sh <vX.Y.Z> [breeze-cli] [breeze-mcp]
 #
-# Writes a release's version into the files that carry one: the npm packages' package.json and the version the MCP server reports. The Go module and the breeze-ui command take theirs from the tag itself. Each file must hold its version exactly once, so that a moved or renamed line fails here rather than going unbumped.
+# Writes a release's version only into the npm packages named after the tag.
+# The Go module and the breeze-ui command take their versions from the tag
+# itself. Each file must hold its version exactly once, so that a moved or
+# renamed line fails here rather than going unbumped.
 set -euo pipefail
 
 tag=$1
@@ -25,6 +28,20 @@ bump() {
   mv "$file.tmp" "$file"
 }
 
-bump packages/breeze-cli/package.json '^  "version": "[^"]*",$' "  \"version\": \"$version\","
-bump packages/breeze-mcp/package.json '^  "version": "[^"]*",$' "  \"version\": \"$version\","
-bump packages/breeze-mcp/src/index.ts '^  version: "[^"]*",$' "  version: \"$version\","
+for package in "${@:2}"; do
+  case "$package" in
+    breeze-cli)
+      bump packages/breeze-cli/package.json '^  "version": "[^"]*",$' "  \"version\": \"$version\","
+      ;;
+    breeze-mcp)
+      bump packages/breeze-mcp/package.json '^  "version": "[^"]*",$' "  \"version\": \"$version\","
+      bump packages/breeze-mcp/src/index.ts '^  version: "[^"]*",$' "  version: \"$version\","
+      ;;
+    '')
+      ;;
+    *)
+      echo "unknown npm package: $package" >&2
+      exit 1
+      ;;
+  esac
+done
