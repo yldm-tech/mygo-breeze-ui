@@ -1,9 +1,10 @@
 import { createRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, Braces, Terminal } from "lucide-react";
+import { useState } from "react";
 import { RootRoute } from "./root";
 import { useUiStore } from "../store";
 import { Seo } from "../components/Seo";
-import { JsonCodeBlock, ShellCodeBlock } from "../components/CodeHighlight";
+import { ShellCodeBlock } from "../components/CodeHighlight";
 
 export const CliMcpRoute = createRoute({
   getParentRoute: () => RootRoute,
@@ -15,18 +16,24 @@ function CodeBlock({ children }: { children: string }) {
   return <ShellCodeBlock code={children} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />;
 }
 
-const mcpConfig = `{
-  "mcpServers": {
-    "breeze-ui": {
-      "command": "npx",
-      "args": ["--yes", "breeze-ui-mcp"]
-    }
-  }
-}`;
+const mcpClientCommands = {
+  claude: `claude mcp add --transport stdio --scope project breeze-ui -- npx -y breeze-ui-mcp
+claude mcp list`,
+  codex: `codex mcp add breeze-ui -- npx -y breeze-ui-mcp
+codex mcp list`,
+  cursor: `agent mcp add breeze-ui -- npx -y breeze-ui-mcp
+agent mcp list`,
+} as const;
+
+type McpClient = keyof typeof mcpClientCommands;
 
 function CliMcpPage() {
   const { locale } = useUiStore();
   const zh = locale === "zh";
+  const [mcpClient, setMcpClient] = useState<McpClient>("claude");
+  const mcpTabs: Array<[McpClient, string, string]> = zh
+    ? [["claude", "Claude Code", "项目级配置"], ["codex", "Codex CLI", "共享配置"], ["cursor", "Cursor Agent", "共享编辑器配置"]]
+    : [["claude", "Claude Code", "Project scope"], ["codex", "Codex CLI", "Shared config"], ["cursor", "Cursor Agent", "Shared editor config"]];
   return (
     <main className="pb-[120px] pt-12 max-[680px]:pb-20 max-[680px]:pt-10">
       <Seo title={zh ? "MyGo Breeze CLI 与 MCP" : "MyGo Breeze CLI and MCP"} description={zh ? "使用 MyGo Breeze CLI 和只读 MCP 服务搜索组件、列出平台并生成 Go 代码。" : "Use the MyGo Breeze CLI and read-only MCP server to search components, list platforms and generate Go code."} socialTitle="MyGo Breeze CLI and MCP" socialDescription="Search components, list platforms and generate Go code with the MyGo Breeze CLI and MCP server." path="/cli-mcp" locale={locale} />
@@ -56,8 +63,11 @@ function CliMcpPage() {
             <div className="mb-6 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#eaf7f2] text-mint"><Braces size={19} /></span><div><p className="m-0 font-mono text-[10px] uppercase tracking-[0.08em] text-dim">MCP</p><h2 className="m-0 text-2xl tracking-[-0.04em]">breeze-ui-mcp</h2></div></div>
             <p className="mb-6 text-sm leading-[1.7] text-muted">{zh ? "只读 MCP 服务把 Breeze UI 目录交给编程 Agent，不启动网络监听器。" : "The read-only MCP server gives the Breeze UI catalog to a coding agent without starting a network listener."}</p>
             <CodeBlock>{`bun install\nbun run packages/breeze-mcp/src/index.ts`}</CodeBlock>
-            <p className="mt-5 text-sm leading-[1.7] text-muted">{zh ? "服务提供搜索组件、查看组件、列出平台和生成代码片段四个工具。把下面的配置交给支持 MCP 的编程 Agent；服务通过 stdio 启动，不是单独运行的网络命令。" : "It exposes four tools: search components, inspect a component, list platforms and generate snippets. Give the configuration below to an MCP-capable coding agent; it starts over stdio rather than as a standalone network command."}</p>
-            <JsonCodeBlock code={mcpConfig} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />
+            <p className="mt-5 text-sm leading-[1.7] text-muted">{zh ? "提供四个只读工具：搜索、查看组件、列出平台和生成片段。选择客户端后复制命令；服务通过 stdio 启动。" : "It provides four read-only tools: search, inspect, list platforms and generate snippets. Choose a client and copy its command; the server starts over stdio."}</p>
+            <div className="mb-2 flex flex-wrap gap-1 rounded-xl border border-line bg-[#eef1f3] p-1" role="tablist" aria-label={zh ? "MCP 客户端" : "MCP clients"}>
+              {mcpTabs.map(([key, label, scope]) => <button key={key} type="button" role="tab" aria-selected={mcpClient === key} className={`rounded-lg border-0 px-3 py-2 text-left text-xs transition-colors ${mcpClient === key ? "bg-white font-semibold text-mint shadow-[0_1px_2px_rgba(20,24,32,0.08)]" : "bg-transparent text-muted hover:text-ink"}`} onClick={() => setMcpClient(key)}><span>{label}</span><span className="ml-1 text-[10px] font-normal opacity-75">· {scope}</span></button>)}
+            </div>
+            <ShellCodeBlock code={mcpClientCommands[mcpClient]} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />
             <a className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint hover:text-ink" href="https://github.com/yldm-tech/mygo-breeze-ui/tree/main/packages/breeze-mcp" target="_blank" rel="noreferrer">{zh ? "查看 MCP 源码" : "View the MCP source"}<ArrowUpRight size={15} /></a>
           </article>
         </div>

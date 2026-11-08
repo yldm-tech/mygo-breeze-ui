@@ -8,7 +8,28 @@ Run it from a MyGo checkout:
 bun run packages/breeze-mcp/src/index.ts
 ```
 
-An installed package provides the `breeze-ui-mcp` command. Add that command to the MCP client configuration used by your editor or agent. The server does not open a network port.
+An installed package provides the `breeze-ui-mcp` command. Add it to your MCP client with the CLI for the coding agent you use. The server does not open a network port.
+
+For Claude Code, register it for the current project and verify the connection:
+
+```sh
+claude mcp add --transport stdio --scope project breeze-ui -- npx -y breeze-ui-mcp
+claude mcp list
+```
+
+For Codex CLI, register the stdio server and verify it:
+
+```sh
+codex mcp add breeze-ui -- npx -y breeze-ui-mcp
+codex mcp list
+```
+
+For Cursor Agent, register the same server and verify it:
+
+```sh
+agent mcp add breeze-ui -- npx -y breeze-ui-mcp
+agent mcp list
+```
 
 ## Tools
 
