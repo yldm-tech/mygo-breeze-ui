@@ -56,10 +56,6 @@ function CliMcpPage() {
             <CodeBlock>{`npx --yes --package breeze-ui-cli breeze-ui list\nnpx --yes --package breeze-ui-cli breeze-ui add Switch -o ui/switch_snippet.go`}</CodeBlock>
             <p className="mt-5 text-sm text-muted">{zh ? "也可以安装 Go 命令：" : "Or install the Go command:"}</p>
             <CodeBlock>{"go install github.com/yldm-tech/mygo-breeze-ui/cmd/breeze-ui@latest"}</CodeBlock>
-            <div className="mt-5 grid grid-cols-2 gap-2 text-xs text-muted">
-              <div className="rounded-xl border border-line bg-[#f7f8f9] px-3 py-2.5">{zh ? "适合终端脚本与 CI" : "Terminal scripts and CI"}</div>
-              <div className="rounded-xl border border-line bg-[#f7f8f9] px-3 py-2.5">{zh ? "输出可复用 Go 片段" : "Reusable Go snippets"}</div>
-            </div>
             <a className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint hover:text-ink" href="https://github.com/yldm-tech/mygo-breeze-ui" target="_blank" rel="noreferrer">{zh ? "查看 CLI 源码" : "View the CLI source"}<ArrowUpRight size={15} /></a>
           </article>
 
