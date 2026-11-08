@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, Globe2, Menu, X } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useUiStore } from "../store";
 import { useCopy } from "../copy";
 
@@ -26,6 +26,10 @@ export function SiteHeader() {
   const t = useCopy(locale);
   const [open, setOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const location = useLocation();
+  const docsActive = location.pathname.startsWith("/docs");
+  const cliActive = location.pathname === "/cli-mcp";
+  const navLink = (active: boolean) => `rounded-lg px-2 py-1.5 transition-colors ${active ? "bg-[#e3f3ee] font-semibold text-mint" : "text-muted hover:bg-[#e9ecef] hover:text-mint"}`;
   const localeOrder = ["zh", "en", "ja", "ko", "es", "fr", "de"] as const;
   const localeLabels = { zh: "简体中文", en: "English", ja: "日本語", ko: "한국어", es: "Español", fr: "Français", de: "Deutsch" } as const;
   const close = () => { setOpen(false); setLanguageOpen(false); };
@@ -37,9 +41,9 @@ export function SiteHeader() {
           Breeze UI
         </Link>
         <nav className={`${open ? "flex" : "hidden"} absolute left-4 right-4 top-[58px] flex-col items-start gap-3 rounded-[14px] border border-line bg-white p-4 text-[14px] text-muted shadow-[0_18px_36px_rgba(20,24,32,0.1)] min-[681px]:static min-[681px]:flex min-[681px]:flex-1 min-[681px]:flex-row min-[681px]:flex-wrap min-[681px]:items-center min-[681px]:gap-x-6 min-[681px]:gap-y-1 min-[681px]:border-0 min-[681px]:bg-transparent min-[681px]:p-0 min-[681px]:text-[15px] min-[681px]:shadow-none`} aria-label="Breeze UI">
-          <Link to="/docs" onClick={close}>{locale === "zh" ? "文档" : "Docs"}</Link>
+          <Link className={navLink(docsActive)} to="/docs" onClick={close} aria-current={docsActive ? "page" : undefined}>{locale === "zh" ? "文档" : "Docs"}</Link>
           <a href={`${import.meta.env.BASE_URL}storybook/?lang=${locale}`} onClick={close}>Storybook</a>
-          <Link to="/cli-mcp" onClick={close}>{locale === "zh" ? "CLI 与 MCP" : "CLI & MCP"}</Link>
+          <Link className={navLink(cliActive)} to="/cli-mcp" onClick={close} aria-current={cliActive ? "page" : undefined}>{locale === "zh" ? "CLI 与 MCP" : "CLI & MCP"}</Link>
         </nav>
         <div className="ml-auto flex items-center gap-1">
           <div className="relative">
