@@ -1,6 +1,6 @@
 name: Release
 
-# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into the npm packages and the MCP server (.github/scripts/set-version.sh) and commits that to main as chore(release), tags the commit, and publishes a GitHub release with generated notes and the breeze-ui command built for Linux, macOS and Windows. The Go module's users take versions from these tags. Run it by hand to force a bump.
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh). It updates and publishes only npm packages changed since that tag, then tags the release and publishes the Go command. The Go module's users take versions from these tags. Run it by hand to force a bump.
 on:
   workflow_run:
     workflows: [CI]
@@ -39,11 +39,18 @@ jobs:
           BUMP: ${{ inputs.bump }}
         run: |
           version=$(.github/scripts/next-version.sh "$SHA" "$BUMP")
+          packages=$(.github/scripts/changed-npm-packages.sh "$SHA")
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
           if [ -n "$version" ]; then
             echo "Releasing $version from $SHA" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Nothing to release at $SHA" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -n "$packages" ]; then
+            echo "npm packages: $packages" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "npm packages: none" >> "$GITHUB_STEP_SUMMARY"
           fi
       # The version goes to main in a commit of its own, which the tag points at, so that the packages in the tagged tree carry it. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
       - name: Commit the version
@@ -51,10 +58,12 @@ jobs:
         if: steps.version.outputs.version != ''
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          PACKAGES: ${{ steps.version.outputs.packages }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          .github/scripts/set-version.sh "$VERSION"
+          read -r -a package_args <<< "$PACKAGES"
+          .github/scripts/set-version.sh "$VERSION" "${package_args[@]}"
           if ! git diff --quiet; then
             git commit -am "chore(release): $VERSION"
           fi
@@ -87,13 +96,15 @@ jobs:
       - name: Install Bun dependencies
         if: steps.commit.outputs.sha != ''
         run: bun install --frozen-lockfile
-      - name: Publish npm packages
-        if: steps.commit.outputs.sha != ''
+      - name: Publish changed npm packages
+        if: steps.commit.outputs.sha != '' && steps.version.outputs.packages != ''
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PACKAGES: ${{ steps.version.outputs.packages }}
         run: |
-          npm publish ./packages/breeze-cli --access public
-          npm publish ./packages/breeze-mcp --access public
+          for package in $PACKAGES; do
+            npm publish "./packages/$package" --access public
+          done
       - uses: actions/setup-go@v7
         if: steps.commit.outputs.sha != ''
         with:
