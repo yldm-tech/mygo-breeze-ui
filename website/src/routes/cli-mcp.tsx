@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowUpRight, Braces, Terminal } from "lucide-react";
 import { RootRoute } from "./root";
 import { useUiStore } from "../store";
 import { Seo } from "../components/Seo";
+import { ShellCodeBlock } from "../components/CodeHighlight";
 
 export const CliMcpRoute = createRoute({
   getParentRoute: () => RootRoute,
@@ -11,7 +12,7 @@ export const CliMcpRoute = createRoute({
 });
 
 function CodeBlock({ children }: { children: string }) {
-  return <pre className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]"><code>{children}</code></pre>;
+  return <ShellCodeBlock code={children} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />;
 }
 
 function CliMcpPage() {

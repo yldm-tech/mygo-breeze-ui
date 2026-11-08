@@ -28,6 +28,16 @@
   ::selection { background: #a6e1cd; color: #15171c; }
 }
 
+@layer components {
+  .syntax-comment { color: #6b7280; }
+  .syntax-string { color: #16825d; }
+  .syntax-number { color: #b4540a; }
+  .syntax-keyword { color: #8a3fd1; }
+  .syntax-function { color: #1f5fbf; }
+  .syntax-type { color: #0b7a63; }
+  .syntax-flag { color: #b4540a; }
+}
+
 :root { color-scheme: light; }
 
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }

@@ -3,7 +3,7 @@ import { Check, ChevronDown, ChevronRight, Copy, Info, Menu, Search, X } from "l
 import { createRoute, Link } from "@tanstack/react-router";
 import { RootRoute } from "./root";
 import { Seo } from "../components/Seo";
-import { GoCodeBlock } from "../components/CodeHighlight";
+import { GoCodeBlock, ShellCode } from "../components/CodeHighlight";
 import { useUiStore } from "../store";
 import { categoryLabels, docsComponents, localizedCategory, localizedDescription } from "./components-docs";
 import type { Locale } from "../store";
@@ -187,7 +187,7 @@ function DocsPage() {
                 <p className="m-0 text-[#3A404C]">在你的 MyGo 项目里添加依赖。Breeze UI 需要 MyGo v0.7.4 或更高版本。</p>
                 <div className="flex items-center gap-3 rounded-xl bg-[#F8F9FB] p-1.5 pl-4 shadow-[inset_0_0_0_1px_#E2E4E9]">
                   <span className="font-mono text-sm text-[#8A90A0]">$</span>
-                  <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm">go get github.com/yldm-tech/mygo-breeze-ui</code>
+                  <ShellCode code="go get github.com/yldm-tech/mygo-breeze-ui" className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-sm" />
                   <CopyButton value="go get github.com/yldm-tech/mygo-breeze-ui" />
                 </div>
                 <p className="m-0 text-[#3A404C]">想先看看效果？克隆仓库后运行组件画廊，三个平台会并排显示：</p>
