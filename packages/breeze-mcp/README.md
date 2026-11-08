@@ -8,7 +8,28 @@ Run it from a checkout with:
 bun run packages/breeze-mcp/src/index.ts
 ```
 
-For an MCP client that supports command configuration, use `breeze-ui-mcp` as the command after installing the package. The server communicates over stdio and never starts a network listener.
+For Claude Code, add the package as a project-scoped stdio server:
+
+```sh
+claude mcp add --transport stdio --scope project breeze-ui -- npx -y breeze-ui-mcp
+claude mcp list
+```
+
+For Codex CLI:
+
+```sh
+codex mcp add breeze-ui -- npx -y breeze-ui-mcp
+codex mcp list
+```
+
+For Cursor Agent:
+
+```sh
+agent mcp add breeze-ui -- npx -y breeze-ui-mcp
+agent mcp list
+```
+
+The server communicates over stdio and never starts a network listener.
 
 Available tools:
 
