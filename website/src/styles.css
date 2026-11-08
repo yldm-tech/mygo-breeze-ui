@@ -36,6 +36,7 @@
   .syntax-function { color: #1f5fbf; }
   .syntax-type { color: #0b7a63; }
   .syntax-flag { color: #b4540a; }
+  .syntax-constant { color: #8a3fd1; }
 }
 
 :root { color-scheme: light; }

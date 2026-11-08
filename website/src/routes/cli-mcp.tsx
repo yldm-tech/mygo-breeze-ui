@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowUpRight, Braces, Terminal } from "lucide-react";
 import { RootRoute } from "./root";
 import { useUiStore } from "../store";
 import { Seo } from "../components/Seo";
-import { ShellCodeBlock } from "../components/CodeHighlight";
+import { JsonCodeBlock, ShellCodeBlock } from "../components/CodeHighlight";
 
 export const CliMcpRoute = createRoute({
   getParentRoute: () => RootRoute,
@@ -14,6 +14,15 @@ export const CliMcpRoute = createRoute({
 function CodeBlock({ children }: { children: string }) {
   return <ShellCodeBlock code={children} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />;
 }
+
+const mcpConfig = `{
+  "mcpServers": {
+    "breeze-ui": {
+      "command": "npx",
+      "args": ["--yes", "breeze-ui-mcp"]
+    }
+  }
+}`;
 
 function CliMcpPage() {
   const { locale } = useUiStore();
@@ -47,8 +56,8 @@ function CliMcpPage() {
             <div className="mb-6 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#eaf7f2] text-mint"><Braces size={19} /></span><div><p className="m-0 font-mono text-[10px] uppercase tracking-[0.08em] text-dim">MCP</p><h2 className="m-0 text-2xl tracking-[-0.04em]">breeze-ui-mcp</h2></div></div>
             <p className="mb-6 text-sm leading-[1.7] text-muted">{zh ? "只读 MCP 服务把 Breeze UI 目录交给编程 Agent，不启动网络监听器。" : "The read-only MCP server gives the Breeze UI catalog to a coding agent without starting a network listener."}</p>
             <CodeBlock>{`bun install\nbun run packages/breeze-mcp/src/index.ts`}</CodeBlock>
-            <p className="mt-5 text-sm leading-[1.7] text-muted">{zh ? "服务提供搜索组件、查看组件、列出平台和生成代码片段四个工具。" : "It exposes four tools: search components, inspect a component, list platforms and generate snippets."}</p>
-            <CodeBlock>{"breeze-ui-mcp"}</CodeBlock>
+            <p className="mt-5 text-sm leading-[1.7] text-muted">{zh ? "服务提供搜索组件、查看组件、列出平台和生成代码片段四个工具。把下面的配置交给支持 MCP 的编程 Agent；服务通过 stdio 启动，不是单独运行的网络命令。" : "It exposes four tools: search components, inspect a component, list platforms and generate snippets. Give the configuration below to an MCP-capable coding agent; it starts over stdio rather than as a standalone network command."}</p>
+            <JsonCodeBlock code={mcpConfig} className="overflow-x-auto rounded-xl border border-line bg-[#15171c] p-5 font-mono text-[13px] leading-[1.8] text-[#dce3e8]" />
             <a className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint hover:text-ink" href="https://github.com/yldm-tech/mygo-breeze-ui/tree/main/packages/breeze-mcp" target="_blank" rel="noreferrer">{zh ? "查看 MCP 源码" : "View the MCP source"}<ArrowUpRight size={15} /></a>
           </article>
         </div>
