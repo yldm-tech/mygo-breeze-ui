@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo"
 	_ "github.com/egoist/mygo/locales/zh-Hans"
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/editor"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
@@ -366,9 +367,62 @@ func (b *book) panel(c *ui.Context, s *story) {
 					c.WriteClipboard(s.code(a))
 				}
 			})
-			ui.Text(c, s.code(a)).Font("monospace").Selectable().TextColor(t.Text)
+			ui.RichText(c, highlightGoCode(s.code(a))...).Font("monospace").Selectable().TextColor(t.Text)
 		})
 	})
+}
+
+// highlightGoCode uses MyGo's editor tokenizer so the code shown in the panel
+// follows Go's syntax rules while remaining one selectable text element.
+func highlightGoCode(code string) []ui.Span {
+	language := editor.LanguageNamed("go")
+	if language == nil || language.Tokenizer == nil {
+		return []ui.Span{{Text: code}}
+	}
+
+	colors := map[editor.TokenKind]ui.Color{
+		editor.TokenKeyword:     ui.Hex("#7c3aed"),
+		editor.TokenType:        ui.Hex("#1f5fbf"),
+		editor.TokenFunction:    ui.Hex("#0b7a63"),
+		editor.TokenConstant:    ui.Hex("#b45309"),
+		editor.TokenNumber:      ui.Hex("#b45309"),
+		editor.TokenString:      ui.Hex("#16825d"),
+		editor.TokenEscape:      ui.Hex("#16825d"),
+		editor.TokenComment:     ui.Hex("#6b7280"),
+		editor.TokenOperator:    ui.Hex("#4b5563"),
+		editor.TokenPunctuation: ui.Hex("#4b5563"),
+	}
+
+	lines := strings.Split(code, "\n")
+	spans := make([]ui.Span, 0, len(code)/4+1)
+	var state uint64
+	for i, line := range lines {
+		if i > 0 {
+			spans = append(spans, ui.Span{Text: "\n"})
+		}
+		tokens, nextState := language.Tokenizer.Tokenize(line, state, nil)
+		state = nextState
+		start := 0
+		for _, token := range tokens {
+			end := min(token.End, len(line))
+			if end <= start {
+				continue
+			}
+			span := ui.Span{Text: line[start:end]}
+			if color, ok := colors[token.Kind]; ok {
+				span.Color = color
+			}
+			spans = append(spans, span)
+			start = end
+		}
+		if start < len(line) {
+			spans = append(spans, ui.Span{Text: line[start:]})
+		}
+	}
+	if len(spans) == 0 {
+		return []ui.Span{{Text: " "}}
+	}
+	return spans
 }
 
 // control builds the editor of one of the story's arguments.
