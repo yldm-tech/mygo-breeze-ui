@@ -75,7 +75,7 @@ function CliMcpPage() {
         <section className="mt-4 rounded-2xl border border-line bg-panel-2 p-7 max-[680px]:p-5">
           <div className="mb-6 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-lg bg-white text-mint shadow-[inset_0_0_0_1px_#e2e4e9]"><Braces size={17} /></span><h2 className="m-0 text-2xl tracking-[-0.04em]">{zh ? "同一份目录，四种入口" : "One catalog, four entry points"}</h2></div>
           <div className="grid grid-cols-4 gap-3 max-[780px]:grid-cols-2 max-[480px]:grid-cols-1">
-            {(zh ? [["搜索组件", "按名称、分类或说明查找"], ["查看组件", "读取 drawn 或 themed 外观"], ["列出平台", "读取三个平台的版本"], ["生成片段", "输出可直接使用的 Go 代码"]] : [["Search", "Find by name, category or text"], ["Inspect", "Read drawn or themed looks"], ["Platforms", "Read the three platform versions"], ["Snippets", "Generate usable Go code"]]).map(([title, text]) => <div className="rounded-xl border border-line bg-white p-4" key={title}><h3 className="m-0 mb-2 text-sm">{title}</h3><p className="m-0 text-xs leading-[1.6] text-muted">{text}</p></div>)}
+            {(zh ? [["搜索组件", "按名称、分类或说明查找"], ["查看组件", "读取按平台自绘或套用平台主题的外观"], ["列出平台", "读取三个平台的版本"], ["生成片段", "输出可直接使用的 Go 代码"]] : [["Search", "Find by name, category or text"], ["Inspect", "Read drawn or themed looks"], ["Platforms", "Read the three platform versions"], ["Snippets", "Generate usable Go code"]]).map(([title, text]) => <div className="rounded-xl border border-line bg-white p-4" key={title}><h3 className="m-0 mb-2 text-sm">{title}</h3><p className="m-0 text-xs leading-[1.6] text-muted">{text}</p></div>)}
           </div>
         </section>
       </div>
